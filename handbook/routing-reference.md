@@ -67,12 +67,9 @@ python -m venv .venv
 
 ```sh
 curl -L --fail --retry 3 -C - -o data/raw/taiwan.osm.pbf https://download.geofabrik.de/asia/taiwan-latest.osm.pbf
-.venv/Scripts/python scripts/build_graph.py
-.venv/Scripts/python scripts/pack_data.py
-.venv/Scripts/python scripts/integrate_official_paths.py
-npm test
-npm run build
 ```
+
+舊的 `scripts/pack_data.py` 已停用：它會覆蓋增補設施並刪除路網的安全證據。現行路網更新與驗證步驟見[分級權重與接點搜尋](apis/tiered-routing.md)；在完成全流程及檢查前不要替換已驗證的正式資料。
 
 維修預排 resource ID 隨月份變更，更新前應核對資料集最新資源。不要把 manifest 的取得時間稱作現場調查時間。更新來源後重新 build，Service Worker 的版本會跟著資料變更。
 
