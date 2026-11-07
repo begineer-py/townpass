@@ -330,6 +330,36 @@ export default function App() {
   const [bearing, setBearing] = useState(0);
   const SHEET_SNAPS = [0.24, 0.56, 0.9];
   useEffect(()=>{if(route || routeError)setSheetSnap(v=>Math.max(v,1));},[route,routeError]);
+  // 抽屜最高只拉到內容的高度：內容短時，拉到最上面下面不會留白。
+  useLayoutEffect(() => {
+    const el = panelEl.current,
+      scroll = panelScroll.current;
+    if (!el || !scroll) return;
+    const measure = () => {
+      const last = scroll.lastElementChild;
+      if (!last) return;
+      const pad = parseFloat(getComputedStyle(scroll).paddingBottom) || 0;
+      const panelTop = el.getBoundingClientRect().top;
+      const contentBottom =
+        last.getBoundingClientRect().bottom + scroll.scrollTop + pad - panelTop;
+      el.style.setProperty("--sheet-max", `${Math.ceil(contentBottom)}px`);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    for (const child of scroll.children) ro.observe(child);
+    const mo = new MutationObserver(() => {
+      ro.disconnect();
+      for (const child of scroll.children) ro.observe(child);
+      measure();
+    });
+    mo.observe(scroll, { childList: true });
+    addEventListener("resize", measure);
+    return () => {
+      ro.disconnect();
+      mo.disconnect();
+      removeEventListener("resize", measure);
+    };
+  });
   function gripDown(e) {
     const el = panelEl.current;
     if (!el || e.button > 0) return;
@@ -340,7 +370,8 @@ export default function App() {
     const move = (ev) => {
       const dy = startY - ev.clientY;
       if (Math.abs(dy) > 5) gripDragged.current = true;
-      el.style.setProperty("--sheet-h", `${Math.max(110, startH + dy)}px`);
+      const max = parseFloat(el.style.getPropertyValue("--sheet-max")) || Infinity;
+      el.style.setProperty("--sheet-h", `${Math.min(max, Math.max(110, startH + dy))}px`);
     };
     const up = () => {
       window.removeEventListener("pointermove", move);

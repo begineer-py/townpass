@@ -2170,7 +2170,8 @@ small {
     right: 0;
     bottom: var(--nav-h);
     width: 100%;
-    height: var(--sheet-h, 56dvh);
+    /* 不超過內容高度（--sheet-max 由 App 量測），拉到最上面下面不會留白。 */
+    height: min(var(--sheet-h, 56dvh), var(--sheet-max, 100dvh));
     max-height: calc(100dvh - var(--nav-h) - 8px);
     margin: 0;
     border-radius: var(--r-xl) var(--r-xl) 0 0;
