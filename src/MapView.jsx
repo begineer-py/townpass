@@ -186,7 +186,11 @@ export default function MapView({
           label.textContent = ({elevator:'梯',toilet:'廁','public-toilet':'廁',rest:'休',water:'水',park:'園',ramp:'坡',station:'站',friendly:'店',parking:'停',bus:'車',health:'醫'})[category(p)] || '點';
           marker.bindTooltip(label, {permanent:true,direction:'center',className:'cluster-label'});
         } else marker.bindTooltip(tip, { direction: "top" });
-        marker.on("click", () => cb.current.onSelect(p));
+        marker.on("click", (ev) => {
+          L.DomEvent.stopPropagation(ev);
+          if (cb.current.pick) cb.current.onPick(p);
+          else cb.current.onSelect(p);
+        });
       }
     }
   }, [items, focus, colorFriendly]);

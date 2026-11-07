@@ -1,4 +1,16 @@
-export function getLocation() {
+import { sendToTownPass } from "./bridge.js";
+
+export async function getLocation() {
+  const bridged = await sendToTownPass("location");
+  if (Number.isFinite(bridged?.latitude) && Number.isFinite(bridged?.longitude)) {
+    return {
+      lat: bridged.latitude,
+      lon: bridged.longitude,
+      name: "我的位置",
+      id: "my-location",
+      accuracy: bridged.accuracy,
+    };
+  }
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) return reject(Error("unsupported"));
     navigator.geolocation.getCurrentPosition(
