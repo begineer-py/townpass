@@ -57,6 +57,8 @@ import MapView from "./MapView";
 import { routeFitPadding } from "./route-fit.mjs";
 import OfficialConditions from "./OfficialConditions";
 import ReferenceRouteResult from "./ReferenceRouteResult";
+import RouteChoice from "./RouteChoice.jsx";
+import {describeRouteChoices} from "./route-summary.mjs";
 import {createReferenceSearch} from "./reference-search.mjs";
 import {createConditionDetourSearch} from "./condition-detour-search.mjs";
 import {presentRouteCandidates, sortRouteCandidates} from "./route-candidates-presentation.mjs";
@@ -620,6 +622,14 @@ export default function App() {
     const items=[...sortedRouteCandidates.map(candidate=>({source:'local',candidate,distance:candidate.metrics.distanceMetres,score:candidate.score})),...displayedReferenceCandidates.map(candidate=>({source:'reference',candidate,distance:candidate.route.distanceMetres,score:candidate.score}))];
     return items.sort((a,b)=>{const distance=a.distance-b.distance,score=(Number.isFinite(b.score)?b.score:-1)-(Number.isFinite(a.score)?a.score:-1);return candidateSort==='distance'?distance||score:score||distance;});
   },[sidewalkComparison,sortedRouteCandidates,displayedReferenceCandidates,candidateSort]);
+  const unifiedRouteSummaries = useMemo(()=>{
+    if(!unifiedRouteChoices)return [];
+    const comparable=unifiedRouteChoices.filter(item=>Number.isFinite(item.score));
+    const descriptions=describeRouteChoices(comparable);
+    return unifiedRouteChoices.map(item=>{const index=comparable.indexOf(item);return index>=0?descriptions[index]:describeRouteChoices([item])[0];});
+  },[unifiedRouteChoices]);
+  const localRouteSummaries = useMemo(()=>describeRouteChoices(sortedRouteCandidates.map(candidate=>({candidate,source:'local'}))),[sortedRouteCandidates]);
+  const selectedRouteScore = unifiedRouteChoices?.find(item=>route===item.candidate.route || (item.source==='local'&&selectedRouteCandidate===item.candidate.id))?.score ?? sortedRouteCandidates.find(candidate=>selectedRouteCandidate===candidate.id)?.score ?? displayedReferenceCandidates.find(candidate=>selectedRouteCandidate===candidate.id)?.score;
   const announce = (text, { quiet = false } = {}) => {
     setSrStatus("");
     setTimeout(() => setSrStatus(text), 50);
@@ -1839,29 +1849,25 @@ export default function App() {
                   </div>
                 )}
                 {(route || routeError) && start && end && ['idle','error'].includes(referenceState.status) && <button type="button" onClick={()=>findReferenceRoute(isVerifiedNavigationRoute(route)?route:null)}>尋找更多人行路線</button>}
-                {referenceCollapsed && referenceState.status==='ready' && <button type="button" onClick={()=>setReferenceCollapsed(false)}>查看線條說明</button>}
-                <ReferenceRouteResult status={referenceCollapsed?'idle':referenceState.status} route={referenceRoute} candidates={displayedReferenceCandidates} selected={selectedRouteCandidate} onSelect={selectOfficialCandidate} comparisonStatus={referenceState.comparisonStatus} showCandidates={!unifiedRouteChoices} showLegend={route?.kind==='official-passageway'||!route} showSelectedNotice={route?.kind==='official-passageway'||!route} start={start} end={end} message={referenceState.message} onClose={()=>{if(route?.kind==='official-passageway')setReferenceCollapsed(true);else {referenceSearch.current.cancel();referenceSnapshot.current=null;referenceBaseline.current=null;}}} />
                 {unifiedRouteChoices?.length>0 && <section className="route-alternatives" aria-label="選擇路線">
                   <h3>選擇路線</h3>
                   {unifiedRouteChoices.length>1 && <div className="candidate-sort" role="group" aria-label="路線排序">
                     <button type="button" aria-pressed={candidateSort==='score'} onClick={()=>{manualRouteSelection.current=true;setCandidateSort('score');}}>較好走優先</button>
                     <button type="button" aria-pressed={candidateSort==='distance'} onClick={()=>{manualRouteSelection.current=true;setCandidateSort('distance');}}>依距離</button>
                   </div>}
-                  {unifiedRouteChoices.map((item,index)=>{const candidate=item.candidate,source=item.source==='reference',m=source?null:candidate.metrics,c=source?candidate.coverage:null,fmt=v=>Number.isFinite(v)?formatDistance(v):'資料不足';return <button type="button" className="route-alternative" key={`${item.source}:${candidate.id}`} aria-pressed={route===candidate.route || (!source&&selectedRouteCandidate===candidate.id)} disabled={source?!isCurrentOfficialRoute(candidate.route):!constructionFresh(lastConstruction.current)||candidate.route?.construction?.sourceUpdatedAt!==lastConstruction.current?.sourceUpdatedAt} onClick={()=>source?selectOfficialCandidate(candidate):selectRouteCandidate(candidate)}>
-                    <strong>路線 {index+1} · {fmt(item.distance)} · {Number.isFinite(item.score)?`分數 ${item.score.toFixed(1)}`:'分數未提供'}</strong>
-                    <span>一般人行道 {fmt(source?c?.generalSidewalkMetres:m?.explicitSidewalkMetres)} · 人車共行 {fmt(source?c?.sharedMetres:m?.sharedMetres)}</span>
-                    <span>資料未知 {fmt(source?c?.unknownMetres:m?.unknownMetres)} · 起終點銜接 {fmt(source?c?.estimatedApproachMetres:m?.estimatedMetres)}</span>
-                    <span>官方不利通行紀錄（2 公尺內）：{(source?c?.officialConditionCount:m?.officialConditionCount)==null?'資料不足':`${source?c.officialConditionCount:m.officialConditionCount} 筆`}</span>
-                  </button>;})}
+                  {unifiedRouteSummaries.some(summary=>summary.hasUnknown && !summary.concern.includes('資料不足')) && <p className="route-choice__note">部分路況資料不足</p>}
+                  {unifiedRouteChoices.map((item,index)=>{const candidate=item.candidate,source=item.source==='reference';return <RouteChoice key={`${item.source}:${candidate.id}`} number={index+1} distance={item.distance} summary={unifiedRouteSummaries[index]} selected={route===candidate.route || (!source&&selectedRouteCandidate===candidate.id)} disabled={source?!isCurrentOfficialRoute(candidate.route):!constructionFresh(lastConstruction.current)||candidate.route?.construction?.sourceUpdatedAt!==lastConstruction.current?.sourceUpdatedAt} onClick={()=>source?selectOfficialCandidate(candidate):selectRouteCandidate(candidate)}/>;})}
                 </section>}
+                {referenceCollapsed && referenceState.status==='ready' && <button type="button" onClick={()=>setReferenceCollapsed(false)}>查看線條說明</button>}
+                <ReferenceRouteResult status={referenceCollapsed?'idle':referenceState.status} route={referenceRoute} candidates={displayedReferenceCandidates} selected={selectedRouteCandidate} onSelect={selectOfficialCandidate} comparisonStatus={referenceState.comparisonStatus} showCandidates={!unifiedRouteChoices} showLegend={route?.kind==='official-passageway'||!route} showSelectedNotice={route?.kind==='official-passageway'||!route} start={start} end={end} message={referenceState.message} onClose={()=>{if(route?.kind==='official-passageway')setReferenceCollapsed(true);else {referenceSearch.current.cancel();referenceSnapshot.current=null;referenceBaseline.current=null;}}} />
                 {route && (
                   <>
                     <div className="route-summary"><h2>{start?.nearbyOriginal||end?.nearbyOriginal?'路網路線':'全程'} {formatDistance(route.distance)}</h2></div>
                     {(route.routeSearchStatus==='projection-limit'||route.conditionDetourComparison==='projection-limit'||route.pedestrianImprovement?.status==='projection-limit'||route.routeCandidates?.status==='projection-limit'||route.avoidanceStatus==='projection-limit') && <p role="status">部分比較未完成，路線仍可查看；可重新規劃。</p>}
                     {route.officialConditions?.status === "unavailable" && <p className="quiet-note" role="note">目前查不到沿途通行問題紀錄。</p>}
                     {routeWorks.length > 0 && <p className="quiet-note" role="note">附近有施工，請留意現場指引。</p>}
-                    {route.kind!=='official-passageway' && <RouteLegend segments={[route]} colorFriendly={prefs.colorFriendly}/>}
-                    <OfficialConditions conditions={route.officialConditions} onAvoid={avoidOfficialCondition} avoiding={conditionDetourState.status==='loading'}/>
+                    {route.kind!=='official-passageway' && <details className="route-disclosure"><summary>線條說明</summary><RouteLegend segments={[route]} colorFriendly={prefs.colorFriendly}/></details>}
+                    {route.officialConditions?.status==='available' && route.officialConditions.points?.length>0 && <details className="route-disclosure"><summary>查看沿途通行紀錄（{route.officialConditions.points.length}）</summary><OfficialConditions conditions={route.officialConditions} onAvoid={avoidOfficialCondition} avoiding={conditionDetourState.status==='loading'}/></details>}
                     {conditionDetourState.status==='loading'&&<p role="status">正在尋找繞路… <button type="button" onClick={()=>conditionDetourSearch.current.cancel()}>取消</button></p>}
                     {conditionDetourState.status==='error'&&<p role="status">{conditionDetourState.message}</p>}
                     {route.conditionDetour&&<p className="quiet-note" role="note">已規劃避開 {route.conditionDetour.targets.length} 筆所選官方紀錄點 10 公尺內的路線；點位與實際路況仍需現場確認。</p>}
@@ -1871,15 +1877,8 @@ export default function App() {
                         <button type="button" aria-pressed={candidateSort==='score'} onClick={()=>{manualRouteSelection.current=true;setCandidateSort('score');}}>較好走優先</button>
                         <button type="button" aria-pressed={candidateSort==='distance'} onClick={()=>{manualRouteSelection.current=true;setCandidateSort('distance');}}>依距離</button>
                       </div>}
-                      {sortedRouteCandidates.map((candidate,index)=>{const m=candidate.metrics; const length=v=>Number.isFinite(v)?formatDistance(v):"資料不足"; return <button type="button" className="route-alternative" key={candidate.id ?? index} aria-pressed={selectedRouteCandidate===candidate.id || (candidate.id==='original-route' && route===candidate.route)} onClick={()=>selectRouteCandidate(candidate)}>
-                        <strong>路線 {index+1} · {length(m.distanceMetres)} · {Number.isFinite(candidate.score)?`分數 ${candidate.score.toFixed(1)}`:'分數未提供'}</strong>
-                        <span>一般人行道 {length(m.explicitSidewalkMetres)} · 其他人行路網 {length(m.otherPedestrianMetres)} · 人車共行 {length(m.sharedMetres)}</span>
-                        <span>路寬、坡度、路面或過街資料未知 {length(m.unknownMetres)} · 估算銜接 {length(m.estimatedMetres)}</span>
-                        <span>較顛簸路面 {length(m.roughMetres)} · 較短候選多走 {length(m.detourMetres)}</span>
-                        <span>官方不利通行紀錄（2 公尺內）：{m.officialConditionCount == null ? '資料不足' : `${m.officialConditionCount} 筆`}</span>
-                        {m.officialConditionClasses && <span>活動區域分類：高 {m.officialConditionClasses.high} · 中 {m.officialConditionClasses.medium} · 低 {m.officialConditionClasses.low} · 未分類 {m.officialConditionClasses.unknown}</span>}
-                        {candidate.assumptions?.includes('official-attributes-missing-whole-route-penalty') && <span>官方資料不足，部分路段特徵未計入；評分包含資料缺失扣分。</span>}
-                      </button>;})}
+                      {localRouteSummaries.some(summary=>summary.hasUnknown && !summary.concern.includes('資料不足')) && <p className="route-choice__note">部分路況資料不足</p>}
+                      {sortedRouteCandidates.map((candidate,index)=><RouteChoice key={candidate.id ?? index} number={index+1} distance={candidate.metrics.distanceMetres} summary={localRouteSummaries[index]} selected={selectedRouteCandidate===candidate.id || (candidate.id==='original-route' && route===candidate.route)} disabled={!constructionFresh(lastConstruction.current)||candidate.route?.construction?.sourceUpdatedAt!==lastConstruction.current?.sourceUpdatedAt} onClick={()=>selectRouteCandidate(candidate)}/>)}
                     </section>}
                     {(followState.active || !route.viaName) && <button type="button" className="primary full" disabled={routing && !followState.active} onClick={followState.active ? stopFollowing : startFollowing}>
                       <LocateFixed size={20} aria-hidden="true" />{followState.active ? "停止跟隨" : "開始跟隨"}
@@ -1915,6 +1914,7 @@ export default function App() {
                     </ol>
                     </details>
                     <details className="route-disclosure"><summary>路線詳情</summary>
+                    {Number.isFinite(selectedRouteScore) && <p className="quiet-note">比較分數：{selectedRouteScore.toFixed(1)}</p>}
                     {destinationNotice && <p className="quiet-note" role="note">{destinationNotice}</p>}
                     {route.construction && <p className="quiet-note">施工資料更新：{new Date(route.construction.sourceUpdatedAt).toLocaleString('zh-TW', {timeZone:'Asia/Taipei'})}{route.construction.unmapped > 0 ? ` · ${route.construction.unmapped} 處施工位置待確認` : ''}</p>}
                     {route.construction?.avoided > 0 && (

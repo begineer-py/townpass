@@ -1479,3 +1479,16 @@ button.icon-action {
 .panel[data-tab="plan"] .endpoints .point-fields strong.placeholder {
   color: var(--tp-grayscale900);
 }
+
+/* Route choices use short text labels as well as restrained colour. */
+.route-alternative.route-choice { gap: 8px; padding: 14px; }
+.route-alternative .route-choice__heading { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 8px; color: var(--tp-grayscale900); font-size: 1.05rem; }
+.route-alternative .route-choice__heading strong { font-size: 1.1rem; }
+.route-alternative .route-choice__selected { color: var(--tp-primary700); font-size: .875rem; font-weight: 600; }
+.route-alternative .route-choice__line { display: flex; align-items: baseline; gap: 10px; width: 100%; font-size: 1rem; line-height: 1.5; color: var(--tp-grayscale800); }
+.route-alternative .route-choice__line > b { flex: none; font-size: .875rem; font-weight: 600; }
+.route-alternative .route-choice__line > span { color: var(--tp-grayscale800); font-size: 1rem; }
+.route-alternative .route-choice__strength > b { color: var(--tp-primary700); }
+.route-alternative .route-choice__concern > b { color: var(--tp-orange700); }
+.route-choice__note { margin: 8px 0; color: var(--tp-grayscale600); font-size: .875rem; }
+.reference-route-result.reference-route-result--compact { padding: 0; border: 0; }
