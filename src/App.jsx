@@ -115,6 +115,11 @@ const filters = [
 ];
 // Shown before 更多: the four a wheelchair or low-vision user reaches for first.
 const MAIN_FILTERS = 4;
+const routeModes = {
+  balanced: "均衡走法",
+  gentle: "偏好平緩",
+  crossings: "減少過街",
+};
 const basePrefs = {
   avoidSteps: true,
   minWidth: 0.8,
