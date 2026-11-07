@@ -1015,10 +1015,6 @@ small {
   margin: 12px 0;
   line-height: 1.85;
 }
-.sentence,
-.sentence-form {
-  margin: 0 0 12px;
-}
 .route-tools {
   display: flex;
   flex-wrap: wrap;

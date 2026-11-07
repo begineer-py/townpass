@@ -1,4 +1,4 @@
-import { category, distance, normalize } from "./data.js";
+import { category, distance } from "./data.js";
 import { stationKey } from "./format.mjs";
 
 export const IDENTITIES = [
@@ -53,39 +53,6 @@ export function identityFromUser(info) {
   if (/嬰兒車|推車|stroller/i.test(text)) return "stroller";
   if (/樂齡|長輩|senior/i.test(text)) return "senior";
   return null;
-}
-
-export function parseTripSentence(text) {
-  const s = String(text || "").replace(/臺/g, "台").trim();
-  let identity = null;
-  if (/嬰兒車|推車/.test(s)) identity = "stroller";
-  else if (/輪椅/.test(s)) identity = "wheelchair";
-  else if (/樂齡|長輩/.test(s)) identity = "senior";
-  let stop = null;
-  if (/廁所/.test(s)) stop = "toilet";
-  else if (/椅|歇腳|休息/.test(s)) stop = "rest";
-  const m = s.match(/從(.+?)到(.+?)(?:[，,。]|順便|$)/);
-  return {
-    identity,
-    stop,
-    startName: m?.[1]?.trim() || "",
-    endName: m?.[2]?.trim() || "",
-  };
-}
-
-export function matchPlace(name, places) {
-  const q = normalize(name);
-  if (!q || !places?.length) return null;
-  const hits = places.filter((p) => {
-    const n = normalize(p.name);
-    return n && (n.includes(q) || q.includes(n));
-  });
-  hits.sort(
-    (a, b) =>
-      (normalize(a.name) === q ? 0 : 1) - (normalize(b.name) === q ? 0 : 1) ||
-      a.name.length - b.name.length,
-  );
-  return hits[0] || null;
 }
 
 export function nearestStop(route, places, kind, limit = 150) {

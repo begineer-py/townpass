@@ -109,8 +109,6 @@ import {
   PHONES,
   mapLink,
   identityFromUser,
-  parseTripSentence,
-  matchPlace,
   nearestStop,
   activeElevatorStops,
 } from "./trip-extras.mjs";
@@ -368,7 +366,6 @@ export default function App() {
     [listLimit, setListLimit] = useState(12),
     [stationQuery, setStationQuery] = useState(""),
     [speaking, setSpeaking] = useState(false),
-    [sentence, setSentence] = useState(""),
     [stepIndex, setStepIndex] = useState(0),
     [online, setOnline] = useState(navigator.onLine);
   const [routeCandidates, setRouteCandidates] = useState([]);
@@ -1164,42 +1161,6 @@ export default function App() {
     wantedStop.current = null;
     calculate(points);
   }
-  function applySentence(event) {
-    event.preventDefault();
-    planSentence(sentence);
-  }
-  function planSentence(text, loaded) {
-    const available = loaded || dataGate.current.peek();
-    if (!available) {
-      clearRoute();
-      setGraphRequested(true);
-      announce('正在載入設施資料，完成後會繼續尋找。');
-      void afterData((ready) => planSentence(text, ready));
-      return;
-    }
-    const parsed = parseTripSentence(text);
-    const preset = IDENTITIES.find((row) => row[0] === parsed.identity);
-    const nextPrefs = preset
-      ? normalizeRoutingPreferences({
-          ...prefs,
-          ...preset[2],
-          identity: parsed.identity,
-          avoidSteps: true,
-          officialOnly: false,
-        })
-      : prefs;
-    if (preset) setPrefs(nextPrefs);
-    const from = matchPlace(parsed.startName, available.all);
-    const to = matchPlace(parsed.endName, available.all);
-    if (!from || !to) {
-      announce("這句話裡還沒對到出發地和目的地。");
-      return;
-    }
-    setStart(from);
-    setEnd(to);
-    wantedStop.current = parsed.stop;
-    calculate({ start: from, end: to, prefs: nextPrefs });
-  }
   function addStop(kind) {
     const hit = nearestStop(route, data?.all, kind);
     if (!hit) {
@@ -1720,17 +1681,6 @@ export default function App() {
                 </div>
                 <details className="settings-advanced plan-extras">
                   <summary>更多規劃選項</summary>
-                <form className="sentence" onSubmit={applySentence}>
-                  <label className="search-launch input">
-                    <Search size={20} />
-                    <input
-                      value={sentence}
-                      onChange={(e) => setSentence(e.target.value)}
-                      placeholder="例如：推嬰兒車從台北車站到大安森林公園，順便找無障礙廁所"
-                      aria-label="用一句話規劃路線"
-                    />
-                  </label>
-                </form>
                 <div className="mode-tabs" aria-label="出行身分">
                   {IDENTITIES.map(([id, name, preset]) => (
                     <button
