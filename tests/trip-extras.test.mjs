@@ -1,12 +1,30 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import { gunzipSync } from "node:zlib";
 import {
+  DEMOS,
+  resolveDemo,
   parseTripSentence,
   matchPlace,
   identityFromUser,
   activeElevatorStops,
   nearestStop,
 } from "../src/trip-extras.mjs";
+
+test('demo endpoints resolve official source records and refuse absent, changed or ambiguous records',()=>{
+ const facilities=JSON.parse(gunzipSync(fs.readFileSync(new URL('../public/data/facilities.json.gz',import.meta.url))));
+ for(const demo of DEMOS){
+  const points=resolveDemo(demo,facilities);assert.ok(points,demo.name);
+  assert.equal(points.start.id,demo.start.id);assert.equal(points.end.id,demo.end.id);
+  assert.ok(Number.isFinite(points.start.lat)&&Number.isFinite(points.end.lon));
+  assert.notDeepEqual([points.start.lat,points.start.lon],[points.end.lat,points.end.lon]);
+  assert.equal(resolveDemo(demo,facilities.filter(p=>p.id!==demo.start.id)),null);
+  const altered=facilities.map(p=>p.id===demo.end.id?{...p,name:'不同入口'}:p);assert.equal(resolveDemo(demo,altered),null);
+  assert.equal(resolveDemo(demo,[...facilities,points.start]),null);
+ }
+ assert.equal(resolveDemo(DEMOS[0],null),null);
+});
 
 test("a spoken trip keeps the identity, places and stop", () => {
   const parsed = parseTripSentence(

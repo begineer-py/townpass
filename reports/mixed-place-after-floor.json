@@ -1,0 +1,1713 @@
+{
+  "checkedAt": "2026-11-07T14:00:27.164Z",
+  "constructionFetchedAt": "2026-11-07T13:59:47.217Z",
+  "constructionUpdatedAt": "Sat, 07 Nov 2026 13:50:46 GMT",
+  "graphSha256": "bb211a0e906221556b5eb7621921733dd6586bb3649ba3dbf988907e22552f2d",
+  "constructionWorksSha256": "6fa688fe3cafa82ab0ff10e9f295231aad01c7eea9aa8ac1fa5242583c8ab0d0",
+  "seed": 20261110,
+  "method": "Fixed-seed sample of station + public POI pairs, two per type per straight-line distance bin; sample POIs without checking graph connectivity. Bounds are a rectangle, not the Taipei administrative boundary. Local routing only; no online official route, current elevator maintenance, field verification, or citywide representativeness. Shared and estimated distances are routing output, not evidence of safe accessibility.",
+  "dataSources": [
+    "public/data/places.json.gz (OpenStreetMap)",
+    "public/data/facilities.json.gz (Taipei official / OpenStreetMap)",
+    "public/data/graph.json.gz (OSM and official geometry)",
+    "live construction snapshot"
+  ],
+  "stationCount": 73,
+  "placePools": {
+    "health": {
+      "available": 1647,
+      "sampled": 100
+    },
+    "place": {
+      "available": 53771,
+      "sampled": 100
+    },
+    "park": {
+      "available": 1266,
+      "sampled": 100
+    },
+    "rest": {
+      "available": 1175,
+      "sampled": 100
+    },
+    "toilet": {
+      "available": 1634,
+      "sampled": 100
+    }
+  },
+  "availability": [
+    {
+      "bin": "0.5–1 km",
+      "type": "health",
+      "poolPairs": 74
+    },
+    {
+      "bin": "0.5–1 km",
+      "type": "place",
+      "poolPairs": 102
+    },
+    {
+      "bin": "0.5–1 km",
+      "type": "park",
+      "poolPairs": 86
+    },
+    {
+      "bin": "0.5–1 km",
+      "type": "rest",
+      "poolPairs": 71
+    },
+    {
+      "bin": "0.5–1 km",
+      "type": "toilet",
+      "poolPairs": 140
+    },
+    {
+      "bin": "1–2 km",
+      "type": "health",
+      "poolPairs": 306
+    },
+    {
+      "bin": "1–2 km",
+      "type": "place",
+      "poolPairs": 354
+    },
+    {
+      "bin": "1–2 km",
+      "type": "park",
+      "poolPairs": 300
+    },
+    {
+      "bin": "1–2 km",
+      "type": "rest",
+      "poolPairs": 232
+    },
+    {
+      "bin": "1–2 km",
+      "type": "toilet",
+      "poolPairs": 472
+    },
+    {
+      "bin": "2–4 km",
+      "type": "health",
+      "poolPairs": 1007
+    },
+    {
+      "bin": "2–4 km",
+      "type": "place",
+      "poolPairs": 1095
+    },
+    {
+      "bin": "2–4 km",
+      "type": "park",
+      "poolPairs": 967
+    },
+    {
+      "bin": "2–4 km",
+      "type": "rest",
+      "poolPairs": 859
+    },
+    {
+      "bin": "2–4 km",
+      "type": "toilet",
+      "poolPairs": 1425
+    },
+    {
+      "bin": "4–8 km",
+      "type": "health",
+      "poolPairs": 2588
+    },
+    {
+      "bin": "4–8 km",
+      "type": "place",
+      "poolPairs": 2600
+    },
+    {
+      "bin": "4–8 km",
+      "type": "park",
+      "poolPairs": 2393
+    },
+    {
+      "bin": "4–8 km",
+      "type": "rest",
+      "poolPairs": 2269
+    },
+    {
+      "bin": "4–8 km",
+      "type": "toilet",
+      "poolPairs": 2992
+    }
+  ],
+  "total": 40,
+  "success": 21,
+  "sharedRoutes": 15,
+  "estimatedRoutes": 21,
+  "sharedMetres": 7849,
+  "estimatedMetres": 635,
+  "successfulDistanceMetres": 73649,
+  "summary": [
+    {
+      "bin": "0.5–1 km",
+      "total": 10,
+      "success": 7,
+      "errors": {
+        "NO_CONNECTION": 3
+      }
+    },
+    {
+      "bin": "1–2 km",
+      "total": 10,
+      "success": 5,
+      "errors": {
+        "NO_CONNECTION": 2,
+        "NO_ROUTE": 3
+      }
+    },
+    {
+      "bin": "2–4 km",
+      "total": 10,
+      "success": 6,
+      "errors": {
+        "NO_ROUTE": 2,
+        "NO_CONNECTION": 2
+      }
+    },
+    {
+      "bin": "4–8 km",
+      "total": 10,
+      "success": 3,
+      "errors": {
+        "NO_CONNECTION": 5,
+        "NO_ROUTE": 2
+      }
+    }
+  ],
+  "results": [
+    {
+      "bin": "0.5–1 km",
+      "type": "health",
+      "start": {
+        "id": "w20-114",
+        "name": "台北車站(BL12)",
+        "kind": "20",
+        "sourceId": "wheel-20",
+        "coordinate": [
+          25.04631,
+          121.517415
+        ]
+      },
+      "end": {
+        "id": "osm-n3724770027",
+        "name": "禾馨婦產科",
+        "kind": "health",
+        "sourceId": "osm",
+        "coordinate": [
+          25.0430542,
+          121.5139668
+        ]
+      },
+      "straightMetres": 502,
+      "success": true,
+      "error": null,
+      "attemptErrors": null,
+      "distance": 958,
+      "sharedMetres": 0,
+      "sharedPct": 0,
+      "estimatedApproaches": [
+        {
+          "side": "start",
+          "distance": 2
+        },
+        {
+          "side": "end",
+          "distance": 25
+        }
+      ],
+      "estimatedMetres": 27
+    },
+    {
+      "bin": "0.5–1 km",
+      "type": "health",
+      "start": {
+        "id": "osm-n3377079806",
+        "name": "仁安內科小兒科",
+        "kind": "health",
+        "sourceId": "osm",
+        "coordinate": [
+          25.0268274,
+          121.5417635
+        ]
+      },
+      "end": {
+        "id": "w20-46",
+        "name": "大安(R05)",
+        "kind": "20",
+        "sourceId": "wheel-20",
+        "coordinate": [
+          25.033311,
+          121.54237
+        ]
+      },
+      "straightMetres": 724,
+      "success": false,
+      "error": "NO_CONNECTION",
+      "attemptErrors": {
+        "NO_CONNECTION": 2
+      },
+      "distance": null,
+      "sharedMetres": 0,
+      "sharedPct": null,
+      "estimatedApproaches": [],
+      "estimatedMetres": 0
+    },
+    {
+      "bin": "0.5–1 km",
+      "type": "place",
+      "start": {
+        "id": "w20-71",
+        "name": "南京三民(G18)",
+        "kind": "20",
+        "sourceId": "wheel-20",
+        "coordinate": [
+          25.051588,
+          121.56471
+        ]
+      },
+      "end": {
+        "id": "osm-w261197041",
+        "name": "臺北光復郵局",
+        "kind": "place",
+        "sourceId": "osm",
+        "coordinate": [
+          25.0479742,
+          121.557576
+        ]
+      },
+      "straightMetres": 823,
+      "success": false,
+      "error": "NO_CONNECTION",
+      "attemptErrors": {
+        "NO_CONNECTION": 2
+      },
+      "distance": null,
+      "sharedMetres": 0,
+      "sharedPct": null,
+      "estimatedApproaches": [],
+      "estimatedMetres": 0
+    },
+    {
+      "bin": "0.5–1 km",
+      "type": "place",
+      "start": {
+        "id": "osm-w360834287",
+        "name": "星辰大飯店",
+        "kind": "place",
+        "sourceId": "osm",
+        "coordinate": [
+          25.0364784,
+          121.5275555
+        ]
+      },
+      "end": {
+        "id": "w20-113",
+        "name": "善導寺(BL13)",
+        "kind": "20",
+        "sourceId": "wheel-20",
+        "coordinate": [
+          25.04468,
+          121.523885
+        ]
+      },
+      "straightMetres": 984,
+      "success": false,
+      "error": "NO_CONNECTION",
+      "attemptErrors": {
+        "NO_CONNECTION": 1
+      },
+      "distance": null,
+      "sharedMetres": 0,
+      "sharedPct": null,
+      "estimatedApproaches": [],
+      "estimatedMetres": 0
+    },
+    {
+      "bin": "0.5–1 km",
+      "type": "park",
+      "start": {
+        "id": "w20-45",
+        "name": "大安森林公園(R06)",
+        "kind": "20",
+        "sourceId": "wheel-20",
+        "coordinate": [
+          25.033225,
+          121.536151
+        ]
+      },
+      "end": {
+        "id": "osm-w403554089",
+        "name": "附中公園",
+        "kind": "park",
+        "sourceId": "osm",
+        "coordinate": [
+          25.0364494,
+          121.5422382
+        ]
+      },
+      "straightMetres": 710,
+      "success": true,
+      "error": null,
+      "attemptErrors": null,
+      "distance": 1225,
+      "sharedMetres": 148,
+      "sharedPct": 12,
+      "estimatedApproaches": [
+        {
+          "side": "end",
+          "distance": 19
+        }
+      ],
+      "estimatedMetres": 19
+    },
+    {
+      "bin": "0.5–1 km",
+      "type": "park",
+      "start": {
+        "id": "osm-w106335689",
+        "name": "林森公園",
+        "kind": "park",
+        "sourceId": "osm",
+        "coordinate": [
+          25.052921,
+          121.5268182
+        ]
+      },
+      "end": {
+        "id": "w20-113",
+        "name": "善導寺(BL13)",
+        "kind": "20",
+        "sourceId": "wheel-20",
+        "coordinate": [
+          25.04468,
+          121.523885
+        ]
+      },
+      "straightMetres": 963,
+      "success": true,
+      "error": null,
+      "attemptErrors": null,
+      "distance": 1409,
+      "sharedMetres": 0,
+      "sharedPct": 0,
+      "estimatedApproaches": [
+        {
+          "side": "start",
+          "distance": 10
+        },
+        {
+          "side": "end",
+          "distance": 8
+        }
+      ],
+      "estimatedMetres": 18
+    },
+    {
+      "bin": "0.5–1 km",
+      "type": "rest",
+      "start": {
+        "id": "w20-44",
+        "name": "東門(R07)",
+        "kind": "20",
+        "sourceId": "wheel-20",
+        "coordinate": [
+          25.033894,
+          121.528766
+        ]
+      },
+      "end": {
+        "id": "osm-n12835749902",
+        "name": "座椅",
+        "kind": "rest",
+        "sourceId": "osm",
+        "coordinate": [
+          25.034883,
+          121.5192381
+        ]
+      },
+      "straightMetres": 966,
+      "success": true,
+      "error": null,
+      "attemptErrors": null,
+      "distance": 1288,
+      "sharedMetres": 0,
+      "sharedPct": 0,
+      "estimatedApproaches": [
+        {
+          "side": "start",
+          "distance": 6
+        },
+        {
+          "side": "end",
+          "distance": 7
+        }
+      ],
+      "estimatedMetres": 13
+    },
+    {
+      "bin": "0.5–1 km",
+      "type": "rest",
+      "start": {
+        "id": "osm-w1489106069",
+        "name": "座椅",
+        "kind": "rest",
+        "sourceId": "osm",
+        "coordinate": [
+          25.0693675,
+          121.6209443
+        ]
+      },
+      "end": {
+        "id": "w20-86",
+        "name": "東湖(BR22)",
+        "kind": "20",
+        "sourceId": "wheel-20",
+        "coordinate": [
+          25.067455,
+          121.611535
+        ]
+      },
+      "straightMetres": 971,
+      "success": true,
+      "error": null,
+      "attemptErrors": null,
+      "distance": 1196,
+      "sharedMetres": 567,
+      "sharedPct": 47,
+      "estimatedApproaches": [
+        {
+          "side": "start",
+          "distance": 49
+        },
+        {
+          "side": "end",
+          "distance": 16
+        }
+      ],
+      "estimatedMetres": 65
+    },
+    {
+      "bin": "0.5–1 km",
+      "type": "toilet",
+      "start": {
+        "id": "w20-114",
+        "name": "台北車站(BL12)",
+        "kind": "20",
+        "sourceId": "wheel-20",
+        "coordinate": [
+          25.04631,
+          121.517415
+        ]
+      },
+      "end": {
+        "id": "toilets-268",
+        "name": "統一超商臺北市延華門市",
+        "kind": "public-toilet",
+        "sourceId": "toilets",
+        "coordinate": [
+          25.051881,
+          121.511969
+        ]
+      },
+      "straightMetres": 827,
+      "success": true,
+      "error": null,
+      "attemptErrors": null,
+      "distance": 977,
+      "sharedMetres": 211,
+      "sharedPct": 22,
+      "estimatedApproaches": [
+        {
+          "side": "start",
+          "distance": 8
+        },
+        {
+          "side": "end",
+          "distance": 41
+        }
+      ],
+      "estimatedMetres": 49
+    },
+    {
+      "bin": "0.5–1 km",
+      "type": "toilet",
+      "start": {
+        "id": "toilets-342",
+        "name": "捷運大安站(淡水信義線)",
+        "kind": "toilet",
+        "sourceId": "toilets",
+        "coordinate": [
+          25.033086,
+          121.543828
+        ]
+      },
+      "end": {
+        "id": "w20-45",
+        "name": "大安森林公園(R06)",
+        "kind": "20",
+        "sourceId": "wheel-20",
+        "coordinate": [
+          25.033225,
+          121.536151
+        ]
+      },
+      "straightMetres": 773,
+      "success": true,
+      "error": null,
+      "attemptErrors": null,
+      "distance": 778,
+      "sharedMetres": 0,
+      "sharedPct": 0,
+      "estimatedApproaches": [
+        {
+          "side": "start",
+          "distance": 9
+        }
+      ],
+      "estimatedMetres": 9
+    },
+    {
+      "bin": "1–2 km",
+      "type": "health",
+      "start": {
+        "id": "w20-19",
+        "name": "忠孝新生(BL14)",
+        "kind": "20",
+        "sourceId": "wheel-20",
+        "coordinate": [
+          25.0423,
+          121.5328
+        ]
+      },
+      "end": {
+        "id": "osm-n6404790261",
+        "name": "晨曦生活診所",
+        "kind": "health",
+        "sourceId": "osm",
+        "coordinate": [
+          25.0541912,
+          121.5333152
+        ]
+      },
+      "straightMetres": 1323,
+      "success": false,
+      "error": "NO_CONNECTION",
+      "attemptErrors": {
+        "NO_CONNECTION": 2
+      },
+      "distance": null,
+      "sharedMetres": 0,
+      "sharedPct": null,
+      "estimatedApproaches": [],
+      "estimatedMetres": 0
+    },
+    {
+      "bin": "1–2 km",
+      "type": "health",
+      "start": {
+        "id": "osm-n2816066945",
+        "name": "聖拱堂中藥舖",
+        "kind": "health",
+        "sourceId": "osm",
+        "coordinate": [
+          25.080316,
+          121.5917306
+        ]
+      },
+      "end": {
+        "id": "w20-90",
+        "name": "港墘(BR17)",
+        "kind": "20",
+        "sourceId": "wheel-20",
+        "coordinate": [
+          25.08007,
+          121.57516
+        ]
+      },
+      "straightMetres": 1669,
+      "success": true,
+      "error": null,
+      "attemptErrors": null,
+      "distance": 7882,
+      "sharedMetres": 2002,
+      "sharedPct": 25,
+      "estimatedApproaches": [
+        {
+          "side": "start",
+          "distance": 27
+        },
+        {
+          "side": "end",
+          "distance": 2
+        }
+      ],
+      "estimatedMetres": 29
+    },
+    {
+      "bin": "1–2 km",
+      "type": "place",
+      "start": {
+        "id": "w20-112",
+        "name": "忠孝敦化(BL16)",
+        "kind": "20",
+        "sourceId": "wheel-20",
+        "coordinate": [
+          25.041505,
+          121.55045
+        ]
+      },
+      "end": {
+        "id": "osm-n8118207169",
+        "name": "7-Eleven",
+        "kind": "place",
+        "sourceId": "osm",
+        "coordinate": [
+          25.0306812,
+          121.5459713
+        ]
+      },
+      "straightMetres": 1285,
+      "success": false,
+      "error": "NO_CONNECTION",
+      "attemptErrors": {
+        "NO_CONNECTION": 1
+      },
+      "distance": null,
+      "sharedMetres": 0,
+      "sharedPct": null,
+      "estimatedApproaches": [],
+      "estimatedMetres": 0
+    },
+    {
+      "bin": "1–2 km",
+      "type": "place",
+      "start": {
+        "id": "osm-n2144167917",
+        "name": "臺灣基督長老教會",
+        "kind": "place",
+        "sourceId": "osm",
+        "coordinate": [
+          25.0495161,
+          121.519025
+        ]
+      },
+      "end": {
+        "id": "w20-63",
+        "name": "松江南京(O08)",
+        "kind": "20",
+        "sourceId": "wheel-20",
+        "coordinate": [
+          25.052693,
+          121.53285
+        ]
+      },
+      "straightMetres": 1436,
+      "success": true,
+      "error": null,
+      "attemptErrors": null,
+      "distance": 1671,
+      "sharedMetres": 120,
+      "sharedPct": 7,
+      "estimatedApproaches": [
+        {
+          "side": "start",
+          "distance": 37
+        },
+        {
+          "side": "end",
+          "distance": 2
+        }
+      ],
+      "estimatedMetres": 39
+    },
+    {
+      "bin": "1–2 km",
+      "type": "park",
+      "start": {
+        "id": "w20-86",
+        "name": "東湖(BR22)",
+        "kind": "20",
+        "sourceId": "wheel-20",
+        "coordinate": [
+          25.067455,
+          121.611535
+        ]
+      },
+      "end": {
+        "id": "osm-w705366277",
+        "name": "瓶蓋印象公園",
+        "kind": "park",
+        "sourceId": "osm",
+        "coordinate": [
+          25.0537293,
+          121.6061538
+        ]
+      },
+      "straightMetres": 1620,
+      "success": false,
+      "error": "NO_ROUTE",
+      "attemptErrors": {
+        "NO_ROUTE": 3
+      },
+      "distance": null,
+      "sharedMetres": 0,
+      "sharedPct": null,
+      "estimatedApproaches": [],
+      "estimatedMetres": 0
+    },
+    {
+      "bin": "1–2 km",
+      "type": "park",
+      "start": {
+        "id": "osm-w556426483",
+        "name": "潭美公園",
+        "kind": "park",
+        "sourceId": "osm",
+        "coordinate": [
+          25.0572929,
+          121.5823151
+        ]
+      },
+      "end": {
+        "id": "w20-109",
+        "name": "永春(BL19)",
+        "kind": "20",
+        "sourceId": "wheel-20",
+        "coordinate": [
+          25.040855,
+          121.5762
+        ]
+      },
+      "straightMetres": 1929,
+      "success": false,
+      "error": "NO_ROUTE",
+      "attemptErrors": {
+        "NO_ROUTE": 1
+      },
+      "distance": null,
+      "sharedMetres": 0,
+      "sharedPct": null,
+      "estimatedApproaches": [],
+      "estimatedMetres": 0
+    },
+    {
+      "bin": "1–2 km",
+      "type": "rest",
+      "start": {
+        "id": "w20-65",
+        "name": "古亭(O05)",
+        "kind": "20",
+        "sourceId": "wheel-20",
+        "coordinate": [
+          25.026373,
+          121.522868
+        ]
+      },
+      "end": {
+        "id": "osm-n10223957103",
+        "name": "座椅",
+        "kind": "rest",
+        "sourceId": "osm",
+        "coordinate": [
+          25.0118647,
+          121.5276007
+        ]
+      },
+      "straightMetres": 1682,
+      "success": false,
+      "error": "NO_ROUTE",
+      "attemptErrors": {
+        "NO_ROUTE": 1
+      },
+      "distance": null,
+      "sharedMetres": 0,
+      "sharedPct": null,
+      "estimatedApproaches": [],
+      "estimatedMetres": 0
+    },
+    {
+      "bin": "1–2 km",
+      "type": "rest",
+      "start": {
+        "id": "osm-n8663527101",
+        "name": "座椅",
+        "kind": "rest",
+        "sourceId": "osm",
+        "coordinate": [
+          25.024455,
+          121.56438
+        ]
+      },
+      "end": {
+        "id": "w20-5",
+        "name": "象山(R02)",
+        "kind": "20",
+        "sourceId": "wheel-20",
+        "coordinate": [
+          25.032816,
+          121.57008
+        ]
+      },
+      "straightMetres": 1093,
+      "success": true,
+      "error": null,
+      "attemptErrors": null,
+      "distance": 1893,
+      "sharedMetres": 1295,
+      "sharedPct": 68,
+      "estimatedApproaches": [
+        {
+          "side": "start",
+          "distance": 12
+        },
+        {
+          "side": "end",
+          "distance": 25
+        }
+      ],
+      "estimatedMetres": 37
+    },
+    {
+      "bin": "1–2 km",
+      "type": "toilet",
+      "start": {
+        "id": "w20-17",
+        "name": "忠孝復興(BR10)",
+        "kind": "20",
+        "sourceId": "wheel-20",
+        "coordinate": [
+          25.041104,
+          121.543703
+        ]
+      },
+      "end": {
+        "id": "toilets-1200",
+        "name": "松山1號",
+        "kind": "public-toilet",
+        "sourceId": "toilets",
+        "coordinate": [
+          25.049222,
+          121.553986
+        ]
+      },
+      "straightMetres": 1374,
+      "success": true,
+      "error": null,
+      "attemptErrors": null,
+      "distance": 1930,
+      "sharedMetres": 67,
+      "sharedPct": 3,
+      "estimatedApproaches": [
+        {
+          "side": "start",
+          "distance": 17
+        },
+        {
+          "side": "end",
+          "distance": 37
+        }
+      ],
+      "estimatedMetres": 54
+    },
+    {
+      "bin": "1–2 km",
+      "type": "toilet",
+      "start": {
+        "id": "toilets-408",
+        "name": "大安區健康服務中心",
+        "kind": "toilet",
+        "sourceId": "toilets",
+        "coordinate": [
+          25.02146,
+          121.543954
+        ]
+      },
+      "end": {
+        "id": "w20-99",
+        "name": "麟光(BR06)",
+        "kind": "20",
+        "sourceId": "wheel-20",
+        "coordinate": [
+          25.018495,
+          121.558834
+        ]
+      },
+      "straightMetres": 1534,
+      "success": true,
+      "error": null,
+      "attemptErrors": null,
+      "distance": 2114,
+      "sharedMetres": 428,
+      "sharedPct": 20,
+      "estimatedApproaches": [
+        {
+          "side": "start",
+          "distance": 23
+        },
+        {
+          "side": "end",
+          "distance": 0
+        }
+      ],
+      "estimatedMetres": 23
+    },
+    {
+      "bin": "2–4 km",
+      "type": "health",
+      "start": {
+        "id": "w20-99",
+        "name": "麟光(BR06)",
+        "kind": "20",
+        "sourceId": "wheel-20",
+        "coordinate": [
+          25.018495,
+          121.558834
+        ]
+      },
+      "end": {
+        "id": "osm-n3748632788",
+        "name": "萬春堂藥房",
+        "kind": "health",
+        "sourceId": "osm",
+        "coordinate": [
+          25.026627,
+          121.5396194
+        ]
+      },
+      "straightMetres": 2136,
+      "success": true,
+      "error": null,
+      "attemptErrors": null,
+      "distance": 2890,
+      "sharedMetres": 189,
+      "sharedPct": 7,
+      "estimatedApproaches": [
+        {
+          "side": "start",
+          "distance": 0
+        },
+        {
+          "side": "end",
+          "distance": 9
+        }
+      ],
+      "estimatedMetres": 9
+    },
+    {
+      "bin": "2–4 km",
+      "type": "health",
+      "start": {
+        "id": "osm-n3929888390",
+        "name": "天德堂蔘藥行",
+        "kind": "health",
+        "sourceId": "osm",
+        "coordinate": [
+          24.9909725,
+          121.5398311
+        ]
+      },
+      "end": {
+        "id": "w20-97",
+        "name": "科技大樓(BR08)",
+        "kind": "20",
+        "sourceId": "wheel-20",
+        "coordinate": [
+          25.02612,
+          121.543462
+        ]
+      },
+      "straightMetres": 3925,
+      "success": true,
+      "error": null,
+      "attemptErrors": null,
+      "distance": 6129,
+      "sharedMetres": 0,
+      "sharedPct": 0,
+      "estimatedApproaches": [
+        {
+          "side": "start",
+          "distance": 3
+        },
+        {
+          "side": "end",
+          "distance": 47
+        }
+      ],
+      "estimatedMetres": 50
+    },
+    {
+      "bin": "2–4 km",
+      "type": "place",
+      "start": {
+        "id": "w20-81",
+        "name": "萬隆(G06)",
+        "kind": "20",
+        "sourceId": "wheel-20",
+        "coordinate": [
+          25.001978,
+          121.539008
+        ]
+      },
+      "end": {
+        "id": "osm-n4293261310",
+        "name": "臺灣銀行",
+        "kind": "place",
+        "sourceId": "osm",
+        "coordinate": [
+          24.9918752,
+          121.5739331
+        ]
+      },
+      "straightMetres": 3692,
+      "success": false,
+      "error": "NO_ROUTE",
+      "attemptErrors": {
+        "NO_ROUTE": 1
+      },
+      "distance": null,
+      "sharedMetres": 0,
+      "sharedPct": null,
+      "estimatedApproaches": [],
+      "estimatedMetres": 0
+    },
+    {
+      "bin": "2–4 km",
+      "type": "place",
+      "start": {
+        "id": "osm-n6134452961",
+        "name": "開丼",
+        "kind": "place",
+        "sourceId": "osm",
+        "coordinate": [
+          25.0456686,
+          121.5170956
+        ]
+      },
+      "end": {
+        "id": "w20-45",
+        "name": "大安森林公園(R06)",
+        "kind": "20",
+        "sourceId": "wheel-20",
+        "coordinate": [
+          25.033225,
+          121.536151
+        ]
+      },
+      "straightMetres": 2366,
+      "success": false,
+      "error": "NO_CONNECTION",
+      "attemptErrors": {
+        "NO_CONNECTION": 3
+      },
+      "distance": null,
+      "sharedMetres": 0,
+      "sharedPct": null,
+      "estimatedApproaches": [],
+      "estimatedMetres": 0
+    },
+    {
+      "bin": "2–4 km",
+      "type": "park",
+      "start": {
+        "id": "w20-71",
+        "name": "南京三民(G18)",
+        "kind": "20",
+        "sourceId": "wheel-20",
+        "coordinate": [
+          25.051588,
+          121.56471
+        ]
+      },
+      "end": {
+        "id": "osm-w315858480",
+        "name": "三興公園",
+        "kind": "park",
+        "sourceId": "osm",
+        "coordinate": [
+          25.0286588,
+          121.5596249
+        ]
+      },
+      "straightMetres": 2601,
+      "success": true,
+      "error": null,
+      "attemptErrors": null,
+      "distance": 3347,
+      "sharedMetres": 338,
+      "sharedPct": 10,
+      "estimatedApproaches": [
+        {
+          "side": "start",
+          "distance": 13
+        },
+        {
+          "side": "end",
+          "distance": 11
+        }
+      ],
+      "estimatedMetres": 24
+    },
+    {
+      "bin": "2–4 km",
+      "type": "park",
+      "start": {
+        "id": "osm-w777894207",
+        "name": "福文公園",
+        "kind": "park",
+        "sourceId": "osm",
+        "coordinate": [
+          25.0909498,
+          121.5272564
+        ]
+      },
+      "end": {
+        "id": "w20-16",
+        "name": "松山機場(BR13)",
+        "kind": "20",
+        "sourceId": "wheel-20",
+        "coordinate": [
+          25.063111,
+          121.55162
+        ]
+      },
+      "straightMetres": 3950,
+      "success": false,
+      "error": "NO_ROUTE",
+      "attemptErrors": {
+        "NO_ROUTE": 3
+      },
+      "distance": null,
+      "sharedMetres": 0,
+      "sharedPct": null,
+      "estimatedApproaches": [],
+      "estimatedMetres": 0
+    },
+    {
+      "bin": "2–4 km",
+      "type": "rest",
+      "start": {
+        "id": "w20-2",
+        "name": "復興崗(R23)",
+        "kind": "20",
+        "sourceId": "wheel-20",
+        "coordinate": [
+          25.137474,
+          121.485457
+        ]
+      },
+      "end": {
+        "id": "osm-n11467216525",
+        "name": "座椅",
+        "kind": "rest",
+        "sourceId": "osm",
+        "coordinate": [
+          25.1305341,
+          121.5040916
+        ]
+      },
+      "straightMetres": 2029,
+      "success": true,
+      "error": null,
+      "attemptErrors": null,
+      "distance": 2542,
+      "sharedMetres": 512,
+      "sharedPct": 20,
+      "estimatedApproaches": [
+        {
+          "side": "end",
+          "distance": 48
+        }
+      ],
+      "estimatedMetres": 48
+    },
+    {
+      "bin": "2–4 km",
+      "type": "rest",
+      "start": {
+        "id": "osm-n5203438352",
+        "name": "座椅",
+        "kind": "rest",
+        "sourceId": "osm",
+        "coordinate": [
+          25.0150262,
+          121.5362958
+        ]
+      },
+      "end": {
+        "id": "w20-4",
+        "name": "台北101/世貿(R03)",
+        "kind": "20",
+        "sourceId": "wheel-20",
+        "coordinate": [
+          25.033028,
+          121.562755
+        ]
+      },
+      "straightMetres": 3333,
+      "success": true,
+      "error": null,
+      "attemptErrors": null,
+      "distance": 4652,
+      "sharedMetres": 191,
+      "sharedPct": 4,
+      "estimatedApproaches": [
+        {
+          "side": "start",
+          "distance": 5
+        }
+      ],
+      "estimatedMetres": 5
+    },
+    {
+      "bin": "2–4 km",
+      "type": "toilet",
+      "start": {
+        "id": "w20-3",
+        "name": "信義安和(R04)",
+        "kind": "20",
+        "sourceId": "wheel-20",
+        "coordinate": [
+          25.03331,
+          121.55265
+        ]
+      },
+      "end": {
+        "id": "toilets-651",
+        "name": "拿坡里南昌店",
+        "kind": "public-toilet",
+        "sourceId": "toilets",
+        "coordinate": [
+          25.029481,
+          121.518681
+        ]
+      },
+      "straightMetres": 3447,
+      "success": true,
+      "error": null,
+      "attemptErrors": null,
+      "distance": 4519,
+      "sharedMetres": 237,
+      "sharedPct": 5,
+      "estimatedApproaches": [
+        {
+          "side": "end",
+          "distance": 17
+        }
+      ],
+      "estimatedMetres": 17
+    },
+    {
+      "bin": "2–4 km",
+      "type": "toilet",
+      "start": {
+        "id": "osm-n4378795756",
+        "name": "2F廁所",
+        "kind": "public-toilet",
+        "sourceId": "osm",
+        "coordinate": [
+          25.0714807,
+          121.4944689
+        ]
+      },
+      "end": {
+        "id": "w20-10",
+        "name": "西門(G12)",
+        "kind": "20",
+        "sourceId": "wheel-20",
+        "coordinate": [
+          25.042274,
+          121.508511
+        ]
+      },
+      "straightMetres": 3542,
+      "success": false,
+      "error": "NO_CONNECTION",
+      "attemptErrors": {
+        "NO_CONNECTION": 2
+      },
+      "distance": null,
+      "sharedMetres": 0,
+      "sharedPct": null,
+      "estimatedApproaches": [],
+      "estimatedMetres": 0
+    },
+    {
+      "bin": "4–8 km",
+      "type": "health",
+      "start": {
+        "id": "w20-10",
+        "name": "西門(G12)",
+        "kind": "20",
+        "sourceId": "wheel-20",
+        "coordinate": [
+          25.042274,
+          121.508511
+        ]
+      },
+      "end": {
+        "id": "osm-n10553916331",
+        "name": "俊昌藥局",
+        "kind": "health",
+        "sourceId": "osm",
+        "coordinate": [
+          25.0124671,
+          121.4797062
+        ]
+      },
+      "straightMetres": 4404,
+      "success": false,
+      "error": "NO_CONNECTION",
+      "attemptErrors": {
+        "NO_CONNECTION": 2
+      },
+      "distance": null,
+      "sharedMetres": 0,
+      "sharedPct": null,
+      "estimatedApproaches": [],
+      "estimatedMetres": 0
+    },
+    {
+      "bin": "4–8 km",
+      "type": "health",
+      "start": {
+        "id": "osm-n7820615971",
+        "name": "游正賢中醫診所",
+        "kind": "health",
+        "sourceId": "osm",
+        "coordinate": [
+          25.0013487,
+          121.555021
+        ]
+      },
+      "end": {
+        "id": "w20-16",
+        "name": "松山機場(BR13)",
+        "kind": "20",
+        "sourceId": "wheel-20",
+        "coordinate": [
+          25.063111,
+          121.55162
+        ]
+      },
+      "straightMetres": 6876,
+      "success": true,
+      "error": null,
+      "attemptErrors": null,
+      "distance": 9502,
+      "sharedMetres": 775,
+      "sharedPct": 8,
+      "estimatedApproaches": [
+        {
+          "side": "start",
+          "distance": 3
+        },
+        {
+          "side": "end",
+          "distance": 7
+        }
+      ],
+      "estimatedMetres": 10
+    },
+    {
+      "bin": "4–8 km",
+      "type": "place",
+      "start": {
+        "id": "w20-39",
+        "name": "雙連(R12)",
+        "kind": "20",
+        "sourceId": "wheel-20",
+        "coordinate": [
+          25.057575,
+          121.520685
+        ]
+      },
+      "end": {
+        "id": "osm-n3440499384",
+        "name": "我家義大利麵",
+        "kind": "place",
+        "sourceId": "osm",
+        "coordinate": [
+          25.0044697,
+          121.4962227
+        ]
+      },
+      "straightMetres": 6398,
+      "success": false,
+      "error": "NO_ROUTE",
+      "attemptErrors": {
+        "NO_ROUTE": 1
+      },
+      "distance": null,
+      "sharedMetres": 0,
+      "sharedPct": null,
+      "estimatedApproaches": [],
+      "estimatedMetres": 0
+    },
+    {
+      "bin": "4–8 km",
+      "type": "place",
+      "start": {
+        "id": "osm-w1005741393",
+        "name": "茶星星",
+        "kind": "place",
+        "sourceId": "osm",
+        "coordinate": [
+          25.0182072,
+          121.477625
+        ]
+      },
+      "end": {
+        "id": "w20-112",
+        "name": "忠孝敦化(BL16)",
+        "kind": "20",
+        "sourceId": "wheel-20",
+        "coordinate": [
+          25.041505,
+          121.55045
+        ]
+      },
+      "straightMetres": 7778,
+      "success": false,
+      "error": "NO_CONNECTION",
+      "attemptErrors": {
+        "NO_CONNECTION": 1
+      },
+      "distance": null,
+      "sharedMetres": 0,
+      "sharedPct": null,
+      "estimatedApproaches": [],
+      "estimatedMetres": 0
+    },
+    {
+      "bin": "4–8 km",
+      "type": "park",
+      "start": {
+        "id": "w20-65",
+        "name": "古亭(O05)",
+        "kind": "20",
+        "sourceId": "wheel-20",
+        "coordinate": [
+          25.026373,
+          121.522868
+        ]
+      },
+      "end": {
+        "id": "osm-w1222255179",
+        "name": "湧聲公園",
+        "kind": "park",
+        "sourceId": "osm",
+        "coordinate": [
+          25.042676,
+          121.5930449
+        ]
+      },
+      "straightMetres": 7296,
+      "success": false,
+      "error": "NO_CONNECTION",
+      "attemptErrors": {
+        "NO_CONNECTION": 1
+      },
+      "distance": null,
+      "sharedMetres": 0,
+      "sharedPct": null,
+      "estimatedApproaches": [],
+      "estimatedMetres": 0
+    },
+    {
+      "bin": "4–8 km",
+      "type": "park",
+      "start": {
+        "id": "osm-w215554743",
+        "name": "慈化公園",
+        "kind": "park",
+        "sourceId": "osm",
+        "coordinate": [
+          25.0845551,
+          121.488463
+        ]
+      },
+      "end": {
+        "id": "w20-2",
+        "name": "復興崗(R23)",
+        "kind": "20",
+        "sourceId": "wheel-20",
+        "coordinate": [
+          25.137474,
+          121.485457
+        ]
+      },
+      "straightMetres": 5892,
+      "success": false,
+      "error": "NO_CONNECTION",
+      "attemptErrors": {
+        "NO_CONNECTION": 2
+      },
+      "distance": null,
+      "sharedMetres": 0,
+      "sharedPct": null,
+      "estimatedApproaches": [],
+      "estimatedMetres": 0
+    },
+    {
+      "bin": "4–8 km",
+      "type": "rest",
+      "start": {
+        "id": "w20-39",
+        "name": "雙連(R12)",
+        "kind": "20",
+        "sourceId": "wheel-20",
+        "coordinate": [
+          25.057575,
+          121.520685
+        ]
+      },
+      "end": {
+        "id": "osm-n3999392740",
+        "name": "座椅",
+        "kind": "rest",
+        "sourceId": "osm",
+        "coordinate": [
+          25.0352796,
+          121.5879338
+        ]
+      },
+      "straightMetres": 7211,
+      "success": true,
+      "error": null,
+      "attemptErrors": null,
+      "distance": 10284,
+      "sharedMetres": 769,
+      "sharedPct": 7,
+      "estimatedApproaches": [
+        {
+          "side": "start",
+          "distance": 1
+        },
+        {
+          "side": "end",
+          "distance": 46
+        }
+      ],
+      "estimatedMetres": 47
+    },
+    {
+      "bin": "4–8 km",
+      "type": "rest",
+      "start": {
+        "id": "osm-n12112727598",
+        "name": "座椅",
+        "kind": "rest",
+        "sourceId": "osm",
+        "coordinate": [
+          25.0113873,
+          121.5073125
+        ]
+      },
+      "end": {
+        "id": "w20-109",
+        "name": "永春(BL19)",
+        "kind": "20",
+        "sourceId": "wheel-20",
+        "coordinate": [
+          25.040855,
+          121.5762
+        ]
+      },
+      "straightMetres": 7672,
+      "success": false,
+      "error": "NO_ROUTE",
+      "attemptErrors": {
+        "NO_ROUTE": 1
+      },
+      "distance": null,
+      "sharedMetres": 0,
+      "sharedPct": null,
+      "estimatedApproaches": [],
+      "estimatedMetres": 0
+    },
+    {
+      "bin": "4–8 km",
+      "type": "toilet",
+      "start": {
+        "id": "w20-112",
+        "name": "忠孝敦化(BL16)",
+        "kind": "20",
+        "sourceId": "wheel-20",
+        "coordinate": [
+          25.041505,
+          121.55045
+        ]
+      },
+      "end": {
+        "id": "toilets-192",
+        "name": "樹德公園(署)",
+        "kind": "toilet",
+        "sourceId": "toilets",
+        "coordinate": [
+          25.067032,
+          121.516499
+        ]
+      },
+      "straightMetres": 4444,
+      "success": false,
+      "error": "NO_CONNECTION",
+      "attemptErrors": {
+        "NO_CONNECTION": 1
+      },
+      "distance": null,
+      "sharedMetres": 0,
+      "sharedPct": null,
+      "estimatedApproaches": [],
+      "estimatedMetres": 0
+    },
+    {
+      "bin": "4–8 km",
+      "type": "toilet",
+      "start": {
+        "id": "toilets-1259",
+        "name": "新光三越台北信義新天地A11館",
+        "kind": "toilet",
+        "sourceId": "toilets",
+        "coordinate": [
+          25.036004,
+          121.567208
+        ]
+      },
+      "end": {
+        "id": "w20-40",
+        "name": "中山(R11)",
+        "kind": "20",
+        "sourceId": "wheel-20",
+        "coordinate": [
+          25.052621,
+          121.520364
+        ]
+      },
+      "straightMetres": 5066,
+      "success": true,
+      "error": null,
+      "attemptErrors": null,
+      "distance": 6463,
+      "sharedMetres": 0,
+      "sharedPct": 0,
+      "estimatedApproaches": [
+        {
+          "side": "start",
+          "distance": 29
+        },
+        {
+          "side": "end",
+          "distance": 14
+        }
+      ],
+      "estimatedMetres": 43
+    }
+  ]
+}

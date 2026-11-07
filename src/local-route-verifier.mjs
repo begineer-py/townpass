@@ -3,6 +3,37 @@ import {officialGeometryEvidence} from './supplemental-evidence.mjs';
 import {edgeAllowed,metres,ROUTING_POLICY,SNAP_METRES} from './routing.mjs';
 import {edgeTier,edgeCostDetails} from './route-tiers.mjs';
 const same=(a,b)=>a&&b&&a[0]===b[0]&&a[1]===b[1];
+// OSM level 0 is ground; Taiwanese labels 1F / 一樓 also denote ground.
+// Any ambiguous explicit level or indoor-only point fails closed. No level
+// or indoor metadata on its own is not evidence that the point is ground.
+function incompatibleFloor(p){
+ if(!p)return false;
+ const text=[p.name,p.description].filter(x=>typeof x==='string').join(' ');
+ if(/地下|地庫|地下室|頂樓|屋頂|basement|underground|rooftop/i.test(text))return true;
+ if(/(?:^|[^A-Za-z0-9])B\s*\d+(?:\s*F)?(?=$|[^A-Za-z])/i.test(text))return true;
+ let textGround=false;
+ for(const m of text.matchAll(/(?:^|[^A-Za-z0-9])(\d{1,2})\s*F(?=$|[^A-Za-z])/gi)){
+  if(Number(m[1])!==1)return true;textGround=true;
+ }
+ for(const m of text.matchAll(/(\d+|[一二三四五六七八九十壹貳參]+)\s*[樓楼層层]/g)){
+  if(!['1','一','壹'].includes(m[1]))return true;textGround=true;
+ }
+ let explicitGround=false;
+ for(const key of ['level','floor','addr:floor','addr:level','level:ref','repeat_on','layer','building:level']){
+  const v=p[key];if(v==null)continue;
+  // The OSM level index is zero based. Other unparsed values are unknown.
+  const s=String(v).trim();if(!/^[+-]?\d+(?:\.\d+)?$/.test(s)||Number(s)!==0)return true;
+  explicitGround=true;
+ }
+ // Other unknown level:* tags may encode a level restriction we cannot parse.
+ if(Object.keys(p).some(k=>k.startsWith('level:')&&k!=='level:ref'))return true;
+ const location=String(p.location||'').toLowerCase();
+ if(location&&!['surface','outdoor','indoor'].includes(location))return true;
+ const indoor=p.indoor!=null&&!['','no','false','0'].includes(String(p.indoor).toLowerCase());
+ const building=(p.building!=null&&!['','no','false','0'].includes(String(p.building).toLowerCase()))||Object.keys(p).some(k=>k.startsWith('building:'));
+ if((indoor||building||location==='indoor')&&!explicitGround&&!textGround)return true;
+ return false;
+}
 export function createLocalRouteVerifier(graph,facilities=[],places=[]){
  const {areas,crossings}=officialGeometryEvidence(graph),covered=polygonConnectorChecker(areas),roadClear=roadConnectorChecker(graph.roadGeometries,crossings);
  const poiKinds=new Set(['metro-elevator','place','health','park','rest','water','toilet','public-toilet','elevator','1','3','4','7','8','9','14','15','16','18']);
@@ -10,6 +41,7 @@ export function createLocalRouteVerifier(graph,facilities=[],places=[]){
  const pointKey=p=>`${p[0]}:${p[1]}`;
  function prohibited(p){
   if(!p)return false;
+  if(incompatibleFloor(p))return true;
   const ok=new Set(['yes','designated','permissive']);
   if([p.access,p.foot].some(v=>v!=null&&!ok.has(v))||p.wheelchair==='no')return true;
   if(p.barrier!=null&&!['no','kerb'].includes(p.barrier))return true;

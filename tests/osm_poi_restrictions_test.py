@@ -20,6 +20,19 @@ class OsmPoiRestrictionsTest(unittest.TestCase):
                 'access:forward': 'no', 'kerb:height': '0.1', 'name': 'ignored'}
         self.assertEqual(restriction_tags(tags), {k: v for k, v in tags.items() if k != 'name'})
 
+    def test_source_floor_context_is_retained_without_inventing_ground_floor(self):
+        p = {'id': 'osm-n1', 'sourceId': 'osm', 'lat': 25., 'lon': 121.5}
+        merge_matched(p, {'description': '2F', 'indoor': 'room', 'level': '1', 'layer': '1', 'addr:floor': '2', 'level:ref': '2F'})
+        self.assertEqual([p[k] for k in ('description', 'indoor', 'level', 'layer')],
+                         ['2F', 'room', '1', '1'])
+        self.assertEqual(p['addr:floor'], '2')
+        self.assertEqual(p['level:ref'], '2F')
+        self.assertNotIn('location', p)
+        merge_matched(p, {'description': '2F'})
+        self.assertEqual(p['description'], '2F')
+        self.assertNotIn('level', p)
+        self.assertNotIn('indoor', p)
+
     def test_way_centroid_reproduces_clipping_rounding_and_closure(self):
         points = [(25., 121.5), (25.0001, 121.5), (25.0001, 121.5001),
                   (25., 121.5), (24., 121.5)]

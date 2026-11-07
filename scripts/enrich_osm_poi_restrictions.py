@@ -122,6 +122,8 @@ def main():
               'missingExampleIds': [f'osm-{kind}{number}' for kind, number in sorted(missing)[:20]],
               'restrictionCounts': counts,
               'conditionalCount': sum(any(k.endswith(':conditional') for k in p if k.startswith(('access:', 'foot:', 'wheelchair:'))) for p in matched),
+              'floorContextCounts': {key: sum(p.get(key) is not None for p in matched)
+                                     for key in ('level', 'floor', 'addr:floor', 'addr:level', 'level:ref', 'indoor', 'location', 'layer', 'description', 'building', 'repeat_on')},
               'applied': args.apply}
     if args.apply:
         output = gzip.compress(json.dumps(places, ensure_ascii=False, separators=(',', ':')).encode(), 6, mtime=0)

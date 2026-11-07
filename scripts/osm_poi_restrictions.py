@@ -2,13 +2,14 @@
 
 import re
 
-BASE_KEYS = frozenset({'access', 'foot', 'wheelchair', 'barrier', 'entrance', 'door', 'kerb', 'oneway:foot'})
-PREFIXES = ('access:', 'foot:', 'wheelchair:', 'barrier:', 'entrance:', 'door:', 'kerb:')
+BASE_KEYS = frozenset({'access', 'foot', 'wheelchair', 'barrier', 'entrance', 'door', 'kerb', 'oneway:foot',
+                       'level', 'floor', 'addr:floor', 'addr:level', 'indoor', 'location', 'layer', 'description', 'building', 'repeat_on'})
+PREFIXES = ('access:', 'foot:', 'wheelchair:', 'barrier:', 'entrance:', 'door:', 'kerb:', 'level:', 'building:')
 OSM_POI_ID = re.compile(r'^osm-([nw])(\d+)$')
 
 
 def restriction_tags(tags):
-    """Copy only restriction tags; absent tags never imply permission."""
+    """Copy restrictions and floor context; absent tags never imply permission."""
     return {key: value for key, value in tags.items()
             if key in BASE_KEYS or key.startswith(PREFIXES)}
 

@@ -1,8 +1,8 @@
 {
-  "checkedAt": "2026-11-07T13:54:10.302790+00:00",
+  "checkedAt": "2026-11-07T13:59:44.749959+00:00",
   "source": "OSM PBF",
   "sourceSha256": "2859e277e04702b911ae5cd033f60e92aef963ad0e62c2bc66ca855d9c971eb3",
-  "placesSha256Before": "77eec290d7b78de6291ec42f603342884d45fdf7a04f4ae30626155380617090",
+  "placesSha256Before": "7f761150226a4f126ff757d6515d102d246f0849437a0ed5117b7c4a4d463350",
   "method": "exact node/way ID and original extraction coordinate check; matching is not an accessibility certification",
   "nodeRecords": 53519,
   "wayRecords": 6401,
@@ -21,6 +21,19 @@
     "wheelchair=no": 2553
   },
   "conditionalCount": 1,
+  "floorContextCounts": {
+    "level": 1912,
+    "floor": 4,
+    "addr:floor": 4383,
+    "addr:level": 33,
+    "level:ref": 10,
+    "indoor": 410,
+    "location": 49,
+    "layer": 494,
+    "description": 5192,
+    "building": 3057,
+    "repeat_on": 7
+  },
   "applied": true,
-  "placesSha256After": "7f761150226a4f126ff757d6515d102d246f0849437a0ed5117b7c4a4d463350"
+  "placesSha256After": "f6d28df1737b45a41beb7e515c2125c38e15e2bef664af79b1999d89dea03d41"
 }

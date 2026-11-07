@@ -66,6 +66,22 @@ test('OSM POI estimate requires a verified source match; non-OSM sources remain 
  const sharedLocation=createLocalRouteVerifier(g,[official],[{...osm,osmRestrictionsMatched:false}]);
  assert.equal(sharedLocation(r,p,b,{startPlace:official}).error,'OFFICIAL_ENTRY_UNVERIFIED');
 });
+test('upper, underground or unlocated indoor POIs cannot become ground-level connectors through aliases',()=>{
+ const g=base(),p=[25+30/111195,121.5],r=createRouter(g)(a,b),poi={id:'osm-n123',kind:'toilet',sourceId:'osm',osmRestrictionsMatched:true,lat:p[0],lon:p[1],name:'廁所'};
+ for(const patch of [{level:'1'},{level:'-1'},{level:'0;1'},{level:'unknown'},{'addr:level':'2'},{'addr:floor':'2'},
+  {'level:ref':'B1'},{repeat_on:'0;1'},{layer:'1'},{indoor:'yes'},{building:'yes'},
+  {location:'underground'},{name:'2F廁所'},{description:'2F'},{name:'地下一樓廁所'},{name:'公園二樓廁所'}]){
+  const source={...poi,...patch},alias={id:'alias',kind:'toilet',lat:p[0],lon:p[1]},v=createLocalRouteVerifier(g,[alias],[source]);
+  for(const place of [source,alias,{...alias,id:'forged'}]){
+   assert.equal(v.approachAllowed(p,p,place),false,JSON.stringify(patch));
+   assert.equal(v(r,p,b,{startPlace:place}).error,'OFFICIAL_ENTRY_UNVERIFIED',JSON.stringify(patch));
+  }
+ }
+ for(const patch of [{},{indoor:'yes',level:'0'},{indoor:'yes',name:'1F廁所'},{location:'surface'}]){
+  const source={...poi,...patch},result=createLocalRouteVerifier(g,[],[source])(r,p,b,{startPlace:source});
+  assert.equal(result.error,undefined,JSON.stringify(patch));assert.equal(result.approaches[0].estimated,true);
+ }
+});
 test('POI estimated approach cannot cross vehicle way or active construction',()=>{
  const g=base(),p=[25+30/111195,121.5],poi={id:'poi',kind:'park',lat:p[0],lon:p[1]},r=createRouter(g)(a,b);
  g.roadGeometries=[[[121.499,25+15/111195],[121.502,25+15/111195]]];

@@ -10,20 +10,35 @@ export const IDENTITIES = [
 export const DEMOS = [
   {
     name: "大安森林公園",
-    start: { name: "大安森林公園", lat: 25.0332, lon: 121.5355, id: "demo-daan-a" },
-    end: { name: "大安森林公園東側", lat: 25.0301, lon: 121.5356, id: "demo-daan-b" },
+    start: { id: "w7-720", name: "大安森林公園_11號出入口", sourceId: "wheel-7" },
+    end: { id: "w7-727", name: "大安森林公園_4號出入口", sourceId: "wheel-7" },
   },
   {
     name: "信義",
-    start: { name: "信義路起點", lat: 25.0331, lon: 121.5637, id: "demo-xinyi-a" },
-    end: { name: "信義路終點", lat: 25.0363, lon: 121.5656, id: "demo-xinyi-b" },
+    start: { id: "w7-810", name: "台北101/世貿站出口4-4", sourceId: "wheel-7" },
+    end: { id: "w7-438", name: "松壽廣場_6號出入口", sourceId: "wheel-7" },
   },
   {
     name: "北投",
-    start: { name: "北投起點", lat: 25.1321, lon: 121.4986, id: "demo-beitou-a" },
-    end: { name: "北投終點", lat: 25.1367, lon: 121.5036, id: "demo-beitou-b" },
+    start: { id: "metro-exits-65", name: "北投站出口無障礙坡道1", sourceId: "metro-exits" },
+    end: { id: "w7-341", name: "233號七星公園_4號出入口", sourceId: "wheel-7" },
   },
 ];
+
+// Never invent an entrance when the official source is missing, changed, or
+// duplicated. Resolve the actual current coordinates and restriction fields.
+export function resolveDemo(demo,facilities){
+ if(!Array.isArray(facilities))return null;
+ const resolve=ref=>{
+  if(!ref?.id||!ref?.name||!ref?.sourceId)return null;
+  const matches=facilities.filter(p=>p.id===ref.id);
+  if(matches.length!==1)return null;
+  const p=matches[0];
+  return p.name===ref.name&&p.sourceId===ref.sourceId&&Number.isFinite(p.lat)&&Number.isFinite(p.lon)?p:null;
+ };
+ const start=resolve(demo?.start),end=resolve(demo?.end);
+ return start&&end?{start,end}:null;
+}
 
 export const PHONES = { metro: "02-2181-2345", city: "1999" };
 

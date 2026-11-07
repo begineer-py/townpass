@@ -85,6 +85,7 @@ import { loadProfile, loadTrips, saveProfile, saveTrips } from "./local-database
 import {
   IDENTITIES,
   DEMOS,
+  resolveDemo,
   PHONES,
   mapLink,
   identityFromUser,
@@ -764,11 +765,13 @@ export default function App() {
     });
   }
   function runDemo(demo) {
-    setStart(demo.start);
-    setEnd(demo.end);
+    const points=resolveDemo(demo,data?.fac);
+    if(!points){announce('示範路線的官方入口資料暫時不可用，請稍後重試或自行選擇出發地與目的地。');return;}
+    setStart(points.start);
+    setEnd(points.end);
     setTab("plan");
     wantedStop.current = null;
-    calculate({ start: demo.start, end: demo.end });
+    calculate(points);
   }
   function applySentence(event) {
     event.preventDefault();
