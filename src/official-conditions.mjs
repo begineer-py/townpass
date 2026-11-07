@@ -12,10 +12,11 @@ function distance(p,a,b){
 }
 export function createOfficialConditionIndex(dataset){
  if(dataset?.schemaVersion!==1||!Array.isArray(dataset.points)||typeof dataset.fetchedAt!=='string')throw Error('INVALID_OFFICIAL_CONDITIONS');
- const grid=new Map(),cell=.00025,seen=new Set();
+ const grid=new Map(),cell=.00025,seen=new Set(),byId=new Map();
  for(const p of dataset.points){
   if(!p||!OFFICIAL_CONDITION_TYPES[p.type]||typeof p.id!=='string'||!p.id||!Number.isFinite(p.lat)||!Number.isFinite(p.lon)||p.lat<24||p.lat>27||p.lon<120||p.lon>123)throw Error('INVALID_OFFICIAL_CONDITION');
   const id=`${p.type}:${p.id}`;if(seen.has(id))throw Error('DUPLICATE_OFFICIAL_CONDITION');seen.add(id);
+  byId.set(id,p);
   const key=`${Math.floor(p.lat/cell)},${Math.floor(p.lon/cell)}`;if(!grid.has(key))grid.set(key,[]);grid.get(key).push(p);
  }
  function find(line,radius=2){
@@ -32,5 +33,5 @@ export function createOfficialConditionIndex(dataset){
   }
   return [...matches.values()].sort((a,b)=>a.distanceMetres-b.distanceMetres||a.id.localeCompare(b.id));
  }
- return {find,fetchedAt:dataset.fetchedAt,sourceObservedAt:dataset.sourceObservedAt??null,source:dataset.source};
+ return {find,get:(type,id)=>byId.get(`${type}:${id}`)||null,fetchedAt:dataset.fetchedAt,sourceObservedAt:dataset.sourceObservedAt??null,source:dataset.source};
 }
