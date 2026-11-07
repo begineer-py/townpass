@@ -57,7 +57,7 @@ import {TPColors} from "./tp-colors.mjs";
 import VoiceSearch from "./VoiceSearch";
 import {searchVerifiedAlternatives} from "./alternative-routes.mjs";
 import {fetchConstruction} from "./construction-client.mjs";
-import {startLocalFallback} from "./local-fallback.mjs";
+import {canFallbackAfterVerification, startLocalFallback} from "./local-fallback.mjs";
 import {constructionFresh, CONSTRUCTION_MAX_AGE} from "./construction.mjs";
 import { requestOfficialRoute } from "./official-router.mjs";
 import { ROUTING_POLICY } from "./routing.mjs";
@@ -713,7 +713,11 @@ export default function App() {
             else if(alternatives.error==='CONSTRUCTION_UNAVAILABLE')verified=alternatives;
           }
           setConstructionConflict(verified.construction || null);
-          if(verified.error || !['official-polygons-and-crossings-v1','pedestrian-network-v1'].includes(verified.geometryVerification) || verified.policyVersion !== ROUTING_POLICY) setRouteError(verified.error || 'UNVERIFIED_NETWORK');
+          if (canFallbackAfterVerification(verified.error)) {
+            localStarted = startLocalFallback(worker.current,id,from,to,requestPrefs,construction);
+            if (!localStarted) setRouteError(verified.error);
+          }
+          else if(verified.error || !['official-polygons-and-crossings-v1','pedestrian-network-v1'].includes(verified.geometryVerification) || verified.policyVersion !== ROUTING_POLICY) setRouteError(verified.error || 'UNVERIFIED_NETWORK');
           else { setRoute(verified); setStepIndex(0); }
         }
       } catch (error) {
