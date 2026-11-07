@@ -1739,15 +1739,6 @@ export default function App() {
                       : "路網正在背景準備，請先選擇起點與終點。"}
                   </p>
                 )}
-                {(route || followState.active) && <div className="point-actions">
-                  <button type="button" onClick={followState.active?stopFollowing:startFollowing} disabled={!followState.active && (routing || Boolean(route?.viaName || route?.requiresEntryConfirmation || route?.conditionDetour))}>
-                    <LocateFixed size={16}/>{followState.active?'停止位置跟隨':'開始位置跟隨'}
-                  </button>
-                </div>}
-                {route?.viaName && !followState.active && <p className="quiet-note">順路停靠的行程暫不支援位置跟隨。</p>}
-                {(followState.active || followState.message) && <p className="quiet-note" role="status">
-                  {followState.message || ({following:'位置跟隨中；偏離門檻依定位精度調整，輕微偏離可能不會觸發。',replanning:'偵測到偏離，正在重新規劃。',uncertain:'定位精度或時間不足，暫停自動重新規劃。',failed:'暫時無法重新規劃。',unavailable:'目前路線資料不足，暫停位置跟隨。'}[followState.status]||'')}
-                </p>}
                 {nearbyWarnings(start, end).map(message => (
                   <p key={message} className="quiet-note">{message}</p>
                 ))}
@@ -1814,6 +1805,102 @@ export default function App() {
                 )}
                 {route && (
                   <>
+                    <div className="route-summary">
+                      <div>
+                        <span className="eyebrow">路線預覽</span>
+                        <h2>{formatDistance(route.distance)}</h2>
+                      </div>
+                      <span className="route-symbol">
+                        <Footprints size={32} />
+                      </span>
+                    </div>
+                    {(route.requiresEntryConfirmation || route.approaches?.some(point => point.estimated) ||
+                      route.startGap > 10 || route.endGap > 10) && (
+                      <p className="quiet-note" role="note">出發前，請先確認入口能否通行。</p>
+                    )}
+                    {route.roadPct > 0 && (
+                      <p className="quiet-note" role="note">有些路段可能要與車輛共用道路，請留意來車。</p>
+                    )}
+                    {route.officialConditions?.points?.length > 0 && (
+                      <p className="quiet-note" role="note">路線附近有通行問題紀錄，可在路線詳情查看。</p>
+                    )}
+                    {routeWorks.length > 0 && (
+                      <p className="quiet-note" role="note">路線附近有施工，請留意現場指引。</p>
+                    )}
+                    {route.officialConditions?.status === "unavailable" && (
+                      <p className="quiet-note" role="note">目前查不到沿途通行問題紀錄。</p>
+                    )}
+                    {(followState.active || (!route.viaName && !route.requiresEntryConfirmation && !route.conditionDetour)) && (
+                      <button type="button" className="primary full" disabled={routing}
+                        onClick={followState.active ? stopFollowing : startFollowing}>
+                        <LocateFixed size={20} aria-hidden="true" />
+                        {followState.active ? "停止跟隨" : "開始跟隨"}
+                      </button>
+                    )}
+                    {(followState.active || followState.message) && (
+                      <p className="quiet-note" role="status">
+                        {followState.message || ({
+                          following: "跟隨中",
+                          replanning: "正在重新找路…",
+                          uncertain: "目前定位不夠準確。",
+                          failed: "暫時無法重新找路。",
+                          unavailable: "目前無法繼續跟隨。",
+                        }[followState.status] || "")}
+                      </p>
+                    )}
+                    <details className="route-disclosure">
+                      <summary>查看步驟</summary>
+                    <ol className="steps">
+                      {route.steps.map((s, i) => (
+                        <li
+                          key={i}
+                          className={stepIndex === i ? "current" : ""}
+                        >
+                          <button
+                            onClick={() => {
+                              setStepIndex(i);
+                              setFocus({ ...s, token: Date.now(), zoom: 18 });
+                            }}
+                          >
+                            <span className="step-number">{i + 1}</span>
+                            <span>
+                              <b>{stepText(s)}</b>
+                              <small>
+                                約 {formatDistance(s.distance)}
+                                {s.unknown &&
+                                route.provider !== "taipei-official"
+                                  ? " · 通行條件待確認"
+                                  : ""}
+                              </small>
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ol>
+                    </details>
+                    {routeCandidates.length > 1 && (
+                      <details className="route-disclosure">
+                        <summary>比較路線</summary>
+                        <div className="candidate-sort" role="group" aria-label="路線排序">
+                          <button type="button" aria-pressed={candidateSort === "score"} onClick={() => setCandidateSort("score")}>推薦順序</button>
+                          <button type="button" aria-pressed={candidateSort === "distance"} onClick={() => setCandidateSort("distance")}>距離較短</button>
+                        </div>
+                        {sortedRouteCandidates.map((candidate, index) => (
+                          <button type="button" className="route-alternative" key={candidate.id}
+                            aria-pressed={selectedRouteCandidate === candidate.id} onClick={() => selectRouteCandidate(candidate)}>
+                            <strong>路線 {index + 1} · {formatDistance(candidate.metrics.distanceMetres)}</strong>
+                            {candidate.metrics.sharedMetres > 0 && <span>約 {formatDistance(candidate.metrics.sharedMetres)} 可能需與車輛共用道路</span>}
+                          </button>
+                        ))}
+                      </details>
+                    )}
+                    <details className="route-disclosure">
+                      <summary>路線詳情</summary>
+                        <p>
+                          {route.provider === "local-verified" ? "另一條人行路線" : route.provider === "local-detour" ? "已改走避開施工的人行路線" : route.provider === "taipei-official"
+                            ? "臺北市無障礙通行路線圖台回傳"
+                            : "離線人行路網參考"}
+                        </p>
                     {route.construction && <p className="quiet-note">施工資料更新：{new Date(route.construction.sourceUpdatedAt).toLocaleString('zh-TW', {timeZone:'Asia/Taipei'})}{route.construction.unmapped > 0 ? ` · ${route.construction.unmapped} 處施工位置待確認` : ''}</p>}
                     {route.viaName && (
                       <p className="quiet-note">順路停靠：{route.viaName}</p>
@@ -1823,50 +1910,7 @@ export default function App() {
                         今天有捷運電梯保養，離線規劃會盡量不從那些出口經過。
                       </p>
                     )}
-                    {routeCandidates.length > 0 && <section className="route-alternatives" aria-label="選擇路線">
-                      <h3>選擇路線</h3>
-                      <p className="quiet-note">分數僅供比較，不代表安全保證。地圖顯示目前選擇的路線。</p>
-                      {routeCandidates.length===1 && <p className="quiet-note">本次搜尋找到一條可比較的路線。</p>}
-                      {routeCandidates.length>1 && <div className="candidate-sort" role="group" aria-label="路線排序">
-                        <button type="button" aria-pressed={candidateSort==='score'} onClick={()=>setCandidateSort('score')}>依分數</button>
-                        <button type="button" aria-pressed={candidateSort==='distance'} onClick={()=>setCandidateSort('distance')}>依距離</button>
-                      </div>}
-                      {sortedRouteCandidates.map((candidate,index)=>{const m=candidate.metrics; const length=v=>Number.isFinite(v)?formatDistance(v):"資料不足"; return <button type="button" className="route-alternative" key={candidate.id ?? index} aria-pressed={selectedRouteCandidate===candidate.id} onClick={()=>selectRouteCandidate(candidate)}>
-                        <strong>路線 {index+1} · {candidate.route.provider==='taipei-official' ? '官方路線' : '本機路線'} · {length(m.distanceMetres)} · 分數 {candidate.score.toFixed(1)}</strong>
-                        <span>明示人行道 {length(m.explicitSidewalkMetres)} · 其他人行路網 {length(m.otherPedestrianMetres)} · 人車共行 {length(m.sharedMetres)}</span>
-                        <span>路寬、坡度、路面或過街資料未知 {length(m.unknownMetres)} · 估算銜接 {length(m.estimatedMetres)}</span>
-                        <span>較顛簸路面 {length(m.roughMetres)} · 較短候選多走 {length(m.detourMetres)}</span>
-                        <span>官方不利通行紀錄（2 公尺內）：{m.officialConditionCount == null ? '資料不足' : `${m.officialConditionCount} 筆`}</span>
-                        {candidate.assumptions?.includes('official-attributes-missing-whole-route-penalty') && <span>官方資料不足，部分路段特徵未計入；評分包含資料缺失扣分。</span>}
-                      </button>;})}
-                    </section>}
-                    <div className="route-summary">
-                      <div>
-                        <span className="eyebrow">路線預覽</span>
-                        <h2>{formatDistance(route.distance)}</h2>
-                        <p>
-                          {route.provider === "local-verified" ? "另一條人行路線" : route.provider === "local-detour" ? "已改走避開施工的人行路線" : route.provider === "taipei-official"
-                            ? "臺北市無障礙通行路線圖台回傳"
-                            : "離線人行路網參考"}
-                        </p>
-                      </div>
-                      <span className="route-symbol">
-                        <Footprints size={32} />
-                      </span>
-                    </div>
-                    {route.unknownPct > 0 && <p className="quiet-note">路寬／坡度：尚無完整資料</p>}
-                    {!route.requiresEntryConfirmation && (route.startGap > 10 || route.endGap > 10) && (
-                      <p className="quiet-note">
-                        起點距路網約 {route.startGap} 公尺，終點距路網約{" "}
-                        {route.endGap} 公尺；這兩段銜接尚未確認。
-                      </p>
-                    )}
-                    {route.roadPct > 0 && (
-                      <p className="quiet-note">
-                        約 {route.roadPct}%
-                        路程使用一般道路路網，尚未確認是否有連續人行空間。
-                      </p>
-                    )}
+                    {route.unknownPct > 0 && <p className="quiet-note">部分路段的路寬或坡度資料不足。</p>}
                     {(avoidedStairs.length > 0 || avoidedWorks.length > 0) && (
                       <>
                         <h2 className="section-title">這條路線已避開</h2>
@@ -2032,37 +2076,6 @@ export default function App() {
                         </button>
                       )}
                     </div>
-                    <div className="section-top">
-                      <h2>一步一步看路</h2>
-                      <span className="muted">共 {route.steps.length} 段</span>
-                    </div>
-                    <ol className="steps">
-                      {route.steps.map((s, i) => (
-                        <li
-                          key={i}
-                          className={stepIndex === i ? "current" : ""}
-                        >
-                          <button
-                            onClick={() => {
-                              setStepIndex(i);
-                              setFocus({ ...s, token: Date.now(), zoom: 18 });
-                            }}
-                          >
-                            <span className="step-number">{i + 1}</span>
-                            <span>
-                              <b>{stepText(s)}</b>
-                              <small>
-                                約 {formatDistance(s.distance)}
-                                {s.unknown &&
-                                route.provider !== "taipei-official"
-                                  ? " · 通行條件待確認"
-                                  : ""}
-                              </small>
-                            </span>
-                          </button>
-                        </li>
-                      ))}
-                    </ol>
                     <OfficialConditions
                       conditions={route.officialConditions}
                       onAvoid={avoidOfficialCondition}
@@ -2105,6 +2118,7 @@ export default function App() {
                         ))}
                       </>
                     )}
+                    </details>
                   </>
                 )}
               </>

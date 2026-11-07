@@ -1464,3 +1464,17 @@ button.icon-action {
   background: var(--tp-white);
   border: 2.5px solid var(--tp-red600);
 }
+
+.route-disclosure {
+  margin-block: 12px;
+}
+
+.route-disclosure > summary {
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
