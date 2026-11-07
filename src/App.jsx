@@ -1806,9 +1806,6 @@ export default function App() {
                 {route && (
                   <>
                     <div className="route-summary"><h2>{start?.nearbyOriginal||end?.nearbyOriginal?'路網路線':'全程'} {formatDistance(route.distance)}</h2></div>
-                    {(route.requiresEntryConfirmation || route.approaches?.some(point => point.estimated) || route.startGap > 10 || route.endGap > 10) && <p className="quiet-note" role="note">請先確認入口和銜接路段能否通行。</p>}
-                    {(route.roadPct > 0 || route.tierSegments?.some(segment => segment.sharedRoad === true)) && <p className="quiet-note" role="note">部分路段可能人車共用，請留意來車。</p>}
-                    {route.officialConditions?.points?.length > 0 && <p className="quiet-note" role="note">沿途附近有通行問題紀錄，請查看下方說明。</p>}
                     {route.officialConditions?.status === "unavailable" && <p className="quiet-note" role="note">目前查不到沿途通行問題紀錄。</p>}
                     {routeWorks.length > 0 && <p className="quiet-note" role="note">附近有施工，請留意現場指引。</p>}
                     <RouteLegend segments={[route]} colorFriendly={prefs.colorFriendly}/>
