@@ -1,0 +1,12 @@
+{
+  "files.exclude": {
+    "**/tests": true,
+    "**/*.test.*": true,
+    "**/*.spec.*": true
+  },
+  "search.exclude": {
+    "**/tests/**": true,
+    "**/*.test.*": true,
+    "**/*.spec.*": true
+  }
+}

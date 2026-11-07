@@ -61,6 +61,7 @@ import {
 import { getLocation } from "./location";
 import { townPassUserKey } from "./townpass-bridge";
 import { travelProfiles } from "./travel-profiles";
+import { loadProfile, loadTrips, saveProfile, saveTrips } from "./local-database";
 import { addressSearch } from "./address-search";
 import { maintenanceText, stationKey, stepText } from "./format.mjs";
 const icons = {
@@ -219,7 +220,7 @@ export default function App() {
       officialOnly: true,
     }));
   const [saved, setSaved] = useState(() => readSaved("hhz-saved", [])),
-    [trips, setTrips] = useState(() => readSaved("hhz-trips", []));
+    [trips, setTrips] = useState([]);
   const [route, setRoute] = useState(null),
     [routeError, setRouteError] = useState(""),
     [routing, setRouting] = useState(false),
@@ -281,16 +282,21 @@ export default function App() {
   }, [tab]);
   useEffect(() => {
     let active = true;
-    townPassUserKey().then((userKey) => {
+    townPassUserKey().then(async (userKey) => {
       if (!active) return;
       const key = userKey ? `hhz-profile-${userKey}` : "hhz-profile-local";
-      const stored = readSaved(key, null);
+      const [stored, storedTrips] = await Promise.all([
+        loadProfile(key),
+        loadTrips(key),
+      ]);
+      if (!active) return;
       const savedPrefs = readSaved(
         userKey ? `${key}-preferences` : "hhz-preferences",
         null,
       );
       setProfileStorageKey(key);
       setTravelProfile(travelProfiles[stored] ? stored : null);
+      setTrips(storedTrips);
       setPrefs({
         ...basePrefs,
         ...(savedPrefs || travelProfiles[stored]?.preferences || {}),
@@ -478,7 +484,7 @@ export default function App() {
     const profile = travelProfiles[id];
     if (!profile) return;
     setTravelProfile(id);
-    saveLocal(profileStorageKey, id);
+    void saveProfile(profileStorageKey, id);
     updatePrefs(profile.preferences);
     if (closeSheet) setModal(null);
   }
@@ -545,7 +551,7 @@ export default function App() {
     [facilities, viewport],
   );
   const searchResults = useMemo(() => {
-    if (!searchFor || !data) return [];
+    if (!searchFor || !data || !profileReady) return [];
     const q = normalize(query);
     const recentPlaces = trips
       .flatMap((trip) => [trip.start, trip.end])
@@ -584,6 +590,7 @@ export default function App() {
       .slice(0, 35);
   }, [
     data,
+    profileReady,
     query,
     searchFor,
     saved,
@@ -633,7 +640,7 @@ export default function App() {
     speechSynthesis.speak(u);
     setSpeaking(true);
   }
-  function saveTrip() {
+  async function saveTrip() {
     if (!route || route.policyVersion !== ROUTING_POLICY) return;
     const entry = {
       id: Date.now().toString(),
@@ -644,7 +651,7 @@ export default function App() {
       date: new Date().toISOString(),
     };
     const next = [entry, ...trips].slice(0, 12);
-    if (saveLocal("hhz-trips", next)) {
+    if (await saveTrips(profileStorageKey, next)) {
       setTrips(next);
       announce("行程已存好，稍後可以從「收藏」再打開。");
     } else announce("儲存空間不足，這次沒能存下行程。");
@@ -1096,7 +1103,7 @@ export default function App() {
                         onClick={() => {
                           const next = trips.filter((x) => x.id !== t.id);
                           setTrips(next);
-                          saveLocal("hhz-trips", next);
+                          void saveTrips(profileStorageKey, next);
                         }}
                       >
                         <X size={17} />

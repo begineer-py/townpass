@@ -42,6 +42,8 @@ input {
 button {
   cursor: pointer;
   color: inherit;
+  -webkit-user-select: none;
+  user-select: none;
 }
 button:disabled {
   cursor: wait;
@@ -392,7 +394,7 @@ small {
   padding: 0 14px;
   background: var(--paper);
   color: var(--action);
-  border-radius: 4px;
+  border-radius: 10px;
   font-weight: var(--tp-text-bodySemiBold-weight);
   box-shadow: 0 1px 4px color-mix(in srgb, var(--tp-black) 20%, transparent);
 }
@@ -405,7 +407,7 @@ small {
   left: 50%;
   transform: translateX(-50%);
   z-index: 450;
-  width: min(480px, calc(100% - 220px));
+  width: min(480px, calc(100% - 240px));
   min-height: 52px;
   display: flex;
   align-items: center;
@@ -1446,19 +1448,19 @@ small {
 }
 @media (max-width: 700px) {
   .map-controls {
-    top: 74px;
+    top: calc(74px + env(safe-area-inset-top));
     right: 10px;
     padding: 2px;
   }
   .map-search-button {
-    top: 12px;
+    top: calc(12px + env(safe-area-inset-top));
     left: 12px;
     right: 12px;
     transform: none;
     width: auto;
   }
   .map-menu-button {
-    top: 74px;
+    top: calc(74px + env(safe-area-inset-top));
     left: 12px;
   }
   .map-controls button {
@@ -1709,11 +1711,11 @@ small {
     font-size: var(--tp-text-bodyRegular-size);
   }
   .map-menu-button {
-    top: 10px;
+    top: calc(74px + env(safe-area-inset-top));
     left: 10px;
   }
   .map-controls {
-    top: 10px;
+    top: calc(74px + env(safe-area-inset-top));
     right: 10px;
   }
   .map-controls button {
