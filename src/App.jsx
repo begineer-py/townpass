@@ -1818,9 +1818,6 @@ export default function App() {
                     {route.conditionDetour&&<p className="quiet-note" role="note">已規劃避開 {route.conditionDetour.targets.length} 筆所選官方紀錄點 10 公尺內的路線；點位與實際路況仍需現場確認。</p>}
                     {routeCandidates.length > 0 && <section className="route-alternatives" aria-label="選擇路線">
                       <h3>選擇路線</h3>
-                      <p className="quiet-note">依已知的人行道、路面、坡度、通行紀錄及距離比較。地圖顯示目前選擇的路線，資料不足不代表好走。</p>
-                      <p className="quiet-note">官方紀錄依活動區域分類計分，高的權重較高；分類不代表障礙嚴重度。</p>
-                      {routeCandidates.length===1 && <p className="quiet-note">本次搜尋找到一條可比較的路線。</p>}
                       {routeCandidates.length>1 && <div className="candidate-sort" role="group" aria-label="路線排序">
                         <button type="button" aria-pressed={candidateSort==='score'} onClick={()=>setCandidateSort('score')}>較好走優先</button>
                         <button type="button" aria-pressed={candidateSort==='distance'} onClick={()=>setCandidateSort('distance')}>依距離</button>
