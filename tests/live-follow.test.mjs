@@ -22,6 +22,14 @@ test('stale, missing, inaccurate and future fixes cannot trigger replanning',()=
  for(const p of [fix(80,clock-31000),fix(80,clock+6000),fix(80,clock,31),{...fix(80,clock),timestamp:null},{...fix(80,clock),accuracy:null}]){c.sample(p);c.sample(p)}
  assert.equal(replans.length,0);
 });
+test('a low accuracy update invalidates a pending replan before its result arrives',()=>{
+ let clock=100000, cancellations=0, replans=0, status;
+ const c=createLiveFollow({coordinates:line,now:()=>clock,onReplan:()=>replans++,onUncertain:()=>cancellations++,onStatus:s=>status=s});
+ c.sample(fix(50,clock,3));clock+=1000;c.sample(fix(50,clock,3));
+ assert.equal(replans,1);assert.equal(c.isPending(),true);
+ clock+=1000;c.sample(fix(50,clock,80));
+ assert.equal(cancellations,1);assert.equal(c.isPending(),false);assert.equal(status,'uncertain');
+});
 test('returning to route resets consecutive evidence and stop discards later fixes',()=>{
  let clock=100000,replans=0,positions=0;const c=createLiveFollow({coordinates:line,now:()=>clock,onPosition:()=>positions++,onReplan:()=>replans++});
  c.sample(fix(50,clock));clock+=1000;c.sample(fix(0,clock));clock+=1000;c.sample(fix(50,clock));assert.equal(replans,0);

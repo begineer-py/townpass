@@ -21,7 +21,7 @@ export function distanceToRoute(point, coordinates) {
   return best;
 }
 
-export function createLiveFollow({coordinates, onPosition, onReplan, onStatus, now = () => Date.now()}) {
+export function createLiveFollow({coordinates, onPosition, onReplan, onStatus, onUncertain, now = () => Date.now()}) {
   let active = true, pending = false, lastTimestamp = -Infinity, lastAttempt = -Infinity, consecutive = 0, line = coordinates;
   const status = value => onStatus?.(value);
   return {
@@ -32,6 +32,8 @@ export function createLiveFollow({coordinates, onPosition, onReplan, onStatus, n
           !Number.isFinite(accuracy) || accuracy < 0 || accuracy > 30 ||
           !Number.isFinite(position?.lat) || !Number.isFinite(position?.lon)) {
         consecutive = 0;
+        pending = false;
+        onUncertain?.();
         status('uncertain');
         return;
       }

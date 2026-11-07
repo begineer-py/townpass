@@ -555,7 +555,7 @@ export default function App() {
   const changePoint = (which, p) => {
     stopFollowing();
     if(which==='end')p=destinationPoint(p);
-    locationRequest.current++;
+    cancelLocation();
     request.current++;
     setRouting(false);
     clearRoute();
@@ -622,7 +622,7 @@ export default function App() {
     }
     stopFollowing();
     // Discard any earlier one-shot positioning response before subscribing.
-    locationRequest.current++;
+    cancelLocation();
     const destination={...end,selectionKind:'user'},options={...prefs,avoidPoints};
     const session={engine:null,search:null,stopWatch:null,latest:null,referenceRoute:route};
     followSession.current=session;
@@ -669,6 +669,11 @@ export default function App() {
         }
         session.latest=p;setCurrentLocation(p);
       },
+      onUncertain:()=>{
+        if(followSession.current!==session)return;
+        session.latest=null;
+        session.search.cancel();
+      },
       onStatus:status=>{if(followSession.current===session)setFollowState(s=>({...s,active:true,status,message:status==='following'?'':s.message}));},
       onReplan:p=>{
         if(followSession.current!==session)return;
@@ -702,6 +707,7 @@ export default function App() {
     setQuery("");
   }
   const locationMessages={LOCATION_DENIED:'定位權限尚未開啟。請在瀏覽器網站設定或手機定位設定允許此網站，再點一次定位。',LOCATION_TIMEOUT:'定位等候較久，請移到訊號較好的地方再試一次。',LOCATION_INSECURE:'請使用HTTPS網址開啟此服務，才能使用定位。',LOCATION_UNSUPPORTED:'這個瀏覽器不支援定位，可以搜尋出發地。',LOCATION_UNAVAILABLE:'裝置目前無法提供位置，請確認手機定位服務已開啟，再試一次。'};
+  function cancelLocation(){ locationRequest.current++; setLocating(false); }
   async function locate(which, useAsStart = false) {
     if(which || useAsStart)stopFollowing();
     const locationId=++locationRequest.current;
@@ -727,7 +733,7 @@ export default function App() {
       autoLocated.current=false;
       if (locationId===locationRequest.current && (!which || version === tabVersion.current)) announce(locationMessages[locationError(error)]);
     } finally {
-      setLocating(false);
+      if(locationId===locationRequest.current)setLocating(false);
     }
   }
   function saveTravelProfile(id, closeSheet = true) {
@@ -771,11 +777,12 @@ export default function App() {
           return;
         }
       } catch (error) {
+        if(locationId!==locationRequest.current)return;
         setEnd(place);
         announce(locationMessages[locationError(error)]);
         return;
       } finally {
-        setLocating(false);
+        if(locationId===locationRequest.current)setLocating(false);
       }
     }
     if(from.needsConfirmation){setCurrentLocation(from);setEnd(place);announce('目前位置精度較低，請先確認出發地。');return;}
@@ -798,6 +805,7 @@ export default function App() {
     const from=fromPoint?{...fromPoint,selectionKind:'user'}:fromPoint,to=toPoint?{...toPoint,selectionKind:'user'}:toPoint;
     const requestPrefs={...(points?.prefs||prefs),avoidPoints,startPlace:from,endPlace:to};
     if(!from||!to){announce('請先選擇出發地和目的地。');return;}
+    cancelLocation();
     setGraphRequested(true);
     if(!graphReady){pendingRoute.current={...points,start:from,end:to};announce('正在準備路線，完成後會繼續規劃。');return;}
     pendingRoute.current=null;
@@ -1405,6 +1413,7 @@ export default function App() {
                     aria-label="交換起點與終點"
                     onClick={() => {
                       stopFollowing();
+                      cancelLocation();
                       setStart(swappedOrigin(end));
                       setEnd(destinationPoint(start));
                       clearRoute();
@@ -1819,6 +1828,7 @@ export default function App() {
                       <button
                         onClick={() => {
                           stopFollowing();
+                          cancelLocation();
                           request.current++;
                           setStart(t.start);
                           setEnd(t.end);
