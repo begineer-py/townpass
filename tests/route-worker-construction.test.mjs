@@ -20,8 +20,44 @@ test('a blocked via leg returns construction details instead of a diagnostic rou
   const result=replies.find(m=>m.id===42)?.result;
   assert.equal(result.error,'CONSTRUCTION_BLOCKED');
   assert.equal(result.coordinates,undefined);
+ assert.equal(result.routeGap,undefined);
   assert.deepEqual(result.construction.blocked.map(w=>w.id),['closure']);
  }finally{globalThis.fetch=oldFetch;globalThis.self=oldSelf;globalThis.postMessage=oldPost;}
+});
+
+test('worker diagnoses only a fully searched NO_ROUTE using the selected endpoint pair',async()=>{
+ const n=(x,id)=>[25,121.5+x/100700,0,id],points=[n(0,1),n(100,2),n(120,3),n(220,4)];
+ const proof={schemaVersion:2,coverage:0,maxUncoveredMetres:100,crossingCoverage:0,roadCrossingVerified:true,crossingVerified:true};
+ const area={type:'Polygon',coordinates:[[[121.49,24.99],[121.51,24.99],[121.51,25.01],[121.49,25.01],[121.49,24.99]]]};
+ const graph={officialPathEvidence:{schemaVersion:2},officialAreas:[area],officialCrossingAreas:[],roadGeometries:[[[121.52,25],[121.52,25.01]]],nodes:points,ways:[{name:'人行路',highway:'footway',width:2,slope:0}],edges:[[0,1,100,0,[],proof],[2,3,100,0,[],proof]]};
+ const oldFetch=globalThis.fetch,oldSelf=globalThis.self,oldPost=globalThis.postMessage,replies=[];
+ try{
+  globalThis.self={};globalThis.postMessage=message=>replies.push(message);
+  globalThis.fetch=async url=>({ok:true,arrayBuffer:async()=>new TextEncoder().encode(JSON.stringify(/facilities|places/.test(String(url))?[]:graph)).buffer});
+  await import('../src/route-worker.js?gap-test');await self.onmessage({data:{type:'init',url:'https://example.test/graph.json'}});
+  const stamp=new Date().toISOString(),construction={schemaVersion:1,fetchedAt:stamp,sourceUpdatedAt:stamp,works:[]};
+  await self.onmessage({data:{type:'plan-places',id:95,startPlace:{lat:points[0][0],lon:points[0][1]},endPlace:{lat:points[3][0],lon:points[3][1]},options:{},construction}});
+  const result=replies.find(m=>m.id===95)?.result;assert.equal(result.error,'NO_ROUTE');assert.equal(result.routeGap.status,'candidate');
+  assert.deepEqual(result.routeGap.startSide,points[1].slice(0,2));assert.deepEqual(result.routeGap.endSide,points[2].slice(0,2));
+  assert.equal(result.failedPair,undefined);assert.equal(result.coordinates,undefined);
+ }finally{globalThis.fetch=oldFetch;globalThis.self=oldSelf;globalThis.postMessage=oldPost;}
+});
+
+test('construction snapshot expiring during NO_ROUTE diagnosis suppresses gap points',async()=>{
+ const n=(x,id)=>[25,121.5+x/100700,0,id],points=[n(0,1),n(100,2),n(120,3),n(220,4)];
+ const proof={schemaVersion:2,coverage:0,maxUncoveredMetres:100,crossingCoverage:0,roadCrossingVerified:true,crossingVerified:true};
+ const area={type:'Polygon',coordinates:[[[121.49,24.99],[121.51,24.99],[121.51,25.01],[121.49,25.01],[121.49,24.99]]]};
+ const graph={officialPathEvidence:{schemaVersion:2},officialAreas:[area],officialCrossingAreas:[],roadGeometries:[[[121.52,25],[121.52,25.01]]],nodes:points,ways:[{highway:'footway',width:2,slope:0}],edges:[[0,1,100,0,[],proof],[2,3,100,0,[],proof]]};
+ const oldFetch=globalThis.fetch,oldSelf=globalThis.self,oldPost=globalThis.postMessage,oldNow=Date.now,replies=[];
+ try{
+  globalThis.self={};globalThis.postMessage=message=>replies.push(message);
+  globalThis.fetch=async url=>({ok:true,arrayBuffer:async()=>new TextEncoder().encode(JSON.stringify(/facilities|places/.test(String(url))?[]:graph)).buffer});
+  await import('../src/route-worker.js?gap-stale-test');await self.onmessage({data:{type:'init',url:'https://example.test/graph.json'}});
+  const base=oldNow(),stamp=new Date(base).toISOString(),construction={schemaVersion:1,fetchedAt:stamp,sourceUpdatedAt:stamp,works:[]};
+  let calls=0;Date.now=()=>++calls<3?base:base+31*60000;
+  await self.onmessage({data:{type:'plan-places',id:96,startPlace:{lat:points[0][0],lon:points[0][1]},endPlace:{lat:points[3][0],lon:points[3][1]},options:{},construction}});
+  const result=replies.find(m=>m.id===96)?.result;assert.equal(result.error,'CONSTRUCTION_UNAVAILABLE');assert.equal(result.routeGap,undefined);
+ }finally{Date.now=oldNow;globalThis.fetch=oldFetch;globalThis.self=oldSelf;globalThis.postMessage=oldPost;}
 });
 
 test('worker loads registered POIs before planning estimated approaches',async()=>{
@@ -40,7 +76,7 @@ test('worker loads registered POIs before planning estimated approaches',async()
  }finally{globalThis.fetch=oldFetch;globalThis.self=oldSelf;globalThis.postMessage=oldPost;}
 });
 
-test('worker offers a separately routed nearby point for an upstairs POI',async()=>{
+test('worker offers an unverified nearby point for an upstairs POI',async()=>{
  const a=[25,121.5],b=[25,121.501],p=[25+30/111195,121.5],poi={id:'poi',kind:'place',name:'二樓店',lat:p[0],lon:p[1],level:'1'};
  const proof={schemaVersion:2,coverage:0,maxUncoveredMetres:100,crossingCoverage:0,roadCrossingVerified:true,crossingVerified:true};
  const area={type:'Polygon',coordinates:[[[121.51,25],[121.511,25],[121.511,25.001],[121.51,25.001],[121.51,25]]]};
@@ -55,11 +91,11 @@ test('worker offers a separately routed nearby point for an upstairs POI',async(
   assert.equal(replies.find(m=>m.id===50)?.result.error,'NO_CONNECTION');
   await self.onmessage({data:{type:'nearby-positions',id:51,startPlace:poi,endPlace,options:{},construction}});
   const result=replies.find(m=>m.id===51)?.result,candidate=result.candidates.find(c=>c.side==='start');
-  assert.ok(candidate);assert.deepEqual([candidate.point.lat,candidate.point.lon],a);assert.ok(!('coordinates' in candidate));
+  assert.ok(candidate);assert.deepEqual([candidate.point.lat,candidate.point.lon],a);assert.equal(candidate.routeVerified,false);assert.equal(candidate.routeDistance,null);assert.ok(!('coordinates' in candidate));
  }finally{globalThis.fetch=oldFetch;globalThis.self=oldSelf;globalThis.postMessage=oldPost;}
 });
 
-test('worker routes explicit map and GPS starts with unconfirmed connectors, never as an end point',async()=>{
+test('worker routes map points on both ends and GPS only as start',async()=>{
  const a=[25,121.5],b=[25,121.501],p=[25+30/111195,121.5];
  const proof={schemaVersion:2,coverage:0,maxUncoveredMetres:100,crossingCoverage:0,roadCrossingVerified:true,crossingVerified:true};
  const area={type:'Polygon',coordinates:[[[121.51,25],[121.511,25],[121.511,25.001],[121.51,25.001],[121.51,25]]]};
@@ -75,7 +111,9 @@ test('worker routes explicit map and GPS starts with unconfirmed connectors, nev
    await self.onmessage({data:{type:'plan-places',id:60+i,startPlace,endPlace,options:{},construction}});
    const result=replies.find(m=>m.id===60+i)?.result;assert.equal(result.error,undefined);assert.equal(result.approaches[0].estimated,true);assert.equal(result.approaches[0].entryStatus,'unconfirmed');assert.equal(result.approaches[0].originKind,startPlace.originKind);
    await self.onmessage({data:{type:'plan-places',id:70+i,startPlace:endPlace,endPlace:startPlace,options:{},construction}});
-   assert.equal(replies.find(m=>m.id===70+i)?.result.error,'NO_CONNECTION');
+   const reversed=replies.find(m=>m.id===70+i)?.result;
+   if(startPlace.originKind==='map'){assert.equal(reversed.error,undefined);assert.equal(reversed.approaches.find(a=>a.side==='end')?.entryStatus,'unconfirmed');}
+   else assert.equal(reversed.error,'NO_CONNECTION');
   }
  }finally{globalThis.fetch=oldFetch;globalThis.self=oldSelf;globalThis.postMessage=oldPost;}
 });
@@ -99,5 +137,10 @@ test('official routes obey the same endpoint restriction and mark a GPS approach
   await self.onmessage({data:{type:'verify-official',id:81,start:p,end:b,route:candidate,options:{startPlace:gps},construction}});
   const result=replies.find(m=>m.id===81)?.result;assert.equal(result.error,undefined);assert.equal(result.approaches[0].estimated,true);assert.equal(result.approaches[0].unconfirmed,true);assert.equal(result.approaches[0].originKind,'gps');
   assert.deepEqual(result.approaches[0].coordinates,[p,a]);assert.deepEqual(result.networkCoordinates,[a,b]);
+  const end=[25+3/111195,121.501],mapEnd={id:'point-123',originKind:'map',lat:end[0],lon:end[1]};
+  await self.onmessage({data:{type:'verify-official',id:82,start:p,end,route:candidate,options:{startPlace:gps,endPlace:mapEnd},construction}});
+  const both=replies.find(m=>m.id===82)?.result;assert.equal(both.error,undefined);assert.deepEqual(both.networkCoordinates,[a,b]);
+  assert.equal(both.approaches.length,2);assert.deepEqual(both.approaches.map(x=>[x.side,x.originKind,x.unconfirmed]),[['start','gps',true],['end','map',true]]);
+  assert.deepEqual(both.approaches[1].coordinates,[b,end]);
  }finally{globalThis.fetch=oldFetch;globalThis.self=oldSelf;globalThis.postMessage=oldPost;}
 });

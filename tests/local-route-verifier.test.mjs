@@ -72,9 +72,9 @@ test('explicit GPS and map starts may connect with a machine-readable unconfirme
   {id:'my-location',originKind:'gps',locationSource:'browser',accuracy:20,needsConfirmation:false,lat:p[0],lon:p[1]}];
  for(const place of sources){const result=v(candidate,p,b,{startPlace:place});assert.equal(result.error,undefined);assert.equal(result.approaches[0].estimated,true);assert.equal(result.approaches[0].unconfirmed,true);assert.equal(result.approaches[0].entryStatus,'unconfirmed');assert.equal(result.approaches[0].originKind,place.originKind);assert.equal(result.approaches[0].distance,30);}
 });
-test('user point estimate is start-only, respects accuracy, provenance, knownOnly and source identity',()=>{
+test('map estimate is symmetric, GPS is start-only, and restrictions are retained',()=>{
  const g=base(),p=[25+30/111195,121.5],v=createLocalRouteVerifier(g),map={id:'point-123',originKind:'map',lat:p[0],lon:p[1]},gps={id:'my-location',originKind:'gps',locationSource:'browser',accuracy:20,needsConfirmation:false,lat:p[0],lon:p[1]};
- assert.equal(v.approachAllowed(p,a,map,{},'start'),true);assert.equal(v.approachAllowed(p,a,map,{},'end'),false);
+ assert.equal(v.approachAllowed(p,a,map,{},'start'),true);assert.equal(v.approachAllowed(p,a,map,{},'end'),true);assert.equal(v.approachAllowed(p,a,gps,{},'end'),false);
  assert.equal(v.approachAllowed(p,a,map,{knownOnly:true},'start'),false);
  const covered=base();covered.officialAreas=[{type:'Polygon',coordinates:[[[121.49,24.99],[121.51,24.99],[121.51,25.01],[121.49,25.01],[121.49,24.99]]]}];
  assert.equal(createLocalRouteVerifier(covered).approachAllowed(p,a,map,{knownOnly:true},'start'),false);
@@ -96,6 +96,13 @@ test('map start estimate still observes active construction',()=>{
  const now=Date.parse('2026-11-07T08:00:00Z'),stamp=new Date(now).toISOString(),works=[{id:'closed',start:'115/11/07',end:'115/11/07',hours:'24小時施工',impact:'blocked',geometries:[{type:'Point',coordinates:[p]}]}],snapshot={schemaVersion:1,fetchedAt:stamp,sourceUpdatedAt:stamp,works};
  const result=planPlaces(start,end,{},snapshot,{router:createRouter(g),verifyLocal:createLocalRouteVerifier(g),facilities:[],checker:createConstructionChecker(snapshot,now)});
  assert.equal(result.error,'CONSTRUCTION_BLOCKED');assert.equal(result.coordinates,undefined);
+});
+test('two user-selected map points independently connect to the walking network',()=>{
+ const g=base(),start={id:'point-101',originKind:'map',lat:25+10/111195,lon:121.5},end={id:'point-102',originKind:'map',lat:25+10/111195,lon:121.501};
+ const stamp=new Date().toISOString(),snapshot={schemaVersion:1,fetchedAt:stamp,sourceUpdatedAt:stamp,works:[]};
+ const result=planPlaces(start,end,{},snapshot,{router:createRouter(g),verifyLocal:createLocalRouteVerifier(g),facilities:[],checker:createConstructionChecker(snapshot)});
+ assert.equal(result.error,undefined);assert.deepEqual(result.approaches.filter(x=>x.originKind==='map').map(x=>x.side),['start','end']);
+ assert.ok(result.approaches.every(x=>x.estimated&&x.entryStatus==='unconfirmed'));
 });
 test('edge projection cannot skip a closer blocked node for a map start',()=>{
  const g=base(),middle=121.5005,p=[25+20/111195,middle],start={id:'point-123',originKind:'map',lat:p[0],lon:p[1]};

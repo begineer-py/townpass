@@ -1,4 +1,5 @@
 import { eligibleSharedRoad } from "./shared-road-policy.mjs";
+import { diagnoseRouteGap } from "./route-gap.mjs";
 import { roadConnectorChecker } from "./geometry.mjs";
 import { officialGeometryEvidence } from "./supplemental-evidence.mjs";
 import {edgeTier,edgeCostFactor,edgeCostDetails,ROUTE_TIERS} from "./route-tiers.mjs";
@@ -204,6 +205,13 @@ export function createRouter(graph) {
     if(metres(start,end)<.001)return {error:'SAME_POINT'};
     const targets=new Map(ends.chosen.map(p=>[p.index,p]));
     const workAllowed = new Map();
+    function canTraverse(ei){
+      const e=graph.edges[ei],w=graph.ways[e[3]];
+      if(!edgeAllowed(w,options,e[5]))return false;
+      if(!options.lineAllowed)return true;
+      if(!workAllowed.has(ei))workAllowed.set(ei,options.lineAllowed([graph.nodes[e[0]],...(e[4]||[]),graph.nodes[e[1]]]));
+      return workAllowed.get(ei);
+    }
     const dist = new Float64Array(graph.nodes.length).fill(Infinity),
       prev = new Int32Array(graph.nodes.length).fill(-1),
       edgePrev = new Int32Array(graph.nodes.length).fill(-1);
@@ -224,19 +232,7 @@ export function createRouter(graph) {
       for (const [v, ei] of adjacency[u]) {
         const e = graph.edges[ei],
           w = graph.ways[e[3]];
-        if (graph.nodes[v][2] || !edgeAllowed(w, options, e[5])) continue;
-        if (options.lineAllowed) {
-          if (!workAllowed.has(ei))
-            workAllowed.set(
-              ei,
-              options.lineAllowed([
-                graph.nodes[e[0]],
-                ...(e[4] || []),
-                graph.nodes[e[1]],
-              ]),
-            );
-          if (!workAllowed.get(ei)) continue;
-        }
+        if (graph.nodes[v][2] || !canTraverse(ei)) continue;
         let factor = edgeCostFactor(w,e[5],options);
         const mid = [
           (graph.nodes[u][0] + graph.nodes[v][0]) / 2,
@@ -256,7 +252,10 @@ export function createRouter(graph) {
         }
       }
     }
-    if (!found) return { error: "NO_ROUTE", visited };
+    if (!found) return { error: "NO_ROUTE", visited, ...(options.diagnoseGap ? {
+      routeGap:diagnoseRouteGap({graph,adjacency,forwardDist:dist,ends:ends.chosen,canTraverse,
+        groundEdge:ei=>groundEdge(graph.edges[ei],options)})
+    } : {}) };
     const path = [],
       es = [];
     let v = goal;

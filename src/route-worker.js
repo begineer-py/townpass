@@ -3,7 +3,7 @@ import { gunzipSync } from "fflate";
 import { validateNetwork } from "./network-contract.mjs";
 import { createOfficialRouteVerifier } from './verify-official-route.mjs';
 import {routeAroundConstruction,resolveVerifiedRoute} from './construction-routing.mjs';
-import {createConstructionChecker} from './construction.mjs';
+import {createConstructionChecker,constructionFresh} from './construction.mjs';
 import {createDetourWaypoints} from './alternative-routes.mjs';
 import {createLocalRouteVerifier,planPlaces,diagnoseConstruction} from './local-route-verifier.mjs';
 import {createNearbyRoutes} from './nearby-routes.mjs';
@@ -76,7 +76,15 @@ self.onmessage = async ({ data }) => {
     } else if(data.type==='plan-places'){
       await initialization;
       let checker;try{checker=createConstructionChecker(data.construction);}catch{postMessage({type:'route',id:data.id,result:{error:'CONSTRUCTION_UNAVAILABLE'}});return;}
-      postMessage({type:'route',id:data.id,result:planPlaces(data.startPlace,data.endPlace,data.options,data.construction,{router,verifyLocal,facilities,checker})});
+      let result=planPlaces(data.startPlace,data.endPlace,data.options,data.construction,{router,verifyLocal,facilities,checker});
+      if(result.error==='NO_ROUTE'&&result.failedPair){
+        const {start:a,end:b}=result.failedPair,prefs={...data.options,startPlace:a,endPlace:b,lineAllowed:checker.allowed,diagnoseGap:true};
+        const diagnostic=router([a.lat,a.lon],[b.lat,b.lon],prefs);
+        result={...result,routeGap:diagnostic.error==='NO_ROUTE'?diagnostic.routeGap:{status:'unavailable'}};
+      }
+      if(result.failedPair){const {failedPair,...rest}=result;result=rest;}
+      if(!constructionFresh(data.construction))result={error:'CONSTRUCTION_UNAVAILABLE'};
+      postMessage({type:'route',id:data.id,result});
     } else if (data.type === 'verify-official') {
       await initialization;
       if (!verifyOfficial) throw Error('UNVERIFIED_NETWORK');
@@ -87,10 +95,16 @@ self.onmessage = async ({ data }) => {
       // Official polygon checks can establish coverage, not the user's actual
       // position or physical access to the network. Mark an explicit user
       // start connector as estimated even when covered by official polygons.
-      const origin=data.options?.startPlace?.originKind,first=data.route?.coordinates?.[0];
-      if(!result.error&&result.provider==='taipei-official'&&['gps','map'].includes(origin)&&first&&metres(data.start,first)>.05){
-        result={...result,networkCoordinates:result.coordinates.slice(1),approaches:[...(result.approaches||[]),{side:'start',coordinates:[data.start,first],distance:Math.round(metres(data.start,first)),estimated:true,unconfirmed:true,entryStatus:'unconfirmed',originKind:origin}]};
+      const origin=data.options?.startPlace?.originKind,destination=data.options?.endPlace?.originKind,first=data.route?.coordinates?.[0],last=data.route?.coordinates?.at(-1);
+      if(!result.error&&result.provider==='taipei-official'){
+        const approaches=[...(result.approaches||[])];
+        if(['gps','map'].includes(origin)&&first&&metres(data.start,first)>.05)
+          approaches.push({side:'start',coordinates:[data.start,first],distance:Math.round(metres(data.start,first)),estimated:true,unconfirmed:true,entryStatus:'unconfirmed',originKind:origin});
+        if(destination==='map'&&last&&metres(data.end,last)>.05)
+          approaches.push({side:'end',coordinates:[last,data.end],distance:Math.round(metres(data.end,last)),estimated:true,unconfirmed:true,entryStatus:'unconfirmed',originKind:'map'});
+        if(approaches.length)result={...result,networkCoordinates:data.route.coordinates,approaches};
       }
+      if(!constructionFresh(data.construction))result={error:'CONSTRUCTION_UNAVAILABLE'};
       if(result.error && ['OFFICIAL_PATH_UNVERIFIED','OFFICIAL_ROAD_CONFLICT','OFFICIAL_CROSSING_UNVERIFIED','OFFICIAL_ENTRY_UNVERIFIED','CONSTRUCTION_BLOCKED'].includes(result.error))result.detourWaypoints=detourWaypoints(data.start,data.end,result.detourCenter);
       postMessage({type:'verified-official',id:data.id,result});
     } else if (data.type === "route") {
@@ -101,8 +115,14 @@ self.onmessage = async ({ data }) => {
         const prefs={...data.options,lineAllowed:checker.allowed};
         const candidate=router(start,end,prefs);
         if(candidate.error){
-          if(['NO_ROUTE','NO_CONNECTION'].includes(candidate.error))
-            return diagnoseConstruction(start,end,prefs,data.construction,{router,verifyLocal,checker})||candidate;
+          if(['NO_ROUTE','NO_CONNECTION'].includes(candidate.error)){
+            const blocked=diagnoseConstruction(start,end,prefs,data.construction,{router,verifyLocal,checker});
+            if(blocked)return blocked;
+            if(candidate.error==='NO_ROUTE'){
+              const diagnostic=router(start,end,{...prefs,diagnoseGap:true});
+              return {...candidate,routeGap:diagnostic.error==='NO_ROUTE'?diagnostic.routeGap:{status:'unavailable'}};
+            }
+          }
           return candidate;
         }
         const checked=candidate.error?candidate:verifyLocal(candidate,start,end,data.options);
@@ -114,6 +134,7 @@ self.onmessage = async ({ data }) => {
         result=combineRoutes(a,b,data.viaName);
         if(!result.error)result={...result,provider:'local-verified',geometryVerification:a.geometryVerification,construction:checker.inspect(result.coordinates)};
       }else result=leg(data.start,data.end);
+      if(!constructionFresh(data.construction))result={error:'CONSTRUCTION_UNAVAILABLE'};
       postMessage({type:'route',id:data.id,result});
     }
   } catch (e) {

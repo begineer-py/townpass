@@ -69,21 +69,21 @@ export function createLocalRouteVerifier(graph,facilities=[],places=[]){
   const osm=known?.sourceId==='osm'||/^osm-[nw]\d+$/.test(String(known?.id||''));
   return !osm||known.osmRestrictionsMatched===true;
  }
- function userStart(point,place,side){
-  if(side!=='start'||!place||!same(point,[place.lat,place.lon])||place.kind!=null||place.sourceId!=null)return null;
+ function userPoint(point,place,side){
+  if(!['start','end'].includes(side)||!place||!same(point,[place.lat,place.lon])||place.kind!=null||place.sourceId!=null)return null;
   if(place.originKind==='map'&&/^point-\d+$/.test(String(place.id||'')))return 'map';
-  if(place.originKind==='gps'&&place.id==='my-location'&&['browser','townpass'].includes(place.locationSource)&&
+  if(side==='start'&&place.originKind==='gps'&&place.id==='my-location'&&['browser','townpass'].includes(place.locationSource)&&
      Number.isFinite(place.accuracy)&&place.accuracy>=0&&place.accuracy<=100&&place.needsConfirmation===false)return 'gps';
   return null;
  }
  function endpointAllowed(point,place,side){
   if(!Array.isArray(point)||point.length!==2||!point.every(Number.isFinite))return false;
-  const known=matchedPoint(point,place),origin=userStart(point,place,side);
+  const known=matchedPoint(point,place),origin=userPoint(point,place,side);
   return !(prohibitedPoints.has(pointKey(point))||prohibited(known)||(origin&&(prohibited(place)||unmatchedOsmPoints.has(pointKey(point))))||
     (place?.originKind!=null&&!origin)||(place?.id&&registered.has(place.id)&&!known));
  }
  function allowed(point,target,place,options={},side=null){
-  const gap=metres(point,target),known=matchedPoint(point,place),origin=userStart(point,place,side);
+  const gap=metres(point,target),known=matchedPoint(point,place),origin=userPoint(point,place,side);
   if(!endpointAllowed(point,place,side))return false;
   // A point already on a verified network node has no approach to cross a road.
   // This matters for a shared-street centreline, which is itself in the road mask.
@@ -124,7 +124,7 @@ export function createLocalRouteVerifier(graph,facilities=[],places=[]){
    // The entire approach is checked against roads. A registered point link
    // without polygon coverage is an estimate, not a surveyed walking path.
    if(!allowed(point,target,place,options,side))return {error:'OFFICIAL_ENTRY_UNVERIFIED'};
-   if(gap>.05){const origin=userStart(point,place,side),estimated=!!origin||!covered(point,target);
+   if(gap>.05){const origin=userPoint(point,place,side),estimated=!!origin||!covered(point,target);
     approaches.push({side,coordinates:side==='start'?[point,target]:[target,point],distance:Math.round(gap),estimated,name:known?.name,...(origin?{originKind:origin,unconfirmed:true,entryStatus:'unconfirmed'}:{})});}
   }
   const all=[...coordinates];if(!same(start,all[0]))all.unshift(start);if(!same(end,all.at(-1)))all.push(end);
@@ -159,7 +159,7 @@ export function planPlaces(startPlace,endPlace,options,snapshot,{router,verifyLo
  for(const a of stationEntrances(startPlace,facilities))for(const b of stationEntrances(endPlace,facilities)){
   const start=[a.lat,a.lon],end=[b.lat,b.lon],prefs={...options,startPlace:a,endPlace:b,lineAllowed:checker.allowed,approachAllowed:(p,n,side)=>verifyLocal.approachAllowed(p,n,side==='start'?a:b,options,side)};
   attempts.push({start,end,prefs});
-  const candidate=router(start,end,prefs);if(candidate.error){failed(candidate);continue;}
+  const candidate=router(start,end,prefs);if(candidate.error){failed(candidate.error==='NO_ROUTE'?{...candidate,failedPair:{start:a,end:b}}:candidate);continue;}
   const checked=verifyLocal(candidate,start,end,prefs);if(checked.error){failed(checked);continue;}
   const work=checker.inspect(checked.coordinates);if(work.blocked.length){blocked={error:'CONSTRUCTION_BLOCKED',construction:work};continue;}
   if(!best||checked.weightedCost<best.weightedCost)best={...checked,construction:work,resolvedStart:a,resolvedEnd:b};

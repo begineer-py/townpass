@@ -21,6 +21,7 @@ export default function MapView({
   items,
   route,
   constructionConflict,
+  routeGap,
   nearbyCandidates,
   onNearbySelect,
   start,
@@ -44,6 +45,7 @@ export default function MapView({
     marks = useRef(),
     path = useRef(),
     blocked = useRef(),
+    gap = useRef(),
     nearby = useRef(),
     ends = useRef();
   const baseLayers = useRef([]);
@@ -62,6 +64,7 @@ export default function MapView({
     marks.current = L.layerGroup().addTo(m);
     path.current = L.layerGroup().addTo(m);
     blocked.current = L.layerGroup().addTo(m);
+    gap.current = L.layerGroup().addTo(m);
     nearby.current = L.layerGroup().addTo(m);
     ends.current = L.layerGroup().addTo(m);
     const viewport = () => {
@@ -241,6 +244,20 @@ export default function MapView({
     }
     if (bounds.length && !route) map.current.fitBounds(L.latLngBounds(bounds), {maxZoom:17, padding:[60,60], animate:false});
   }, [constructionConflict, route]);
+  useEffect(() => {
+    if(!gap.current)return;
+    gap.current.clearLayers();
+    if(routeGap?.status!=='candidate')return;
+    const points=[[routeGap.startSide,'起點側路網'],[routeGap.endSide,'目的地側路網']];
+    for(const [point,label] of points){
+      const marker=L.circleMarker(point,{radius:9,color:TPColors.white,weight:3,fillColor:TPColors.orange700,fillOpacity:1}).addTo(gap.current);
+      marker.bindTooltip(label,{permanent:true,direction:'top'});
+    }
+    if(!route&&!constructionConflict?.blocked?.length&&!nearbyCandidates?.length){
+      const height=map.current.getSize().y;
+      map.current.fitBounds(L.latLngBounds(points.map(([point])=>point)),{maxZoom:17,animate:false,paddingTopLeft:[24,40],paddingBottomRight:[24,Math.min(height-120,(paddingReader.current?.()||0)+24)]});
+    }
+  },[routeGap,route,constructionConflict,nearbyCandidates]);
   useEffect(() => {
     if(!nearby.current)return;
     nearby.current.clearLayers();

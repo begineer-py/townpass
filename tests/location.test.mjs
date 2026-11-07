@@ -24,10 +24,10 @@ test('watch permission denial stops tracking',t=>{
 });
 test('map and GPS origin exception never leak to destination',()=>{
  const start=mapPickPoint(25,121.5,'start',123),end=mapPickPoint(25,121.5,'end',124);
- assert.equal(start.originKind,'map');assert.equal(start.id,'point-123');assert.equal(end.originKind,undefined);
+ assert.equal(start.originKind,'map');assert.equal(start.id,'point-123');assert.equal(end.originKind,'map');
  const gps={id:'my-location',lat:25,lon:121.5,originKind:'gps',locationSource:'browser'};
  assert.equal(destinationPoint(gps).originKind,undefined);assert.equal(gps.originKind,'gps');
  assert.equal(swappedOrigin(end).originKind,'map');
- assert.equal(destinationPoint(start).originKind,undefined);
+ assert.equal(destinationPoint(start).originKind,'map');
  assert.equal(swappedOrigin({...end,kind:'place',sourceId:'osm'}).originKind,undefined);
 });

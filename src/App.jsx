@@ -64,6 +64,7 @@ import {nearbyReplacement,nearbyWarnings} from "./nearby-presentation.mjs";
 import {createNearbySearch} from "./nearby-search.mjs";
 import {createLiveFollow,displayedRouteCoordinates} from "./live-follow.mjs";
 import {createLiveFollowSearch} from "./live-follow-search.mjs";
+import {routeGapPresentation} from "./route-gap-presentation.mjs";
 import { requestOfficialRoute } from "./official-router.mjs";
 import { ROUTING_POLICY } from "./routing.mjs";
 import { BASEMAPS } from "./basemaps.mjs";
@@ -334,6 +335,8 @@ export default function App() {
   const nearbySearch=useRef(null);
   if(!nearbySearch.current)nearbySearch.current=createNearbySearch({fetchSnapshot:fetchConstruction,createWorker:()=>new Worker(new URL('./route-worker.js',import.meta.url),{type:'module'}),onState:setNearbyState,onSnapshot:s=>{lastConstruction.current=s;}});
   const [constructionConflict,setConstructionConflict] = useState(null);
+  const [routeGap,setRouteGap] = useState(null);
+  const routeGapView=useMemo(()=>routeGapPresentation(routeError,routeGap),[routeError,routeGap]);
   const [routeAttempt,setRouteAttempt]=useState(0);
   function verifyOnlineRoute(route, start, end, id, construction, options=prefs) {
     return new Promise(resolve => {
@@ -518,6 +521,7 @@ export default function App() {
         if (d.result.error || d.result.policyVersion !== ROUTING_POLICY) {
           clearRoute();
           setConstructionConflict(d.result.construction || null);
+          setRouteGap(d.result.error==='NO_ROUTE'?d.result.routeGap||{status:'unavailable'}:null);
           setRouteError(d.result.error || "UNVERIFIED_NETWORK");
         } else {
           window.speechSynthesis?.cancel();
@@ -566,6 +570,7 @@ export default function App() {
   function clearRoute() {
     cancelNearby();
     setConstructionConflict(null);
+    setRouteGap(null);
     setRouteAttempt(0);
     for(const resolve of pendingVerifications.current.values()) resolve({error:'UNVERIFIED_NETWORK'});
     pendingVerifications.current.clear();
@@ -1523,6 +1528,7 @@ export default function App() {
                     <p>
                       {errorText[routeError] || "暫時無法規劃，請稍後再試。"}
                     </p>
+                    {routeGapView && <p>{routeGapView.message}</p>}
                     {retryWithEntrance && entranceChoices.length > 0 && <div className="entrance-choices">
                       <p>附近捷運電梯出口（距離為直線估算，選擇後會更改起終點，需重新規劃）</p>
                       {entranceChoices.map(({which,p}) => <button key={which+p.id} onClick={()=>changePoint(which,p)}>
@@ -1532,14 +1538,14 @@ export default function App() {
                     {constructionConflict?.blocked?.length > 0 && <p>地圖已標出影響路線的施工位置；點線位置的周邊範圍是估計，並非精確封閉邊界。</p>}
                     {constructionConflict?.blocked?.slice(0,3).map(w => <p key={w.id}>{w.address}：{w.match === 'vicinity' ? '鄰近影響通行的施工位置' : '與影響通行的施工範圍交會'}。{w.plan}</p>)}
                     {(retryWithEntrance||routeError==='CONSTRUCTION_BLOCKED') && start && end && graphReady && <div className="entrance-choices">
-                      <button type="button" onClick={findNearbyPositions} disabled={nearbyState.status==='loading'}>尋找附近可達人行路網位置</button>
+                      <button type="button" onClick={findNearbyPositions} disabled={nearbyState.status==='loading'}>尋找附近人行路網位置</button>
                       {nearbyState.status==='loading'&&<p>正在檢查附近路網和施工… <button type="button" onClick={cancelNearby}>取消搜尋</button></p>}
                       {nearbyState.status==='error'&&<p>{nearbyState.message}</p>}
                       {nearbyState.status==='ready'&&<>
-                        <p>以下是附近可達的人行路網位置，不一定是入口。距離為與原地點的直線距離；選擇後路線不含兩者間的路程，通行與樓層仍需確認。</p>
-                        {!nearbyState.candidates.length&&<p>目前未找到能與另一端連通的候選位置；若兩端都無法接入，請先選擇其中一端的已知可達點，再重新搜尋。</p>}
-                        {nearbyState.candidates.length>0&&['start','end'].some(side=>!nearbyState.candidates.some(c=>c.side===side))&&<p>未列出的那一側沒有找到能與另一端連通的候選；如兩端都無法接入，請先選擇其中一端的已知可達點。</p>}
-                        {nearbyState.candidates.map((c,i)=><button type="button" key={`${c.side}-${c.point.id}`} onClick={()=>chooseNearby(c)}><span>{c.side==='start'?'起點':'目的地'}候選 {i+1}<small>距原地點直線約 {formatDistance(c.straightMetres)}；路線約 {formatDistance(c.routeDistance)}</small></span><ChevronRight size={18}/></button>)}
+                        <p>以下為附近的人行路網位置，不一定是入口，也尚未確認能否與另一端連通。選擇後會重新規劃；與原地點之間的通行及樓層仍需確認。</p>
+                        {!nearbyState.candidates.length&&<p>目前未找到符合條件的附近路網位置。</p>}
+                        {nearbyState.candidates.length>0&&['start','end'].some(side=>!nearbyState.candidates.some(c=>c.side===side))&&<p>未列出的那一側目前沒有找到符合條件的附近位置。</p>}
+                        {nearbyState.candidates.map((c,i)=><button type="button" key={`${c.side}-${c.point.id}`} onClick={()=>chooseNearby(c)}><span>{c.side==='start'?'起點':'目的地'}候選 {i+1}<small>距原地點直線約 {formatDistance(c.straightMetres)}；路線需重新規劃</small></span><ChevronRight size={18}/></button>)}
                         {nearbyState.truncated&&<p>已檢查部分附近位置；可能還有其他位置未列出。</p>}
                       </>}
                     </div>}
@@ -1873,6 +1879,7 @@ export default function App() {
             onBasemapStatus={setBasemapStatus}
             route={tab ? route : null}
             constructionConflict={tab ? constructionConflict : null}
+            routeGap={tab ? routeGapView : null}
             nearbyCandidates={tab==='plan' ? nearbyState.candidates : []}
             onNearbySelect={chooseNearby}
             start={tab ? start : null}

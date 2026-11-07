@@ -1,15 +1,15 @@
 import {sendToTownPass,hasTownPass} from './townpass-bridge.js';
 export function mapPickPoint(lat,lon,side,now=Date.now()){
- return {lat,lon,name:'地圖上選的位置',id:`point-${now}`,...(side==='start'?{originKind:'map'}:{})};
+ return {lat,lon,name:'地圖上選的位置',id:`point-${now}`,originKind:'map'};
 }
 export function destinationPoint(point){
- if(!point?.originKind)return point;
+ if(!point?.originKind||(point.originKind==='map'&&/^point-\d+$/.test(String(point.id||''))&&point.kind==null&&point.sourceId==null))return point;
  const {originKind,...destination}=point;return destination;
 }
 export function swappedOrigin(point){
  if(/^point-\d+$/.test(String(point?.id||''))&&!point.kind&&!point.sourceId)return {...point,originKind:'map'};
  if(point?.id==='my-location'&&['browser','townpass'].includes(point.locationSource)&&Number.isFinite(point.accuracy)&&point.accuracy>=0&&point.accuracy<=100&&point.needsConfirmation===false)return {...point,originKind:'gps'};
- return point;
+ return destinationPoint(point);
 }
 export function locationError(error){
  if(error?.code===1)return 'LOCATION_DENIED';
