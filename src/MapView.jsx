@@ -48,6 +48,13 @@ const ImageMark = L.CircleMarker.extend({
 });
 // 標記（圖形＋店名）隨縮放一起變大變小：縮放 18 為原尺寸，最小 0.9 倍免得太難點。
 const pinScale = (z) => Math.min(1.15, Math.max(0.9, 1 + (z - 18) * 0.13));
+// 縮放越大，設施標記用越小的格子分群。
+const markerClusterCell = (z) =>
+  z < 14 ? 140 : z < 16 ? 120 : z < 17 ? 100 : z < 18 ? 80 : z < 19 ? 60 : 40;
+// Dense issue records are sampled more sparsely at lower zooms to keep the map responsive.
+const issueMarkerCell = (z) => z >= 19 ? 38 : z >= 18 ? 46 : z >= 17 ? 54 : 64;
+const transitMarkerLimit = (z) => z >= 19 ? 180 : z >= 18 ? 120 : z >= 17 ? 70 : 40;
+const otherMarkerLimit = (z) => z >= 19 ? 260 : z >= 18 ? 160 : z >= 17 ? 80 : z >= 16 ? 50 : 30;
 // 店家與地標在圖形下方顯示名稱。
 const hasLabel = (p) =>
   p.landmark || ["place", "friendly"].includes(category(p));
@@ -283,9 +290,10 @@ export default function MapView({
       // 行穿線未設置路緣斜坡為空心紅圈。號誌比圓點大，彼此太近（同一格）只畫一個：高 > 中 > 低 > 紅圈。
       if (issues && m.getZoom() >= 16) {
         const z = m.getZoom(),
-          size = z >= 19 ? 26 : z >= 18 ? 22 : z >= 17 ? 18 : 16,
+          size = z >= 19 ? 28 : z >= 18 ? 24 : z >= 17 ? 20 : 16,
+          cell = issueMarkerCell(z),
           taken = new Set();
-        const free = (lat, lon, cell) => {
+        const free = (lat, lon) => {
           const pt = m.latLngToContainerPoint([lat, lon]),
             key = `${Math.floor(pt.x / cell)}:${Math.floor(pt.y / cell)}`;
           if (taken.has(key)) return false;
@@ -296,14 +304,14 @@ export default function MapView({
           (a, b) => a.kind - b.kind,
         );
         for (const { lat, lon, kind } of visible) {
-          if (!free(lat, lon, size * 0.9)) continue;
+          if (!free(lat, lon)) continue;
           if (kind === 3)
             L.circleMarker([lat, lon], {
               renderer,
               pane: "official-sidewalks",
-              radius: z >= 18 ? 5.5 : 4.5,
+              radius: size * 0.32,
               color: TPColors.red600,
-              weight: 2.5,
+              weight: z >= 18 ? 3 : 2.5,
               fillColor: TPColors.white,
               fillOpacity: 1,
               interactive: false,
@@ -357,18 +365,30 @@ export default function MapView({
     if (!marks.current) return;
     marks.current.clearLayers();
     const m = map.current,
-      b = m.getBounds();
-    const visible = items.filter((p) => b.contains([p.lat, p.lon]));
-    const cell = m.getZoom() < 14 ? 110 : m.getZoom() < 17 ? 88 : 60,
+      b = m.getBounds(),
+      z = m.getZoom(),
+      viewportSize = m.getSize();
+    const inView = items.filter((p) => b.contains([p.lat, p.lon]));
+    const byDistanceToCenter = (places) => places
+      .map((p) => {
+        const pos = m.latLngToContainerPoint([p.lat, p.lon]);
+        return { p, distance: Math.hypot(pos.x - viewportSize.x / 2, pos.y - viewportSize.y / 2) };
+      })
+      .sort((a, b) => a.distance - b.distance)
+      .map(({ p }) => p);
+    const transit = byDistanceToCenter(inView.filter((p) => p.kind === "metro-elevator" || category(p) === "station"));
+    const other = byDistanceToCenter(inView.filter((p) => p.kind !== "metro-elevator" && category(p) !== "station"));
+    const visible = [...transit.slice(0, transitMarkerLimit(z)), ...other.slice(0, otherMarkerLimit(z))];
+    const cell = markerClusterCell(z),
       buckets = new Map();
     for (const p of visible) {
       const pos = m.latLngToContainerPoint([p.lat, p.lon]),
         key =
           p.kind === "metro-elevator"
             ? `metro-exit:${p.id}`
-            : p.landmark
-              ? `landmark:${p.id}`
-            : `${Math.floor(pos.x / cell)}:${Math.floor(pos.y / cell)}`;
+            : category(p) === "station"
+              ? `station:${p.lat.toFixed(5)}:${p.lon.toFixed(5)}`
+              : `${Math.floor(pos.x / cell)}:${Math.floor(pos.y / cell)}`;
       if (!buckets.has(key)) buckets.set(key, []);
       buckets.get(key).push(p);
     }
@@ -413,7 +433,8 @@ export default function MapView({
       const face = document.createElement("span");
       face.style.setProperty("--pin", color);
       let marker;
-      if (count > 1) {
+      const keepTransitIcon = p.kind === "metro-elevator" || category(p) === "station";
+      if (count > 1 && !keepTransitIcon) {
         face.textContent = count;
         marker = L.marker([p.lat, p.lon], {
           icon: L.divIcon({ className: "cluster-pin", html: face, iconSize: null }),
