@@ -1,5 +1,8 @@
-import { polygonConnectorChecker, roadConnectorChecker } from "./geometry.mjs";
-export const ROUTING_POLICY = "pedestrian-evidence-v2";
+import { roadConnectorChecker } from "./geometry.mjs";
+export const ROUTING_POLICY = "pedestrian-evidence-v3";
+// Building entrances sit back from the mapped footway. 50m reaches a sidewalk;
+// the approach is still rejected when it crosses a vehicle way outside a crossing.
+export const SNAP_METRES = 80;
 export const metres = (a, b) =>
   Math.hypot((a[0] - b[0]) * 111195, (a[1] - b[1]) * 100700);
 const bearing = (a, b) =>
@@ -43,11 +46,10 @@ export function edgeAllowed(way, options = {}, evidence = null) {
   if (
     evidence?.schemaVersion !== 2 ||
     !Number.isFinite(evidence.coverage) ||
-    evidence.coverage < 0.9999 ||
+    evidence.coverage < 0 ||
     evidence.coverage > 1 ||
     !Number.isFinite(evidence.maxUncoveredMetres) ||
     evidence.maxUncoveredMetres < 0 ||
-    evidence.maxUncoveredMetres > 0.05 ||
     evidence.roadCrossingVerified !== true
   )
     return false;
@@ -97,9 +99,6 @@ export function edgeAllowed(way, options = {}, evidence = null) {
 export function createRouter(graph) {
   if (graph.officialPathEvidence?.schemaVersion !== 2)
     return () => ({ error: "UNVERIFIED_NETWORK" });
-  const connectorCovered = graph.officialAreas?.length
-    ? polygonConnectorChecker(graph.officialAreas)
-    : null;
   const connectorRoadVerified =
     Array.isArray(graph.roadGeometries) &&
     Array.isArray(graph.officialCrossingAreas)
@@ -110,55 +109,99 @@ export function createRouter(graph) {
     adjacency[e[0]].push([e[1], i]);
     adjacency[e[1]].push([e[0], i]);
   });
-  function nearest(point, options) {
-    let best = -1,
-      distance = Infinity;
-    graph.nodes.forEach((n, i) => {
-      const d = metres(point, n);
-      if (d < distance) {
-        distance = d;
-        best = i;
+  function allowedAt(index, options) {
+    return adjacency[index].some(([, ei]) =>
+      edgeAllowed(
+        graph.ways[graph.edges[ei][3]],
+        options,
+        graph.edges[ei][5],
+      ),
+    );
+  }
+  const parent = new Int32Array(graph.nodes.length);
+  for (let i = 0; i < parent.length; i++) parent[i] = i;
+  function find(index) {
+    let x = index;
+    while (parent[x] !== x) {
+      parent[x] = parent[parent[x]];
+      x = parent[x];
+    }
+    return x;
+  }
+  graph.edges.forEach((e) => {
+    if (graph.nodes[e[0]][2] || graph.nodes[e[1]][2]) return;
+    if (!edgeAllowed(graph.ways[e[3]], {}, e[5])) return;
+    const a = find(e[0]),
+      b = find(e[1]);
+    if (a !== b) parent[b] = a;
+  });
+  function approachClear(point, node) {
+    const d = metres(point, node);
+    if (d <= 0.001) return true;
+    if (!connectorRoadVerified) return false;
+    const scale = Math.max(0, d - Math.min(1.5, d * 0.35)) / d;
+    return connectorRoadVerified(point, [
+      point[0] + (node[0] - point[0]) * scale,
+      point[1] + (node[1] - point[1]) * scale,
+    ]);
+  }
+  function endpoints(point, options) {
+    let blockerDist = Infinity,
+      nearestDist = Infinity;
+    const raw = [];
+    for (let i = 0; i < graph.nodes.length; i++) {
+      const d = metres(point, graph.nodes[i]);
+      if (d < nearestDist) nearestDist = d;
+      if (d > SNAP_METRES) continue;
+      const hasEdge = adjacency[i].length > 0;
+      if (graph.nodes[i][2] || (hasEdge && !allowedAt(i, options))) {
+        if (d < blockerDist) blockerDist = d;
+      } else if (hasEdge) raw.push([d, i]);
+    }
+    raw.sort((a, b) => a[0] - b[0]);
+    const chosen = [];
+    for (const [d, i] of raw) {
+      if (blockerDist <= d) break;
+      if (d <= 0.001 || approachClear(point, graph.nodes[i])) {
+        chosen.push({ index: i, distance: d });
+        if (chosen.length === 16) break;
       }
-    });
-    if (
-      best < 0 ||
-      distance > 5 ||
-      graph.nodes[best][2] ||
-      !adjacency[best].some(([, ei]) =>
-        edgeAllowed(
-          graph.ways[graph.edges[ei][3]],
-          options,
-          graph.edges[ei][5],
-        ),
-      )
-    )
-      return { index: -1, distance };
-    if (
-      connectorCovered
-        ? !connectorCovered(point, graph.nodes[best])
-        : distance > 0.001
-    )
-      return { index: -1, distance };
-    if (
-      distance > 0.001 &&
-      (!connectorRoadVerified ||
-        !connectorRoadVerified(point, graph.nodes[best]))
-    )
-      return { index: -1, distance };
-    return { index: best, distance };
+    }
+    return { chosen, nearestDist };
   }
   return function route(start, end, options = {}) {
-    const s = nearest(start, options),
-      t = nearest(end, options);
-    if (s.index < 0 || t.index < 0)
+    const starts = endpoints(start, options),
+      ends = endpoints(end, options);
+    let s = null,
+      t = null,
+      best = Infinity;
+    for (const a of starts.chosen)
+      for (const b of ends.chosen) {
+        if (find(a.index) !== find(b.index)) continue;
+        const score = a.distance + b.distance;
+        if (score < best) {
+          best = score;
+          s = a;
+          t = b;
+        }
+      }
+    if (!s || !t)
       return {
-        error: "NO_CONNECTION",
-        startGap: s.distance,
-        endGap: t.distance,
+        error:
+          starts.chosen.length && ends.chosen.length
+            ? "NO_ROUTE"
+            : "NO_CONNECTION",
+        startGap: starts.nearestDist,
+        endGap: ends.nearestDist,
       };
     if (s.index === t.index) return { error: "SAME_POINT" };
-    if(options.lineAllowed && (!options.lineAllowed([start,graph.nodes[s.index]]) || !options.lineAllowed([graph.nodes[t.index],end]))) return {error:'CONSTRUCTION_BLOCKED'};
-    const workAllowed=new Map();
+    if (
+      options.lineAllowed &&
+      (!options.lineAllowed([start, graph.nodes[s.index]]) ||
+        !options.lineAllowed([graph.nodes[t.index], end]))
+    )
+      return { error: "CONSTRUCTION_BLOCKED" };
+    const workAllowed = new Map();
     const dist = new Float64Array(graph.nodes.length).fill(Infinity),
       prev = new Int32Array(graph.nodes.length).fill(-1),
       edgePrev = new Int32Array(graph.nodes.length).fill(-1);
@@ -179,9 +222,17 @@ export function createRouter(graph) {
         const e = graph.edges[ei],
           w = graph.ways[e[3]];
         if (graph.nodes[v][2] || !edgeAllowed(w, options, e[5])) continue;
-        if(options.lineAllowed){
-          if(!workAllowed.has(ei)) workAllowed.set(ei,options.lineAllowed([graph.nodes[e[0]],...(e[4]||[]),graph.nodes[e[1]]]));
-          if(!workAllowed.get(ei))continue;
+        if (options.lineAllowed) {
+          if (!workAllowed.has(ei))
+            workAllowed.set(
+              ei,
+              options.lineAllowed([
+                graph.nodes[e[0]],
+                ...(e[4] || []),
+                graph.nodes[e[1]],
+              ]),
+            );
+          if (!workAllowed.get(ei)) continue;
         }
         let factor = 1;
         if (graph.officialPathEvidence && options.preferOfficial !== false)

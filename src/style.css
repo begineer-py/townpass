@@ -1840,43 +1840,87 @@ small {
   border-radius: var(--r-sm) 0 0 0;
 }
 
-/* Apple Maps-style controls: one frosted vertical group, icons only. */
+/* Separate round controls, the way Apple Maps and Google Maps keep them. */
+.map-fab {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: var(--ink-strong);
+  background: var(--tp-white);
+  box-shadow:
+    0 1px 2px color-mix(in srgb, var(--tp-grayscale900) 28%, transparent),
+    0 2px 8px color-mix(in srgb, var(--tp-grayscale900) 16%, transparent);
+}
+.map-fab:hover {
+  background: var(--tp-grayscale50);
+}
+.map-fab:disabled {
+  opacity: 0.7;
+}
+.map-fab[aria-expanded="true"] {
+  background: var(--accent-surface);
+}
 .map-dock {
   position: absolute;
   top: 14px;
   right: 14px;
   z-index: 460;
 }
+.map-compass {
+  position: absolute;
+  top: 68px;
+  right: 14px;
+  z-index: 460;
+}
+.compass-rose {
+  transform-origin: 12px 12px;
+  transition: transform 0.2s linear;
+}
+.compass-north {
+  fill: var(--tp-red600);
+}
+.compass-south {
+  fill: var(--tp-grayscale500);
+}
+.compass-hub {
+  fill: var(--tp-white);
+  stroke: var(--ink-strong);
+  stroke-width: 1;
+}
+.map-locate {
+  position: absolute;
+  right: 14px;
+  bottom: 26px;
+  z-index: 470;
+}
 .dock-group {
   display: flex;
   flex-direction: column;
-  width: 48px;
-  border-radius: var(--tp-radius-btn);
-  background: color-mix(in srgb, var(--tp-white) 88%, transparent);
-  backdrop-filter: saturate(180%) blur(16px);
-  -webkit-backdrop-filter: saturate(180%) blur(16px);
-  box-shadow: var(--e2);
-  overflow: hidden;
+  gap: 10px;
+  background: transparent;
+  box-shadow: none;
 }
 .dock-group button {
-  height: 48px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
   display: grid;
   place-items: center;
-  color: var(--action-text);
-}
-.dock-group button + button {
-  box-shadow: inset 0 1px 0 var(--line-strong);
+  color: var(--ink-strong);
+  background: var(--tp-white);
+  box-shadow:
+    0 1px 2px color-mix(in srgb, var(--tp-grayscale900) 28%, transparent),
+    0 2px 8px color-mix(in srgb, var(--tp-grayscale900) 16%, transparent);
 }
 .dock-group button:hover {
-  background: color-mix(in srgb, var(--tp-grayscale900) 6%, transparent);
-}
-.dock-group button[aria-expanded="true"] {
-  background: var(--accent-surface);
+  background: var(--tp-grayscale50);
 }
 .map-zoom {
   position: absolute;
   right: 14px;
-  bottom: 26px;
+  bottom: 80px;
   z-index: 450;
 }
 .layers-panel {
@@ -2110,6 +2154,10 @@ small {
   .panel[data-snap="0"] {
     --sheet-h: 24dvh;
   }
+  .panel[data-snap="0"] .panel-scroll {
+    overflow: hidden;
+    touch-action: none;
+  }
   .panel[data-snap="1"] {
     --sheet-h: 56dvh;
   }
@@ -2200,12 +2248,27 @@ small {
     font-size: var(--tp-text-bodyRegular-size);
   }
   /* Map chrome sits in the strip of map left visible above the sheet. */
+  .map-dock,
+  .map-compass {
+    right: 10px;
+  }
   .map-dock {
     top: 10px;
-    right: 10px;
+  }
+  .map-compass {
+    top: 62px;
   }
   .map-zoom {
     display: none;
+  }
+  .workspace[data-sheet="0"] .map-locate {
+    bottom: calc(24dvh + var(--nav-h) + 12px);
+  }
+  .workspace[data-sheet="1"] .map-locate {
+    bottom: calc(56dvh + var(--nav-h) + 12px);
+  }
+  .workspace[data-sheet="2"] .map-locate {
+    bottom: calc(90dvh + var(--nav-h) + 12px);
   }
 
   .basemap-error {

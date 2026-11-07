@@ -53,7 +53,7 @@ class Extract(osmium.SimpleHandler):
         if len(local)<2:return
         name=t.get('name:zh') or t.get('name') or ('行穿線' if t.get('footway')=='crossing' else '人行通道' if h in ['footway','path','corridor'] else '未命名道路')
         idx=len(self.ways)
-        self.ways.append({'name':name,'highway':h,'wheelchair':t.get('wheelchair'),'width':numeric(t.get('width') or t.get('est_width')),'slope':numeric(t.get('incline')),'surface':t.get('surface'),'sidewalk':t.get('sidewalk'),'crossing':t.get('footway')=='crossing','lit':t.get('lit'),'osmId':w.id,'layer':t.get('layer'),'level':t.get('level'),'bridge':t.get('bridge'),'tunnel':t.get('tunnel')})
+        self.ways.append({'name':name,'highway':h,'wheelchair':t.get('wheelchair'),'width':numeric(t.get('width') or t.get('est_width')),'slope':numeric(t.get('incline')),'surface':t.get('surface'),'sidewalk':t.get('sidewalk'),'crossing':t.get('footway')=='crossing' or bool(t.get('crossing')),'lit':t.get('lit'),'osmId':w.id,'layer':t.get('layer'),'level':t.get('level'),'bridge':t.get('bridge'),'tunnel':t.get('tunnel')})
         for a,b in zip(refs,refs[1:]):
             if a not in self.coords or b not in self.coords:continue
             d=distance(self.coords[a],self.coords[b])

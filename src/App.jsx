@@ -114,7 +114,7 @@ const basePrefs = {
   minWidth: 0.8,
   maxSlope: 8,
   knownOnly: false,
-  officialOnly: true,
+  officialOnly: false,
   preferOfficial: true,
   mode: "balanced",
   largeText: false,
@@ -217,7 +217,7 @@ export default function App() {
       ...basePrefs,
       ...readSaved("hhz-preferences", {}),
       avoidSteps: true,
-      officialOnly: true,
+      officialOnly: false,
     }));
   const [saved, setSaved] = useState(() => readSaved("hhz-saved", [])),
     [trips, setTrips] = useState(() => readSaved("hhz-trips", []));
@@ -303,6 +303,7 @@ export default function App() {
   const panelEl = useRef(),
     gripDragged = useRef(false);
   const [sheetSnap, setSheetSnap] = useState(1);
+  const [heading, setHeading] = useState(0);
   const SHEET_SNAPS = [0.24, 0.56, 0.9];
   useEffect(()=>{if(route || routeError)setSheetSnap(v=>Math.max(v,1));},[route,routeError]);
   function gripDown(e) {
@@ -334,6 +335,26 @@ export default function App() {
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
     window.addEventListener("pointercancel", up);
+  }
+  useEffect(() => {
+    const onOrient = (event) => {
+      const deg =
+        event.webkitCompassHeading ??
+        (event.alpha == null ? null : (360 - event.alpha) % 360);
+      if (deg == null || Number.isNaN(deg)) return;
+      setHeading(deg);
+    };
+    window.addEventListener("deviceorientationabsolute", onOrient, true);
+    window.addEventListener("deviceorientation", onOrient, true);
+    return () => {
+      window.removeEventListener("deviceorientationabsolute", onOrient, true);
+      window.removeEventListener("deviceorientation", onOrient, true);
+    };
+  }, []);
+  function resetNorth() {
+    setHeading(0);
+    map.current?.setBearing?.(0);
+    announce("地圖已朝北。");
   }
   useEffect(() => {
     if (routeError)
@@ -469,7 +490,7 @@ export default function App() {
     request.current++;
     setRouting(false);
     clearRoute();
-    setPrefs({ ...prefs, ...patch, avoidSteps: true, officialOnly: true });
+    setPrefs({ ...prefs, ...patch, avoidSteps: true, officialOnly: false });
   }
   function toggleSave(p) {
     const next = saved.some((x) => x.id === p.id)
@@ -793,12 +814,18 @@ export default function App() {
       <a className="skip-link" href="#main-content">
         跳至服務內容
       </a>
-      <div className="workspace">
+      <div className="workspace" data-sheet={sheetSnap}>
         <aside
           className="panel"
           id="main-content"
           ref={panelEl}
           data-snap={sheetSnap}
+          onPointerDown={(e) => {
+            if (!matchMedia("(max-width: 700px)").matches || sheetSnap !== 0)
+              return;
+            if (e.target.closest("button, a, input, textarea, select")) return;
+            gripDown(e);
+          }}
         >
           <button
             className="sheet-grip"
@@ -1264,7 +1291,7 @@ export default function App() {
                             ...basePrefs,
                             ...t.prefs,
                             avoidSteps: true,
-                            officialOnly: true,
+                            officialOnly: false,
                           });
                           setTab("plan");
                           setRouteError("");
@@ -1336,36 +1363,27 @@ export default function App() {
             onViewport={setViewport}
             onMapReady={(m) => (map.current = m)}
             onGesture={() => {
-              if (matchMedia("(max-width: 700px)").matches) setSheetSnap(0);
+              if (
+                matchMedia("(max-width: 700px)").matches &&
+                sheetSnap > 0
+              )
+                setSheetSnap(0);
             }}
           />
           <div className="map-dock" ref={layersRef}>
-            <div className="dock-group">
-              <button
-                aria-label="地圖圖層"
-                aria-expanded={layersOpen}
-                aria-controls="layers-panel"
-                onClick={() => {
-                  // Phone: lower the sheet so the whole picker sits on open map.
-                  if (!layersOpen && matchMedia("(max-width: 700px)").matches)
-                    setSheetSnap(0);
-                  setLayersOpen(!layersOpen);
-                }}
-              >
-                <Layers size={20} />
-              </button>
-              <button
-                aria-label="移至我的位置"
-                onClick={() => locate()}
-                disabled={locating}
-              >
-                {locating ? (
-                  <LoaderCircle className="spin" size={20} />
-                ) : (
-                  <Navigation size={19} />
-                )}
-              </button>
-            </div>
+            <button
+              className="map-fab"
+              aria-label="地圖圖層"
+              aria-expanded={layersOpen}
+              aria-controls="layers-panel"
+              onClick={() => {
+                if (!layersOpen && matchMedia("(max-width: 700px)").matches)
+                  setSheetSnap(0);
+                setLayersOpen(!layersOpen);
+              }}
+            >
+              <Layers size={20} />
+            </button>
             {layersOpen && (
               <div
                 className="layers-panel"
@@ -1416,6 +1434,36 @@ export default function App() {
               </div>
             )}
           </div>
+          <button
+            className="map-fab map-compass"
+            aria-label="指南針，點一下讓地圖朝北"
+            onClick={resetNorth}
+          >
+            <svg
+              className="compass-rose"
+              viewBox="0 0 24 24"
+              width="22"
+              height="22"
+              style={{ transform: `rotate(${heading}deg)` }}
+              aria-hidden="true"
+            >
+              <path className="compass-north" d="M12 2.5 15.2 12 12 10.2 8.8 12Z" />
+              <path className="compass-south" d="M12 21.5 8.8 12 12 13.8 15.2 12Z" />
+              <circle className="compass-hub" cx="12" cy="12" r="1.3" />
+            </svg>
+          </button>
+          <button
+            className="map-fab map-locate"
+            aria-label="移至我的位置"
+            onClick={() => locate()}
+            disabled={locating}
+          >
+            {locating ? (
+              <LoaderCircle className="spin" size={20} />
+            ) : (
+              <Navigation size={20} />
+            )}
+          </button>
           <div className="dock-group map-zoom">
             <button aria-label="放大地圖" onClick={() => map.current?.zoomIn()}>
               <Plus size={20} />

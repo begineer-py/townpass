@@ -172,10 +172,15 @@ export function roadConnectorChecker(lines = [], crossingAreas = []) {
         ca = sub(c, a),
         den = cross(delta, side);
       if (Math.abs(delta[0]) < 1e-15 && Math.abs(delta[1]) < 1e-15) {
-        if (Math.abs(cross(sub(a,c),side)) < EPS &&
-            a[0]>=Math.min(c[0],d[0])-EPS && a[0]<=Math.max(c[0],d[0])+EPS &&
-            a[1]>=Math.min(c[1],d[1])-EPS && a[1]<=Math.max(c[1],d[1])+EPS &&
-            !crossingCovered(from,from)) return false;
+        if (
+          Math.abs(cross(sub(a, c), side)) < EPS &&
+          a[0] >= Math.min(c[0], d[0]) - EPS &&
+          a[0] <= Math.max(c[0], d[0]) + EPS &&
+          a[1] >= Math.min(c[1], d[1]) - EPS &&
+          a[1] <= Math.max(c[1], d[1]) + EPS &&
+          !crossingCovered(from, from)
+        )
+          return false;
         continue;
       }
       if (Math.abs(den) > 1e-20) {

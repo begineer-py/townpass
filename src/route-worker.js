@@ -31,10 +31,12 @@ self.onmessage = async ({ data }) => {
       if(result.error && ['OFFICIAL_PATH_UNVERIFIED','OFFICIAL_ROAD_CONFLICT','OFFICIAL_CROSSING_UNVERIFIED','OFFICIAL_ENTRY_UNVERIFIED','CONSTRUCTION_BLOCKED'].includes(result.error))result.detourWaypoints=detourWaypoints(data.start,data.end,result.detourCenter);
       postMessage({type:'verified-official',id:data.id,result});
     } else if (data.type === "route") {
+      await initialization;
       if (!router) throw Error("not ready");
       let checker;try{checker=createConstructionChecker(data.construction);}catch{postMessage({type:'route',id:data.id,result:{error:'CONSTRUCTION_UNAVAILABLE'}});return;}
       const candidate=router(data.start,data.end,data.options);
-      const result=candidate.error?candidate:routeAroundConstruction(candidate,data.start,data.end,data.options,data.construction,{router,verifyOfficial});
+      const checked=candidate.error?candidate:verifyOfficial({...candidate,provider:'taipei-official',segmentPaths:[candidate.coordinates],crossingSegments:[]},data.start,data.end);
+      const result=checked.error?checked:routeAroundConstruction({...checked,provider:'local-verified'},data.start,data.end,data.options,data.construction,{router,verifyOfficial});
       postMessage({
         type: "route",
         id: data.id,
