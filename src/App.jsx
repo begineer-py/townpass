@@ -505,6 +505,7 @@ export default function App() {
         setRouting(false);
         if (d.result.error || d.result.policyVersion !== ROUTING_POLICY) {
           clearRoute();
+          setConstructionConflict(d.result.construction || null);
           setRouteError(d.result.error || "UNVERIFIED_NETWORK");
         } else {
           window.speechSynthesis?.cancel();
@@ -1003,7 +1004,7 @@ export default function App() {
       return;
     const text = `好好走｜${start.name} → ${end.name}\n約 ${formatDistance(route.distance)}\n${route.steps
       .slice(0, 20)
-      .map((s) => `${s.name} ${Math.round(s.distance)}公尺`)
+      .map((s) => `${s.name} ${Math.round(s.distance)}公尺${stepConditions(s) ? `（${stepConditions(s)}）` : ''}`)
       .join("\n")}\n路線依公開路網規劃，部分通行條件尚未確認，請留意現場。`;
     try {
       if (navigator.share)
@@ -1394,6 +1395,7 @@ export default function App() {
                         <ArrowUpFromLine size={18} aria-hidden="true"/><span>{which==='start'?'出發地改為':'目的地改為'} {cleanName(p.name)}<small>距原選點約 {formatDistance(p.gap)}</small></span><ChevronRight size={18} aria-hidden="true"/>
                       </button>)}
                     </div>}
+                    {constructionConflict?.blocked?.length > 0 && <p>地圖已標出影響路線的施工位置；點線位置的周邊範圍是估計，並非精確封閉邊界。</p>}
                     {constructionConflict?.blocked?.slice(0,3).map(w => <p key={w.id}>{w.address}：{w.match === 'vicinity' ? '鄰近影響通行的施工位置' : '與影響通行的施工範圍交會'}。{w.plan}</p>)}
                     {(retryWithEntrance || ["OFFICIAL_OUTSIDE_COVERAGE", "OFFICIAL_INVALID_POINTS", "OFFICIAL_ENTRY_UNVERIFIED", "OFFICIAL_PATH_UNVERIFIED", "OFFICIAL_ROAD_CONFLICT", "OFFICIAL_CROSSING_UNVERIFIED", "CONSTRUCTION_BLOCKED"].includes(routeError)) && (
                       <div className="route-tools">
@@ -1428,6 +1430,9 @@ export default function App() {
                       })}
                     </div>
                     <p className="quiet-note">線條反映已知資料，實際路況請留意現場。</p>
+                    {route.tierSegments?.some(segment => segment.sharedRoad === true) && (
+                      <div className="notice" role="note"><AlertTriangle aria-hidden="true"/><p>路線包含人車共道，可能與車輛共用道路；請留意車輛，並依現場狀況判斷是否通行。圖資標示不代表已確認無障礙。</p></div>
+                    )}
                     <div className="route-summary">
                       <div>
                         <span className="eyebrow">路線預覽</span>
@@ -1718,6 +1723,7 @@ export default function App() {
             colorFriendly={prefs.colorFriendly}
             onBasemapStatus={setBasemapStatus}
             route={tab ? route : null}
+            constructionConflict={tab ? constructionConflict : null}
             start={tab ? start : null}
             end={tab ? end : null}
             location={currentLocation}
