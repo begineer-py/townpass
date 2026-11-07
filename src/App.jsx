@@ -93,7 +93,7 @@ import {
   activeElevatorStops,
 } from "./trip-extras.mjs";
 import { addressSearch } from "./address-search";
-import { maintenanceText, stationKey, stepText } from "./format.mjs";
+import { maintenanceText, sourceCountLabel, stationKey, stepText } from "./format.mjs";
 const icons = {
   elevator: ArrowUpFromLine,
   toilet: Toilet,
@@ -2333,9 +2333,7 @@ export default function App() {
             <div className="source-card" key={s.id}>
               <b>{s.name}</b>
               <span>
-                {s.status === "ok"
-                  ? `${s.count.toLocaleString()} 筆來源紀錄`
-                  : "目前未取得資料"}{" "}
+                {sourceCountLabel(s)}{" "}
                 · {s.updateFrequency || "依來源更新"}
               </span>
               <a href={s.url} target="_blank" rel="noopener">
