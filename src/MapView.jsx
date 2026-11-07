@@ -14,6 +14,7 @@ import {
 } from "./official-sidewalks.mjs";
 import { TPColors } from "./tp-colors.mjs";
 import { mapIconElement } from "./map-icons.mjs";
+import { NO_WALK_URL } from "./issue-icons.mjs";
 // 標記底色（白色圖形放在上面，與白色的對比都在 3:1 以上）。
 const colors = {
   place: TPColors.orange700,
@@ -33,6 +34,18 @@ const colors = {
 // 每種地點用不同圖形（Lucide），不只靠顏色辨認。
 const iconKind = (k) =>
   ({ place: "store", "public-toilet": "toilet" })[k] || k;
+// 在 canvas 上畫一張圖（不利通行號誌）：數百個點也不必各建一個 DOM 標記。
+// radius 決定重繪範圍，圖以 radius*2 見方畫在點的中心。
+const noWalkImage = Object.assign(new Image(), { src: NO_WALK_URL });
+const ImageMark = L.CircleMarker.extend({
+  _updatePath() {
+    const r = this._renderer,
+      img = this.options.image;
+    if (!r._drawing || this._empty() || !img?.complete) return;
+    const s = this._radius * 2;
+    r._ctx.drawImage(img, this._point.x - s / 2, this._point.y - s / 2, s, s);
+  },
+});
 // 標記（圖形＋店名）隨縮放一起變大變小：縮放 18 為原尺寸，最小 0.9 倍免得太難點。
 const pinScale = (z) => Math.min(1.15, Math.max(0.9, 1 + (z - 18) * 0.13));
 // 店家與地標在圖形下方顯示名稱。
@@ -265,22 +278,44 @@ export default function MapView({
         interactive: false,
       });
       drawing = L.layerGroup([halo, official]);
-      // 不利通行點位跟人行道同一個圖層：放大到 16 以上才畫，免得整片紅點。
-      // 不利通行（沒有路緣斜坡）為實心紅點；行穿線未設置路緣斜坡為空心紅圈，形狀不同不只靠顏色。
+      // 不利通行點位跟人行道同一個圖層：放大到 16 以上才畫。
+      // 不利通行（沒有路緣斜坡）用「禁止行人」號誌；行穿線未設置路緣斜坡為空心紅圈。
+      // 號誌比圓點大，彼此太近（同一格）只畫一個，號誌優先於紅圈。
       if (issues && m.getZoom() >= 16) {
-        const r = m.getZoom() >= 18 ? 5.5 : 4.5;
-        for (const { lat, lon, kind } of visibleSidewalkIssues(issues, m.getBounds())) {
-          const crosswalk = kind === 3;
-          L.circleMarker([lat, lon], {
-            renderer,
-            pane: "official-sidewalks",
-            radius: r,
-            color: crosswalk ? TPColors.red600 : TPColors.white,
-            weight: crosswalk ? 2.5 : 1.5,
-            fillColor: crosswalk ? TPColors.white : TPColors.red600,
-            fillOpacity: 1,
-            interactive: false,
-          }).addTo(drawing);
+        const z = m.getZoom(),
+          size = z >= 19 ? 26 : z >= 18 ? 22 : z >= 17 ? 18 : 16,
+          taken = new Set();
+        const free = (lat, lon, cell) => {
+          const pt = m.latLngToContainerPoint([lat, lon]),
+            key = `${Math.floor(pt.x / cell)}:${Math.floor(pt.y / cell)}`;
+          if (taken.has(key)) return false;
+          taken.add(key);
+          return true;
+        };
+        const visible = visibleSidewalkIssues(issues, m.getBounds()).sort(
+          (a, b) => (a.kind === 3) - (b.kind === 3),
+        );
+        for (const { lat, lon, kind } of visible) {
+          if (!free(lat, lon, size * 0.9)) continue;
+          if (kind === 3)
+            L.circleMarker([lat, lon], {
+              renderer,
+              pane: "official-sidewalks",
+              radius: z >= 18 ? 5.5 : 4.5,
+              color: TPColors.red600,
+              weight: 2.5,
+              fillColor: TPColors.white,
+              fillOpacity: 1,
+              interactive: false,
+            }).addTo(drawing);
+          else
+            new ImageMark([lat, lon], {
+              renderer,
+              pane: "official-sidewalks",
+              radius: size / 2,
+              image: noWalkImage,
+              interactive: false,
+            }).addTo(drawing);
         }
       }
       drawing.getAttribution = () =>
@@ -294,6 +329,9 @@ export default function MapView({
       .then((result) => {
         if (!active) return;
         issues = result;
+        // 號誌圖還沒解碼完時先略過，載好再重畫一次。
+        if (!noWalkImage.complete)
+          noWalkImage.addEventListener("load", () => active && draw(), { once: true });
         draw();
       })
       .catch(() => {});

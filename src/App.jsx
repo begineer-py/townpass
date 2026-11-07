@@ -62,6 +62,7 @@ import {constructionFresh, CONSTRUCTION_MAX_AGE} from "./construction.mjs";
 import { requestOfficialRoute } from "./official-router.mjs";
 import { ROUTING_POLICY } from "./routing.mjs";
 import { BASEMAPS } from "./basemaps.mjs";
+import { NO_WALK_URL } from "./issue-icons.mjs";
 // Layer-picker preview: the z15 tile covering Taipei Main Station.
 const layerThumb = (url) =>
   url.replace("{z}", 15).replace("{x}", 27444).replace("{y}", 14027);
@@ -1885,7 +1886,7 @@ export default function App() {
                     </b>
                     <span className="issue-legend">
                       <span>
-                        <i className="issue-dot" aria-hidden="true" />
+                        <img className="issue-sign" src={NO_WALK_URL} alt="" />
                         不利通行
                       </span>
                       <span>
