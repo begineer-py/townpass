@@ -17,6 +17,13 @@ const colors = {
   parking: TPColors.grayscale600,
   health: TPColors.red700,
 };
+function drawOfficialConditions(group,conditions){
+  for(const point of conditions?.points||[]){
+    if(!Number.isFinite(point.lat)||!Number.isFinite(point.lon))continue;
+    const label=document.createElement('span');label.textContent=`${point.label}；與路線的實際關係未確認`;
+    L.circleMarker([point.lat,point.lon],{radius:6,color:TPColors.white,weight:2,fillColor:TPColors.orange700,fillOpacity:1}).bindTooltip(label).addTo(group);
+  }
+}
 export default function MapView({
   items,
   route,
@@ -230,6 +237,7 @@ export default function MapView({
           .bindTooltip('OSM 過街位置，官方資料未完整確認').addTo(path.current);
       }
       for(const approach of route.approaches || []) {const style=ROUTE_CONDITIONS.approach;L.polyline(approach.coordinates,{color:TPColors.white,weight:8,opacity:1}).addTo(path.current);const line=L.polyline(approach.coordinates,{color:colorFriendly?TPColors.primary900:style.color,weight:4,dashArray:style.dash}).addTo(path.current);if(approach.estimated)line.bindTooltip('入口及實際通行狀況未確認，虛線僅為位置估算');}
+      drawOfficialConditions(path.current,route.officialConditions);
       const fit=()=>{const height=map.current.getSize().y;map.current.fitBounds(L.latLngBounds(route.coordinates),{animate:false,paddingTopLeft:[24,40],paddingBottomRight:[24,Math.min(height-120,(paddingReader.current?.()||0)+24)]});};
       fit();const timer=setTimeout(fit,350);return ()=>clearTimeout(timer);
     }
@@ -240,6 +248,7 @@ export default function MapView({
     if(!partialRoute)return;
     const bounds=[];
     for(const segment of partialRoute.segments){
+      drawOfficialConditions(partialPath.current,segment.officialConditions);
       bounds.push(...segment.coordinates);
       L.polyline(segment.networkCoordinates,{color:TPColors.white,weight:10,opacity:1}).addTo(partialPath.current);
       if(segment.tierSegments.length){

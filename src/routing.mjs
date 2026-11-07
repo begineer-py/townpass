@@ -116,6 +116,21 @@ export function createRouter(graph) {
   for(const e of graph.edges){const direct=metres(graph.nodes[e[0]],graph.nodes[e[1]]);if(direct>0)heuristicScale=Math.min(heuristicScale,e[2]/direct);}
   heuristicScale=Math.max(0,heuristicScale*.999);
   const adjacency = Array.from({ length: graph.nodes.length }, () => []);
+  const conditionCosts = new Map();
+  function officialConditionPenalty(index) {
+    if (!graph.officialConditionIndex) return 0;
+    if (!conditionCosts.has(index)) {
+      const edge=graph.edges[index], way=graph.ways[edge[3]];
+      // Point-to-line proximity cannot prove which side of a road is affected.
+      // Only apply a modest preference penalty to separately mapped pedestrian
+      // geometry; never turn a nearby observation into a hard road closure.
+      const pedestrian=['footway','path','pedestrian','corridor'].includes(way.highway);
+      const line=[graph.nodes[edge[0]],...(edge[4]||[]),graph.nodes[edge[1]]];
+      const count=pedestrian?graph.officialConditionIndex.find(line,2).length:0;
+      conditionCosts.set(index,Math.min(2,count*0.35));
+    }
+    return conditionCosts.get(index);
+  }
   graph.edges.forEach((e, i) => {
     adjacency[e[0]].push([e[1], i]);
     adjacency[e[1]].push([e[0], i]);
@@ -268,7 +283,7 @@ export function createRouter(graph) {
         const e = graph.edges[ei],
           w = graph.ways[e[3]];
         if (graph.nodes[v][2] || !canTraverse(ei)) continue;
-        let factor = edgeCostFactor(w,e[5],options);
+        let factor = edgeCostFactor(w,e[5],options) + officialConditionPenalty(ei);
         if(w.source==='osm-shared-street'&&Number.isFinite(options._optimizeSharedPenalty))factor+=Math.max(0,Math.min(20,options._optimizeSharedPenalty));
         if(w.source!=='osm-shared-street'&&!(w.highway==='footway'&&w.footway==='sidewalk')&&Number.isFinite(options._optimizeNonSidewalkPenalty))factor+=Math.max(0,Math.min(10,options._optimizeNonSidewalkPenalty));
         const mid = [
@@ -328,7 +343,7 @@ export function createRouter(graph) {
     // Costs are relative search preferences, not a safety score. Known hard
     // exclusions are still applied before a candidate reaches this point.
     const approachDistance=s.distance+t.distance;
-    const costBreakdown={base:approachDistance,source:0,unknown:0,surface:0,width:0,slope:0,crossing:0,avoidPoint:0,entrance:approachDistance*(ROUTE_TIERS.connector.factor-1)};
+    const costBreakdown={base:approachDistance,source:0,unknown:0,surface:0,width:0,slope:0,crossing:0,officialCondition:0,avoidPoint:0,entrance:approachDistance*(ROUTE_TIERS.connector.factor-1)};
     es.forEach((ei, k) => {
       const e = graph.edges[ei],
         w = graph.ways[e[3]];
@@ -340,8 +355,9 @@ export function createRouter(graph) {
       const detail=edgeCostDetails(w,e[5],options);
       const crossEvidence=crossingEvidence(w,e[5]);
       for(const key of ['base','source','unknown','surface','width','slope','crossing'])costBreakdown[key]+=detail[key]*e[2];
+      costBreakdown.officialCondition+=officialConditionPenalty(ei)*e[2];
       const mid=[(graph.nodes[e[0]][0]+graph.nodes[e[1]][0])/2,(graph.nodes[e[0]][1]+graph.nodes[e[1]][1])/2];
-      if(options.avoidPoints?.some(p=>metres(mid,p)<=25))costBreakdown.avoidPoint+=edgeCostFactor(w,e[5],options)*7*e[2];
+      if(options.avoidPoints?.some(p=>metres(mid,p)<=25))costBreakdown.avoidPoint+=(edgeCostFactor(w,e[5],options)+officialConditionPenalty(ei))*7*e[2];
       if (w.crossing) crossings++;
       if (
         ![

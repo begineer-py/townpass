@@ -148,7 +148,10 @@ export function createLocalRouteVerifier(graph,facilities=[],places=[]){
     approaches.push({side,coordinates:side==='start'?[point,target]:[target,point],distance:Math.round(gap),estimated,name:known?.name,...(origin?{originKind:origin,unconfirmed:true,entryStatus:'unconfirmed'}:{})});}
   }
   const all=[...coordinates];if(!same(start,all[0]))all.unshift(start);if(!same(end,all.at(-1)))all.push(end);
-  return {...route,steps,tierSegments,crossingUncertainties,coordinates:all,networkCoordinates:coordinates,approaches,distance:Math.round(networkDistance+metres(start,coordinates[0])+metres(end,coordinates.at(-1))),provider:'mapped-pedestrian',geometryVerification:'pedestrian-network-v1',policyVersion:ROUTING_POLICY,requiresEntryConfirmation:false};
+  const officialConditions=graph.officialConditionIndex
+   ? {status:'available',fetchedAt:graph.officialConditionIndex.fetchedAt,sourceObservedAt:graph.officialConditionIndex.sourceObservedAt,points:graph.officialConditionIndex.find(all,10)}
+   : {status:'unavailable',points:[]};
+  return {...route,steps,tierSegments,crossingUncertainties,officialConditions,coordinates:all,networkCoordinates:coordinates,approaches,distance:Math.round(networkDistance+metres(start,coordinates[0])+metres(end,coordinates.at(-1))),provider:'mapped-pedestrian',geometryVerification:'pedestrian-network-v1',policyVersion:ROUTING_POLICY,requiresEntryConfirmation:false};
  };
  verify.approachAllowed=allowed;
  verify.endpointAllowed=endpointAllowed;

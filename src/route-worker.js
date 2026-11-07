@@ -1,6 +1,7 @@
 import { metres } from "./routing.mjs";
 import {verifiedPartialRoute} from "./partial-route.mjs";
 import { gunzipSync } from "fflate";
+import {createOfficialConditionIndex} from './official-conditions.mjs';
 import { validateNetwork } from "./network-contract.mjs";
 import { createOfficialRouteVerifier } from './verify-official-route.mjs';
 import {routeAroundConstruction,resolveVerifiedRoute} from './construction-routing.mjs';
@@ -32,12 +33,15 @@ function combineRoutes(a, b, viaName) {
     total = ad + bd;
   const mix = (pa, pb) =>
     total ? Math.round(((pa / 100) * ad + (pb / 100) * bd) / total * 100) : 0;
+  const available=a.officialConditions?.status==='available'&&b.officialConditions?.status==='available';
+  const points=available?[...new Map([...a.officialConditions.points,...b.officialConditions.points].map(p=>[`${p.type}:${p.id}`,p])).values()]:[];
   return {
     policyVersion: a.policyVersion,
     coordinates: a.coordinates.concat(b.coordinates),
     distance: total,
     tierSegments:[...(a.tierSegments||[]),...(b.tierSegments||[])],
     approaches:[...(a.approaches||[]),...(b.approaches||[])],
+    officialConditions:available?{...a.officialConditions,points}:{status:'unavailable',points:[]},
     crossingUncertainties:[...(a.crossingUncertainties||[]),...(b.crossingUncertainties||[])],
     unknownPct: mix(a.unknownPct, b.unknownPct),
     officialCoveragePct:
@@ -71,6 +75,15 @@ self.onmessage = async ({ data }) => {
           : JSON.parse(new TextDecoder().decode(bytes));
       validateNetwork(graph);
       routeGraph=graph;
+      // Data is optional for routing, but unavailable must not be presented as
+      // zero conditions. Never use stale hard-coded observations as current.
+      try{
+        const hr=await fetch(new URL('./official-conditions.json.gz',data.url));
+        if(!hr.ok)throw Error('conditions');
+        const hb=new Uint8Array(await hr.arrayBuffer());
+        const dataset=JSON.parse(new TextDecoder().decode(hb[0]===31&&hb[1]===139?gunzipSync(hb):hb));
+        graph.officialConditionIndex=createOfficialConditionIndex(dataset);
+      }catch{graph.officialConditionIndex=null;}
       verifyOfficial = createOfficialRouteVerifier(graph);
       const fr=await fetch(new URL('./facilities.json.gz',data.url));if(!fr.ok)throw Error('facilities');
       const fb=new Uint8Array(await fr.arrayBuffer());facilities=JSON.parse(new TextDecoder().decode(fb[0]===31&&fb[1]===139?gunzipSync(fb):fb));

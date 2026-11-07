@@ -47,12 +47,13 @@ function measure(g,route,start,end){
  }
  const estimated=approaches.start.metres+approaches.end.metres;
  const distance=network+metres(start,g.nodes[route.nodeIds[0]])+metres(end,g.nodes[route.nodeIds.at(-1)]);
- return {distanceMetres:distance,explicitSidewalkMetres:sidewalk,otherPedestrianMetres:pedestrian,sharedMetres:shared,unknownMetres:unknown,roughMetres,estimatedMetres:estimated,unverifiedCrossings,approaches};
+ const officialConditionCount=route.officialConditions?.status==='available'?route.officialConditions.points.filter(p=>p.distanceMetres<=2).length:null;
+ return {distanceMetres:distance,explicitSidewalkMetres:sidewalk,otherPedestrianMetres:pedestrian,sharedMetres:shared,unknownMetres:unknown,roughMetres,estimatedMetres:estimated,unverifiedCrossings,approaches,officialConditionCount};
 }
 function score(m,shortest){
  const d=m.distanceMetres||1,detour=Math.max(0,m.distanceMetres-shortest);
- const scoreBreakdown={sidewalk:40*m.explicitSidewalkMetres/d,shared:-25*m.sharedMetres/d,unknown:-12*m.unknownMetres/d,rough:-10*m.roughMetres/d,estimated:-15*m.estimatedMetres/d,detour:-20*detour/(shortest||1)};
- const scoreRaw=Object.values(scoreBreakdown).reduce((a,b)=>a+b,0);
+ const scoreBreakdown={sidewalk:40*m.explicitSidewalkMetres/d,shared:-25*m.sharedMetres/d,unknown:-12*m.unknownMetres/d,rough:-10*m.roughMetres/d,estimated:-15*m.estimatedMetres/d,detour:-20*detour/(shortest||1),officialConditions:m.officialConditionCount==null?null:-Math.min(20,2*m.officialConditionCount)};
+ const scoreRaw=Object.values(scoreBreakdown).reduce((a,b)=>a+(b??0),0);
  return {score:100/(1+Math.exp(-scoreRaw/20)),scoreRaw,scoreBreakdown,metrics:{...m,detourMetres:detour,detourRatio:shortest?m.distanceMetres/shortest:1}};
 }
 export function findRouteCandidates(base,start,end,options,snapshot,{graph,router,verifyLocal,checker},config={}){

@@ -1599,6 +1599,8 @@ export default function App() {
                     </p>
                     {partialRoute && <section aria-label="未連接的部分路段">
                       <p>{partialRoute.message}</p>
+                      {partialRoute.segments.some(s=>s.officialConditions?.points?.length>0)&&<p>部分路線附近有官方不利通行紀錄，地圖已標示；與路線的關係及現況未確認。</p>}
+                      {partialRoute.segments.some(s=>s.officialConditions?.status==='unavailable')&&<p>官方不利通行資料暫時無法讀取。</p>}
                       {partialRoute.gap.kind==='between-network'&&Number.isFinite(partialRoute.gap.straightMetres)&&<p>兩側路網點直線相距約 {formatDistance(partialRoute.gap.straightMetres)}；中間路段尚未規劃。</p>}
                       {partialRoute.segments.map(s=><div key={s.side}>
                         <p><strong>{s.side==='start'?'起點側路段':'目的地側路段'}</strong> · 約 {formatDistance(s.distance)}{s.side==='end'?'（目前未與起點側連接）':''}</p>
@@ -1664,6 +1666,10 @@ export default function App() {
                       })}
                     </div>
                     <p className="quiet-note">線條反映已知資料，實際路況請留意現場。</p>
+                    {route.officialConditions?.status==='available' && route.officialConditions.points.length>0 && (
+                      <div className="notice" role="note"><AlertTriangle aria-hidden="true"/><p>路線 10 公尺內有 {route.officialConditions.points.length} 筆官方不利通行紀錄，已在地圖標示：淨寬不足 {route.officialConditions.points.filter(p=>p.type==='missing_noCurbSlope').length} 筆、行穿線未設路緣斜坡 {route.officialConditions.points.filter(p=>p.type==='missing_crosswalkNoRamp').length} 筆。點位可能位於另一側或相鄰道路；與本路線的關係和現況請現場確認。資料擷取時間：{new Date(route.officialConditions.fetchedAt).toLocaleString('zh-TW',{timeZone:'Asia/Taipei'})}；官方紀錄的更新時間未提供。</p></div>
+                    )}
+                    {route.officialConditions?.status==='unavailable' && <p className="quiet-note" role="note">官方不利通行資料暫時無法讀取，不能確認沿途是否有相關紀錄。</p>}
                     {route.pedestrianImprovement?.status === 'unsupported-official-provenance' && <p className="quiet-note">使用官方原路；此路線暫無法比較沿線人行道替代路段。</p>}
                     {route.tierSegments?.some(segment => segment.sharedRoad === true) && (
                       <p className="quiet-note" role="note">部分路段可能人車共行，通行與無障礙狀況未確認。</p>
@@ -1681,6 +1687,7 @@ export default function App() {
                         <span>明示人行道 {length(m.explicitSidewalkMetres)} · 其他人行路網 {length(m.otherPedestrianMetres)} · 人車共行 {length(m.sharedMetres)}</span>
                         <span>路寬、坡度、路面或過街資料未知 {length(m.unknownMetres)} · 估算銜接 {length(m.estimatedMetres)}</span>
                         <span>較顛簸路面 {length(m.roughMetres)} · 較短候選多走 {length(m.detourMetres)}</span>
+                        <span>官方不利通行紀錄（2 公尺內）：{m.officialConditionCount == null ? '資料不足' : `${m.officialConditionCount} 筆`}</span>
                         {candidate.assumptions?.includes('official-attributes-missing-whole-route-penalty') && <span>官方資料不足，部分路段特徵未計入；評分包含資料缺失扣分。</span>}
                       </button>;})}
                     </section>}

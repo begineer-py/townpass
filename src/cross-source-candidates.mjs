@@ -35,7 +35,7 @@ function localMetrics(graph,route,start,end){
   if(w.width==null||w.slope==null||w.surface==null||(crossing&&crossingEvidence({...w,crossing},sourceProof)!=='full'))unknown+=e[2];
   if(roughValues.has(w.surface))rough+=e[2];
  }
- return {distanceMetres:network+metres(start,graph.nodes[route.nodeIds[0]])+metres(end,graph.nodes[route.nodeIds.at(-1)]),explicitSidewalkMetres:sidewalk,sharedMetres:shared,otherPedestrianMetres:other,unknownMetres:unknown,roughMetres:rough,estimatedMetres:approaches.start.metres+approaches.end.metres,unverifiedCrossings:route.crossingUncertainties||[]};
+ return {distanceMetres:network+metres(start,graph.nodes[route.nodeIds[0]])+metres(end,graph.nodes[route.nodeIds.at(-1)]),explicitSidewalkMetres:sidewalk,sharedMetres:shared,otherPedestrianMetres:other,unknownMetres:unknown,roughMetres:rough,estimatedMetres:approaches.start.metres+approaches.end.metres,unverifiedCrossings:route.crossingUncertainties||[],officialConditionCount:route.officialConditions?.status==='available'?route.officialConditions.points.filter(p=>p.distanceMetres<=2).length:null};
 }
 export function compareOfficialAndLocal(official,start,end,options,snapshot,{graph,verifyOfficial,verifyLocal,checker},config={}){
  if(!constructionFresh(snapshot))return {error:'CONSTRUCTION_UNAVAILABLE'};
@@ -47,7 +47,7 @@ export function compareOfficialAndLocal(official,start,end,options,snapshot,{gra
  const officialRoute={...checked,approaches:official.approaches||[],networkCoordinates:original.coordinates,construction:officialWork};
  const distance=length(officialRoute.coordinates);if(!Number.isFinite(distance)||distance<=0)return {error:'OFFICIAL_INVALID'};
  officialRoute.distance=Math.round(distance);
- const officialMetrics={distanceMetres:distance,explicitSidewalkMetres:null,sharedMetres:null,otherPedestrianMetres:null,unknownMetres:null,roughMetres:null,estimatedMetres:null};
+ const officialMetrics={distanceMetres:distance,explicitSidewalkMetres:null,sharedMetres:null,otherPedestrianMetres:null,unknownMetres:null,roughMetres:null,estimatedMetres:null,officialConditionCount:officialRoute.officialConditions?.status==='available'?officialRoute.officialConditions.points.filter(p=>p.distanceMetres<=2).length:null};
  const candidates=[{id:'official',route:officialRoute,metrics:officialMetrics,geometryComparison:'reference'}],rejected=[];
  const deadline=Date.now()+(config.totalMs??2000),maxComparisons=config.maxComparisons??200000;
  for(const item of config.localCandidates||[]){
@@ -77,7 +77,8 @@ export function compareOfficialAndLocal(official,start,end,options,snapshot,{gra
   const m=c.metrics,d=m.distanceMetres,officialCandidate=c.id==='official',detour=Math.max(0,d-shortest);
   const parts={sidewalk:officialCandidate?null:40*m.explicitSidewalkMetres/d,shared:officialCandidate?null:-25*m.sharedMetres/d,
    unknown:-12*(officialCandidate?d:m.unknownMetres)/d,rough:officialCandidate?null:-10*m.roughMetres/d,
-   estimated:officialCandidate?null:-15*m.estimatedMetres/d,detour:-20*detour/shortest};
+   estimated:officialCandidate?null:-15*m.estimatedMetres/d,detour:-20*detour/shortest,
+   officialConditions:m.officialConditionCount==null?null:-Math.min(20,2*m.officialConditionCount)};
   const raw=Object.values(parts).reduce((sum,v)=>sum+(v??0),0);
   c.scoreRaw=raw;c.score=100/(1+Math.exp(-raw/20));c.scoreBreakdown=parts;
   c.metrics={...m,detourMetres:detour,detourRatio:d/shortest};
