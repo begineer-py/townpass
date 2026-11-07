@@ -115,6 +115,11 @@ const filters = [
 ];
 // Shown before 更多: the four a wheelchair or low-vision user reaches for first.
 const MAIN_FILTERS = 4;
+const routeModes = {
+  balanced: "均衡走法",
+  gentle: "偏好平緩",
+  crossings: "減少過街",
+};
 const basePrefs = {
   avoidSteps: true,
   minWidth: 0.8,
@@ -845,11 +850,6 @@ export default function App() {
       .slice(0, 2)
       .map((s) => ({ s, name: s["車站名稱"], exits: stationsFor(s["車站名稱"]) }));
   }, [searchFor, query, data]);
-  const stations = useMemo(
-    () =>
-      data?.metro["metro-elevators"] || [],
-    [data],
-  );
   const routeWorks = route?.construction?.nearby?.slice(0,6) || [];
   useEffect(() => {
     if(!route?.construction)return;
@@ -1034,7 +1034,6 @@ export default function App() {
             {[
               ["explore", "找設施", Compass],
               ["plan", "規劃路線", Route],
-              ["stations", "捷運出口", TrainFront],
               ["saved", "收藏", Heart],
             ].map(([id, label, C]) => (
               <button
@@ -1394,56 +1393,6 @@ export default function App() {
                     )}
                   </>
                 )}
-              </>
-            )}
-            {tab === "stations" && (
-              <>
-                <h1 className="sr-only">捷運電梯出口</h1>
-                <div className="notice soft">
-                  <Info size={18} />
-                  <p>依離地圖中心由近到遠排列。要找特定車站，直接在上方搜尋站名。資料來自捷運公司，出發前可再向車站確認電梯是否維修。</p>
-                </div>
-                {stations
-                  .map((s) => {
-                    const name = s["車站名稱"];
-                    const exits = stationsFor(name);
-                    const near = exits.length
-                      ? Math.min(...exits.map((p) => distance(viewport, p)))
-                      : Infinity;
-                    return { s, name, exits, near };
-                  })
-                  .sort((a, b) => a.near - b.near)
-                  .map(({ s, name, exits }) => {
-                    return (
-                      <button
-                        className="station-card"
-                        key={`${name}-${s["路線別"]}`}
-                        onClick={() =>
-                          setSelected({
-                            id: `station-${name}-${s["路線別"]}`,
-                            name: `${name}站`,
-                            kind: "station-detail",
-                            record: s,
-                            exits,
-                          })
-                        }
-                      >
-                        <span className="station-icon">
-                          <TrainFront size={22} />
-                        </span>
-                        <span>
-                          <strong>{name}</strong>
-                          <small>
-                            {s["路線別"]} ·{" "}
-                            {exits.length
-                              ? `${exits.length} 處電梯／坡道出口`
-                              : "查看電梯位置說明"}
-                          </small>
-                        </span>
-                        <ChevronRight size={18} />
-                      </button>
-                    );
-                  })}
               </>
             )}
             {tab === "saved" && (
@@ -2027,9 +1976,20 @@ export default function App() {
                 <button
                   className="full text-button"
                   onClick={() => {
-                    setStationQuery(selected.station);
-                    setTab("stations");
-                    setSelected(null);
+                    const record = (data?.metro["metro-elevators"] || []).find(
+                      (r) => stationKey(r["車站名稱"]) === stationKey(selected.station),
+                    );
+                    if (!record) {
+                      announce("這個車站目前沒有電梯位置說明。");
+                      return;
+                    }
+                    setSelected({
+                      id: `station-${record["車站名稱"]}-${record["路線別"]}`,
+                      name: `${record["車站名稱"]}站`,
+                      kind: "station-detail",
+                      record,
+                      exits: stationsFor(record["車站名稱"]),
+                    });
                   }}
                 >
                   查看這個車站的電梯資訊
