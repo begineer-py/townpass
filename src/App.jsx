@@ -183,7 +183,7 @@ function Sheet({ title, onClose, children, dismissible = true }) {
     </dialog>
   );
 }
-function FacilityRow({ p, from, onSelect, saved, onSave }) {
+function FacilityRow({ p, from, onSelect, saved, onSave, sourceLabel }) {
   const k = category(p),
     sub = labels[k] || "設施";
   return (
@@ -194,10 +194,11 @@ function FacilityRow({ p, from, onSelect, saved, onSave }) {
         </span>
         <span className="facility-copy">
           <strong>{cleanName(p.name)}</strong>
-          {(sub !== cleanName(p.name) || p.exit) && (
+          {(sub !== cleanName(p.name) || p.exit || sourceLabel) && (
             <span>
               {sub}
               {p.exit ? ` · ${p.exit}` : ""}
+              {sourceLabel ? ` · ${sourceLabel}` : ""}
             </span>
           )}
         </span>
@@ -904,7 +905,7 @@ export default function App() {
           ),
         ]
       : [...recentPlaces, ...saved, ...data.fac.filter((p) => p.kind === "20")];
-    const used = new Set();
+    const used = new Set(), usedIds = new Set();
     return [...addressResults.map(p => matchStationLandmark(p, data.fac)), ...list]
       .sort(
         (a, b) => {
@@ -918,9 +919,9 @@ export default function App() {
       .filter((p) => {
         const key =
           normalize(p.name) +
-          Math.round(p.lat * 1000) +
-          Math.round(p.lon * 1000);
-        if (used.has(key)) return false;
+          `:${p.lat}:${p.lon}`;
+        if ((p.id && usedIds.has(p.id)) || used.has(key)) return false;
+        if (p.id) usedIds.add(p.id);
         used.add(key);
         return true;
       })
@@ -1958,6 +1959,8 @@ export default function App() {
               key={p.id}
               p={p}
               from={viewport}
+              sourceLabel={searchResults.some(other => other !== p && normalize(other.name) === normalize(p.name))
+                ? (p.sourceId === 'osm' ? 'OpenStreetMap' : p.sourceId ? '其他圖資' : '地點搜尋') : undefined}
               onSelect={(p) => {
                 if (searchFor === "explore") {
                   setSearchFor(null);
