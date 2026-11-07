@@ -76,7 +76,11 @@ import {
 } from "./data";
 import { getLocation, locationErrorText } from "./location";
 import { installTownPassLinks, postToTownPass, townPassUserKey } from "./townpass-bridge";
-import { activeElevatorStops, nearestStop } from "./trip-extras.mjs";
+import {
+  activeElevatorStops,
+  facilitiesAlongRoute,
+  nearestStop,
+} from "./trip-extras.mjs";
 import { travelProfiles } from "./travel-profiles";
 import { clearLocalData, loadProfile, loadTrips, saveProfile, saveTrips } from "./local-database";
 import { addressSearch } from "./address-search";
@@ -849,6 +853,12 @@ export default function App() {
       .map((s) => ({ s, name: s["車站名稱"], exits: stationsFor(s["車站名稱"]) }));
   }, [searchFor, query, data]);
   const routeWorks = route?.construction?.nearby?.slice(0,6) || [];
+  const routeToilets = useMemo(
+    () => facilitiesAlongRoute(route, data?.all, "toilet", 100, 6),
+    [route, data],
+  );
+  const avoidedWorks = route?.construction?.avoidedWorks || [];
+  const avoidedStairs = route?.avoidedStairs || [];
   useEffect(() => {
     if(!route?.construction)return;
     const until=Date.parse(route.construction.sourceUpdatedAt)+CONSTRUCTION_MAX_AGE-Date.now();
@@ -871,7 +881,14 @@ export default function App() {
       route.policyVersion !== ROUTING_POLICY
     )
       return;
-    const text = `從${start.name}前往${end.name}，路線長約${formatDistance(route.distance)}。${route.steps.map((s) => `${stepText(s)}約${Math.round(s.distance)}公尺。`).join("")}路況仍需留意現場，這是路線預覽。`;
+    const avoidedText =
+      avoidedStairs.length || avoidedWorks.length
+        ? `已避開${avoidedStairs.length ? `${avoidedStairs.length}處階梯` : ""}${avoidedStairs.length && avoidedWorks.length ? "與" : ""}${avoidedWorks.length ? `${avoidedWorks.length}處施工` : ""}。`
+        : "";
+    const toiletText = routeToilets.length
+      ? `沿途找到${routeToilets.length}處無障礙廁所。`
+      : "";
+    const text = `從${start.name}前往${end.name}，路線長約${formatDistance(route.distance)}。${avoidedText}${toiletText}${route.steps.map((s) => `${stepText(s)}約${Math.round(s.distance)}公尺。`).join("")}路況仍需留意現場，這是路線預覽。`;
     speakText(text);
   }
   function speakText(text) {
@@ -1289,6 +1306,89 @@ export default function App() {
                         路程使用一般道路路網，尚未確認是否有連續人行空間。
                       </p>
                     )}
+                    {(avoidedStairs.length > 0 || avoidedWorks.length > 0) && (
+                      <>
+                        <h2 className="section-title">這條路線已避開</h2>
+                        <div className="route-context-list">
+                          {avoidedStairs.map((stair) => (
+                            <button
+                              type="button"
+                              key={`stair-${stair.way}-${stair.lat}-${stair.lon}`}
+                              onClick={() =>
+                                setFocus({
+                                  lat: stair.lat,
+                                  lon: stair.lon,
+                                  zoom: 18,
+                                  token: Date.now(),
+                                })
+                              }
+                            >
+                              <AlertTriangle size={19} aria-hidden="true" />
+                              <span>
+                                <b>階梯 · {cleanName(stair.name)}</b>
+                                <small>點一下查看避開的位置</small>
+                              </span>
+                              <ChevronRight size={18} aria-hidden="true" />
+                            </button>
+                          ))}
+                          {avoidedWorks.map((work) => {
+                            const point = work.geometry?.coordinates?.[0];
+                            return (
+                              <button
+                                type="button"
+                                key={`work-${work.id}`}
+                                onClick={() =>
+                                  point &&
+                                  setFocus({
+                                    lat: point[0],
+                                    lon: point[1],
+                                    zoom: 18,
+                                    token: Date.now(),
+                                  })
+                                }
+                              >
+                                <AlertTriangle size={19} aria-hidden="true" />
+                                <span>
+                                  <b>施工 · {work.address}</b>
+                                  <small>
+                                    {work.match === "vicinity"
+                                      ? "已避開通報位置周邊"
+                                      : "已避開施工範圍"}
+                                  </small>
+                                </span>
+                                <ChevronRight size={18} aria-hidden="true" />
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </>
+                    )}
+                    {routeToilets.length > 0 && (
+                      <>
+                        <h2 className="section-title">沿途無障礙廁所</h2>
+                        <div
+                          className="route-context-list"
+                          aria-label="沿途無障礙廁所"
+                        >
+                          {routeToilets.map(({ place, near }) => (
+                            <button
+                              type="button"
+                              key={place.id}
+                              onClick={() => inspect(place)}
+                            >
+                              <Toilet size={19} aria-hidden="true" />
+                              <span>
+                                <b>{cleanName(place.name)}</b>
+                                <small>
+                                  距路線約 {formatDistance(near)}
+                                </small>
+                              </span>
+                              <ChevronRight size={18} aria-hidden="true" />
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
                     {!route.viaName && !route.requiresEntryConfirmation && (
                       <div className="point-actions" aria-label="順路停靠">
                         <button
@@ -1502,7 +1602,13 @@ export default function App() {
         </aside>
         <main className="map-area" aria-label="地圖與設施">
           <MapView
-            items={showMapFacilities ? mapItems : []}
+            items={
+              route
+                ? routeToilets.map(({ place }) => place)
+                : showMapFacilities
+                  ? mapItems
+                  : []
+            }
             basemap={basemap}
             showOfficialSidewalk={showOfficialSidewalk}
             colorFriendly={prefs.colorFriendly}

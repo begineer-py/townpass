@@ -936,3 +936,43 @@ button.icon-action {
     white-space: nowrap;
   }
 }
+
+.route-context-list {
+  overflow: hidden;
+  margin: 6px 0 12px;
+  border-radius: var(--r-md);
+  background: var(--surface-sunken);
+}
+.route-context-list button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 56px;
+  padding: 9px 12px;
+  text-align: left;
+}
+.route-context-list button + button {
+  border-top: 0.5px solid var(--hairline);
+}
+.route-context-list button > svg:first-child {
+  color: var(--tp-primary700);
+}
+.route-context-list button > span {
+  flex: 1;
+  min-width: 0;
+}
+.route-context-list b,
+.route-context-list small {
+  display: block;
+}
+.route-context-list b {
+  overflow: hidden;
+  color: var(--tp-grayscale900);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.route-context-list small {
+  margin-top: 2px;
+  color: var(--tp-grayscale600);
+}

@@ -19,6 +19,58 @@ export function nearestStop(route, places, kind, limit = 150) {
   return best;
 }
 
+function segmentDistance(point, a, b) {
+  const ax = a[1] * 100700;
+  const ay = a[0] * 111195;
+  const bx = b[1] * 100700;
+  const by = b[0] * 111195;
+  const px = point.lon * 100700;
+  const py = point.lat * 111195;
+  const dx = bx - ax;
+  const dy = by - ay;
+  const t = Math.max(
+    0,
+    Math.min(1, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy || 1)),
+  );
+  return Math.hypot(px - ax - t * dx, py - ay - t * dy);
+}
+
+export function facilitiesAlongRoute(
+  route,
+  places,
+  kind,
+  limit = 100,
+  max = 8,
+) {
+  const coordinates = route?.coordinates || [];
+  if (!coordinates.length) return [];
+  return (places || [])
+    .filter(
+      (place) =>
+        category(place) === kind &&
+        Number.isFinite(place.lat) &&
+        Number.isFinite(place.lon),
+    )
+    .map((place) => {
+      let near = Infinity;
+      let order = 0;
+      for (let i = 0; i < Math.max(1, coordinates.length - 1); i++) {
+        const value =
+          coordinates.length === 1
+            ? distance({ lat: coordinates[0][0], lon: coordinates[0][1] }, place)
+            : segmentDistance(place, coordinates[i], coordinates[i + 1]);
+        if (value < near) {
+          near = value;
+          order = i;
+        }
+      }
+      return { place, near, order };
+    })
+    .filter(({ near }) => near <= limit)
+    .sort((a, b) => a.order - b.order || a.near - b.near)
+    .slice(0, max);
+}
+
 function taipeiRoc(now) {
   const local = new Date(now + 8 * 3600000);
   return `${local.getUTCFullYear() - 1911}${String(local.getUTCMonth() + 1).padStart(2, "0")}${String(local.getUTCDate()).padStart(2, "0")}`;

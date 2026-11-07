@@ -313,6 +313,49 @@ export default function MapView({
         lineCap: "round",
         dashArray: route.requiresEntryConfirmation ? "8 6" : undefined,
       }).addTo(path.current);
+      for (const stair of route.avoidedStairs || []) {
+        if (!Number.isFinite(stair.lat) || !Number.isFinite(stair.lon)) continue;
+        const marker = L.circleMarker([stair.lat, stair.lon], {
+          radius: 8,
+          color: TPColors.white,
+          weight: 3,
+          fillColor: TPColors.orange700,
+          fillOpacity: 1,
+        }).addTo(path.current);
+        marker.bindTooltip(`已避開階梯：${cleanName(stair.name)}`, {
+          direction: "top",
+        });
+      }
+      for (const work of route.construction?.avoidedWorks || []) {
+        const geometry = work.geometry;
+        if (!geometry?.coordinates?.length) continue;
+        let layer;
+        if (geometry.type === "Point")
+          layer = L.circleMarker(geometry.coordinates[0], {
+            radius: 9,
+            color: TPColors.white,
+            weight: 3,
+            fillColor: TPColors.red700,
+            fillOpacity: 1,
+          });
+        else if (geometry.type === "Polygon")
+          layer = L.polygon(geometry.coordinates, {
+            color: TPColors.red700,
+            weight: 3,
+            dashArray: "6 5",
+            fillColor: TPColors.red500,
+            fillOpacity: 0.18,
+          });
+        else
+          layer = L.polyline(geometry.coordinates, {
+            color: TPColors.red700,
+            weight: 4,
+            dashArray: "6 5",
+          });
+        layer
+          .addTo(path.current)
+          .bindTooltip(`已避開施工：${work.address}`, { direction: "top" });
+      }
       map.current.fitBounds(L.latLngBounds(route.coordinates).pad(0.2));
     }
   }, [route]);

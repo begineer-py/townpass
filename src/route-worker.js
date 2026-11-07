@@ -6,7 +6,26 @@ import {routeAroundConstruction,resolveVerifiedRoute} from './construction-routi
 import {createConstructionChecker} from './construction.mjs';
 import {createDetourWaypoints} from './alternative-routes.mjs';
 import {createLocalRouteVerifier,planPlaces,diagnoseConstruction} from './local-route-verifier.mjs';
+import {diagnoseAvoidedStairs} from './route-avoidance.mjs';
 let router, verifyOfficial, verifyLocal, facilities, initialization, detourWaypoints;
+function annotateAvoidance(result,start,end,prefs,checker){
+  if(result?.error)return result;
+  const avoidedStairs=diagnoseAvoidedStairs(router,start,end,prefs);
+  let avoidedWorks=result.construction?.avoidedWorks||[];
+  const {lineAllowed,...withoutClosures}=prefs;
+  const direct=router(start,end,withoutClosures);
+  if(!direct.error){
+    const checked=verifyLocal(direct,start,end,withoutClosures);
+    if(!checked.error){
+      const found=checker.inspect(checked.coordinates).blocked;
+      if(found.length)avoidedWorks=found;
+    }
+  }
+  const construction=result.construction
+    ? {...result.construction,avoided:avoidedWorks.length,avoidedWorks}
+    : result.construction;
+  return {...result,avoidedStairs,construction};
+}
 function combineRoutes(a, b, viaName) {
   if (a.error) return a;
   if (b.error) return b;
@@ -38,6 +57,7 @@ function combineRoutes(a, b, viaName) {
     startGap: a.startGap,
     endGap: b.endGap,
     viaName: viaName || "順路停靠",
+    avoidedStairs:[...(a.avoidedStairs||[]),...(b.avoidedStairs||[])],
   };
 }
 self.onmessage = async ({ data }) => {
@@ -65,11 +85,18 @@ self.onmessage = async ({ data }) => {
     } else if(data.type==='plan-places'){
       await initialization;
       let checker;try{checker=createConstructionChecker(data.construction);}catch{postMessage({type:'route',id:data.id,result:{error:'CONSTRUCTION_UNAVAILABLE'}});return;}
-      postMessage({type:'route',id:data.id,result:planPlaces(data.startPlace,data.endPlace,data.options,data.construction,{router,verifyLocal,facilities,checker})});
+      let result=planPlaces(data.startPlace,data.endPlace,data.options,data.construction,{router,verifyLocal,facilities,checker});
+      if(!result.error){
+        const start=[result.resolvedStart.lat,result.resolvedStart.lon],end=[result.resolvedEnd.lat,result.resolvedEnd.lon];
+        result=annotateAvoidance(result,start,end,{...data.options,startPlace:result.resolvedStart,endPlace:result.resolvedEnd,lineAllowed:checker.allowed},checker);
+      }
+      postMessage({type:'route',id:data.id,result});
     } else if (data.type === 'verify-official') {
       await initialization;
       if (!verifyOfficial) throw Error('UNVERIFIED_NETWORK');
-      const result=resolveVerifiedRoute(data.route,data.start,data.end,data.options,data.construction,{router,verifyOfficial,verifyLocal});
+      let result=resolveVerifiedRoute(data.route,data.start,data.end,data.options,data.construction,{router,verifyOfficial,verifyLocal});
+      let checker;try{checker=createConstructionChecker(data.construction);}catch{postMessage({type:'verified-official',id:data.id,result:{error:'CONSTRUCTION_UNAVAILABLE'}});return;}
+      result=annotateAvoidance(result,data.start,data.end,{...data.options,lineAllowed:checker.allowed},checker);
       if(result.error && ['OFFICIAL_PATH_UNVERIFIED','OFFICIAL_ROAD_CONFLICT','OFFICIAL_CROSSING_UNVERIFIED','OFFICIAL_ENTRY_UNVERIFIED','CONSTRUCTION_BLOCKED'].includes(result.error))result.detourWaypoints=detourWaypoints(data.start,data.end,result.detourCenter);
       postMessage({type:'verified-official',id:data.id,result});
     } else if (data.type === "route") {
@@ -85,13 +112,17 @@ self.onmessage = async ({ data }) => {
           return candidate;
         }
         const checked=candidate.error?candidate:verifyLocal(candidate,start,end,data.options);
-        return checked.error?checked:routeAroundConstruction({...checked,provider:'local-verified'},start,end,data.options,data.construction,{router,verifyOfficial,verifyLocal});
+        const result=checked.error?checked:routeAroundConstruction({...checked,provider:'local-verified'},start,end,data.options,data.construction,{router,verifyOfficial,verifyLocal});
+        return annotateAvoidance(result,start,end,prefs,checker);
       }
       let result;
       if(data.via){
         const a=leg(data.start,data.via),b=a.error?a:leg(data.via,data.end);
         result=combineRoutes(a,b,data.viaName);
-        if(!result.error)result={...result,provider:'local-verified',geometryVerification:a.geometryVerification,construction:checker.inspect(result.coordinates)};
+        if(!result.error){
+          const work=checker.inspect(result.coordinates),avoidedWorks=[...(a.construction?.avoidedWorks||[]),...(b.construction?.avoidedWorks||[])];
+          result={...result,provider:'local-verified',geometryVerification:a.geometryVerification,construction:{...work,avoided:avoidedWorks.length,avoidedWorks}};
+        }
       }else result=leg(data.start,data.end);
       postMessage({type:'route',id:data.id,result});
     }
