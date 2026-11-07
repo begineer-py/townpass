@@ -1,0 +1,1172 @@
+{
+  "checkedAt": "2026-11-07T14:28:08.187Z",
+  "seed": 20261113,
+  "sourceBenchmark": "reports/metro-round4-after.json",
+  "constructionFetchedAt": "2026-11-07T14:27:23.962Z",
+  "constructionUpdatedAt": "Sat, 07 Nov 2026 14:20:57 GMT",
+  "graphSha256": "bb211a0e906221556b5eb7621921733dd6586bb3649ba3dbf988907e22552f2d",
+  "facilitiesSha256": "914e019fa1b52f4ed44da95dd265a2568127ec787a566e345a8077fe82bf541c",
+  "placesSha256": "f6d28df1737b45a41beb7e515c2125c38e15e2bef664af79b1999d89dea03d41",
+  "method": "Fixed-seed selection from previously successful metro station pairs; revalidate original route, then simulate one GPS point 3/10/25m from the midpoint of a mapped ground pedestrian segment in one random direction per route. Local route only with fresh construction snapshot and current destination; accuracy 5m is simulated. Direct road/construction checks refer only to the original anchor connector, not necessarily the connector the router chooses. Not a live GPS test, off-route detector test, citywide rate, or physical safety guarantee.",
+  "rejected": [],
+  "samples": [
+    {
+      "start": "大橋頭(O12)",
+      "end": "台電大樓(G08)",
+      "startId": "w20-59",
+      "endId": "w20-79",
+      "priorBin": "4–8 km",
+      "anchor": {
+        "coordinate": [
+          25.0433041,
+          121.51871875
+        ],
+        "edgeId": 71119,
+        "osmWayId": 455032426,
+        "length": 14.723083540700463
+      },
+      "angleRadians": 4.4775348534476205,
+      "offsets": [
+        {
+          "offsetMetres": 3,
+          "gps": [
+            25.043297821809812,
+            121.51868977636654
+          ],
+          "success": true,
+          "error": null,
+          "routeDistance": 3054,
+          "estimatedApproach": {
+            "distance": 3,
+            "coordinates": [
+              [
+                25.043297821809812,
+                121.51868977636654
+              ],
+              [
+                25.043291983174395,
+                121.51871538106951
+              ]
+            ],
+            "estimated": true,
+            "unconfirmed": true,
+            "entryStatus": "unconfirmed",
+            "roadMaskClear": true,
+            "constructionClear": true
+          },
+          "directRoadClear": true,
+          "directConstructionClear": true,
+          "elapsedMs": 153
+        },
+        {
+          "offsetMetres": 10,
+          "gps": [
+            25.04328317269937,
+            121.5186221712218
+          ],
+          "success": true,
+          "error": null,
+          "routeDistance": 3055,
+          "estimatedApproach": {
+            "distance": 9,
+            "coordinates": [
+              [
+                25.04328317269937,
+                121.5186221712218
+              ],
+              [
+                25.0432399,
+                121.5187009
+              ]
+            ],
+            "estimated": true,
+            "unconfirmed": true,
+            "entryStatus": "unconfirmed",
+            "roadMaskClear": true,
+            "constructionClear": true
+          },
+          "directRoadClear": true,
+          "directConstructionClear": true,
+          "elapsedMs": 118
+        },
+        {
+          "offsetMetres": 25,
+          "gps": [
+            25.043251781748417,
+            121.5184773030545
+          ],
+          "success": true,
+          "error": null,
+          "routeDistance": 3064,
+          "estimatedApproach": {
+            "distance": 22,
+            "coordinates": [
+              [
+                25.043251781748417,
+                121.5184773030545
+              ],
+              [
+                25.043199757109964,
+                121.51868886365897
+              ]
+            ],
+            "estimated": true,
+            "unconfirmed": true,
+            "entryStatus": "unconfirmed",
+            "roadMaskClear": true,
+            "constructionClear": true
+          },
+          "directRoadClear": true,
+          "directConstructionClear": true,
+          "elapsedMs": 100
+        }
+      ]
+    },
+    {
+      "start": "辛亥(BR05)",
+      "end": "萬芳醫院(BR04)",
+      "startId": "w20-100",
+      "endId": "w20-101",
+      "priorBin": "0.5–1 km",
+      "anchor": {
+        "coordinate": [
+          25.001722450000003,
+          121.555227
+        ],
+        "edgeId": 81982,
+        "osmWayId": 512571062,
+        "length": 38.054763157959684
+      },
+      "angleRadians": 0.2870793587847457,
+      "offsets": [
+        {
+          "offsetMetres": 3,
+          "gps": [
+            25.001748325487693,
+            121.55523543552104
+          ],
+          "success": true,
+          "error": null,
+          "routeDistance": 461,
+          "estimatedApproach": {
+            "distance": 1,
+            "coordinates": [
+              [
+                25.001748325487693,
+                121.55523543552104
+              ],
+              [
+                25.001745285660085,
+                121.55524133849178
+              ]
+            ],
+            "estimated": true,
+            "unconfirmed": true,
+            "entryStatus": "unconfirmed",
+            "roadMaskClear": true,
+            "constructionClear": true
+          },
+          "directRoadClear": true,
+          "directConstructionClear": true,
+          "elapsedMs": 55
+        },
+        {
+          "offsetMetres": 10,
+          "gps": [
+            25.001808701625635,
+            121.55525511840347
+          ],
+          "success": true,
+          "error": null,
+          "routeDistance": 467,
+          "estimatedApproach": {
+            "distance": 7,
+            "coordinates": [
+              [
+                25.001808701625635,
+                121.55525511840347
+              ],
+              [
+                25.001745285660085,
+                121.55524133849178
+              ]
+            ],
+            "estimated": true,
+            "unconfirmed": true,
+            "entryStatus": "unconfirmed",
+            "roadMaskClear": true,
+            "constructionClear": true
+          },
+          "directRoadClear": true,
+          "directConstructionClear": true,
+          "elapsedMs": 43
+        },
+        {
+          "offsetMetres": 25,
+          "gps": [
+            25.00193807906408,
+            121.55529729600867
+          ],
+          "success": true,
+          "error": null,
+          "routeDistance": 539,
+          "estimatedApproach": {
+            "distance": 26,
+            "coordinates": [
+              [
+                25.00193807906408,
+                121.55529729600867
+              ],
+              [
+                25.0021422,
+                121.555433
+              ]
+            ],
+            "estimated": true,
+            "unconfirmed": true,
+            "entryStatus": "unconfirmed",
+            "roadMaskClear": true,
+            "constructionClear": true
+          },
+          "directRoadClear": false,
+          "directConstructionClear": true,
+          "elapsedMs": 50
+        }
+      ]
+    },
+    {
+      "start": "台北車站(BL12)",
+      "end": "台電大樓(G08)",
+      "startId": "w20-114",
+      "endId": "w20-79",
+      "priorBin": "2–4 km",
+      "anchor": {
+        "coordinate": [
+          25.0343278,
+          121.51732185
+        ],
+        "edgeId": 70490,
+        "osmWayId": 454495463,
+        "length": 30.424955117613454
+      },
+      "angleRadians": 3.443958375467205,
+      "offsets": [
+        {
+          "offsetMetres": 3,
+          "gps": [
+            25.034302044308706,
+            121.51731297871585
+          ],
+          "success": true,
+          "error": null,
+          "routeDistance": 1945,
+          "estimatedApproach": {
+            "distance": 2,
+            "coordinates": [
+              [
+                25.034302044308706,
+                121.51731297871585
+              ],
+              [
+                25.03431368844316,
+                121.51733224766292
+              ]
+            ],
+            "estimated": true,
+            "unconfirmed": true,
+            "entryStatus": "unconfirmed",
+            "roadMaskClear": true,
+            "constructionClear": true
+          },
+          "directRoadClear": true,
+          "directConstructionClear": true,
+          "elapsedMs": 77
+        },
+        {
+          "offsetMetres": 10,
+          "gps": [
+            25.034241947695687,
+            121.51729227905282
+          ],
+          "success": true,
+          "error": null,
+          "routeDistance": 1942,
+          "estimatedApproach": {
+            "distance": 12,
+            "coordinates": [
+              [
+                25.034241947695687,
+                121.51729227905282
+              ],
+              [
+                25.034214,
+                121.5174057
+              ]
+            ],
+            "estimated": true,
+            "unconfirmed": true,
+            "entryStatus": "unconfirmed",
+            "roadMaskClear": true,
+            "constructionClear": true
+          },
+          "directRoadClear": true,
+          "directConstructionClear": true,
+          "elapsedMs": 66
+        },
+        {
+          "offsetMetres": 25,
+          "gps": [
+            25.034113169239212,
+            121.51724792263207
+          ],
+          "success": true,
+          "error": null,
+          "routeDistance": 2011,
+          "estimatedApproach": {
+            "distance": 38,
+            "coordinates": [
+              [
+                25.034113169239212,
+                121.51724792263207
+              ],
+              [
+                25.0344347,
+                121.5171152
+              ]
+            ],
+            "estimated": true,
+            "unconfirmed": true,
+            "entryStatus": "unconfirmed",
+            "roadMaskClear": true,
+            "constructionClear": true
+          },
+          "directRoadClear": false,
+          "directConstructionClear": true,
+          "elapsedMs": 67
+        }
+      ]
+    },
+    {
+      "start": "劍潭(R15)",
+      "end": "大直(BR14)",
+      "startId": "w20-36",
+      "endId": "w20-93",
+      "priorBin": "2–4 km",
+      "anchor": {
+        "coordinate": [
+          25.09297275,
+          121.538118
+        ],
+        "edgeId": 146459,
+        "osmWayId": 1018192316,
+        "length": 11.92603262612853
+      },
+      "angleRadians": 4.2185837725128374,
+      "offsets": [
+        {
+          "offsetMetres": 3,
+          "gps": [
+            25.09295996219661,
+            121.53809176755772
+          ],
+          "success": true,
+          "error": null,
+          "routeDistance": 2430,
+          "estimatedApproach": {
+            "distance": 2,
+            "coordinates": [
+              [
+                25.09295996219661,
+                121.53809176755772
+              ],
+              [
+                25.092974181243605,
+                121.53809275029944
+              ]
+            ],
+            "estimated": true,
+            "unconfirmed": true,
+            "entryStatus": "unconfirmed",
+            "roadMaskClear": true,
+            "constructionClear": true
+          },
+          "directRoadClear": true,
+          "directConstructionClear": true,
+          "elapsedMs": 125
+        },
+        {
+          "offsetMetres": 10,
+          "gps": [
+            25.09293012398869,
+            121.53803055852575
+          ],
+          "success": true,
+          "error": null,
+          "routeDistance": 2437,
+          "estimatedApproach": {
+            "distance": 8,
+            "coordinates": [
+              [
+                25.09293012398869,
+                121.53803055852575
+              ],
+              [
+                25.092974181243605,
+                121.53809275029944
+              ]
+            ],
+            "estimated": true,
+            "unconfirmed": true,
+            "entryStatus": "unconfirmed",
+            "roadMaskClear": true,
+            "constructionClear": true
+          },
+          "directRoadClear": true,
+          "directConstructionClear": true,
+          "elapsedMs": 118
+        },
+        {
+          "offsetMetres": 25,
+          "gps": [
+            25.092866184971722,
+            121.53789939631437
+          ],
+          "success": true,
+          "error": null,
+          "routeDistance": 2454,
+          "estimatedApproach": {
+            "distance": 4,
+            "coordinates": [
+              [
+                25.092866184971722,
+                121.53789939631437
+              ],
+              [
+                25.0929048,
+                121.5378982
+              ]
+            ],
+            "estimated": true,
+            "unconfirmed": true,
+            "entryStatus": "unconfirmed",
+            "roadMaskClear": true,
+            "constructionClear": true
+          },
+          "directRoadClear": true,
+          "directConstructionClear": true,
+          "elapsedMs": 123
+        }
+      ]
+    },
+    {
+      "start": "台北小巨蛋(G17)",
+      "end": "景美(G05)",
+      "startId": "w20-72",
+      "endId": "w20-82",
+      "priorBin": "4–8 km",
+      "anchor": {
+        "coordinate": [
+          25.0218182,
+          121.54903010000001
+        ],
+        "edgeId": 204612,
+        "osmWayId": 1425879410,
+        "length": 10.252495509085094
+      },
+      "angleRadians": 2.5343442153920472,
+      "offsets": [
+        {
+          "offsetMetres": 3,
+          "gps": [
+            25.021796043755746,
+            121.54904709930435
+          ],
+          "success": true,
+          "error": null,
+          "routeDistance": 4860,
+          "estimatedApproach": {
+            "distance": 3,
+            "coordinates": [
+              [
+                25.021796043755746,
+                121.54904709930435
+              ],
+              [
+                25.0217721,
+                121.5490297
+              ]
+            ],
+            "estimated": true,
+            "unconfirmed": true,
+            "entryStatus": "unconfirmed",
+            "roadMaskClear": true,
+            "constructionClear": true
+          },
+          "directRoadClear": true,
+          "directConstructionClear": true,
+          "elapsedMs": 155
+        },
+        {
+          "offsetMetres": 10,
+          "gps": [
+            25.021744345852486,
+            121.54908676434779
+          ],
+          "success": true,
+          "error": null,
+          "routeDistance": 4860,
+          "estimatedApproach": {
+            "distance": 6,
+            "coordinates": [
+              [
+                25.021744345852486,
+                121.54908676434779
+              ],
+              [
+                25.021744048691563,
+                121.54902987867077
+              ]
+            ],
+            "estimated": true,
+            "unconfirmed": true,
+            "entryStatus": "unconfirmed",
+            "roadMaskClear": true,
+            "constructionClear": true
+          },
+          "directRoadClear": true,
+          "directConstructionClear": true,
+          "elapsedMs": 149
+        },
+        {
+          "offsetMetres": 25,
+          "gps": [
+            25.021633564631216,
+            121.54917176086946
+          ],
+          "success": true,
+          "error": null,
+          "routeDistance": 4845,
+          "estimatedApproach": {
+            "distance": 6,
+            "coordinates": [
+              [
+                25.021633564631216,
+                121.54917176086946
+              ],
+              [
+                25.0215813,
+                121.5491792
+              ]
+            ],
+            "estimated": true,
+            "unconfirmed": true,
+            "entryStatus": "unconfirmed",
+            "roadMaskClear": true,
+            "constructionClear": true
+          },
+          "directRoadClear": true,
+          "directConstructionClear": true,
+          "elapsedMs": 353
+        }
+      ]
+    },
+    {
+      "start": "港墘(BR17)",
+      "end": "劍南路(BR15)",
+      "startId": "w20-90",
+      "endId": "w20-92",
+      "priorBin": "2–4 km",
+      "anchor": {
+        "coordinate": [
+          25.0833708,
+          121.56360864999999
+        ],
+        "edgeId": 127208,
+        "osmWayId": 827269956,
+        "length": 9.717845210125443
+      },
+      "angleRadians": 0.43862634881088997,
+      "offsets": [
+        {
+          "offsetMetres": 3,
+          "gps": [
+            25.083395225627996,
+            121.56362130232125
+          ],
+          "success": true,
+          "error": null,
+          "routeDistance": 929,
+          "estimatedApproach": {
+            "distance": 5,
+            "coordinates": [
+              [
+                25.083395225627996,
+                121.56362130232125
+              ],
+              [
+                25.0833942,
+                121.5635679
+              ]
+            ],
+            "estimated": true,
+            "unconfirmed": true,
+            "entryStatus": "unconfirmed",
+            "roadMaskClear": true,
+            "constructionClear": true
+          },
+          "directRoadClear": true,
+          "directConstructionClear": true,
+          "elapsedMs": 98
+        },
+        {
+          "offsetMetres": 10,
+          "gps": [
+            25.08345221875999,
+            121.5636508244042
+          ],
+          "success": true,
+          "error": null,
+          "routeDistance": 931,
+          "estimatedApproach": {
+            "distance": 16,
+            "coordinates": [
+              [
+                25.08345221875999,
+                121.5636508244042
+              ],
+              [
+                25.0834297,
+                121.5634972
+              ]
+            ],
+            "estimated": true,
+            "unconfirmed": true,
+            "entryStatus": "unconfirmed",
+            "roadMaskClear": true,
+            "constructionClear": true
+          },
+          "directRoadClear": true,
+          "directConstructionClear": true,
+          "elapsedMs": 90
+        },
+        {
+          "offsetMetres": 25,
+          "gps": [
+            25.083574346899972,
+            121.56371408601052
+          ],
+          "success": true,
+          "error": null,
+          "routeDistance": 943,
+          "estimatedApproach": {
+            "distance": 27,
+            "coordinates": [
+              [
+                25.083574346899972,
+                121.56371408601052
+              ],
+              [
+                25.0834297,
+                121.5634972
+              ]
+            ],
+            "estimated": true,
+            "unconfirmed": true,
+            "entryStatus": "unconfirmed",
+            "roadMaskClear": true,
+            "constructionClear": true
+          },
+          "directRoadClear": true,
+          "directConstructionClear": true,
+          "elapsedMs": 90
+        }
+      ]
+    },
+    {
+      "start": "木柵(BR02)",
+      "end": "麟光(BR06)",
+      "startId": "w20-103",
+      "endId": "w20-99",
+      "priorBin": "2–4 km",
+      "anchor": {
+        "coordinate": [
+          25.00812295,
+          121.55010815
+        ],
+        "edgeId": 157277,
+        "osmWayId": 1082444631,
+        "length": 6.328029727501218
+      },
+      "angleRadians": 6.157004304308623,
+      "offsets": [
+        {
+          "offsetMetres": 3,
+          "gps": [
+            25.008149715135144,
+            121.55010440085101
+          ],
+          "success": true,
+          "error": null,
+          "routeDistance": 2954,
+          "estimatedApproach": {
+            "distance": 1,
+            "coordinates": [
+              [
+                25.008149715135144,
+                121.55010440085101
+              ],
+              [
+                25.008150290838746,
+                121.55009843421632
+              ]
+            ],
+            "estimated": true,
+            "unconfirmed": true,
+            "entryStatus": "unconfirmed",
+            "roadMaskClear": true,
+            "constructionClear": true
+          },
+          "directRoadClear": true,
+          "directConstructionClear": true,
+          "elapsedMs": 81
+        },
+        {
+          "offsetMetres": 10,
+          "gps": [
+            25.008212167117147,
+            121.5500956528367
+          ],
+          "success": true,
+          "error": null,
+          "routeDistance": 2946,
+          "estimatedApproach": {
+            "distance": 2,
+            "coordinates": [
+              [
+                25.008212167117147,
+                121.5500956528367
+              ],
+              [
+                25.0082248,
+                121.5501072
+              ]
+            ],
+            "estimated": true,
+            "unconfirmed": true,
+            "entryStatus": "unconfirmed",
+            "roadMaskClear": true,
+            "constructionClear": true
+          },
+          "directRoadClear": true,
+          "directConstructionClear": true,
+          "elapsedMs": 79
+        },
+        {
+          "offsetMetres": 25,
+          "gps": [
+            25.008345992792865,
+            121.55007690709174
+          ],
+          "success": true,
+          "error": null,
+          "routeDistance": 2927,
+          "estimatedApproach": {
+            "distance": 30,
+            "coordinates": [
+              [
+                25.008345992792865,
+                121.55007690709174
+              ],
+              [
+                25.0086137,
+                121.55003
+              ]
+            ],
+            "estimated": true,
+            "unconfirmed": true,
+            "entryStatus": "unconfirmed",
+            "roadMaskClear": true,
+            "constructionClear": true
+          },
+          "directRoadClear": true,
+          "directConstructionClear": true,
+          "elapsedMs": 83
+        }
+      ]
+    },
+    {
+      "start": "木柵(BR02)",
+      "end": "南京復興(G16)",
+      "startId": "w20-103",
+      "endId": "w20-73",
+      "priorBin": "4–8 km",
+      "anchor": {
+        "coordinate": [
+          25.012811749999997,
+          121.5455169
+        ],
+        "edgeId": 72740,
+        "osmWayId": 462494995,
+        "length": 91.05429573355357
+      },
+      "angleRadians": 4.367903428801591,
+      "offsets": [
+        {
+          "offsetMetres": 3,
+          "gps": [
+            25.012802638641634,
+            121.54548885880895
+          ],
+          "success": true,
+          "error": null,
+          "routeDistance": 5842,
+          "estimatedApproach": {
+            "distance": 1,
+            "coordinates": [
+              [
+                25.012802638641634,
+                121.54548885880895
+              ],
+              [
+                25.01279433924009,
+                121.54549836396451
+              ]
+            ],
+            "estimated": true,
+            "unconfirmed": true,
+            "entryStatus": "unconfirmed",
+            "roadMaskClear": true,
+            "constructionClear": true
+          },
+          "directRoadClear": true,
+          "directConstructionClear": true,
+          "elapsedMs": 939
+        },
+        {
+          "offsetMetres": 10,
+          "gps": [
+            25.012781378805453,
+            121.54542342936317
+          ],
+          "success": true,
+          "error": null,
+          "routeDistance": 5848,
+          "estimatedApproach": {
+            "distance": 8,
+            "coordinates": [
+              [
+                25.012781378805453,
+                121.54542342936317
+              ],
+              [
+                25.01279433924009,
+                121.54549836396451
+              ]
+            ],
+            "estimated": true,
+            "unconfirmed": true,
+            "entryStatus": "unconfirmed",
+            "roadMaskClear": true,
+            "constructionClear": true
+          },
+          "directRoadClear": true,
+          "directConstructionClear": true,
+          "elapsedMs": 586
+        },
+        {
+          "offsetMetres": 25,
+          "gps": [
+            25.012735822013635,
+            121.54528322340794
+          ],
+          "success": true,
+          "error": null,
+          "routeDistance": 5872,
+          "estimatedApproach": {
+            "distance": 2,
+            "coordinates": [
+              [
+                25.012735822013635,
+                121.54528322340794
+              ],
+              [
+                25.012752031229077,
+                121.54526643530875
+              ]
+            ],
+            "estimated": true,
+            "unconfirmed": true,
+            "entryStatus": "unconfirmed",
+            "roadMaskClear": true,
+            "constructionClear": true
+          },
+          "directRoadClear": false,
+          "directConstructionClear": true,
+          "elapsedMs": 504
+        }
+      ]
+    },
+    {
+      "start": "善導寺(BL13)",
+      "end": "忠孝新生(BL14)",
+      "startId": "w20-113",
+      "endId": "w20-19",
+      "priorBin": "0.5–1 km",
+      "anchor": {
+        "coordinate": [
+          25.0436086,
+          121.5288195
+        ],
+        "edgeId": 219393,
+        "osmWayId": 1485377384,
+        "length": 29.23295993470097
+      },
+      "angleRadians": 4.874032150317252,
+      "offsets": [
+        {
+          "offsetMetres": 3,
+          "gps": [
+            25.04361294210638,
+            121.5287900968968
+          ],
+          "success": true,
+          "error": null,
+          "routeDistance": 402,
+          "estimatedApproach": {
+            "distance": 0,
+            "coordinates": [
+              [
+                25.04361294210638,
+                121.5287900968968
+              ],
+              [
+                25.043614095394336,
+                121.52879036210689
+              ]
+            ],
+            "estimated": true,
+            "unconfirmed": true,
+            "entryStatus": "unconfirmed",
+            "roadMaskClear": true,
+            "constructionClear": true
+          },
+          "directRoadClear": true,
+          "directConstructionClear": true,
+          "elapsedMs": 57
+        },
+        {
+          "offsetMetres": 10,
+          "gps": [
+            25.043623073687932,
+            121.52872148965602
+          ],
+          "success": true,
+          "error": null,
+          "routeDistance": 409,
+          "estimatedApproach": {
+            "distance": 0,
+            "coordinates": [
+              [
+                25.043623073687932,
+                121.52872148965602
+              ],
+              [
+                25.04362691798112,
+                121.52872237368967
+              ]
+            ],
+            "estimated": true,
+            "unconfirmed": true,
+            "entryStatus": "unconfirmed",
+            "roadMaskClear": true,
+            "constructionClear": true
+          },
+          "directRoadClear": true,
+          "directConstructionClear": true,
+          "elapsedMs": 59
+        },
+        {
+          "offsetMetres": 25,
+          "gps": [
+            25.043644784219836,
+            121.52857447414006
+          ],
+          "success": true,
+          "error": null,
+          "routeDistance": 425,
+          "estimatedApproach": {
+            "distance": 2,
+            "coordinates": [
+              [
+                25.043644784219836,
+                121.52857447414006
+              ],
+              [
+                25.043660725045346,
+                121.5285795021907
+              ]
+            ],
+            "estimated": true,
+            "unconfirmed": true,
+            "entryStatus": "unconfirmed",
+            "roadMaskClear": true,
+            "constructionClear": true
+          },
+          "directRoadClear": false,
+          "directConstructionClear": true,
+          "elapsedMs": 60
+        }
+      ]
+    },
+    {
+      "start": "小南門(G11)",
+      "end": "公館(G07)",
+      "startId": "w20-11",
+      "endId": "w20-80",
+      "priorBin": "2–4 km",
+      "anchor": {
+        "coordinate": [
+          25.025034599999998,
+          121.52416655
+        ],
+        "edgeId": 64749,
+        "osmWayId": 427412509,
+        "length": 79.95715870085583
+      },
+      "angleRadians": 0.4486704459078501,
+      "offsets": [
+        {
+          "offsetMetres": 3,
+          "gps": [
+            25.025058909311113,
+            121.52417947258064
+          ],
+          "success": true,
+          "error": null,
+          "routeDistance": 1963,
+          "estimatedApproach": {
+            "distance": 3,
+            "coordinates": [
+              [
+                25.025058909311113,
+                121.52417947258064
+              ],
+              [
+                25.025045673748867,
+                121.52415816345597
+              ]
+            ],
+            "estimated": true,
+            "unconfirmed": true,
+            "entryStatus": "unconfirmed",
+            "roadMaskClear": true,
+            "constructionClear": true
+          },
+          "directRoadClear": true,
+          "directConstructionClear": true,
+          "elapsedMs": 114
+        },
+        {
+          "offsetMetres": 10,
+          "gps": [
+            25.025115631037053,
+            121.52420962526881
+          ],
+          "success": true,
+          "error": null,
+          "routeDistance": 1969,
+          "estimatedApproach": {
+            "distance": 9,
+            "coordinates": [
+              [
+                25.025115631037053,
+                121.52420962526881
+              ],
+              [
+                25.025045673748867,
+                121.52415816345597
+              ]
+            ],
+            "estimated": true,
+            "unconfirmed": true,
+            "entryStatus": "unconfirmed",
+            "roadMaskClear": true,
+            "constructionClear": true
+          },
+          "directRoadClear": true,
+          "directConstructionClear": true,
+          "elapsedMs": 176
+        },
+        {
+          "offsetMetres": 25,
+          "gps": [
+            25.025237177592633,
+            121.52427423817203
+          ],
+          "success": true,
+          "error": null,
+          "routeDistance": 1984,
+          "estimatedApproach": {
+            "distance": 24,
+            "coordinates": [
+              [
+                25.025237177592633,
+                121.52427423817203
+              ],
+              [
+                25.025045673748867,
+                121.52415816345597
+              ]
+            ],
+            "estimated": true,
+            "unconfirmed": true,
+            "entryStatus": "unconfirmed",
+            "roadMaskClear": true,
+            "constructionClear": true
+          },
+          "directRoadClear": true,
+          "directConstructionClear": true,
+          "elapsedMs": 77
+        }
+      ]
+    }
+  ],
+  "summary": [
+    {
+      "offsetMetres": 3,
+      "total": 10,
+      "success": 10,
+      "estimatedWarning": 10,
+      "successfulConnectorFailedRoadCheck": 0,
+      "successfulConnectorFailedConstructionCheck": 0,
+      "successWithoutEstimatedApproach": 0,
+      "errors": {},
+      "directRoadConflict": 0,
+      "directConstructionConflict": 0
+    },
+    {
+      "offsetMetres": 10,
+      "total": 10,
+      "success": 10,
+      "estimatedWarning": 10,
+      "successfulConnectorFailedRoadCheck": 0,
+      "successfulConnectorFailedConstructionCheck": 0,
+      "successWithoutEstimatedApproach": 0,
+      "errors": {},
+      "directRoadConflict": 0,
+      "directConstructionConflict": 0
+    },
+    {
+      "offsetMetres": 25,
+      "total": 10,
+      "success": 10,
+      "estimatedWarning": 10,
+      "successfulConnectorFailedRoadCheck": 0,
+      "successfulConnectorFailedConstructionCheck": 0,
+      "successWithoutEstimatedApproach": 0,
+      "errors": {},
+      "directRoadConflict": 4,
+      "directConstructionConflict": 0
+    }
+  ]
+}

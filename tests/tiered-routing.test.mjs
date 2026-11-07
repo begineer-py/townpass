@@ -72,7 +72,11 @@ test('50m snapping projects onto the actual middle of a long mapped segment',()=
  const g={officialPathEvidence:{schemaVersion:2},nodes:[n(0,0),n(300,0)],ways:[w],edges:[[0,1,300,0,[],proof()]],roadGeometries:[],officialCrossingAreas:[]};const r=createRouter(g)(n(100,2),n(200,2));assert.equal(SNAP_METRES,50);assert.equal(r.error,undefined);assert.ok(r.distance<105&&r.distance>95);assert.equal(r.startGap,2);assert.ok(r.edgeIds.every(i=>g.edges[i][5].derivedFrom===0));
 });
 test('bridge sidewalk requires grade evidence; arbitrary bridges and stairs stay excluded',()=>{
- const b={...w,bridge:'yes',footway:'sidewalk',layer:'1',gradeSeparatedPedestrian:true};assert.equal(edgeAllowed(b,{},proof()),false);assert.equal(edgeAllowed(b,{}, {...proof(),gradeSeparatedPedestrian:true}),true);assert.equal(edgeAllowed({...b,highway:'steps'},{},{...proof(),gradeSeparatedPedestrian:true}),false);
+ const b={...w,bridge:'yes',footway:'sidewalk',layer:'1',gradeSeparatedPedestrian:true};const audited={...proof(),gradeSeparatedPedestrian:true,gradeCrossingAudit:{schemaVersion:1,sourceVerified:true,conflicts:[]}};
+ assert.equal(edgeAllowed(b,{},proof()),false);assert.equal(edgeAllowed(b,{}, {...proof(),gradeSeparatedPedestrian:true}),false);
+ assert.equal(edgeAllowed(b,{},audited),true);assert.equal(edgeAllowed({...b,highway:'steps'},{},audited),false);
+ assert.equal(edgeAllowed(b,{}, {...audited,roadCrossingVerified:false}),false);
+ assert.equal(edgeAllowed(b,{}, {...audited,gradeCrossingAudit:{schemaVersion:1,sourceVerified:true,conflicts:[{reason:'same-layer'}]}}),false);
 });
 
 test('a connector requires complete supporting proof and never becomes a normal footway by weighting',()=>{
@@ -87,7 +91,13 @@ test('grade-separated evidence requires original node identities in exported dat
  const b={...w,bridge:'yes',footway:'sidewalk',layer:'1',gradeSeparatedPedestrian:true};
  const g={officialPathEvidence:{schemaVersion:2},nodes:[n(0,0),n(10,0)],ways:[b],edges:[[0,1,10,0,[],{...proof(),gradeSeparatedPedestrian:true}]],officialAreas:[{}],officialCrossingAreas:[],roadGeometries:[[[121.5,25],[121.6,25]]]};
  assert.throws(()=>validateNetwork(g),/MISSING_GRADE_NODE_IDENTITY/);
- g.nodeIdentity='OSM node ID; coincident coordinates do not create connectivity';g.nodes[0].push(100);g.nodes[1].push(200);assert.equal(validateNetwork(g),true);
+ g.nodeIdentity='OSM node ID; coincident coordinates do not create connectivity';g.nodes[0].push(100);g.nodes[1].push(200);
+ assert.throws(()=>validateNetwork(g),/INVALID_GRADE_CROSSING_AUDIT/);
+ const v=g.edges[0][5];v.gradeAuditBaseRoadCrossingVerified=true;v.gradeCrossingAudit={schemaVersion:1,sourceVerified:true,conflicts:[]};
+ assert.equal(validateNetwork(g),true);
+ v.gradeCrossingAudit.conflicts=[{roadOsmId:123,reason:'same-layer'}];assert.throws(()=>validateNetwork(g),/INVALID_GRADE_CROSSING_AUDIT/);
+ v.roadCrossingVerified=false;assert.equal(validateNetwork(g),true);
+ v.gradeCrossingAudit.sourceVerified=false;assert.throws(()=>validateNetwork(g),/INVALID_GRADE_CROSSING_AUDIT/);
 });
 
 test('endpoint approach can use a later official crossing without relaxing road safety',()=>{
