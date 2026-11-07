@@ -78,7 +78,7 @@ import { getLocation, locationErrorText } from "./location";
 import { installTownPassLinks, postToTownPass, townPassUserKey } from "./townpass-bridge";
 import { activeElevatorStops, nearestStop } from "./trip-extras.mjs";
 import { travelProfiles } from "./travel-profiles";
-import { loadProfile, loadTrips, saveProfile, saveTrips } from "./local-database";
+import { clearLocalData, loadProfile, loadTrips, saveProfile, saveTrips } from "./local-database";
 import { addressSearch } from "./address-search";
 import { maintenanceText, stationKey, stepText } from "./format.mjs";
 const icons = {
@@ -246,6 +246,7 @@ export default function App() {
     [graphError, setGraphError] = useState(false),
     [status, setStatus] = useState(""),
     [srStatus, setSrStatus] = useState(""),
+    [confirmClear, setConfirmClear] = useState(false),
     [locating, setLocating] = useState(false),
     [listLimit, setListLimit] = useState(12),
     [speaking, setSpeaking] = useState(false),
@@ -572,6 +573,10 @@ export default function App() {
   }
   function selectPoint(p) {
     if (pick) changePoint(pick, p);
+  }
+  // 顯示、語音這類設定不影響路線，改了不清掉目前的路線。
+  function updateDisplay(patch) {
+    setPrefs((current) => ({ ...current, ...patch }));
   }
   function updatePrefs(patch) {
     request.current++;
@@ -1025,7 +1030,7 @@ export default function App() {
             </button>
             <button
               className="omnibox-settings"
-              aria-label="閱讀與通行設定"
+              aria-label="設定"
               onClick={() => setModal("prefs")}
             >
               <SlidersHorizontal size={21} />
@@ -1990,125 +1995,156 @@ export default function App() {
         </Sheet>
       )}
       {modal === "prefs" && (
-        <Sheet title="通行與閱讀設定" onClose={() => setModal(null)}>
-          <p className="modal-lead">選擇這次出門需要的條件，隨時都可以調整。</p>
-          <label className="select-row">
-            主要出行方式
-            <select
-              value={travelProfile || "walking"}
-              onChange={(event) =>
-                saveTravelProfile(event.target.value, false)
-              }
-            >
-              {Object.entries(travelProfiles).map(([id, profile]) => (
-                <option key={id} value={id}>
-                  {profile.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <p className="quiet-note profile-note">
-            變更後會更新路線起始條件；寬度或坡度缺漏仍會顯示為未知。
-          </p>
-          <label className="select-row">
-            路線偏好
-            <select
-              value={prefs.mode}
-              onChange={(e) => updatePrefs({ mode: e.target.value })}
-            >
-              {Object.entries(routeModes).map(([id, name]) => (
-                <option key={id} value={id}>
-                  {name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <h3>閱讀</h3>
-          <label className="toggle-row">
-            <span>
-              <b>顯示操作提示</b>
-              <small>例如「地圖已轉回正北」「行程已存好」。螢幕報讀器一律會唸出；選「聽障」出行方式時預設開啟。</small>
-            </span>
-            <input
-              type="checkbox"
-              checked={showConfirmations}
-              onChange={(e) => updatePrefs({ visualPrompts: e.target.checked })}
-            />
-          </label>
-          <label className="toggle-row">
-            <b>放大文字</b>
-            <input
-              type="checkbox"
-              checked={prefs.largeText}
-              onChange={(e) =>
-                setPrefs({ ...prefs, largeText: e.target.checked })
-              }
-            />
-          </label>
-          <label className="toggle-row">
-            <b>提高對比</b>
-            <input
-              type="checkbox"
-              checked={prefs.contrast}
-              onChange={(e) =>
-                setPrefs({ ...prefs, contrast: e.target.checked })
-              }
-            />
-          </label>
-          <label className="toggle-row"><span><b>色覺友善地圖</b><small>降低底圖色彩干擾，設施加上文字標記，不只靠顏色辨認。</small></span><input type="checkbox" checked={!!prefs.colorFriendly} onChange={e => setPrefs({...prefs, colorFriendly:e.target.checked})}/></label>
-          <label className="range-row"><span>朗讀速度<b>{prefs.voiceRate || 0.9} 倍</b></span><input aria-label="朗讀速度" type="range" min="0.6" max="1.2" step="0.1" value={prefs.voiceRate || 0.9} onChange={e => setPrefs({...prefs, voiceRate:Number(e.target.value)})}/></label>
-          <button className="secondary" onClick={() => speakText('你好，可以用語音搜尋地點，也能聽取路線與搜尋結果。')}>{speaking ? '停止朗讀' : '試聽語音'}</button>
-          <h3>路線</h3>
-          <label className="range-row">
-            <span>
-              希望通道至少多寬<b>{prefs.minWidth} 公尺</b>
-            </span>
-            <input
-              type="range"
-              min="0.6"
-              max="1.5"
-              step="0.1"
-              value={prefs.minWidth}
-              onChange={(e) =>
-                updatePrefs({ minWidth: Number(e.target.value) })
-              }
-            />
-            <small>僅套用於本機路網中已記載寬度的路段。</small>
-          </label>
-          <label className="range-row">
-            <span>
-              可接受的已知坡度<b>{prefs.maxSlope}%</b>
-            </span>
-            <input
-              type="range"
-              min="2"
-              max="15"
-              step="1"
-              value={prefs.maxSlope}
-              onChange={(e) =>
-                updatePrefs({ maxSlope: Number(e.target.value) })
-              }
-            />
-            <small>僅套用於本機路網中已記載坡度的路段。</small>
-          </label>
-          <label className="toggle-row">
-            <span>
-              <b>只走寬度、坡度都有資料的路段</b>
-              <small>資料還不完整，可能找不到路線。</small>
-            </span>
-            <input
-              type="checkbox"
-              checked={prefs.knownOnly}
-              onChange={(e) => updatePrefs({ knownOnly: e.target.checked })}
-            />
-          </label>
-          <p className="quiet-note">
-            規劃時避開車道與階梯。
-          </p>
-          <button className="primary full" onClick={() => setModal(null)}>
-            完成
-            <Check size={18} />
-          </button>
+        <Sheet title="設定" onClose={() => { setConfirmClear(false); setModal(null); }}>
+          <section className="settings-group" aria-labelledby="set-mobility">
+            <h3 id="set-mobility">通行</h3>
+            <div className="settings-list">
+              <label className="settings-row">
+                <span>出行方式</span>
+                <select
+                  value={travelProfile || "walking"}
+                  onChange={(event) => saveTravelProfile(event.target.value, false)}
+                >
+                  {Object.entries(travelProfiles).map(([id, profile]) => (
+                    <option key={id} value={id}>{profile.label}</option>
+                  ))}
+                </select>
+              </label>
+              <div className="settings-row settings-row--stack">
+                <span id="set-mode">路線偏好</span>
+                <div className="segmented" role="radiogroup" aria-labelledby="set-mode">
+                  {Object.entries({ balanced: "均衡", gentle: "平緩", crossings: "少過街" }).map(([id, name]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      role="radio"
+                      aria-checked={prefs.mode === id}
+                      aria-label={routeModes[id]}
+                      className={prefs.mode === id ? "active" : ""}
+                      onClick={() => updatePrefs({ mode: id })}
+                    >
+                      {name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <details className="settings-advanced">
+                <summary>進階</summary>
+                <label className="settings-row settings-row--stack">
+                  <span>通道寬度<b>{prefs.minWidth} 公尺以上</b></span>
+                  <input
+                    type="range"
+                    min="0.6"
+                    max="1.5"
+                    step="0.1"
+                    value={prefs.minWidth}
+                    aria-describedby="set-known-note"
+                    onChange={(e) => updatePrefs({ minWidth: Number(e.target.value) })}
+                  />
+                </label>
+                <label className="settings-row settings-row--stack">
+                  <span>坡度上限<b>{prefs.maxSlope}%</b></span>
+                  <input
+                    type="range"
+                    min="2"
+                    max="15"
+                    step="1"
+                    value={prefs.maxSlope}
+                    aria-describedby="set-known-note"
+                    onChange={(e) => updatePrefs({ maxSlope: Number(e.target.value) })}
+                  />
+                </label>
+                <label className="settings-row">
+                  <span>只走有寬度、坡度資料的路段</span>
+                  <input
+                    type="checkbox"
+                    className="switch"
+                    checked={prefs.knownOnly}
+                    aria-describedby="set-known-note"
+                    onChange={(e) => updatePrefs({ knownOnly: e.target.checked })}
+                  />
+                </label>
+                <p className="sr-only" id="set-known-note">
+                  寬度與坡度只套用在有記載資料的路段；只走有資料的路段時，可能找不到路線。
+                </p>
+                <button
+                  type="button"
+                  className="settings-link"
+                  onClick={() => saveTravelProfile(travelProfile || "walking", false)}
+                >
+                  恢復出行方式預設
+                </button>
+              </details>
+            </div>
+          </section>
+          <section className="settings-group" aria-labelledby="set-display">
+            <h3 id="set-display">顯示</h3>
+            <div className="settings-list">
+              <label className="settings-row">
+                <span>放大文字</span>
+                <input type="checkbox" className="switch" checked={prefs.largeText}
+                  onChange={(e) => updateDisplay({ largeText: e.target.checked })} />
+              </label>
+              <label className="settings-row">
+                <span>高對比</span>
+                <input type="checkbox" className="switch" checked={prefs.contrast}
+                  onChange={(e) => updateDisplay({ contrast: e.target.checked })} />
+              </label>
+              <label className="settings-row">
+                <span>色覺友善地圖</span>
+                <input type="checkbox" className="switch" checked={!!prefs.colorFriendly}
+                  aria-describedby="set-color-note"
+                  onChange={(e) => updateDisplay({ colorFriendly: e.target.checked })} />
+              </label>
+              <label className="settings-row">
+                <span>顯示操作提示</span>
+                <input type="checkbox" className="switch" checked={showConfirmations}
+                  aria-describedby="set-prompt-note"
+                  onChange={(e) => updateDisplay({ visualPrompts: e.target.checked })} />
+              </label>
+            </div>
+          </section>
+          <p className="sr-only" id="set-color-note">降低底圖色彩，設施加上文字標記，不只靠顏色辨認。</p>
+          <p className="sr-only" id="set-prompt-note">例如地圖已轉回正北、行程已存好。螢幕報讀器一律會唸出。</p>
+          <section className="settings-group" aria-labelledby="set-voice">
+            <h3 id="set-voice">語音</h3>
+            <div className="settings-list">
+              <div className="settings-row settings-row--stack">
+                <label htmlFor="set-rate"><span>朗讀速度<b>{prefs.voiceRate || 0.9} 倍</b></span></label>
+                <div className="settings-inline">
+                  <input id="set-rate" type="range" min="0.6" max="1.2" step="0.1"
+                    value={prefs.voiceRate || 0.9}
+                    onChange={(e) => updateDisplay({ voiceRate: Number(e.target.value) })} />
+                  <button
+                    type="button"
+                    className="icon-button settings-play"
+                    aria-label={speaking ? "停止試聽" : "試聽朗讀速度"}
+                    onClick={() => speakText("你好，這是目前的朗讀速度。")}
+                  >
+                    {speaking ? <VolumeX size={20} aria-hidden="true" /> : <Volume2 size={20} aria-hidden="true" />}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </section>
+          <section className="settings-group" aria-labelledby="set-data">
+            <h3 id="set-data">資料</h3>
+            <div className="settings-list">
+              {!confirmClear ? (
+                <button type="button" className="settings-row settings-danger" onClick={() => setConfirmClear(true)}>
+                  清除這支手機上的資料
+                </button>
+              ) : (
+                <div className="settings-row settings-row--stack settings-confirm" role="group" aria-labelledby="set-clear-q">
+                  <span id="set-clear-q">要清除收藏、行程和所有設定嗎？清除後無法復原。</span>
+                  <div className="settings-inline">
+                    <button type="button" className="secondary" autoFocus onClick={() => setConfirmClear(false)}>取消</button>
+                    <button type="button" className="danger-solid" onClick={async () => { await clearLocalData(); location.reload(); }}>確定清除</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
         </Sheet>
       )}
       {modal === "about" && (

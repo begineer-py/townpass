@@ -401,3 +401,213 @@ button:active:not(:disabled),
   background: var(--tp-red700);
   color: var(--tp-white);
 }
+
+/* --- 設定：iOS 設定 App 式的分組清單 ---------------------------------- */
+.settings-group {
+  margin: 0 0 20px;
+}
+.settings-group > h3 {
+  margin: 0 4px 6px;
+  font-size: var(--tp-text-bodySemiBold-size);
+  font-weight: var(--tp-text-bodySemiBold-weight);
+  color: var(--tp-grayscale700);
+}
+.settings-list {
+  overflow: hidden;
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--tp-grayscale100) 55%, var(--tp-white));
+  box-shadow: inset 0 0 0 0.5px var(--hairline);
+}
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 52px;
+  padding: 10px 16px;
+  border: 0;
+  background: transparent;
+  color: var(--tp-grayscale900);
+  font: inherit;
+  font-size: var(--tp-text-h3Regular-size);
+  text-align: left;
+}
+.settings-row + .settings-row,
+.settings-list > * + * {
+  border-top: 0.5px solid color-mix(in srgb, var(--tp-grayscale950) 10%, transparent);
+}
+.settings-row--stack {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+.settings-row b {
+  margin-left: 8px;
+  font-weight: var(--tp-text-bodySemiBold-weight);
+  color: var(--tp-primary700);
+}
+.settings-row select {
+  min-height: 40px;
+  max-width: 55%;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: var(--tp-radius-btn);
+  background: var(--tp-white);
+  color: var(--tp-primary700);
+  font: inherit;
+  font-weight: var(--tp-text-bodySemiBold-weight);
+}
+.settings-row input[type="range"] {
+  width: 100%;
+  accent-color: var(--tp-primary700);
+}
+.settings-inline {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.settings-inline input[type="range"] {
+  flex: 1;
+}
+.settings-play {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--tp-white);
+  color: var(--tp-primary700);
+}
+
+/* iOS 式開關：原生 checkbox，報讀器仍當作勾選框 */
+.switch {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  flex-shrink: 0;
+  width: 51px;
+  height: 31px;
+  margin: 0;
+  border-radius: 999px;
+  /* 關閉時的底色也要和背景有 3:1 以上的對比，弱視者才看得出開關的範圍。 */
+  background: var(--tp-grayscale500);
+  cursor: pointer;
+  transition: background var(--t-mid) var(--ease-out);
+}
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 27px;
+  height: 27px;
+  border-radius: 50%;
+  background: var(--tp-white);
+  box-shadow: 0 2px 4px color-mix(in srgb, var(--tp-grayscale950) 25%, transparent);
+  transition: transform var(--t-mid) var(--ease-spring);
+}
+.switch:checked {
+  background: var(--tp-primary700);
+}
+.switch:checked::after {
+  transform: translateX(20px);
+}
+.switch:focus-visible {
+  outline: 3px solid var(--tp-primary700);
+  outline-offset: 2px;
+}
+.high-contrast .switch {
+  background: var(--tp-grayscale700);
+}
+
+/* 路線偏好：分段切換 */
+.segmented {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+  padding: 2px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--tp-grayscale200) 60%, var(--tp-white));
+}
+.segmented button {
+  min-height: 40px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--tp-grayscale800);
+  font: inherit;
+  font-size: var(--tp-text-bodyRegular-size);
+}
+.segmented button.active {
+  background: var(--tp-white);
+  color: var(--tp-primary700);
+  font-weight: var(--tp-text-bodySemiBold-weight);
+  box-shadow:
+    0 0 0 0.5px var(--hairline),
+    0 3px 8px color-mix(in srgb, var(--tp-grayscale950) 12%, transparent);
+}
+
+/* 進階：預設收合 */
+.settings-advanced > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 52px;
+  padding: 10px 16px;
+  font-size: var(--tp-text-h3Regular-size);
+  color: var(--tp-grayscale900);
+  cursor: pointer;
+  list-style: none;
+}
+.settings-advanced > summary::-webkit-details-marker {
+  display: none;
+}
+.settings-advanced > summary::after {
+  content: "";
+  width: 9px;
+  height: 9px;
+  border-right: 2px solid var(--tp-grayscale600);
+  border-bottom: 2px solid var(--tp-grayscale600);
+  transform: rotate(45deg);
+  transition: transform var(--t-mid) var(--ease-out);
+}
+.settings-advanced[open] > summary::after {
+  transform: rotate(-135deg);
+}
+.settings-advanced > .settings-row {
+  border-top: 0.5px solid color-mix(in srgb, var(--tp-grayscale950) 10%, transparent);
+}
+.settings-link {
+  display: block;
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 16px;
+  border: 0;
+  border-top: 0.5px solid color-mix(in srgb, var(--tp-grayscale950) 10%, transparent);
+  background: transparent;
+  color: var(--tp-primary700);
+  font: inherit;
+  text-align: left;
+}
+
+/* 資料：清除 */
+.settings-danger {
+  justify-content: center;
+  color: var(--tp-red700);
+  font-weight: var(--tp-text-bodySemiBold-weight);
+}
+.settings-confirm span {
+  color: var(--tp-grayscale900);
+}
+.settings-confirm .settings-inline > button {
+  flex: 1;
+  min-height: 48px;
+  border-radius: var(--tp-radius-btn);
+  font: inherit;
+  font-weight: var(--tp-text-bodySemiBold-weight);
+}
+.danger-solid {
+  border: 0;
+  background: var(--tp-red700);
+  color: var(--tp-white);
+}
