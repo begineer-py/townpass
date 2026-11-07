@@ -22,7 +22,7 @@ export default function MapView({
   end,
   focus,
   pick,
-  basemap = "hybrid",
+  basemap = "street",
   onBasemapStatus,
   onPick,
   onSelect,
@@ -217,7 +217,7 @@ export default function MapView({
       ref={root}
       className={`map-canvas basemap-${basemap} ${pick ? "picking" : ""}`}
       role="region"
-      aria-label="臺北友善設施地圖，可使用方向鍵移動，加減鍵縮放。也可透過附近設施清單操作。"
+      aria-label="臺北地圖，可使用方向鍵移動，加減鍵縮放。"
     />
   );
 }

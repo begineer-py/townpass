@@ -10,7 +10,9 @@ npm ci
 npm run dev
 ```
 
-開啟 `http://localhost:5173/`。同網路手機可開發機的區網 IP 與 5173 port。瀏覽器定位通常需要 HTTPS；台北通內優先使用原生 `flutterObject` 的 `location` 能力。頁面不讀取會員或身分資料。
+開啟 `http://localhost:5173/`。同網路手機可開發機的區網 IP 與 5173 port。定位使用瀏覽器 Geolocation API；正式環境需 HTTPS，並由使用者授權。頁面不讀取台北通會員或身分資料。
+
+正式環境部署方式請參閱 [Vercel 部署說明](DEPLOYMENT.md)。
 
 ```sh
 npm test
@@ -46,7 +48,7 @@ npm run preview
 - 無障礙廁所 API kind 9 本次空回應，以環保局公廁資料中無障礙廁座數大於零者替代。
 - 大型設施的中心點不等於可進入的入口。優先選擇明確出口或入口點位。
 - 路線朗讀是預覽，不是即時盲人導航；未做實際螢幕閱讀器或外出使用者驗證。
-- 台北通原生橋接與 Android/iOS 真機仍需整合測試；本機瀏覽器驗證不代表已上架台北通。
+- 尚未在台北通服務目錄上架，iOS／Android WebView 真機版面與定位權限仍需由宿主 App 驗收。
 
 ## 更新資料
 
@@ -75,7 +77,7 @@ npm run build
 
 ## 台北通嵌入
 
-詳見 [串接說明](integration/TOWNPASS.md)，提供適用官方 Flutter 框架的入口 patch。此 checkout 是使用者指定遠端 `begineer-py/TownPass` 的 `cb3138c` 基礎建立；先前 Flutter checkout 未被覆寫。
+這是獨立的 HTTPS 網頁微服務。台北通只需將部署後網址加入服務目錄並以 WebView 開啟；本專案不需改動或編譯 Flutter App。詳見[嵌入說明](integration/TOWNPASS.md)。
 
 ## 資料與授權
 
@@ -92,7 +94,7 @@ npm run build
 
 介接來源：https://maps.nlsc.gov.tw/S09SOA/pro/Wmts_ajax_main.jsp
 
-2026-11-07 更新：介面改為平整資訊列與台北通藍綠色，移除宣傳標語、裝飾卡片。預設進入路線規劃；設施圖層可獨立顯示或隱藏。
+預設以全畫面顯示地圖。從「選單」可開啟路線規劃、設施查詢、捷運出口與收藏，也可切換底圖或顯示設施圖層。「通行與閱讀設定」可選擇偏好平緩、減少過街等路線偏好。
 
 ## 官方人行空間整合（2026-11-07）
 
@@ -117,5 +119,4 @@ npm run build
 
 ## 設計token
 
-`src/tp-tokens.css`、`src/tp-colors.mjs` 對應官方 `lib/util/tp_colors.dart` 的 TPColors；沒有另外定義字體色票。字級／字重對應 TPTextStyles，正文 bodyRegular 14/400、h3 16、titleSemiBold 18/600。文字與背景色在元件中組合，與原生 TPText 的使用方式一致。系統字型優先 PingFang TC，Windows fallback 微軟正黑體。
->>>>>>> 3571635ce09de6d92ee030b31d3c3c57355a8dcb
+`src/tp-tokens.css`、`src/tp-colors.mjs` 在網頁端定義台北通風格的色彩與字級，前端不依賴 Flutter 程式碼。正文使用 14px／400、主要控制項 16px、區塊標題 18px／600。系統字型優先 PingFang TC，Windows fallback 微軟正黑體。

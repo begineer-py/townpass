@@ -1,4 +1,4 @@
-// Exact web mirror of lib/util/tp_colors.dart (TPColors).
+// Web-side color tokens following the Town Pass visual style.
 export const TPColors = Object.freeze({
   primary50: "#EDF8FA",
   primary100: "#DBF1F5",

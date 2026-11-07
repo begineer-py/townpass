@@ -11,7 +11,7 @@
 - 390px 手機尺寸的大字／高對比模式，document scrollWidth 等於 viewport，無水平溢出。
 - 1440px 桌面尺寸，側欄 420px、地圖 1020px。
 - 正式版本驗證時未發現瀏覽器 console error。
-- `git apply --check integration/townpass-entry.patch` 對先前 Flutter checkout 通過；沒有實際套用或編譯 Flutter App。
+- 本專案不再提供 Flutter 原始碼 patch；台北通以服務目錄中的 HTTPS 網址開啟此微服務。
 
 ## 真實路網抽測
 
@@ -31,11 +31,11 @@
 
 ## 尚未完成的驗證／整合
 
-- Android／iOS 台北通原生橋接、真機效能、VoiceOver／TalkBack 與實地使用者測試。
+- 台北通服務目錄尚未上架；Android／iOS WebView 真機效能、宿主定位權限、VoiceOver／TalkBack 與實地使用者測試仍待驗收。
 - 真正斷網重新開啟的離線流程；目前已實作 Service Worker，但未做斷網端到端驗證。
 - 地面／地下樓層與目的地入口的完整銜接確認。
 - 施工與電梯即時狀態接入路由，以及自動資料更新排程。
-- 尚未部署公開 HTTPS 網址、推送 GitHub 或上架台北通。
+- 尚未部署公開 HTTPS 網址、推送 GitHub 或將服務網址加入台北通服務目錄。
 
 ## 車道排除回歸修正
 
