@@ -1,5 +1,5 @@
 import {constructionFresh,workActive} from './construction.mjs';
-export const CONSTRUCTION_MARKER_MIN_ZOOM=18;
+export const CONSTRUCTION_MARKER_MIN_ZOOM=16;
 export const constructionMarkerVisible=zoom=>Number.isFinite(zoom)&&zoom>=CONSTRUCTION_MARKER_MIN_ZOOM;
 const validPoint=p=>Array.isArray(p)&&p.length===2&&p.every(Number.isFinite)&&p[0]>=24.9&&p[0]<=25.3&&p[1]>=121.4&&p[1]<=121.8;
 const validGeometry=g=>['Point','LineString','Polygon'].includes(g?.type)&&Array.isArray(g.coordinates)&&g.coordinates.length>=(g.type==='Point'?1:g.type==='LineString'?2:4)&&g.coordinates.every(validPoint);
