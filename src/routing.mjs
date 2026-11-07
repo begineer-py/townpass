@@ -1,8 +1,10 @@
 import { roadConnectorChecker } from "./geometry.mjs";
-export const ROUTING_POLICY = "pedestrian-evidence-v3";
+import { officialGeometryEvidence } from "./supplemental-evidence.mjs";
+import {edgeTier,edgeCostFactor,ROUTE_TIERS} from "./route-tiers.mjs";
+export const ROUTING_POLICY = "pedestrian-evidence-v4";
 // Building entrances sit back from the mapped footway. 50m reaches a sidewalk;
 // the approach is still rejected when it crosses a vehicle way outside a crossing.
-export const SNAP_METRES = 80;
+export const SNAP_METRES = 50;
 export const metres = (a, b) =>
   Math.hypot((a[0] - b[0]) * 111195, (a[1] - b[1]) * 100700);
 const bearing = (a, b) =>
@@ -43,6 +45,7 @@ export function edgeAllowed(way, options = {}, evidence = null) {
   // Safety constraints cannot be relaxed by UI options or old stored preferences.
   if (!["footway", "path", "pedestrian", "corridor"].includes(way.highway))
     return false;
+  if(way.isConnector && (way.source!=='official-polygon-connector' || evidence?.connectorVerified!==true || !Number.isFinite(evidence.connectorLength) || evidence.connectorLength<=0 || evidence.connectorLength>3 || evidence.coverage<.9999 || evidence.maxUncoveredMetres>.0001))return false;
   if (
     evidence?.schemaVersion !== 2 ||
     !Number.isFinite(evidence.coverage) ||
@@ -64,13 +67,10 @@ export function edgeAllowed(way, options = {}, evidence = null) {
     evidence.crossingVerified !== true
   )
     return false;
-  if (
-    (way.bridge && way.bridge !== "no") ||
-    (way.tunnel && way.tunnel !== "no") ||
-    (way.layer != null && String(way.layer) !== "0") ||
-    (way.level != null && String(way.level) !== "0")
-  )
-    return false;
+  const mappedBridge = evidence.gradeSeparatedPedestrian === true && way.gradeSeparatedPedestrian === true && way.highway === 'footway' && way.bridge === 'yes' && (way.footway === 'sidewalk' || way.wheelchair === 'yes');
+  if ((way.bridge && way.bridge !== 'no' && !mappedBridge) || (way.tunnel && way.tunnel !== 'no') ||
+      (way.layer != null && !((mappedBridge?['0','1']:['0']).includes(String(way.layer)))) ||
+      (way.level != null && !((mappedBridge?['0','1']:['0']).includes(String(way.level))))) return false;
   if (way.wheelchair === "no") return false;
   if (
     way.sidewalk === "no" &&
@@ -102,50 +102,70 @@ export function createRouter(graph) {
   const connectorRoadVerified =
     Array.isArray(graph.roadGeometries) &&
     Array.isArray(graph.officialCrossingAreas)
-      ? roadConnectorChecker(graph.roadGeometries, graph.officialCrossingAreas)
+      ? roadConnectorChecker(graph.roadGeometries, graph.supplementalEvidence ? officialGeometryEvidence(graph).crossings : graph.officialCrossingAreas)
       : null;
+  let heuristicScale=1;
+  for(const e of graph.edges){const direct=metres(graph.nodes[e[0]],graph.nodes[e[1]]);if(direct>0)heuristicScale=Math.min(heuristicScale,e[2]/direct);}
+  heuristicScale=Math.max(0,heuristicScale*.999);
   const adjacency = Array.from({ length: graph.nodes.length }, () => []);
   graph.edges.forEach((e, i) => {
     adjacency[e[0]].push([e[1], i]);
     adjacency[e[1]].push([e[0], i]);
   });
+  // Project onto actual mapped ground-level segments, never create a free-space shortcut.
+  const edgeGrid=new Map(),cellSize=.001,originalEdges=graph.edges.length,derived=new Map(),edgeProjections=new Map();
+  function groundEdge(e,options){const w=graph.ways[e[3]];return edgeAllowed(w,options,e[5])&&(!w.bridge||w.bridge==='no')&&(w.layer==null||String(w.layer)==='0')&&(w.level==null||String(w.level)==='0');}
+  function edgeGeometry(e){return [graph.nodes[e[0]].slice(0,2),...(e[4]||[]),graph.nodes[e[1]].slice(0,2)];}
+  for(let ei=0;ei<originalEdges;ei++){
+    const e=graph.edges[ei];if(!groundEdge(e,{minWidth:0,maxSlope:Infinity}))continue;
+    const line=edgeGeometry(e),ys=line.map(p=>p[0]),xs=line.map(p=>p[1]);
+    for(let y=Math.floor(Math.min(...ys)/cellSize);y<=Math.floor(Math.max(...ys)/cellSize);y++)for(let x=Math.floor(Math.min(...xs)/cellSize);x<=Math.floor(Math.max(...xs)/cellSize);x++){const k=x+','+y;if(!edgeGrid.has(k))edgeGrid.set(k,[]);edgeGrid.get(k).push(ei);}
+  }
+  function projectPoint(point,options,side){
+    const ids=new Set(),found=[];
+    for(let y=Math.floor((point[0]-.0005)/cellSize);y<=Math.floor((point[0]+.0005)/cellSize);y++)for(let x=Math.floor((point[1]-.0005)/cellSize);x<=Math.floor((point[1]+.0005)/cellSize);x++)for(const ei of edgeGrid.get(x+','+y)||[])ids.add(ei);
+    for(const ei of ids){const e=graph.edges[ei];if(!groundEdge(e,options)||graph.nodes[e[0]][2]||graph.nodes[e[1]][2])continue;const line=edgeGeometry(e);let best;
+      for(let j=0;j<line.length-1;j++){const a=line[j],b=line[j+1],dy=(b[0]-a[0])*111195,dx=(b[1]-a[1])*100700,t=Math.max(0,Math.min(1,((point[0]-a[0])*111195*dy+(point[1]-a[1])*100700*dx)/(dy*dy+dx*dx||1))),p=[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t],d=metres(point,p);if(!best||d<best.d)best={ei,j,p,d,line};}
+      if(best&&best.d<=SNAP_METRES&&metres(best.p,line[0])>.01&&metres(best.p,line.at(-1))>.01)found.push(best);
+    }
+    found.sort((a,b)=>a.d-b.d);
+    // Check the actual approach before limiting candidates: nearer segments may
+    // be across a road, closed, or outside a verified entrance connection.
+    let eligible=0;
+    for(const f of found){
+      if (!((f.d <= 0.001 || approachClear(point,f.p)) &&
+          (!options.lineAllowed || options.lineAllowed([point,f.p])) &&
+          (!options.approachAllowed || options.approachAllowed(point,f.p,side)))) continue;
+      if (++eligible > 12) break;
+      const key=f.ei+':'+f.p.map(v=>v.toFixed(10)).join(',');if(derived.has(key)||derived.size>=2048)continue;
+      const e=graph.edges[f.ei],index=graph.nodes.length;graph.nodes.push([...f.p,0]);adjacency.push([]);derived.set(key,index);
+      const previous=edgeProjections.get(f.ei)||[];
+      const position={index,p:f.p,j:f.j,along:metres(f.line[f.j],f.p)};
+      for(const prior of previous){
+        let a=prior,b=position;if(a.j>b.j||(a.j===b.j&&a.along>b.along))[a,b]=[b,a];
+        const line=[a.p,...f.line.slice(a.j+1,b.j+1),b.p],length=line.slice(1).reduce((n,p,i)=>n+metres(line[i],p),0);
+        if(length>.001){const id=graph.edges.length;graph.edges.push([a.index,b.index,length,e[3],line.slice(1,-1),{...e[5],derivedFrom:f.ei}]);adjacency[a.index].push([b.index,id]);adjacency[b.index].push([a.index,id]);}
+      }
+      previous.push(position);edgeProjections.set(f.ei,previous);
+      const left=[...f.line.slice(0,f.j+1),f.p],right=[f.p,...f.line.slice(f.j+1)];
+      for(const [a,b,line]of [[e[0],index,left],[index,e[1],right]]){
+        const length=line.slice(1).reduce((n,p,i)=>n+metres(line[i],p),0);if(length<.001)continue;
+        const id=graph.edges.length;graph.edges.push([a,b,length,e[3],line.slice(1,-1),{...e[5],derivedFrom:f.ei}]);adjacency[a].push([b,id]);adjacency[b].push([a,id]);
+      }
+    }
+  }
   function allowedAt(index, options) {
     return adjacency[index].some(([, ei]) =>
-      edgeAllowed(
-        graph.ways[graph.edges[ei][3]],
-        options,
-        graph.edges[ei][5],
-      ),
+      groundEdge(graph.edges[ei], options),
     );
   }
-  const parent = new Int32Array(graph.nodes.length);
-  for (let i = 0; i < parent.length; i++) parent[i] = i;
-  function find(index) {
-    let x = index;
-    while (parent[x] !== x) {
-      parent[x] = parent[parent[x]];
-      x = parent[x];
-    }
-    return x;
-  }
-  graph.edges.forEach((e) => {
-    if (graph.nodes[e[0]][2] || graph.nodes[e[1]][2]) return;
-    if (!edgeAllowed(graph.ways[e[3]], {}, e[5])) return;
-    const a = find(e[0]),
-      b = find(e[1]);
-    if (a !== b) parent[b] = a;
-  });
   function approachClear(point, node) {
     const d = metres(point, node);
     if (d <= 0.001) return true;
     if (!connectorRoadVerified) return false;
-    const scale = Math.max(0, d - Math.min(1.5, d * 0.35)) / d;
-    return connectorRoadVerified(point, [
-      point[0] + (node[0] - point[0]) * scale,
-      point[1] + (node[1] - point[1]) * scale,
-    ]);
+    return connectorRoadVerified(point, node);
   }
-  function endpoints(point, options) {
+  function endpoints(point, options, side) {
     let blockerDist = Infinity,
       nearestDist = Infinity;
     const raw = [];
@@ -154,6 +174,7 @@ export function createRouter(graph) {
       if (d < nearestDist) nearestDist = d;
       if (d > SNAP_METRES) continue;
       const hasEdge = adjacency[i].length > 0;
+      if(hasEdge && !graph.nodes[i][2] && adjacency[i].every(([,ei])=>graph.ways[graph.edges[ei][3]].gradeSeparatedPedestrian))continue;
       if (graph.nodes[i][2] || (hasEdge && !allowedAt(i, options))) {
         if (d < blockerDist) blockerDist = d;
       } else if (hasEdge) raw.push([d, i]);
@@ -162,60 +183,37 @@ export function createRouter(graph) {
     const chosen = [];
     for (const [d, i] of raw) {
       if (blockerDist <= d) break;
-      if (d <= 0.001 || approachClear(point, graph.nodes[i])) {
+      if ((d <= 0.001 || approachClear(point, graph.nodes[i])) &&
+          (!options.lineAllowed || options.lineAllowed([point,graph.nodes[i]])) &&
+          (!options.approachAllowed || options.approachAllowed(point,graph.nodes[i],side))) {
         chosen.push({ index: i, distance: d });
-        if (chosen.length === 16) break;
+        if (chosen.length === 48) break;
       }
     }
     return { chosen, nearestDist };
   }
   return function route(start, end, options = {}) {
-    const starts = endpoints(start, options),
-      ends = endpoints(end, options);
-    let s = null,
-      t = null,
-      best = Infinity;
-    for (const a of starts.chosen)
-      for (const b of ends.chosen) {
-        if (find(a.index) !== find(b.index)) continue;
-        const score = a.distance + b.distance;
-        if (score < best) {
-          best = score;
-          s = a;
-          t = b;
-        }
-      }
-    if (!s || !t)
-      return {
-        error:
-          starts.chosen.length && ends.chosen.length
-            ? "NO_ROUTE"
-            : "NO_CONNECTION",
-        startGap: starts.nearestDist,
-        endGap: ends.nearestDist,
-      };
-    if (s.index === t.index) return { error: "SAME_POINT" };
-    if (
-      options.lineAllowed &&
-      (!options.lineAllowed([start, graph.nodes[s.index]]) ||
-        !options.lineAllowed([graph.nodes[t.index], end]))
-    )
-      return { error: "CONSTRUCTION_BLOCKED" };
+    projectPoint(start,options,'start');projectPoint(end,options,'end');
+    const starts=endpoints(start,options,'start'),ends=endpoints(end,options,'end');
+    if(!starts.chosen.length||!ends.chosen.length)return {error:'NO_CONNECTION',startGap:starts.nearestDist,endGap:ends.nearestDist};
+    if(metres(start,end)<.001)return {error:'SAME_POINT'};
+    const targets=new Map(ends.chosen.map(p=>[p.index,p]));
     const workAllowed = new Map();
     const dist = new Float64Array(graph.nodes.length).fill(Infinity),
       prev = new Int32Array(graph.nodes.length).fill(-1),
       edgePrev = new Int32Array(graph.nodes.length).fill(-1);
     const heap = new MinHeap();
-    dist[s.index] = 0;
-    heap.push([0, s.index, 0]);
+    for(const source of starts.chosen){const cost=source.distance*ROUTE_TIERS.connector.factor;dist[source.index]=cost;heap.push([cost+heuristicScale*metres(graph.nodes[source.index],end),source.index,cost]);}
+    let bestTotal=Infinity,goal=-1;
     let found = false,
       visited = 0;
     while (heap.a.length) {
-      const [, u, cost] = heap.pop();
+      const [lowerBound, u, cost] = heap.pop();
       if (cost !== dist[u]) continue;
-      if (u === t.index) {
-        found = true;
-        break;
+      if(lowerBound>=bestTotal)break;
+      if(targets.has(u)){
+        const total=cost+targets.get(u).distance*ROUTE_TIERS.connector.factor;
+        if(total<bestTotal){bestTotal=total;goal=u;found=true;}
       }
       visited++;
       for (const [v, ei] of adjacency[u]) {
@@ -234,49 +232,19 @@ export function createRouter(graph) {
             );
           if (!workAllowed.get(ei)) continue;
         }
-        let factor = 1;
-        if (graph.officialPathEvidence && options.preferOfficial !== false)
-          factor += 3 * (1 - (e[5]?.coverage ?? 0));
-        if (
-          [
-            "primary",
-            "secondary",
-            "tertiary",
-            "residential",
-            "unclassified",
-            "service",
-          ].includes(w.highway)
-        )
-          factor += w.sidewalk === "no" ? 2.4 : 0.6;
-        if (w.width == null || w.slope == null) factor += 0.12;
-        if (
-          [
-            "gravel",
-            "unpaved",
-            "cobblestone",
-            "ground",
-            "sand",
-            "dirt",
-          ].includes(w.surface)
-        )
-          factor += options.mode === "gentle" ? 2 : 0.8;
-        if (options.mode === "gentle" && w.slope != null)
-          factor += Math.abs(w.slope) / 6;
-        if (options.mode === "crossings" && w.crossing) factor += 3;
-        if (options.avoidPoints?.length) {
-          const mid = [
-            (graph.nodes[u][0] + graph.nodes[v][0]) / 2,
-            (graph.nodes[u][1] + graph.nodes[v][1]) / 2,
-          ];
-          if (options.avoidPoints.some((p) => metres(mid, p) <= 25)) factor *= 8;
-        }
+        let factor = edgeCostFactor(w,e[5],options);
+        const mid = [
+          (graph.nodes[u][0] + graph.nodes[v][0]) / 2,
+          (graph.nodes[u][1] + graph.nodes[v][1]) / 2,
+        ];
+        if (options.avoidPoints?.some((p) => metres(mid, p) <= 25)) factor *= 8;
         const next = cost + e[2] * factor;
         if (next < dist[v]) {
           dist[v] = next;
           prev[v] = u;
           edgePrev[v] = ei;
           heap.push([
-            next + metres(graph.nodes[v], graph.nodes[t.index]),
+            next+heuristicScale*metres(graph.nodes[v],end),
             v,
             next,
           ]);
@@ -286,13 +254,14 @@ export function createRouter(graph) {
     if (!found) return { error: "NO_ROUTE", visited };
     const path = [],
       es = [];
-    let v = t.index;
-    while (v !== s.index) {
+    let v = goal;
+    while (prev[v] !== -1) {
       path.push(v);
       es.push(edgePrev[v]);
       v = prev[v];
     }
-    path.push(s.index);
+    path.push(v);
+    const s=starts.chosen.find(p=>p.index===v),t=targets.get(goal);
     path.reverse();
     es.reverse();
     let length = 0,
@@ -367,8 +336,18 @@ export function createRouter(graph) {
         graph.nodes[path[k + 1]].slice(0, 2),
       );
     });
+    const tierSegments=[];
+    es.forEach((ei,k)=>{
+      const e=graph.edges[ei],tier=edgeTier(e[5]),middle=e[0]===path[k] ? e[4]||[] : [...(e[4]||[])].reverse();
+      const coords=[graph.nodes[path[k]].slice(0,2),...middle,graph.nodes[path[k+1]].slice(0,2)],last=tierSegments.at(-1);
+      if(last?.tier===tier){last.coordinates.push(...coords.slice(1));last.distance+=e[2];}else tierSegments.push({tier,coordinates:coords,distance:e[2]});
+    });
     return {
       policyVersion: ROUTING_POLICY,
+      weightedCost:bestTotal,
+      tierSegments,
+      edgeIds: es,
+      nodeIds: path,
       coordinates,
       distance: Math.round(length),
       unknownPct: Math.round((unknown / length) * 100),

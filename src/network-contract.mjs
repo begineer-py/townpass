@@ -17,6 +17,8 @@ export function validateNetwork(graph) {
     throw Error("INVALID_NETWORK");
   for (const e of graph.edges) {
     const v = e[5];
+    if(v?.gradeSeparatedPedestrian === true && (graph.nodeIdentity !== 'OSM node ID; coincident coordinates do not create connectivity' || !Number.isSafeInteger(graph.nodes[e[0]]?.[3]) || !Number.isSafeInteger(graph.nodes[e[1]]?.[3])))
+      throw Error('MISSING_GRADE_NODE_IDENTITY');
     if (
       !v ||
       v.schemaVersion !== 2 ||

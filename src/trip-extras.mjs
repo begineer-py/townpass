@@ -1,7 +1,77 @@
-import { category, distance } from "./data.js";
+import { category, distance, normalize } from "./data.js";
 import { stationKey } from "./format.mjs";
 
-// 路線附近的停靠點與今日電梯保養出口（取自 fix/pedestrian-routes ba52f55）。
+export const IDENTITIES = [
+  ["wheelchair", "輪椅", { minWidth: 0.9, maxSlope: 5, mode: "gentle", largeText: false }],
+  ["stroller", "嬰兒推車", { minWidth: 0.8, maxSlope: 8, mode: "crossings", largeText: false }],
+  ["senior", "樂齡", { minWidth: 0.8, maxSlope: 5, mode: "gentle", largeText: true }],
+];
+
+export const DEMOS = [
+  {
+    name: "大安森林公園",
+    start: { name: "大安森林公園", lat: 25.0332, lon: 121.5355, id: "demo-daan-a" },
+    end: { name: "大安森林公園東側", lat: 25.0301, lon: 121.5356, id: "demo-daan-b" },
+  },
+  {
+    name: "信義",
+    start: { name: "信義路起點", lat: 25.0331, lon: 121.5637, id: "demo-xinyi-a" },
+    end: { name: "信義路終點", lat: 25.0363, lon: 121.5656, id: "demo-xinyi-b" },
+  },
+  {
+    name: "北投",
+    start: { name: "北投起點", lat: 25.1321, lon: 121.4986, id: "demo-beitou-a" },
+    end: { name: "北投終點", lat: 25.1367, lon: 121.5036, id: "demo-beitou-b" },
+  },
+];
+
+export const PHONES = { metro: "02-2181-2345", city: "1999" };
+
+export function mapLink(start, end) {
+  return `https://maps.google.com/maps?saddr=${start.lat},${start.lon}&daddr=${end.lat},${end.lon}&dirflg=w`;
+}
+
+export function identityFromUser(info) {
+  const raw = info?.identity || info?.access || info?.disability || info?.assistive;
+  const text = String(raw || "");
+  if (/輪椅|wheelchair/i.test(text)) return "wheelchair";
+  if (/嬰兒車|推車|stroller/i.test(text)) return "stroller";
+  if (/樂齡|長輩|senior/i.test(text)) return "senior";
+  return null;
+}
+
+export function parseTripSentence(text) {
+  const s = String(text || "").replace(/臺/g, "台").trim();
+  let identity = null;
+  if (/嬰兒車|推車/.test(s)) identity = "stroller";
+  else if (/輪椅/.test(s)) identity = "wheelchair";
+  else if (/樂齡|長輩/.test(s)) identity = "senior";
+  let stop = null;
+  if (/廁所/.test(s)) stop = "toilet";
+  else if (/椅|歇腳|休息/.test(s)) stop = "rest";
+  const m = s.match(/從(.+?)到(.+?)(?:[，,。]|順便|$)/);
+  return {
+    identity,
+    stop,
+    startName: m?.[1]?.trim() || "",
+    endName: m?.[2]?.trim() || "",
+  };
+}
+
+export function matchPlace(name, places) {
+  const q = normalize(name);
+  if (!q || !places?.length) return null;
+  const hits = places.filter((p) => {
+    const n = normalize(p.name);
+    return n && (n.includes(q) || q.includes(n));
+  });
+  hits.sort(
+    (a, b) =>
+      (normalize(a.name) === q ? 0 : 1) - (normalize(b.name) === q ? 0 : 1) ||
+      a.name.length - b.name.length,
+  );
+  return hits[0] || null;
+}
 
 export function nearestStop(route, places, kind, limit = 150) {
   const coords = (route?.coordinates || []).filter((_, i) => i % 4 === 0);

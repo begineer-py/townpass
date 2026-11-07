@@ -1,6 +1,36 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { activeElevatorStops, nearestStop } from "../src/trip-extras.mjs";
+import {
+  parseTripSentence,
+  matchPlace,
+  identityFromUser,
+  activeElevatorStops,
+  nearestStop,
+} from "../src/trip-extras.mjs";
+
+test("a spoken trip keeps the identity, places and stop", () => {
+  const parsed = parseTripSentence(
+    "推嬰兒車從台北車站到大安森林公園，順便找無障礙廁所",
+  );
+  assert.deepEqual(parsed, {
+    identity: "stroller",
+    stop: "toilet",
+    startName: "台北車站",
+    endName: "大安森林公園",
+  });
+  assert.equal(
+    matchPlace("台北車站", [
+      { name: "台北車站出口", lat: 1, lon: 1 },
+      { name: "台北車站", lat: 2, lon: 2 },
+    ]).name,
+    "台北車站",
+  );
+});
+
+test("account data only changes prefs from an explicit access field", () => {
+  assert.equal(identityFromUser({ name: "輪椅" }), null);
+  assert.equal(identityFromUser({ identity: "輪椅使用者" }), "wheelchair");
+});
 
 test("today's elevator maintenance becomes an avoid point for that station", () => {
   const points = activeElevatorStops(
