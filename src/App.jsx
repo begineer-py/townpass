@@ -1437,7 +1437,8 @@ export default function App() {
                         <Footprints size={32} />
                       </span>
                     </div>
-                    {route.unknownPct > 0 && <p className="quiet-note">路寬／坡度：尚無完整資料</p>}
+                    {route.costBreakdown && <p className="quiet-note">這條路依距離、路況資料、坡度與寬度等條件綜合比較；資料未知不代表無障礙。</p>}
+                    {route.unknownPct > 0 && <p className="quiet-note">路寬／坡度：尚無完整資料{Number.isFinite(route.unknownWidthMetres) && Number.isFinite(route.unknownSlopeMetres) ? `（路網中約 ${Math.round(route.unknownWidthMetres)} 公尺寬度未知、${Math.round(route.unknownSlopeMetres)} 公尺坡度未知）` : ''}。</p>}
                     {!route.approaches && !route.requiresEntryConfirmation && (route.startGap > 10 || route.endGap > 10) && (
                       <p className="quiet-note">
                         起點距路網約 {route.startGap} 公尺，終點距路網約{" "}

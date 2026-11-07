@@ -1,6 +1,6 @@
 import { roadConnectorChecker } from "./geometry.mjs";
 import { officialGeometryEvidence } from "./supplemental-evidence.mjs";
-import {edgeTier,edgeCostFactor,ROUTE_TIERS} from "./route-tiers.mjs";
+import {edgeTier,edgeCostFactor,edgeCostDetails,ROUTE_TIERS} from "./route-tiers.mjs";
 export const ROUTING_POLICY = "pedestrian-evidence-v4";
 // Building entrances sit back from the mapped footway. 50m reaches a sidewalk;
 // the approach is still rejected when it crosses a vehicle way outside a crossing.
@@ -266,17 +266,29 @@ export function createRouter(graph) {
     es.reverse();
     let length = 0,
       unknown = 0,
+      unknownWidth = 0,
+      unknownSlope = 0,
       crossings = 0,
       roadLength = 0,
       officialLength = 0,
       previousBearing = null;
     const steps = [];
+    // Costs are relative search preferences, not a safety score. Known hard
+    // exclusions are still applied before a candidate reaches this point.
+    const approachDistance=s.distance+t.distance;
+    const costBreakdown={base:approachDistance,source:0,unknown:0,surface:0,width:0,slope:0,crossing:0,avoidPoint:0,entrance:approachDistance*(ROUTE_TIERS.connector.factor-1)};
     es.forEach((ei, k) => {
       const e = graph.edges[ei],
         w = graph.ways[e[3]];
       length += e[2];
       officialLength += e[2] * (e[5]?.coverage ?? 0);
       if (w.width == null || w.slope == null) unknown += e[2];
+      if (w.width == null) unknownWidth += e[2];
+      if (w.slope == null) unknownSlope += e[2];
+      const detail=edgeCostDetails(w,e[5],options);
+      for(const key of ['base','source','unknown','surface','width','slope','crossing'])costBreakdown[key]+=detail[key]*e[2];
+      const mid=[(graph.nodes[e[0]][0]+graph.nodes[e[1]][0])/2,(graph.nodes[e[0]][1]+graph.nodes[e[1]][1])/2];
+      if(options.avoidPoints?.some(p=>metres(mid,p)<=25))costBreakdown.avoidPoint+=edgeCostFactor(w,e[5],options)*7*e[2];
       if (w.crossing) crossings++;
       if (
         ![
@@ -345,6 +357,9 @@ export function createRouter(graph) {
     return {
       policyVersion: ROUTING_POLICY,
       weightedCost:bestTotal,
+      costBreakdown,
+      unknownWidthMetres:unknownWidth,
+      unknownSlopeMetres:unknownSlope,
       tierSegments,
       edgeIds: es,
       nodeIds: path,

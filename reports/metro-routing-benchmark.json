@@ -1,6 +1,6 @@
 {
-  "checkedAt": "2026-11-07T12:20:48.294Z",
-  "constructionUpdatedAt": "Sat, 07 Nov 2026 12:10:44 GMT",
+  "checkedAt": "2026-11-07T12:27:52.653Z",
+  "constructionUpdatedAt": "Sat, 07 Nov 2026 12:20:49 GMT",
   "method": "Seeded sample of Taipei-address metro stations, one destination 500–3000 m away per origin; public route data only. Not a citywide or physical accessibility success rate.",
   "seed": 20261107,
   "stationsAvailable": 86,
@@ -25,7 +25,7 @@
       "straightMetres": 2524,
       "success": true,
       "error": null,
-      "distance": 2751
+      "distance": 2727
     },
     {
       "start": "松江南京(G15)",
@@ -85,7 +85,7 @@
       "straightMetres": 2516,
       "success": true,
       "error": null,
-      "distance": 4191
+      "distance": 4181
     },
     {
       "start": "市政府(BL18)",
@@ -95,7 +95,7 @@
       "straightMetres": 1025,
       "success": true,
       "error": null,
-      "distance": 1424
+      "distance": 1419
     },
     {
       "start": "萬芳社區(BR03)",
@@ -115,7 +115,7 @@
       "straightMetres": 2012,
       "success": true,
       "error": null,
-      "distance": 3056
+      "distance": 3052
     },
     {
       "start": "辛亥(BR05)",
@@ -165,7 +165,7 @@
       "straightMetres": 2199,
       "success": true,
       "error": null,
-      "distance": 3326
+      "distance": 3271
     },
     {
       "start": "內湖(BR19)",
@@ -225,7 +225,7 @@
       "straightMetres": 1319,
       "success": true,
       "error": null,
-      "distance": 1752
+      "distance": 1749
     },
     {
       "start": "木柵(BR02)",
@@ -255,7 +255,7 @@
       "straightMetres": 2756,
       "success": true,
       "error": null,
-      "distance": 4001
+      "distance": 3841
     },
     {
       "start": "芝山(R17)",
@@ -275,7 +275,7 @@
       "straightMetres": 2269,
       "success": true,
       "error": null,
-      "distance": 2801
+      "distance": 2738
     },
     {
       "start": "動物園(BR01)",
@@ -295,7 +295,7 @@
       "straightMetres": 2750,
       "success": true,
       "error": null,
-      "distance": 3540
+      "distance": 3534
     },
     {
       "start": "忠義(R24)",
@@ -335,7 +335,7 @@
       "straightMetres": 1667,
       "success": true,
       "error": null,
-      "distance": 1871
+      "distance": 1827
     },
     {
       "start": "圓山(R14)",
@@ -365,7 +365,7 @@
       "straightMetres": 2431,
       "success": true,
       "error": null,
-      "distance": 2614
+      "distance": 2612
     },
     {
       "start": "南港展覽館(BR24)",
@@ -395,7 +395,7 @@
       "straightMetres": 2710,
       "success": true,
       "error": null,
-      "distance": 2988
+      "distance": 2974
     },
     {
       "start": "小南門(G11)",
@@ -405,7 +405,7 @@
       "straightMetres": 2922,
       "success": true,
       "error": null,
-      "distance": 3930
+      "distance": 3898
     }
   ]
 }
