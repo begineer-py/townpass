@@ -186,6 +186,7 @@ export default function MapView({
         weight: 6,
         opacity: 1,
         lineCap: "round",
+        dashArray: route.requiresEntryConfirmation ? "8 6" : undefined,
       }).addTo(path.current);
       map.current.fitBounds(L.latLngBounds(route.coordinates).pad(0.2));
     }
@@ -207,7 +208,20 @@ export default function MapView({
       el.textContent = p.name;
       marker.bindTooltip(el);
     });
-  }, [start, end]);
+    if (route?.requiresEntryConfirmation) {
+      [route.coordinates[0], route.coordinates.at(-1)].forEach((p, i) => {
+        const text = i ? "路線終點" : "路線起點";
+        L.marker(p, {
+          icon: L.divIcon({
+            className: "route-entry-marker",
+            html: `<span>${text}</span>`,
+            iconSize: [72, 28],
+            iconAnchor: [36, 14],
+          }),
+        }).addTo(ends.current);
+      });
+    }
+  }, [start, end, route]);
   useEffect(() => {
     if (focus?.lat && map.current)
       map.current.setView([focus.lat, focus.lon], focus.zoom || 17);

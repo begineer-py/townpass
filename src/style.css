@@ -2193,3 +2193,16 @@ small {
     margin-bottom: 10px;
   }
 }
+
+.route-entry-marker span {
+  display: block;
+  padding: 4px 6px;
+  background: var(--tp-white);
+  color: var(--tp-primary800);
+  border: 2px solid var(--tp-primary700);
+  border-radius: 3px;
+  font-size: var(--tp-text-caption-size);
+  font-weight: var(--tp-text-caption-weight);
+  text-align: center;
+  white-space: nowrap;
+}

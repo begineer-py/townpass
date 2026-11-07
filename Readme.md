@@ -117,3 +117,17 @@ npm run build
 ## 設計token
 
 `src/tp-tokens.css`、`src/tp-colors.mjs` 對應官方 `lib/util/tp_colors.dart` 的 TPColors；沒有另外定義字體色票。字級／字重對應 TPTextStyles，正文 bodyRegular 14/400、h3 16、titleSemiBold 18/600。文字與背景色在元件中組合，與原生 TPText 的使用方式一致。系統字型優先 PingFang TC，Windows fallback 微軟正黑體。
+
+## 線上官方規劃來源（2026-11-07）
+
+線上規劃改用原「無障礙通行路線平臺」公開前端使用的 navigation_waypoints 查詢介面。來源位於 https://tppano.gov.taipei/shortestAccessibleRoute/api/v1/navigation_waypoints/ ，只傳起終點lat/lng，不傳帳號或身障資料。此為公開網站目前使用的介面，未取得正式第三方介接SLA；上架前應確認介接、流量與維運條件。官方服務停止時顯示原因，離線仍使用原保守路網。
+
+只接收success=true、used_alt=false、障礙計數為0且主通道segments完整的回應；插入障礙補線、超過25公分的未確認銜接或未知結構都拒絕。小型明確snapped圖資對齊誤差保留來源紀錄。選點離實際入口超過5公尺時，虛線顯示官方主路線和實際入口，暫停朗讀、分享與儲存，需先明確改選圖示入口後重算。不把API的snap_lines當成已驗證可走的連接路線。
+
+官方介面不提供逐段淨寬/坡度及各偏好模式的比較；不假裝已套用這些條件。要求尺寸完整時拒絕缺值路線。線上模式不顯示離線專用的坡度/過街次數排序選項。資料不是即時現場認證。
+
+本次9組公開地點測試：9組API有回應，8組符合主路線檢查，1組因官方不利通行替代路線拒絕；其中7組需確認入口（依未四捨五入的5公尺門檻）。詳見 reports/official-router-benchmark.json。這不代表全臺北任意兩點100%可通行。
+
+### 路線服務部署
+
+市府端的 CORS 預檢未完整開放 POST JSON，因此瀏覽器透過本站 `POST /api/accessible-route` 查詢；Vite dev/preview 使用同一個 handler，Vercel 使用 `api/accessible-route.js` 函式。其他部署平台必須提供相同 Node API，不能只上傳 dist 到純靜態空間。轉接端只接受兩個臺北範圍座標、固定市府上游、20秒逾時，不轉傳 cookies/身分資料、不快取位置查詢，剔除上游內部路徑欄位。正式上線需依主機平台配置流量限制與位置日誌保存政策。

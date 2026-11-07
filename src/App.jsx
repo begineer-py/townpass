@@ -44,6 +44,7 @@ import {
   HelpCircle,
 } from "lucide-react";
 import MapView from "./MapView";
+import { requestOfficialRoute } from "./official-router.mjs";
 import { ROUTING_POLICY } from "./routing.mjs";
 import { BASEMAPS } from "./basemaps.mjs";
 import {
@@ -235,10 +236,15 @@ export default function App() {
       ctl.abort();
     };
   }, [query]);
+  const officialRequest = useRef();
   const panelScroll = useRef();
   const routeFeedback = useRef();
   useEffect(() => {
-    if(routeError) routeFeedback.current?.scrollIntoView({block:'nearest',behavior:'auto'});
+    if (routeError)
+      routeFeedback.current?.scrollIntoView({
+        block: "nearest",
+        behavior: "auto",
+      });
   }, [routeError]);
   useEffect(() => {
     if (panelScroll.current) panelScroll.current.scrollTop = 0;
@@ -337,6 +343,7 @@ export default function App() {
     setFocus({ ...p, token: Date.now() });
   };
   function clearRoute() {
+    officialRequest.current?.abort();
     request.current++;
     window.speechSynthesis?.cancel();
     setSpeaking(false);
@@ -383,7 +390,37 @@ export default function App() {
       setLocating(false);
     }
   }
-  function calculate() {
+  async function calculate() {
+    if (start && end && navigator.onLine) {
+      clearRoute();
+      setRouteError("");
+      setRouting(true);
+      setTab("plan");
+      const id = request.current,
+        controller = new AbortController();
+      officialRequest.current = controller;
+      const timer = setTimeout(() => controller.abort(), 25000);
+      try {
+        const result = await requestOfficialRoute(
+          [start.lat, start.lon],
+          [end.lat, end.lon],
+          prefs,
+          controller.signal,
+        );
+        if (id !== request.current) return;
+        if (result.error) setRouteError(result.error);
+        else {
+          setRoute(result);
+          setStepIndex(0);
+        }
+      } catch (error) {
+        if (id === request.current) setRouteError("OFFICIAL_UNAVAILABLE");
+      } finally {
+        clearTimeout(timer);
+        if (id === request.current) setRouting(false);
+      }
+      return;
+    }
     if (!start || !end) {
       announce("選好出發地和目的地，就能一起看看適合的走法。");
       return;
@@ -508,7 +545,12 @@ export default function App() {
       setSpeaking(false);
       return;
     }
-    if (!route || route.policyVersion !== ROUTING_POLICY) return;
+    if (
+      !route ||
+      route.requiresEntryConfirmation ||
+      route.policyVersion !== ROUTING_POLICY
+    )
+      return;
     const text = `從${start.name}前往${end.name}，路線長約${formatDistance(route.distance)}。${route.steps.map((s) => `${stepText(s)}約${Math.round(s.distance)}公尺。`).join("")}路況仍需留意現場，這是路線預覽。`;
     const u = new SpeechSynthesisUtterance(text);
     u.lang = "zh-TW";
@@ -519,7 +561,12 @@ export default function App() {
     setSpeaking(true);
   }
   function saveTrip() {
-    if (!route || route.policyVersion !== ROUTING_POLICY) return;
+    if (
+      !route ||
+      route.requiresEntryConfirmation ||
+      route.policyVersion !== ROUTING_POLICY
+    )
+      return;
     const entry = {
       id: Date.now().toString(),
       start,
@@ -535,7 +582,12 @@ export default function App() {
     } else announce("儲存空間不足，這次沒能存下行程。");
   }
   async function share() {
-    if (!route || route.policyVersion !== ROUTING_POLICY) return;
+    if (
+      !route ||
+      route.requiresEntryConfirmation ||
+      route.policyVersion !== ROUTING_POLICY
+    )
+      return;
     const text = `好好走｜${start.name} → ${end.name}\n約 ${formatDistance(route.distance)}\n${route.steps
       .slice(0, 20)
       .map((s) => `${s.name} ${Math.round(s.distance)}公尺`)
@@ -556,6 +608,16 @@ export default function App() {
     setFocus({ ...p, token: Date.now() });
   };
   const errorText = {
+    OFFICIAL_NO_ROUTE:
+      "官方圖台目前沒有回傳可連接這兩點的路線。可以改選附近的出入口。",
+    OFFICIAL_BLOCKED:
+      "官方回傳的替代路線包含不利通行路段，因此沒有列為建議路線。可以更換入口或目的地。",
+    OFFICIAL_GAP: "官方路線仍有未確認的銜接缺口，因此暫不提供通行指引。",
+    OFFICIAL_DIMENSIONS:
+      "官方路線沒有完整淨寬與坡度，無法符合你選擇的「寬度、坡度都有資料」條件。",
+    OFFICIAL_INVALID: "官方路線資料不完整，請稍後再試。",
+    OFFICIAL_UNAVAILABLE:
+      "官方路線服務暫時無法連線，請稍後再試。附近設施與收藏仍可使用。",
     UNVERIFIED_NETWORK:
       "人行路網資料尚未完成驗證，暫時無法規劃。請重新載入後再試。",
     NO_CONNECTION:
@@ -789,8 +851,7 @@ export default function App() {
                 <div className="preference-bar">
                   <Accessibility size={20} />
                   <span>
-                    {prefs.avoidSteps ? "避開階梯" : "允許階梯"} ·{" "}
-                    {prefs.minWidth}m 以上已知寬度
+                    {online ? "市府通道路線 · 淨寬與坡度未完整提供" : `避開階梯 · ${prefs.minWidth}m 以上已知寬度`}
                   </span>
                   <button
                     onClick={() => setModal("prefs")}
@@ -799,22 +860,29 @@ export default function App() {
                     <SlidersHorizontal size={18} />
                   </button>
                 </div>
-                <div className="mode-tabs" aria-label="路線偏好">
-                  {[
-                    ["balanced", "均衡走法"],
-                    ["gentle", "偏好平緩"],
-                    ["crossings", "減少過街"],
-                  ].map(([id, name]) => (
-                    <button
-                      key={id}
-                      aria-pressed={prefs.mode === id}
-                      className={prefs.mode === id ? "active" : ""}
-                      onClick={() => updatePrefs({ mode: id })}
-                    >
-                      {name}
-                    </button>
-                  ))}
-                </div>
+                {!online && (
+                  <div className="mode-tabs" aria-label="路線偏好">
+                    {[
+                      ["balanced", "均衡走法"],
+                      ["gentle", "偏好平緩"],
+                      ["crossings", "減少過街"],
+                    ].map(([id, name]) => (
+                      <button
+                        key={id}
+                        aria-pressed={prefs.mode === id}
+                        className={prefs.mode === id ? "active" : ""}
+                        onClick={() => updatePrefs({ mode: id })}
+                      >
+                        {name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {online && (
+                  <p className="quiet-note">
+                    使用市府無障礙通道規劃。送出時只將起終點位置傳給市府路線服務，不傳送身分資料。
+                  </p>
+                )}
                 <button
                   className="primary full"
                   onClick={calculate}
@@ -828,7 +896,7 @@ export default function App() {
                   {routing ? "正在找路線…" : "規劃路線"}
                   <ArrowRight size={19} />
                 </button>
-                {!graphReady && (
+                {!graphReady && !online && (
                   <p className="quiet-note">
                     {graphError
                       ? "路線資料暫時讀取不到，請重新整理再試。"
@@ -849,7 +917,11 @@ export default function App() {
                       <div>
                         <span className="eyebrow">路線預覽</span>
                         <h2>{formatDistance(route.distance)}</h2>
-                        <p>依公開路網規劃，尚未逐段現勘確認</p>
+                        <p>
+                          {route.provider === "taipei-official"
+                            ? "臺北市無障礙通行路線圖台回傳"
+                            : "離線人行路網參考"}
+                        </p>
                       </div>
                       <span className="route-symbol">
                         <Footprints size={32} />
@@ -867,11 +939,12 @@ export default function App() {
                     <div className="notice warm">
                       <Info size={20} />
                       <p>
-                        約 {route.unknownPct}%
-                        路程缺少完整寬度或坡度資料。沿途請留意現場，覺得不合適時可以先停下來，換個走法。
+                        {route.provider === "taipei-official"
+                          ? "路線採用市府通道資料，已排除服務標記的障礙替代路線。尚無完整逐段淨寬、坡度及即時施工驗證，請留意現場。"
+                          : `約 ${route.unknownPct}% 路程缺少完整寬度或坡度資料，請留意現場。`}
                       </p>
                     </div>
-                    {(route.startGap > 10 || route.endGap > 10) && (
+                    {!route.requiresEntryConfirmation && (route.startGap > 10 || route.endGap > 10) && (
                       <p className="quiet-note">
                         起點距路網約 {route.startGap} 公尺，終點距路網約{" "}
                         {route.endGap} 公尺；這兩段銜接尚未確認。
@@ -883,17 +956,63 @@ export default function App() {
                         路程使用一般道路路網，尚未確認是否有連續人行空間。
                       </p>
                     )}
+                    {route.requiresEntryConfirmation && (
+                      <div className="notice">
+                        <Info />
+                        <div>
+                          <p>
+                            官方路線起點距選點約 {route.startGap}{" "}
+                            公尺，終點距選點約 {route.endGap}{" "}
+                            公尺。這兩段銜接尚未確認，請先在地圖確認入口；此時不提供朗讀或分享。
+                          </p>
+                          <button
+                            className="secondary"
+                            onClick={() => {
+                              const a = route.coordinates[0],
+                                b = route.coordinates.at(-1);
+                              setStart({
+                                ...start,
+                                lat: a[0],
+                                lon: a[1],
+                                name: start.name + "附近人行入口",
+                              });
+                              setEnd({
+                                ...end,
+                                lat: b[0],
+                                lon: b[1],
+                                name: end.name + "附近人行入口",
+                              });
+                              clearRoute();
+                              announce(
+                                "已改用圖示的人行入口，請按規劃路線重新查詢。",
+                              );
+                            }}
+                          >
+                            改用圖示的人行入口
+                          </button>
+                        </div>
+                      </div>
+                    )}
                     <div className="route-tools">
-                      <button onClick={saveTrip}>
+                      <button
+                        onClick={saveTrip}
+                        disabled={route.requiresEntryConfirmation}
+                      >
                         <Bookmark size={17} />
                         存下行程
                       </button>
-                      <button onClick={share}>
+                      <button
+                        onClick={share}
+                        disabled={route.requiresEntryConfirmation}
+                      >
                         <Share2 size={17} />
                         分享
                       </button>
                       {"speechSynthesis" in window && (
-                        <button onClick={readRoute}>
+                        <button
+                          onClick={readRoute}
+                          disabled={route.requiresEntryConfirmation}
+                        >
                           {speaking ? (
                             <VolumeX size={17} />
                           ) : (
@@ -924,7 +1043,10 @@ export default function App() {
                               <b>{stepText(s)}</b>
                               <small>
                                 約 {formatDistance(s.distance)}
-                                {s.unknown ? " · 通行條件待確認" : ""}
+                                {s.unknown &&
+                                route.provider !== "taipei-official"
+                                  ? " · 通行條件待確認"
+                                  : ""}
                               </small>
                             </span>
                           </button>
@@ -1507,8 +1629,10 @@ export default function App() {
           <p className="modal-lead">選擇這次出門需要的條件，隨時都可以調整。</p>
           <label className="toggle-row">
             <span>
-              <b>不行走車道與階梯</b>
-              <small>固定排除；過街須有官方行穿線依據。</small>
+              <b>使用人行通道資料規劃</b>
+              <small>
+                線上採市府通道並排除障礙替代路線；離線固定排除車道與階梯。
+              </small>
             </span>
             <input
               type="checkbox"
@@ -1532,7 +1656,7 @@ export default function App() {
                 updatePrefs({ minWidth: Number(e.target.value) })
               }
             />
-            <small>只對有寬度資料的路段套用，未知路段會另外提醒。</small>
+            <small>{online ? "市府線上路線尚無淨寬資料；此設定僅用於離線資料中已記載寬度的路段。" : "只對有寬度資料的路段套用，未知路段會另外提醒。"}</small>
           </label>
           <label className="range-row">
             <span>
@@ -1548,7 +1672,7 @@ export default function App() {
                 updatePrefs({ maxSlope: Number(e.target.value) })
               }
             />
-            <small>依自己的通行需求選擇，這不是安全認證標準。</small>
+            <small>{online ? "市府線上路線尚無坡度資料；此設定僅用於離線資料中已記載坡度的路段。" : "依自己的通行需求選擇，這不是安全認證標準。"}</small>
           </label>
           <label className="toggle-row">
             <span>
@@ -1690,10 +1814,11 @@ export default function App() {
             </a>
           </div>
           <p className="quiet-note">
-            輪行臺北部分寬度值與文件單位有疑義，尚未用於路線寬度判定。路線目前依
-            OSM
-            已記載屬性篩選，且僅接受符合官方人行空間與過街證據檢查的獨立人行路段。圖資重疊不代表現場通行認證。
+            線上規劃使用臺北市無障礙通行路線平臺的通道路網，排除服務標記的障礙替代路線。
+            離線規劃以 OSM 獨立人行段及市府人行空間、行穿線圖資交叉檢查。
+            輪行臺北部分寬度值與文件單位有疑義，尚未用於寬度判定；圖資不是現場通行認證。
           </p>
+          <a href="https://tppano.gov.taipei/tp_roadsidewalkplatform_public/" target="_blank" rel="noopener">臺北市無障礙通行路線平臺</a>
         </Sheet>
       )}
     </div>
