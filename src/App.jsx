@@ -2296,7 +2296,7 @@ export default function App() {
             />
           </label>
           <p className="quiet-note">
-            規劃時避開車道與階梯。
+            規劃時避開階梯；必要時可能使用人車共道，請留意車輛與現場狀況。
           </p>
           <button className="primary full" onClick={() => setModal(null)}>
             完成
