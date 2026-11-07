@@ -30,8 +30,20 @@ export async function townPassLocation() {
     : null;
 }
 
+// 開發用的假位置：只在 npm run dev 時有效，正式建置會移除。
+// 用法：網址加上 ?devLocation=25.0478,121.5170
+// （Claude 桌面版內建瀏覽器會自動拒絕定位，用這個在裡面測試定位流程。）
+export function devLocation(search = globalThis.location?.search) {
+  if (!import.meta.env?.DEV || !search) return null;
+  const value = new URLSearchParams(search).get("devLocation");
+  const [lat, lon] = String(value || "").split(",").map(Number);
+  return Number.isFinite(lat) && Number.isFinite(lon) ? place(lat, lon, 5) : null;
+}
+
 // 先用瀏覽器定位；失敗時，在台北通裡改用 App 的定位。兩邊都失敗時，回報瀏覽器的失敗原因。
 export async function getLocation() {
+  const fake = devLocation();
+  if (fake) return fake;
   try {
     return await browserLocation();
   } catch (error) {
