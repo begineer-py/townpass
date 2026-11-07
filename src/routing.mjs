@@ -1,9 +1,10 @@
+import { eligibleSharedRoad } from "./shared-road-policy.mjs";
 import { diagnoseRouteGap } from "./route-gap.mjs";
 import { roadConnectorChecker } from "./geometry.mjs";
 import { officialGeometryEvidence } from "./supplemental-evidence.mjs";
 import { crossingEvidence, crossingUncertainty } from "./crossing-evidence.mjs";
 import {edgeTier,edgeCostFactor,edgeCostDetails,ROUTE_TIERS} from "./route-tiers.mjs";
-export const ROUTING_POLICY = "pedestrian-evidence-v5";
+export const ROUTING_POLICY = "pedestrian-evidence-v4";
 // A Symbol cannot arrive through stored preferences or postMessage. It permits
 // a diagnostic comparison route to identify stairs without ever enabling them
 // in a user-facing route.
@@ -50,12 +51,10 @@ export class MinHeap {
 export function edgeAllowed(way, options = {}, evidence = null) {
   // Safety constraints cannot be relaxed by UI options or old stored preferences.
   if (!way || ['no','private'].includes(way.access) || ['no','private'].includes(way.foot) || way.crossing === 'no') return false;
-  // A mapped vehicle-road centreline is not evidence of a sidewalk, even if
-  // its topology permits walking. Never display it as a pedestrian route.
-  if (way.source === "osm-shared-street" || evidence?.sharedRoad === true) return false;
-  const sharedRoad = false;
+  const sharedRoad = eligibleSharedRoad(way, evidence);
   const diagnosticStep =
     way.highway === "steps" && options.stepDiagnostic === STEP_DIAGNOSTIC;
+  if ((way.source === "osm-shared-street" || evidence?.sharedRoad === true) && !sharedRoad) return false;
   if (!sharedRoad && !diagnosticStep && !["footway", "path", "pedestrian", "corridor"].includes(way.highway))
     return false;
   if (sharedRoad && options.officialOnly) return false;

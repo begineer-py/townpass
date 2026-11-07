@@ -1,25 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createRouter as realRouter} from '../src/routing.mjs';
-import {createLocalRouteVerifier as realVerifier} from '../src/local-route-verifier.mjs';
+import {createRouter} from '../src/routing.mjs';
+import {createLocalRouteVerifier} from '../src/local-route-verifier.mjs';
 import {createConstructionChecker} from '../src/construction.mjs';
 import {improvePedestrianRoute,hasNewPedestrianNearShared,hasNewSidewalkNearReplaced,measureUnconfirmedApproaches,compareUnconfirmedApproaches} from '../src/pedestrian-improvement.mjs';
 import {planImprovedPlaces} from '../src/pedestrian-planning.mjs';
-// Isolate the improvement algorithm's historical shared-road baseline from
-// the production routing policy. The optimiser still receives the original
-// graph and must enforce its real distance, approach and evidence guards.
-const legacyFixture = g => ({...g,ways:g.ways.map(w=>w.source==='osm-shared-street'?{...w,highway:'path',source:undefined}:w),edges:g.edges.map(e=>[...e.slice(0,5),e[5]?.sharedRoad?{...e[5],sharedRoad:false}:e[5]])});
-const createRouter = g => {
- const fixture=legacyFixture(g);
- fixture.ways=fixture.ways.map((w,i)=>g.ways[i].source!=='osm-shared-street' && w.highway==='footway'?{...w,footway:'sidewalk'}:w);
- const route=realRouter(fixture);
- return (a,b,options={}) => {
-  const result=route(a,b,{...options,_optimizeNonSidewalkPenalty:Math.max(options._optimizeNonSidewalkPenalty||0,options._optimizeSharedPenalty||0)});
-  if(result.edgeIds){const sharedLength=result.edgeIds.reduce((sum,id)=>sum+(g.ways[g.edges[id][3]].source==='osm-shared-street'?g.edges[id][2]:0),0);result.roadPct=Math.round(100*sharedLength/result.distance);}
-  return result;
- };
-};
-const createLocalRouteVerifier = (g,...rest) => realVerifier(legacyFixture(g),...rest);
 const n=(x,y)=>[25+y/111195,121.5+x/100700,0];
 const proof={schemaVersion:2,coverage:0,maxUncoveredMetres:100,crossingCoverage:0,roadCrossingVerified:true,crossingVerified:true};
 const shared={...proof,sharedRoad:true,sourceTopologyVerified:true,junctionsVerified:true,roadIntersectionsVerified:true,barriersVerified:true};

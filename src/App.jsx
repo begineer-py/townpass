@@ -165,6 +165,22 @@ const basePrefs = {
   colorFriendly: false,
   voiceRate: 0.9,
 };
+function RouteLegend({ segments, colorFriendly }) {
+  const keys = [...new Set(segments.flatMap(route => [
+    ...(route.tierSegments?.length ? route.tierSegments.map(conditionForSegment) : ['unknown']),
+    ...(route.approaches?.length ? ['approach'] : []),
+  ]))];
+  return <div className="route-key" role="group" aria-label="路線線條說明">
+    <strong>路線線條說明</strong>
+    {keys.map(key => {
+      const condition = ROUTE_CONDITIONS[key];
+      return <span key={key}><svg width="52" height="16" aria-hidden="true"><line x1="2" y1="8" x2="50" y2="8" stroke={colorFriendly ? TPColors.primary900 : condition.color} strokeWidth="6" strokeDasharray={condition.dash}/></svg>{condition.label}</span>;
+    })}
+    {segments.some(route => route.crossingUncertainties?.length > 0) && <span><svg width="52" height="16" aria-hidden="true"><line x1="2" y1="8" x2="50" y2="8" stroke={TPColors.primary900} strokeWidth="3" strokeDasharray="2 5"/></svg>過街位置來自 OSM，官方資料未完整確認</span>}
+    <small>線條表示資料狀況，並不代表已確認安全。</small>
+  </div>;
+}
+
 function Icon({ kind, ...props }) {
   const C = icons[kind] || MapPin;
   return <C size={20} aria-hidden="true" {...props} />;
@@ -1737,6 +1753,7 @@ export default function App() {
                         {s.tierSegments.some(t=>t.sharedRoad)&&<p>部分路段可能人車共行，通行與無障礙狀況未確認。</p>}
                         {Array.isArray(s.steps)&&s.steps.length>0&&<details><summary>查看{s.side==='start'?'起點側':'目的地側'}步驟</summary><ol>{s.steps.map((step,i)=><li key={i}>{stepText(step)}，約 {formatDistance(step.distance)}{stepConditions(step)?`，${stepConditions(step)}`:''}</li>)}</ol></details>}
                       </div>)}
+                      <RouteLegend segments={partialRoute.segments} colorFriendly={prefs.colorFriendly}/>
                     </section>}
                     {routeGapView && <p>{routeGapView.message}</p>}
                     {retryWithEntrance && entranceChoices.length > 0 && <div className="entrance-choices">
@@ -1776,15 +1793,7 @@ export default function App() {
                     {route.officialConditions?.points?.length > 0 && <p className="quiet-note" role="note">沿途附近有通行問題紀錄，請查看路線詳情。</p>}
                     {route.officialConditions?.status === "unavailable" && <p className="quiet-note" role="note">目前查不到沿途通行問題紀錄。</p>}
                     {routeWorks.length > 0 && <p className="quiet-note" role="note">附近有施工，請留意現場指引。</p>}
-                    <div className="route-key" role="group" aria-label="路線線條說明">
-                      <strong>路線線條說明</strong>
-                      {[...new Set([...(route.tierSegments?.length ? route.tierSegments.map(conditionForSegment) : ['unknown']), ...(route.approaches?.length ? ['approach'] : [])])].map(key => {
-                        const condition = ROUTE_CONDITIONS[key];
-                        return <span key={key}><svg width="52" height="16" aria-hidden="true"><line x1="2" y1="8" x2="50" y2="8" stroke={prefs.colorFriendly ? TPColors.primary900 : condition.color} strokeWidth="6" strokeDasharray={condition.dash}/></svg>{condition.label}</span>;
-                      })}
-                      {route.crossingUncertainties?.length > 0 && <span><svg width="52" height="16" aria-hidden="true"><line x1="2" y1="8" x2="50" y2="8" stroke={TPColors.primary900} strokeWidth="3" strokeDasharray="2 5"/></svg>過街位置來自 OSM，官方資料未完整確認</span>}
-                      <small>線條表示資料狀況，並不代表已確認安全。</small>
-                    </div>
+                    <RouteLegend segments={[route]} colorFriendly={prefs.colorFriendly}/>
                     {(followState.active || !route.viaName) && <button type="button" className="primary full" disabled={routing && !followState.active} onClick={followState.active ? stopFollowing : startFollowing}>
                       <LocateFixed size={20} aria-hidden="true" />{followState.active ? "停止跟隨" : "開始跟隨"}
                     </button>}

@@ -149,7 +149,7 @@ test('official routes obey the same endpoint restriction and mark a GPS approach
  }finally{globalThis.fetch=oldFetch;globalThis.self=oldSelf;globalThis.postMessage=oldPost;}
 });
 
-test('worker selects the pedestrian detour instead of the shared road centreline',async()=>{
+test('worker applies the same verified local pedestrian improvement as shared planning',async()=>{
  const n=(x,y)=>[25+y/111195,121.5+x/100700,0,Math.round(x*100+y)+1],nodes=[n(0,0),n(10,0),n(110,0),n(0,15),n(10,15)];
  const proof={schemaVersion:2,coverage:0,maxUncoveredMetres:100,crossingCoverage:0,roadCrossingVerified:true,crossingVerified:true},shared={...proof,sharedRoad:true,sourceTopologyVerified:true,junctionsVerified:true,roadIntersectionsVerified:true,barriersVerified:true};
  const area={type:'Polygon',coordinates:[[[121.51,25],[121.511,25],[121.511,25.001],[121.51,25.001],[121.51,25]]]};
@@ -164,7 +164,7 @@ test('worker selects the pedestrian detour instead of the shared road centreline
   const result=replies.find(m=>m.id===90)?.result;assert.equal(result.error,undefined);
   const choices=result.routeCandidates?.candidates||[],improved=choices.find(c=>c.route.distance===140);
   assert.ok(improved,'the independently verified low-shared route remains selectable');
-  assert.equal(improved.metrics.sharedMetres,0);assert.ok(!improved.route.edgeIds.includes(0));
+  assert.equal(improved.route.pedestrianImprovement.status,'improved');assert.equal(improved.metrics.sharedMetres,0);
   assert.equal(result.selectedCandidateId,choices[0].id);assert.equal(result.distance,choices[0].route.distance);
  }finally{globalThis.fetch=oldFetch;globalThis.self=oldSelf;globalThis.postMessage=oldPost;}
 });
