@@ -1078,7 +1078,7 @@ export default function App() {
   );
   const routeWorks = groupConstructionNotices(route?.construction?.nearby);
   const destinationNotice = end && category(end) === 'public-toilet'
-    ? '目的地為一般公廁，無障礙廁所與設施狀況尚未確認，請先確認現場。' : '';
+    ? '目的地：一般公廁；無障礙設施資訊未確認。' : '';
   useEffect(() => {
     if(!route?.construction)return;
     const until=Date.parse(route.construction.sourceUpdatedAt)+CONSTRUCTION_MAX_AGE-Date.now();
@@ -1584,7 +1584,7 @@ export default function App() {
                 )}
                 {route && (
                   <>
-                    {destinationNotice && <div className="notice" role="note"><AlertTriangle aria-hidden="true"/><p>{destinationNotice}</p></div>}
+                    {destinationNotice && <p className="quiet-note" role="note">{destinationNotice}</p>}
                     {route.construction && <p className="quiet-note">施工資料更新：{new Date(route.construction.sourceUpdatedAt).toLocaleString('zh-TW', {timeZone:'Asia/Taipei'})}{route.construction.unmapped > 0 ? ` · ${route.construction.unmapped} 處施工位置待確認` : ''}</p>}
                     {route.construction?.avoided > 0 && (
                       <p className="quiet-note">
