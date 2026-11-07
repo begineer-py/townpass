@@ -10,7 +10,10 @@ import { useSidewalkLayer } from "./use-sidewalk-layer.js";
 import { isNumberedStationExit, metroExitIconUrl, metroExitLabel } from "./metro-exits.mjs";
 import { loadSidewalkIssues, visibleSidewalkIssues } from "./official-sidewalks.mjs";
 import { NO_WALK_URLS, UNKNOWN_NO_WALK_URL } from "./issue-icons.mjs";
-import { groupVisibleIssues, hitIssueGroup, issueGroupLabel, routeIssueLabel } from "./issue-presentation.mjs";
+import { groupVisibleIssues, hitIssueGroup, issueGroupLabel } from "./issue-presentation.mjs";
+import {routeIssueMarkers} from "./route-issue-markers.mjs";
+import {useConstructionLayer} from "./use-construction-layer.js";
+import "./route-issue-markers.css";
 import { metroStationCodes, metroStationIconUrl } from "./metro-station-icons.mjs";
 import { mapIconElement } from "./map-icons.mjs";
 import { mapPickPoint } from "./location.js";
@@ -48,13 +51,6 @@ const ImageMark = L.CircleMarker.extend({
 const pinScale = (zoom) => Math.min(1.15, Math.max(0.9, 1 + (zoom - 18) * 0.13));
 const hasLabel = (p) => p.landmark || ["place", "friendly"].includes(category(p));
 const labelWidth = (name) => Math.min(99, [...name].reduce((w, ch) => w + (ch.charCodeAt(0) > 0x2e80 ? 11 : 6.5), 0)) + 4;
-function drawOfficialConditions(group,conditions){
-  for(const point of conditions?.points||[]){
-    if(!Number.isFinite(point.lat)||!Number.isFinite(point.lon))continue;
-    const text=routeIssueLabel(point), label=document.createElement('span'), popup=document.createElement('span');label.textContent=text;popup.textContent=text;
-    L.circleMarker([point.lat,point.lon],{radius:6,color:TPColors.white,weight:2,fillColor:TPColors.orange700,fillOpacity:1}).bindTooltip(label).bindPopup(popup).addTo(group);
-  }
-}
 export default function MapView({
   items,
   recentPlaces = [],
@@ -62,6 +58,9 @@ export default function MapView({
   referenceRoute,
   partialRoute,
   constructionConflict,
+  constructionSnapshot,
+  showConstruction = true,
+  onConstructionStatus,
   routeGap,
   nearbyCandidates,
   onNearbySelect,
@@ -94,6 +93,7 @@ export default function MapView({
     referenceRenderer = useRef(),
     partialPath = useRef(),
     blocked = useRef(),
+    routeIssues = useRef(),
     gap = useRef(),
     nearby = useRef(),
     ends = useRef();
@@ -126,6 +126,11 @@ export default function MapView({
     path.current = L.layerGroup().addTo(m);
     partialPath.current = L.layerGroup().addTo(m);
     blocked.current = L.layerGroup().addTo(m);
+    const issuePane=m.getPane('route-issues')||m.createPane('route-issues',m.getPane('rotatePane')||undefined);
+    issuePane.style.zIndex='650';
+    const issueLinePane=m.getPane('route-issue-line')||m.createPane('route-issue-line',m.getPane('rotatePane')||undefined);
+    issueLinePane.style.zIndex='405';
+    routeIssues.current=L.layerGroup().addTo(m);
     gap.current = L.layerGroup().addTo(m);
     nearby.current = L.layerGroup().addTo(m);
     ends.current = L.layerGroup().addTo(m);
@@ -171,6 +176,8 @@ export default function MapView({
     };
   }, []);
   useSidewalkLayer(map, location, showOfficialSidewalk && !hideMapIcons, onOfficialSidewalkStatus);
+  const constructionPriorityIds=[...(route?.construction?.nearby||[]),...(constructionConflict?.blocked||[]),...(partialRoute?.segments||[]).flatMap(segment=>segment.construction?.nearby||[])].map(work=>work.id).filter(Boolean);
+  useConstructionLayer(map,constructionSnapshot,showConstruction && !hideMapIcons,onConstructionStatus,constructionPriorityIds);
   useEffect(() => {
     const m = map.current;
     if (!m || !showOfficialSidewalk || hideMapIcons) return;
@@ -480,7 +487,6 @@ export default function MapView({
       const stroke=L.polyline(line.coordinates,{...options,color:style.color,weight:style.weight,dashArray:style.dashArray,opacity:1}).addTo(referencePath.current);
       if(line.approximateCrossing)stroke.bindTooltip('過街邊界未確認');
     }
-    if(lines.length&&route?.kind==='official-passageway'&&!hideMapIcons) drawOfficialConditions(referencePath.current,route.officialConditions);
     if(lines.length&&(!route||route.kind==='official-passageway')&&!partialRoute&&map.current){const points=lines.flatMap(line=>line.coordinates),height=map.current.getSize().y;map.current.fitBounds(L.latLngBounds(points),{animate:false,...routePadding(height)});}
   },[referenceRoute,route,partialRoute,start,end,hideMapIcons]);
   useEffect(() => {
@@ -493,7 +499,7 @@ export default function MapView({
         opacity: 1,
       }).addTo(path.current);
       if(route.tierSegments?.length){
-        for(const segment of route.tierSegments){const style=ROUTE_CONDITIONS[conditionForSegment(segment)];const line=L.polyline(segment.coordinates,{color:colorFriendly?TPColors.primary900:style.color,weight:8,dashArray:style.dash,opacity:1}).addTo(path.current);if(segment.sharedRoad===true)line.bindTooltip(`${style.label}；請留意車輛及現場通行狀況`);if(segment.nearbyOfficialCondition===true)L.polyline(segment.coordinates,{color:'#7036a3',weight:4,dashArray:'3 4',opacity:1}).bindTooltip('附近有官方不利通行紀錄，位置及影響未確認').addTo(path.current);}
+        for(const segment of route.tierSegments){const style=ROUTE_CONDITIONS[conditionForSegment(segment)];const line=L.polyline(segment.coordinates,{color:colorFriendly?TPColors.primary900:style.color,weight:8,dashArray:style.dash,opacity:1}).addTo(path.current);if(segment.sharedRoad===true)line.bindTooltip(`${style.label}；請留意車輛及現場通行狀況`);}
       }else {
         // The online response does not certify width or slope.
         const style=ROUTE_CONDITIONS[fallbackRouteCondition(route)];
@@ -510,7 +516,6 @@ export default function MapView({
         L.polyline(coords, {color: TPColors.primary900, weight: 3, dashArray: '2 5', opacity: 0.9}).bindTooltip('過街').addTo(path.current);
       }
       for(const approach of route.approaches || []) {const style=ROUTE_CONDITIONS.approach;L.polyline(approach.coordinates,{color:TPColors.white,weight:6,opacity:1}).addTo(path.current);const line=L.polyline(approach.coordinates,{color:colorFriendly?TPColors.primary900:style.color,weight:4,dashArray:style.dash}).addTo(path.current);if(approach.estimated)line.bindTooltip('入口及實際通行狀況未確認，虛線僅為位置估算');}
-      if (!hideMapIcons) drawOfficialConditions(path.current,route.officialConditions);
       const m=map.current;
       const fit=()=>{if(!m||map.current!==m)return;const height=m.getSize().y;m.fitBounds(L.latLngBounds(route.coordinates),{animate:false,...routePadding(height)});};
       fit();const timer=setTimeout(fit,350);return ()=>clearTimeout(timer);
@@ -522,11 +527,10 @@ export default function MapView({
     if(!partialRoute)return;
     const bounds=[];
     for(const segment of partialRoute.segments){
-      if (!hideMapIcons) drawOfficialConditions(partialPath.current,segment.officialConditions);
       bounds.push(...segment.coordinates);
       L.polyline(segment.networkCoordinates,{color:TPColors.white,weight:7,opacity:1}).addTo(partialPath.current);
       if(segment.tierSegments.length){
-        for(const tier of segment.tierSegments){const style=ROUTE_CONDITIONS[conditionForSegment(tier)];L.polyline(tier.coordinates,{color:colorFriendly?TPColors.primary900:style.color,weight:5,dashArray:style.dash,opacity:1}).addTo(partialPath.current);if(tier.nearbyOfficialCondition===true)L.polyline(tier.coordinates,{color:'#7036a3',weight:3,dashArray:'3 4',opacity:1}).bindTooltip('附近有官方不利通行紀錄，位置及影響未確認').addTo(partialPath.current);}
+        for(const tier of segment.tierSegments){const style=ROUTE_CONDITIONS[conditionForSegment(tier)];L.polyline(tier.coordinates,{color:colorFriendly?TPColors.primary900:style.color,weight:5,dashArray:style.dash,opacity:1}).addTo(partialPath.current);}
       }else{
         const style=ROUTE_CONDITIONS[fallbackRouteCondition(segment)];L.polyline(segment.networkCoordinates,{color:colorFriendly?TPColors.primary900:style.color,weight:5,dashArray:style.dash,opacity:1}).addTo(partialPath.current);
       }
@@ -539,6 +543,28 @@ export default function MapView({
     }
     if(bounds.length&&!route){const height=map.current.getSize().y;map.current.fitBounds(L.latLngBounds(bounds),{maxZoom:17,animate:false,...routePadding(height)});}
   },[partialRoute,route,sheetSnap,colorFriendly,hideMapIcons]);
+  useEffect(() => {
+    if(!routeIssues.current)return;
+    routeIssues.current.clearLayers();
+    const paths=route?[route]:(partialRoute?.segments||[]),seen=new Set();
+    for(const path of paths){
+      const {markers,highlights}=routeIssueMarkers(path);
+      for(const highlight of highlights){
+        const note=document.createElement('span');note.textContent=highlight.label;
+        L.polyline(highlight.coordinates,{pane:'route-issue-line',color:'#7036a3',weight:4,dashArray:'3 4',opacity:1}).bindTooltip(note).addTo(routeIssues.current);
+      }
+      if(hideMapIcons)continue;
+      for(const marker of markers){
+        const key=`${marker.lat},${marker.lon}`;if(seen.has(key))continue;seen.add(key);
+        const icon=document.createElement('span');icon.className='route-issue-pin';icon.textContent='!';
+        const label=document.createElement('span');label.textContent=`${marker.title}：${marker.detail}`;
+        const detail=document.createElement('div'),heading=document.createElement('strong'),body=document.createElement('p');
+        heading.textContent=marker.title;body.textContent=marker.detail;detail.append(heading,body);
+        const pin=L.marker([marker.lat,marker.lon],{pane:'route-issues',icon:L.divIcon({className:'route-issue-shell',html:icon,iconSize:[30,30],iconAnchor:[15,15]}),title:marker.title,alt:marker.title,keyboard:true}).bindTooltip(label,{direction:'top',offset:[0,-12]}).bindPopup(detail).addTo(routeIssues.current);
+        pin.getElement()?.setAttribute('aria-label',`${marker.title}，${marker.detail}`);
+      }
+    }
+  },[route,partialRoute,hideMapIcons]);
   useEffect(() => {
     if (!blocked.current) return;
     blocked.current.clearLayers();

@@ -68,6 +68,7 @@ import {TPColors} from "./tp-colors.mjs";
 import VoiceSearch from "./VoiceSearch";
 import {searchVerifiedAlternatives} from "./alternative-routes.mjs";
 import {fetchConstruction} from "./construction-client.mjs";
+import {useConstructionFeed} from "./use-construction-feed.js";
 import {inspectSavedTrips, alertFingerprint, notifyTownPass} from "./trip-alerts.mjs";
 import {createTripAlertLedger} from "./trip-alert-ledger.mjs";
 import {canFallbackAfterVerification, startLocalFallback} from "./local-fallback.mjs";
@@ -164,7 +165,7 @@ const basePrefs = {
   voiceRate: 0.9,
 };
 const NO_MAP_ICONS = [];
-function RouteLegend({ segments, colorFriendly }) {
+function RouteLegend({ segments, colorFriendly, showIssueIcons=true }) {
   const keys = [...new Set(segments.flatMap(route => [
     ...(route.tierSegments?.length ? route.tierSegments.map(conditionForSegment) : [fallbackRouteCondition(route)]),
     ...(route.approaches?.length ? ['approach'] : []),
@@ -181,7 +182,7 @@ function RouteLegend({ segments, colorFriendly }) {
       const condition = ROUTE_CONDITIONS[key];
       return <svg key={key} width="52" height="16" aria-hidden="true"><line x1="2" y1="8" x2="50" y2="8" stroke={colorFriendly ? TPColors.primary900 : condition.color} strokeWidth="6" strokeDasharray={condition.dash}/></svg>;
     })}{label}</span>)}
-    {segments.some(route => route.tierSegments?.some(segment => segment.nearbyOfficialCondition === true)) && <span><svg width="52" height="16" aria-hidden="true"><line x1="2" y1="8" x2="50" y2="8" stroke="#7036a3" strokeWidth="4" strokeDasharray="3 4"/></svg>不利通行</span>}
+    {segments.some(route => route.officialConditions?.status==='available' && route.officialConditions.points?.length>0) && <span>{showIssueIcons && <i className="route-issue-legend" aria-hidden="true">!</i>}<svg width="52" height="16" aria-hidden="true"><line x1="2" y1="8" x2="50" y2="8" stroke="#7036a3" strokeWidth="4" strokeDasharray="3 4"/></svg>附近通行紀錄</span>}
     {!groups.has('過街') && segments.some(route => route.crossingUncertainties?.length > 0 || route.crossingSegments?.length > 0) && <span><svg width="52" height="16" aria-hidden="true"><line x1="2" y1="8" x2="50" y2="8" stroke={TPColors.primary900} strokeWidth="3" strokeDasharray="2 5"/></svg>過街</span>}
   </div>;
 }
@@ -394,6 +395,10 @@ export default function App() {
       document.removeEventListener("keydown", esc);
     };
   }, [layersOpen]);
+  const [showConstruction, setShowConstruction] = useState(() => readSaved("hhz-show-construction", true));
+  const constructionFeed=useConstructionFeed(showConstruction);
+  const [constructionMapStatus,setConstructionMapStatus]=useState({status:'hidden',truncated:false});
+  useEffect(()=>{saveLocal("hhz-show-construction",showConstruction);},[showConstruction]);
   const [showMapFacilities, setShowMapFacilities] = useState(() => readSaved("hhz-show-map-facilities", true));
   const { places: nearbyMapFacilities, status: facilityStatus, retry: retryFacilityTiles } = useFacilityTiles(viewport, showMapFacilities);
   useEffect(() => { saveLocal("hhz-show-map-facilities", showMapFacilities); }, [showMapFacilities]);
@@ -1824,7 +1829,7 @@ export default function App() {
                         {s.tierSegments.some(t=>t.sharedRoad)&&<p>部分路段可能人車共行，通行與無障礙狀況未確認。</p>}
                         {Array.isArray(s.steps)&&s.steps.length>0&&<details><summary>查看{s.side==='start'?'起點側':'目的地側'}步驟</summary><ol>{s.steps.map((step,i)=><li key={i}>{stepText(step)}，約 {formatDistance(step.distance)}{stepConditions(step)?`，${stepConditions(step)}`:''}</li>)}</ol></details>}
                       </div>)}
-                      <RouteLegend segments={partialRoute.segments} colorFriendly={prefs.colorFriendly}/>
+                      <RouteLegend segments={partialRoute.segments} colorFriendly={prefs.colorFriendly} showIssueIcons={!hideMapIcons}/>
                     </section>}
                     {routeGapView && <p>{routeGapView.message}</p>}
                     {retryWithEntrance && entranceChoices.length > 0 && <div className="entrance-choices">
@@ -1833,7 +1838,7 @@ export default function App() {
                         <ArrowUpFromLine size={18} aria-hidden="true"/><span>{which==='start'?'出發地改為':'目的地改為'} {cleanName(p.name)}<small>距原選點約 {formatDistance(p.gap)}</small></span><ChevronRight size={18} aria-hidden="true"/>
                       </button>)}
                     </div>}
-                    {constructionConflict?.blocked?.length > 0 && <p>地圖已標出影響路線的施工位置；點線位置的周邊範圍是估計，並非精確封閉邊界。</p>}
+                    {constructionConflict?.blocked?.length > 0 && <p>{showConstruction && !hideMapIcons ? '地圖已標出影響路線的施工位置；' : '路線受到施工影響；'}點線位置的周邊範圍是估計，並非精確封閉邊界。</p>}
                     {constructionConflict?.blocked?.slice(0,3).map(w => <p key={w.id}>{w.address}：{w.match === 'vicinity' ? '鄰近影響通行的施工位置' : '與影響通行的施工範圍交會'}。{w.plan}</p>)}
                     {(retryWithEntrance||routeError==='CONSTRUCTION_BLOCKED') && start && end && graphReady && <div className="entrance-choices">
                       {(nearbyState.status==='idle'||nearbyState.status==='error')&&<button type="button" onClick={findNearbyPositions}>重新找路</button>}
@@ -1859,14 +1864,14 @@ export default function App() {
                   {unifiedRouteChoices.map((item,index)=>{const candidate=item.candidate,source=item.source==='reference';return <RouteChoice key={`${item.source}:${candidate.id}`} number={index+1} distance={item.distance} summary={unifiedRouteSummaries[index]} selected={route===candidate.route || (!source&&selectedRouteCandidate===candidate.id)} disabled={source?!isCurrentOfficialRoute(candidate.route):!constructionFresh(lastConstruction.current)||candidate.route?.construction?.sourceUpdatedAt!==lastConstruction.current?.sourceUpdatedAt} onClick={()=>source?selectOfficialCandidate(candidate):selectRouteCandidate(candidate)}/>;})}
                 </section>}
                 {referenceCollapsed && referenceState.status==='ready' && <button type="button" onClick={()=>setReferenceCollapsed(false)}>查看線條說明</button>}
-                <ReferenceRouteResult status={referenceCollapsed?'idle':referenceState.status} route={referenceRoute} candidates={displayedReferenceCandidates} selected={selectedRouteCandidate} onSelect={selectOfficialCandidate} comparisonStatus={referenceState.comparisonStatus} showCandidates={!unifiedRouteChoices} showLegend={route?.kind==='official-passageway'||!route} showSelectedNotice={route?.kind==='official-passageway'||!route} start={start} end={end} message={referenceState.message} onClose={()=>{if(route?.kind==='official-passageway')setReferenceCollapsed(true);else {referenceSearch.current.cancel();referenceSnapshot.current=null;referenceBaseline.current=null;}}} />
+                <ReferenceRouteResult status={referenceCollapsed?'idle':referenceState.status} route={referenceRoute} candidates={displayedReferenceCandidates} selected={selectedRouteCandidate} onSelect={selectOfficialCandidate} comparisonStatus={referenceState.comparisonStatus} showCandidates={!unifiedRouteChoices} showLegend={route?.kind==='official-passageway'||!route} showSelectedNotice={route?.kind==='official-passageway'||!route} showIssueIcons={!hideMapIcons} start={start} end={end} message={referenceState.message} onClose={()=>{if(route?.kind==='official-passageway')setReferenceCollapsed(true);else {referenceSearch.current.cancel();referenceSnapshot.current=null;referenceBaseline.current=null;}}} />
                 {route && (
                   <>
                     <div className="route-summary"><h2>{start?.nearbyOriginal||end?.nearbyOriginal?'路網路線':'全程'} {formatDistance(route.distance)}</h2></div>
                     {(route.routeSearchStatus==='projection-limit'||route.conditionDetourComparison==='projection-limit'||route.pedestrianImprovement?.status==='projection-limit'||route.routeCandidates?.status==='projection-limit'||route.avoidanceStatus==='projection-limit') && <p role="status">部分比較未完成，路線仍可查看；可重新規劃。</p>}
                     {route.officialConditions?.status === "unavailable" && <p className="quiet-note" role="note">目前查不到沿途通行問題紀錄。</p>}
                     {routeWorks.length > 0 && <p className="quiet-note" role="note">附近有施工，請留意現場指引。</p>}
-                    {route.kind!=='official-passageway' && <details className="route-disclosure"><summary>線條說明</summary><RouteLegend segments={[route]} colorFriendly={prefs.colorFriendly}/></details>}
+                    {route.kind!=='official-passageway' && <details className="route-disclosure"><summary>線條說明</summary><RouteLegend segments={[route]} colorFriendly={prefs.colorFriendly} showIssueIcons={!hideMapIcons}/></details>}
                     {route.officialConditions?.status==='available' && route.officialConditions.points?.length>0 && <details className="route-disclosure"><summary>查看沿途通行紀錄（{route.officialConditions.points.length}）</summary><OfficialConditions conditions={route.officialConditions} onAvoid={avoidOfficialCondition} avoiding={conditionDetourState.status==='loading'}/></details>}
                     {conditionDetourState.status==='loading'&&<p role="status">正在尋找繞路… <button type="button" onClick={()=>conditionDetourSearch.current.cancel()}>取消</button></p>}
                     {conditionDetourState.status==='error'&&<p role="status">{conditionDetourState.message}</p>}
@@ -2198,7 +2203,10 @@ export default function App() {
             route={tab ? route : null}
             referenceRoute={tab==='plan' && (!route || route.kind==='official-passageway') ? referenceRoute : null}
             partialRoute={tab==='plan' ? partialRoute : null}
-            constructionConflict={tab && !hideMapIcons ? constructionConflict : null}
+            constructionConflict={tab && showConstruction && !hideMapIcons ? constructionConflict : null}
+            constructionSnapshot={constructionFeed.snapshot}
+            showConstruction={showConstruction}
+            onConstructionStatus={setConstructionMapStatus}
             routeGap={tab ? routeGapView : null}
             nearbyCandidates={tab==='plan' ? nearbyState.candidates : NO_MAP_ICONS}
             onNearbySelect={chooseNearby}
@@ -2230,12 +2238,14 @@ export default function App() {
                 setSheetSnap(0);
             }}
           />
-          {(facilityStatus === "error" || landmarkError || (viewport.zoom >= 16 && metroExitError)) && <div className="facility-load-error" role="status">
-            <span>部分地圖設施載入失敗。</span><button type="button" onClick={() => {
+          {(facilityStatus === "error" || landmarkError || (viewport.zoom >= 16 && metroExitError) || (showConstruction && !hideMapIcons && (['unavailable','update-failed'].includes(constructionFeed.status)||constructionMapStatus.truncated))) && <div className="facility-load-error" role="status">
+            {(facilityStatus === "error" || landmarkError || (viewport.zoom >= 16 && metroExitError)) && <><span>部分地圖設施載入失敗。</span><button type="button" onClick={() => {
               if (facilityStatus === "error") retryFacilityTiles();
               if (landmarkError) setLandmarkRetry((n) => n + 1);
               if (viewport.zoom >= 16 && metroExitError) setMetroExitRetry((n) => n + 1);
-            }}>再試一次</button>
+            }}>再試一次</button></>}
+            {showConstruction && !hideMapIcons && ['unavailable','update-failed'].includes(constructionFeed.status) && <><span>施工資料暫時無法更新。</span><button type="button" onClick={constructionFeed.retry}>重試施工</button></>}
+            {showConstruction && !hideMapIcons && constructionMapStatus.truncated && <span>部分施工未顯示，放大地圖可看更多。</span>}
           </div>}
           {!tab && <button className="map-search-button" onClick={()=>openSearch("explore")} aria-label="搜尋地點、地址或路名"><Search size={20}/><span>搜尋地點、地址或路名</span></button>}
           <div className="map-dock" ref={layersRef}>
@@ -2294,6 +2304,10 @@ export default function App() {
                 <label className="toggle-row layers-toggle">
                   <b>隱藏地圖圖標</b>
                   <input type="checkbox" checked={hideMapIcons} onChange={(e) => setHideMapIcons(e.target.checked)} />
+                </label>
+                <label className="toggle-row layers-toggle">
+                  <span><b>施工資訊</b>{constructionFeed.status==='loading' && <small>載入中…</small>}{hideMapIcons && <small>已隱藏圖標</small>}{!hideMapIcons && constructionMapStatus.truncated && <small>只顯示部分，放大地圖可看更多</small>}</span>
+                  <input type="checkbox" checked={showConstruction} onChange={(e)=>setShowConstruction(e.target.checked)} />
                 </label>
                 <label className="toggle-row layers-toggle">
                   <span><b>人行道</b>{sidewalkStatus === "loading" && <small>載入中…</small>}{sidewalkStatus === "zoom" && <small>請放大地圖</small>}{sidewalkStatus === "error" && <small>暫時無法載入</small>}</span>
