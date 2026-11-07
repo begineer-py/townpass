@@ -53,3 +53,10 @@ test('estimated endpoint approach does not make the first route direction a fake
  const steps=referenceNavigationSteps([{kind:'endpoint-approach',coordinates:[p(0,0),p(10,0)],distanceMetres:10},{kind:'official-line',coordinates:[p(10,0),p(10,20)],distanceMetres:20}],{});
  assert.equal(steps.length,2);assert.equal(steps[0].access,'unconfirmed');assert.equal(steps[1].turn,'直行');assert.equal(steps[0].distance+steps[1].distance,30);
 });
+
+test('OSM crossing marker is rebuilt from graph rather than candidate claims',()=>{
+ const n=(x,y)=>[25.11+y/111195,121.53+x/100700],xy=p=>proj4('EPSG:4326',twd,[p[1],p[0]]),proof={schemaVersion:2,coverage:0,maxUncoveredMetres:100,crossingCoverage:0,roadCrossingVerified:true,crossingVerified:true},area={type:'Polygon',coordinates:[[[121.52,25.10],[121.54,25.10],[121.54,25.12],[121.52,25.12],[121.52,25.10]]]};
+ const graph={officialPathEvidence:{schemaVersion:2},officialAreas:[area],officialCrossingAreas:[],roadGeometries:[[[121.79,25],[121.79,25.01]]],nodes:[[...n(0,0),0,1],[...n(300,0),0,2]],ways:[{highway:'footway',footway:'crossing',width:2,slope:0}],edges:[[0,1,300,0,[n(150,25)],proof]]};
+ const parts=[{qgsFid:'101',partIndex:0,coordinates:[xy(n(80,33.333)),xy(n(80,13.833))]},{qgsFid:'102',partIndex:0,coordinates:[xy(n(180,40)),xy(n(180,20.5))]}],stamp=new Date().toISOString(),sourceHash='a'.repeat(64),snapshot={schemaVersion:1,fetchedAt:stamp,sourceUpdatedAt:stamp,works:[]},verifyLocal=createLocalRouteVerifier(graph,[],[]),start=n(80,33.333),end=n(180,40),base={parts,graph,sourceHash,osmEdgeIds:[0],facilities:[],places:[],snapshot,verifyLocal,options:{},start,end};
+ const route=findProvisionalRoute(base);assert.equal(route.error,undefined);route.segments=route.segments.map(s=>s.kind==='osm'?{...s,crossing:false}:s);const checked=verifyOfficialReferenceRoute({...base,route});assert.equal(checked.error,undefined);assert.equal(checked.segments.find(s=>s.kind==='osm').crossing,true);
+});

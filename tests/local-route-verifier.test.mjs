@@ -139,6 +139,26 @@ test('upper, underground or unlocated indoor POIs cannot become ground-level con
   assert.equal(result.error,undefined,JSON.stringify(patch));assert.equal(result.approaches[0].estimated,true);
  }
 });
+test('local first-floor address labels permit only an unconfirmed approach and never override restrictions',()=>{
+ const g=base(),p=[25+30/111195,121.5],raw=createRouter(g)(a,b),poi={id:'osm-n123',kind:'place',sourceId:'osm',osmRestrictionsMatched:true,lat:p[0],lon:p[1],name:'店家'};
+ for(const label of ['1','1F','一樓','一楼']){
+  const place={...poi,'addr:floor':label},v=createLocalRouteVerifier(g,[],[place]),result=v(raw,p,b,{startPlace:place});
+  assert.equal(result.error,undefined,label);assert.equal(result.approaches[0].estimated,true);assert.equal(result.approaches[0].entryStatus,'unconfirmed');assert.deepEqual(result.approaches[0].coordinates,[p,a]);
+  assert.equal(v.approachAllowed(p,a,place,{knownOnly:true},'start'),false);
+ }
+ for(const patch of [{level:'1'},{'addr:floor':'2'},{'addr:floor':'B1'},{indoor:'yes'},{building:'yes'},{location:'indoor'},{wheelchair:'no'},{access:'private'},{foot:'no'},{'door:locked':'yes'}]){
+  const place={...poi,'addr:floor':'1',...patch},v=createLocalRouteVerifier(g,[],[place]);assert.equal(v.endpointAllowed(p,place,'start'),false,JSON.stringify(patch));
+ }
+ const unmatched={...poi,'addr:floor':'1',osmRestrictionsMatched:false};assert.equal(createLocalRouteVerifier(g,[],[unmatched]).approachAllowed(p,a,unmatched,{},'start'),false);
+ const samePoint={...poi,lat:a[0],lon:a[1],'addr:floor':'1'},sameVerifier=createLocalRouteVerifier(g,[],[samePoint]);
+ const zero=sameVerifier(raw,a,b,{startPlace:samePoint});assert.equal(zero.error,undefined);assert.equal(zero.approaches[0].distance,0);assert.equal(zero.approaches[0].entryStatus,'unconfirmed');assert.equal(sameVerifier.approachAllowed(a,a,samePoint,{knownOnly:true},'start'),false);
+ const covered=base();covered.officialAreas=[{type:'Polygon',coordinates:[[[121.49,24.99],[121.51,24.99],[121.51,25.01],[121.49,25.01],[121.49,24.99]]]}];
+ const coveredResult=createLocalRouteVerifier(covered,[],[{...poi,'addr:floor':'1'}])(raw,p,b,{startPlace:{...poi,'addr:floor':'1'}});assert.equal(coveredResult.error,undefined);assert.equal(coveredResult.approaches[0].estimated,true);assert.equal(coveredResult.approaches[0].entryStatus,'unconfirmed');
+ const crossing=base();crossing.roadGeometries=[[[121.499,25+15/111195],[121.502,25+15/111195]]];const place={...poi,'addr:floor':'1'};
+ assert.equal(createLocalRouteVerifier(crossing,[],[place]).approachAllowed(p,a,place,{},'start'),false);
+ const stamp=new Date().toISOString(),snapshot={schemaVersion:1,fetchedAt:stamp,sourceUpdatedAt:stamp,works:[{id:'blocked',start:'',end:'',hours:'24小時',impact:'blocked',geometries:[{type:'Point',coordinates:[p]}]}]};
+ assert.equal(planPlaces(place,{lat:b[0],lon:b[1]}, {},snapshot,{graph:g,router:createRouter(g),verifyLocal:createLocalRouteVerifier(g,[],[place]),facilities:[],checker:createConstructionChecker(snapshot)}).error,'CONSTRUCTION_BLOCKED');
+});
 test('POI estimated approach cannot cross vehicle way or active construction',()=>{
  const g=base(),p=[25+30/111195,121.5],poi={id:'poi',kind:'park',lat:p[0],lon:p[1]},r=createRouter(g)(a,b);
  g.roadGeometries=[[[121.499,25+15/111195],[121.502,25+15/111195]]];

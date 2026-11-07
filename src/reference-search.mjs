@@ -1,5 +1,6 @@
 import {constructionFresh} from './construction.mjs';
 import {ROUTING_POLICY,metres} from './routing.mjs';
+import {referenceNavigationSteps} from './reference-navigation-steps.mjs';
 
 // Uses the app's one serialized graph worker; cancelling synchronous work
 // restarts that worker but never changes an already displayed route.
@@ -13,8 +14,11 @@ export function createReferenceSearch({fetchSnapshot,getLifecycle,onState,onSnap
   const presentationMatches=route=>{
    const rebuilt=[];for(const segment of route.segments)for(const p of segment.coordinates)if(!rebuilt.length||metres(rebuilt.at(-1),p)>.000001)rebuilt.push(p);
    if(rebuilt.length!==route.coordinates.length||rebuilt.some((p,i)=>metres(p,route.coordinates[i])>.000001))return false;
-   const stepPoints=new Set(route.segments.flatMap(s=>s.coordinates.slice(0,-1).map(p=>`${p[0]},${p[1]}`)));
-   return route.steps.every(s=>stepPoints.has(`${s.lat},${s.lon}`));
+   if(route.segments.some(s=>!Number.isFinite(s.distanceMetres)||s.distanceMetres<0||(s.kind==='osm'&&(typeof s.roadName!=='string'||s.roadName.length>200))))return false;
+   const sum=route.segments.reduce((n,s)=>n+s.distanceMetres,0);
+   if(Math.abs(sum-route.distanceMetres)>.000001||route.distance!==Math.round(sum))return false;
+   const steps=referenceNavigationSteps(route.segments);
+   return JSON.stringify(route.steps)===JSON.stringify(steps);
   };
   const validRoute=(route,hash)=>route?.kind==='official-passageway'&&route.verification==='official-source-screened-v1'&&route.navigationAllowed===true&&route.geometryVerification==null&&route.policyVersion===ROUTING_POLICY&&route.sourceHash===hash&&/^[a-f0-9]{64}$/i.test(hash||'')&&route.constructionSourceUpdatedAt===r.snapshot.sourceUpdatedAt&&route.construction?.sourceUpdatedAt===r.snapshot.sourceUpdatedAt&&Array.isArray(route.construction.blocked)&&!route.construction.blocked.length&&Number.isFinite(route.distanceMetres)&&route.distanceMetres>=0&&Array.isArray(route.coordinates)&&route.coordinates.length>=2&&route.coordinates.every(validPoint)&&metres(route.coordinates[0],[r.startPlace.lat,r.startPlace.lon])<=.01&&metres(route.coordinates.at(-1),[r.endPlace.lat,r.endPlace.lon])<=.01&&Array.isArray(route.steps)&&Array.isArray(route.segments)&&route.segments.length>0&&route.segments.every((s,i)=>Array.isArray(s.coordinates)&&s.coordinates.length>=2&&s.coordinates.every(validPoint)&&(!i||metres(route.segments[i-1].coordinates.at(-1),s.coordinates[0])<=.000001))&&metres(route.segments[0].coordinates[0],route.coordinates[0])<=.000001&&metres(route.segments.at(-1).coordinates.at(-1),route.coordinates.at(-1))<=.000001&&route.steps.every(s=>typeof s.name==='string'&&typeof s.turn==='string'&&Number.isFinite(s.lat)&&Number.isFinite(s.lon)&&Number.isFinite(s.distance)&&s.distance>=0)&&presentationMatches(route);
   const hash=comparison?.sourceHash;const candidates=Array.isArray(comparison?.candidates)?comparison.candidates.filter(c=>typeof c?.id==='string'&&validRoute(c.route,hash)):[];

@@ -7,6 +7,7 @@ import {crossingEvidence,crossingUncertainty} from './crossing-evidence.mjs';
 import {constructionFresh} from './construction.mjs';
 import {officialConditionMetrics} from './official-conditions.mjs';
 const same=(a,b)=>a&&b&&a[0]===b[0]&&a[1]===b[1];
+const localFirstFloorAddress=p=>/^(?:1|1f|一樓|一楼)$/i.test(String(p?.['addr:floor']??'').trim());
 // OSM level 0 is ground; Taiwanese labels 1F / 一樓 also denote ground.
 // Any ambiguous explicit level or indoor-only point fails closed. No level
 // or indoor metadata on its own is not evidence that the point is ground.
@@ -26,7 +27,12 @@ function incompatibleFloor(p){
  for(const key of ['level','floor','addr:floor','addr:level','level:ref','repeat_on','layer','building:level']){
   const v=p[key];if(v==null)continue;
   // The OSM level index is zero based. Other unparsed values are unknown.
-  const s=String(v).trim();if(!/^[+-]?\d+(?:\.\d+)?$/.test(s)||Number(s)!==0)return true;
+  const s=String(v).trim();
+  // addr:floor is a locally displayed address label, not the zero-based
+  // `level` index. In Taiwan a first-floor label alone is not a known upper
+  // floor; it does not establish ground-level entry or physical accessibility.
+  if(key==='addr:floor'&&localFirstFloorAddress(p))continue;
+  if(!/^[+-]?\d+(?:\.\d+)?$/.test(s)||Number(s)!==0)return true;
   explicitGround=true;
  }
  // Other unknown level:* tags may encode a level restriction we cannot parse.
@@ -93,6 +99,7 @@ export function createLocalRouteVerifier(graph,facilities=[],places=[]){
  function allowed(point,target,place,options={},side=null){
   const gap=metres(point,target),known=matchedPoint(point,place),origin=userPoint(point,place,side);
   if(!endpointAllowed(point,place,side))return false;
+  if(options.knownOnly&&localFirstFloorAddress(known))return false;
   // A point already on a verified network node has no approach to cross a road.
   // This matters for a shared-street centreline, which is itself in the road mask.
   if(gap<=.001)return true;
@@ -149,8 +156,9 @@ export function createLocalRouteVerifier(graph,facilities=[],places=[]){
    // The entire approach is checked against roads. A registered point link
    // without polygon coverage is an estimate, not a surveyed walking path.
    if(!allowed(point,target,place,options,side))return {error:'OFFICIAL_ENTRY_UNVERIFIED'};
-   if(gap>.05){const origin=userPoint(point,place,side),estimated=!!origin||!covered(point,target);
-    approaches.push({side,coordinates:side==='start'?[point,target]:[target,point],distance:Math.round(gap),estimated,name:known?.name,...(origin?{originKind:origin,unconfirmed:true,entryStatus:'unconfirmed'}:{})});}
+   const firstFloor=localFirstFloorAddress(known);
+   if(gap>.05||firstFloor){const origin=userPoint(point,place,side),estimated=!!origin||firstFloor||!covered(point,target);
+    approaches.push({side,coordinates:side==='start'?[point,target]:[target,point],distance:Math.round(gap),estimated,name:known?.name,...(origin?{originKind:origin}:{}),...((origin||firstFloor)?{unconfirmed:true,entryStatus:'unconfirmed'}:{})});}
   }
   const all=[...coordinates];if(!same(start,all[0]))all.unshift(start);if(!same(end,all.at(-1)))all.push(end);
   const officialConditions=graph.officialConditionIndex

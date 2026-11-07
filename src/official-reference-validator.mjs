@@ -1,4 +1,6 @@
 import proj4 from 'proj4';
+import {referenceNavigationSteps} from './reference-navigation-steps.mjs';
+export {referenceNavigationSteps} from './reference-navigation-steps.mjs';
 import {constructionFresh,createConstructionChecker} from './construction.mjs';
 import {roadConnectorChecker,polygonConnectorChecker} from './geometry.mjs';
 import {officialGeometryEvidence} from './supplemental-evidence.mjs';
@@ -11,44 +13,6 @@ const interpolate=(a,b,t)=>[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t];
 const toLL=p=>{const [lon,lat]=proj4(TWD97,'EPSG:4326',p);return [lat,lon];};
 const distanceToSegment=(p,a,b)=>{const dy=(b[0]-a[0])*111195,dx=(b[1]-a[1])*100700,py=(p[0]-a[0])*111195,px=(p[1]-a[1])*100700,t=Math.max(0,Math.min(1,(py*dy+px*dx)/(dy*dy+dx*dx||1)));return metres(p,interpolate(a,b,t));};
 const invalid=()=>({error:'REFERENCE_VALIDATION_FAILED'});
-
-// Build readable directions only from screened geometry. Tiny connectors are
-// accounted for in distance but do not define a new direction; their bearing
-// is often just survey alignment rather than a real turn on the walking path.
-export function referenceNavigationSteps(segments,graph){
- const steps=[];let anchor=null,pendingDistance=0,pendingStart=null,pendingUnconfirmed=false;
- const turnFor=heading=>{if(anchor==null)return '直行';const delta=((heading-anchor+540)%360)-180;return Math.abs(delta)>150?'迴轉':delta>35?'右轉':delta< -35?'左轉':'直行';};
- const resetPending=()=>{pendingDistance=0;pendingStart=null;pendingUnconfirmed=false;};
- for(const segment of segments){
-  const lengths=segment.coordinates.slice(1).map((p,i)=>metres(segment.coordinates[i],p)),sum=lengths.reduce((a,b)=>a+b,0);
-  for(let i=0;i<lengths.length;i++){
-   const a=segment.coordinates[i],b=segment.coordinates[i+1],length=lengths[i],amount=sum?segment.distanceMetres*length/sum:0;
-   const join=segment.kind==='source-join'||segment.kind==='osm-join',approach=segment.kind==='endpoint-approach';
-   if(join||length<.5||amount<.5){if(!pendingStart)pendingStart=a;pendingDistance+=amount;if(join||approach)pendingUnconfirmed=true;continue;}
-   const heading=(Math.atan2((b[1]-a[1])*100700,(b[0]-a[0])*111195)*180/Math.PI+360)%360;
-   const turn=approach?'直行':turnFor(heading),name=segment.kind==='official-line'?'官方通行線':segment.kind==='osm'?(graph.ways[graph.edges[segment.edgeId][3]]?.name||'人行路段'):'起終點估算銜接';
-   const previous=steps.at(-1),sameRoad=!approach&&previous?.kind===segment.kind&&previous.name===name&&previous.sharedRoad===(segment.sharedRoad===true);
-   if(sameRoad&&turn==='直行'){
-    previous.distance+=pendingDistance+amount;
-    if(pendingUnconfirmed)previous.access='unconfirmed';
-    // A merged step can cover multiple source records; the route segments
-    // retain exact provenance, while a single ID here would be misleading.
-    delete previous.qgsFid;delete previous.partIndex;delete previous.segmentIndex;delete previous.edgeId;
-   }else{
-    const start=pendingStart||a;
-    steps.push({name,turn,lat:start[0],lon:start[1],distance:pendingDistance+amount,kind:segment.kind,unknown:true,
-     access:approach||pendingUnconfirmed?'unconfirmed':undefined,qgsFid:segment.qgsFid,partIndex:segment.partIndex,segmentIndex:segment.segmentIndex,edgeId:segment.edgeId,sharedRoad:segment.sharedRoad===true});
-    if(!approach)anchor=heading;
-   }
-   resetPending();
-  }
- }
- if(pendingDistance>0){
-  if(steps.length){steps.at(-1).distance+=pendingDistance;if(pendingUnconfirmed)steps.at(-1).access='unconfirmed';}
-  else steps.push({name:'起終點估算銜接',turn:'直行',lat:pendingStart[0],lon:pendingStart[1],distance:pendingDistance,kind:'endpoint-approach',unknown:true,access:'unconfirmed',sharedRoad:false});
- }
- return steps;
-}
 
 // Independent second pass over the authenticated source and original graph.
 // It screens the proposed geometry; it cannot establish real-world grade,
@@ -123,7 +87,7 @@ export function verifyOfficialReferenceRoute({route,parts,sourceHash,graph,snaps
   if(s.kind==='source-join'){clean.from={qgsFid:s.from.qgsFid,partIndex:s.from.partIndex,vertexIndex:s.from.vertexIndex};clean.to={qgsFid:s.to.qgsFid,partIndex:s.to.partIndex,vertexIndex:s.to.vertexIndex};}
   if(s.kind.endsWith('join')){clean.topology='unconfirmed';clean.gapMetres=length;}
   if(s.kind==='official-line'){clean.officialAreaCovered=area(expected[0],expected.at(-1));clean.width='unknown';clean.slope='unknown';}
-  if(s.kind==='osm'){const o=osm(s.edgeId);clean.explicitSidewalk=o.w.highway==='footway'&&o.w.footway==='sidewalk';clean.sharedRoad=o.w.source==='osm-shared-street';clean.unknownDimensions=o.w.width==null||o.w.slope==null;clean.officialAreaCovered=o.e[5].coverage>=.9999&&o.e[5].maxUncoveredMetres<=.05;}
+  if(s.kind==='osm'){const o=osm(s.edgeId);clean.roadName=typeof o.w.name==='string'&&o.w.name.length<=200?o.w.name:'人行路段';clean.crossing=o.w.crossing===true||o.w.footway==='crossing';clean.explicitSidewalk=o.w.highway==='footway'&&o.w.footway==='sidewalk';clean.sharedRoad=o.w.source==='osm-shared-street';clean.unknownDimensions=o.w.width==null||o.w.slope==null;clean.officialAreaCovered=o.e[5].coverage>=.9999&&o.e[5].maxUncoveredMetres<=.05;}
   if(s.kind!=='osm'){clean.grade='unknown';clean.barrier='unknown';}if(s.kind==='endpoint-approach')clean.access='unconfirmed';
   cleanSegments.push(clean);previous=expected.at(-1);total+=length;
  }
@@ -132,7 +96,7 @@ export function verifyOfficialReferenceRoute({route,parts,sourceHash,graph,snaps
  for(const segment of cleanSegments){
   for(const p of segment.coordinates)if(!coordinates.length||metres(coordinates.at(-1),p)>.000001)coordinates.push([...p]);
  }
- const steps=referenceNavigationSteps(cleanSegments,graph);
+ const steps=referenceNavigationSteps(cleanSegments);
  if(coordinates.length<2||!same(coordinates[0],start)||!same(coordinates.at(-1),end))return invalid();
  const construction=checker.inspect(coordinates);if(construction.blocked.length||!constructionFresh(snapshot))return invalid();
  const idx=graph.officialConditionIndex;let officialConditions={status:'unavailable',points:[]};if(idx){try{officialConditions={status:'available',points:idx.find(coordinates,10),fetchedAt:idx.fetchedAt,sourceObservedAt:idx.sourceObservedAt,source:idx.source};}catch{return invalid();}}

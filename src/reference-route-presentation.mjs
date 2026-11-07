@@ -1,6 +1,10 @@
 export const REFERENCE_NOTICE='官方人行線，路側、銜接與樓層未確認';
 export const REFERENCE_STYLES=Object.freeze({
-  line:{color:'#475259',weight:5,dashArray:'14 7',label:'官方人行線及人行路網'},
+  official:{color:'#475259',weight:5,dashArray:'14 7',label:'官方人行線'},
+  sidewalk:{color:'#5B8996',weight:5,dashArray:'1 0',label:'人行道'},
+  pedestrian:{color:'#475259',weight:5,dashArray:'5 5',label:'其他人行路段'},
+  shared:{color:'#765A25',weight:5,dashArray:'16 5 3 5',label:'人車共行'},
+  crossing:{color:'#263C46',weight:5,dashArray:'1 5',label:'過街'},
   join:{color:'#AE501F',weight:5,dashArray:'3 6',label:'銜接與入口位置未確認'},
 });
 const validLine=line=>Array.isArray(line)&&line.length>=2&&line.every(p=>Array.isArray(p)&&p.length===2&&p.every(Number.isFinite)&&p[0]>=24.9&&p[0]<=25.3&&p[1]>=121.4&&p[1]<=121.8);
@@ -21,7 +25,8 @@ export function referenceRouteLines(route,{start,end}={}){
   if(!validLine(coordinates)||!['official-line','osm','osm-join','source-join','endpoint-approach'].includes(kind))return [];
   if(index&&!same(route.segments[index-1].coordinates?.at(-1),coordinates[0]))return [];
   if((kind==='osm-join'||kind==='source-join')&&(coordinates.length!==2||distance(coordinates[0],coordinates[1])>2.000001))return [];
-  lines.push({kind:kind==='osm-join'||kind==='source-join'||kind==='endpoint-approach'?'join':'line',coordinates});
+  const displayKind=kind==='osm-join'||kind==='source-join'||kind==='endpoint-approach'?'join':kind==='official-line'?'official':segment.crossing?'crossing':segment.sharedRoad?'shared':segment.explicitSidewalk?'sidewalk':'pedestrian';
+  lines.push({kind:displayKind,coordinates});
  }
  return lines;
 }
