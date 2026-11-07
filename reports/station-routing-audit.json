@@ -1,0 +1,30 @@
+{
+  "checkedAt": "2026-11-07T10:15:58.419Z",
+  "sourceUpdatedAt": "Sat, 07 Nov 2026 10:10:42 GMT",
+  "requested": [
+    "台北車站(R10)",
+    "善導寺(BL13)"
+  ],
+  "success": true,
+  "selectedExits": [
+    "台北車站出口電梯2",
+    "善導寺站出口電梯"
+  ],
+  "distance": 1156,
+  "roadPct": 0,
+  "unknownPct": 100,
+  "geometryVerification": "pedestrian-network-v1",
+  "approaches": [
+    {
+      "side": "start",
+      "distance": 5,
+      "estimated": true
+    },
+    {
+      "side": "end",
+      "distance": 11,
+      "estimated": true
+    }
+  ],
+  "constructionConflicts": 0
+}

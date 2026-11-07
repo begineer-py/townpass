@@ -5,7 +5,8 @@ import { createOfficialRouteVerifier } from './verify-official-route.mjs';
 import {routeAroundConstruction,resolveVerifiedRoute} from './construction-routing.mjs';
 import {createConstructionChecker} from './construction.mjs';
 import {createDetourWaypoints} from './alternative-routes.mjs';
-let router, verifyOfficial, initialization, detourWaypoints;
+import {createLocalRouteVerifier,planPlaces} from './local-route-verifier.mjs';
+let router, verifyOfficial, verifyLocal, facilities, initialization, detourWaypoints;
 function combineRoutes(a, b, viaName) {
   if (a.error) return a;
   if (b.error) return b;
@@ -51,14 +52,21 @@ self.onmessage = async ({ data }) => {
       validateNetwork(graph);
       router = createRouter(graph);
       verifyOfficial = createOfficialRouteVerifier(graph);
+      const fr=await fetch(new URL('./facilities.json.gz',data.url));if(!fr.ok)throw Error('facilities');
+      const fb=new Uint8Array(await fr.arrayBuffer());facilities=JSON.parse(new TextDecoder().decode(fb[0]===31&&fb[1]===139?gunzipSync(fb):fb));
+      verifyLocal=createLocalRouteVerifier(graph,facilities);
       detourWaypoints=createDetourWaypoints(graph);
       })();
       await initialization;
       postMessage({ type: "ready" });
+    } else if(data.type==='plan-places'){
+      await initialization;
+      let checker;try{checker=createConstructionChecker(data.construction);}catch{postMessage({type:'route',id:data.id,result:{error:'CONSTRUCTION_UNAVAILABLE'}});return;}
+      postMessage({type:'route',id:data.id,result:planPlaces(data.startPlace,data.endPlace,data.options,data.construction,{router,verifyLocal,facilities,checker})});
     } else if (data.type === 'verify-official') {
       await initialization;
       if (!verifyOfficial) throw Error('UNVERIFIED_NETWORK');
-      const result=resolveVerifiedRoute(data.route,data.start,data.end,data.options,data.construction,{router,verifyOfficial});
+      const result=resolveVerifiedRoute(data.route,data.start,data.end,data.options,data.construction,{router,verifyOfficial,verifyLocal});
       if(result.error && ['OFFICIAL_PATH_UNVERIFIED','OFFICIAL_ROAD_CONFLICT','OFFICIAL_CROSSING_UNVERIFIED','OFFICIAL_ENTRY_UNVERIFIED','CONSTRUCTION_BLOCKED'].includes(result.error))result.detourWaypoints=detourWaypoints(data.start,data.end,result.detourCenter);
       postMessage({type:'verified-official',id:data.id,result});
     } else if (data.type === "route") {
@@ -67,8 +75,8 @@ self.onmessage = async ({ data }) => {
       let checker;try{checker=createConstructionChecker(data.construction);}catch{postMessage({type:'route',id:data.id,result:{error:'CONSTRUCTION_UNAVAILABLE'}});return;}
       function leg(start,end){
         const candidate=router(start,end,{...data.options,lineAllowed:checker.allowed});
-        const checked=candidate.error?candidate:verifyOfficial({...candidate,provider:'taipei-official',segmentPaths:[candidate.coordinates],crossingSegments:[]},start,end);
-        return checked.error?checked:routeAroundConstruction({...checked,provider:'local-verified'},start,end,data.options,data.construction,{router,verifyOfficial});
+        const checked=candidate.error?candidate:verifyLocal(candidate,start,end,data.options);
+        return checked.error?checked:routeAroundConstruction({...checked,provider:'local-verified'},start,end,data.options,data.construction,{router,verifyOfficial,verifyLocal});
       }
       let result;
       if(data.via){

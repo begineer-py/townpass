@@ -139,11 +139,7 @@ export function createRouter(graph) {
     const d = metres(point, node);
     if (d <= 0.001) return true;
     if (!connectorRoadVerified) return false;
-    const scale = Math.max(0, d - Math.min(1.5, d * 0.35)) / d;
-    return connectorRoadVerified(point, [
-      point[0] + (node[0] - point[0]) * scale,
-      point[1] + (node[1] - point[1]) * scale,
-    ]);
+    return connectorRoadVerified(point, node);
   }
   function endpoints(point, options) {
     let blockerDist = Infinity,
@@ -367,6 +363,8 @@ export function createRouter(graph) {
     });
     return {
       policyVersion: ROUTING_POLICY,
+      edgeIds: es,
+      nodeIds: path,
       coordinates,
       distance: Math.round(length),
       unknownPct: Math.round((unknown / length) * 100),

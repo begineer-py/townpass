@@ -31,6 +31,8 @@ export default function MapView({
   onViewport,
   onMapReady,
   onGesture,
+  getBottomInset,
+  sheetSnap,
 }) {
   const root = useRef(),
     map = useRef(),
@@ -38,6 +40,7 @@ export default function MapView({
     path = useRef(),
     ends = useRef();
   const baseLayers = useRef([]);
+  const paddingReader=useRef(getBottomInset);paddingReader.current=getBottomInset;
   const cb = useRef({ onPick, onSelect, onViewport, onGesture, pick });
   cb.current = { onPick, onSelect, onViewport, onGesture, pick };
   useEffect(() => {
@@ -198,25 +201,28 @@ export default function MapView({
     if (!path.current) return;
     path.current.clearLayers();
     if (route?.coordinates) {
-      L.polyline(route.coordinates, {
+      L.polyline(route.networkCoordinates || route.coordinates, {
         color: TPColors.white,
         weight: 10,
         opacity: 1,
       }).addTo(path.current);
-      L.polyline(route.coordinates, {
+      L.polyline(route.networkCoordinates || route.coordinates, {
         color: TPColors.primary700,
         weight: 6,
         opacity: 1,
         lineCap: "round",
         dashArray: route.requiresEntryConfirmation ? "8 6" : undefined,
       }).addTo(path.current);
-      map.current.fitBounds(L.latLngBounds(route.coordinates).pad(0.2));
+      for(const approach of route.approaches || []) L.polyline(approach.coordinates,{color:TPColors.primary700,weight:4,dashArray:'4 6'}).addTo(path.current);
+      const fit=()=>{const height=map.current.getSize().y;map.current.fitBounds(L.latLngBounds(route.coordinates),{animate:false,paddingTopLeft:[24,40],paddingBottomRight:[24,Math.min(height-120,(paddingReader.current?.()||0)+24)]});};
+      fit();const timer=setTimeout(fit,350);return ()=>clearTimeout(timer);
     }
-  }, [route]);
+  }, [route,sheetSnap]);
   useEffect(() => {
     if (!ends.current) return;
     ends.current.clearLayers();
     if (location) {
+      if(Number.isFinite(location.accuracy) && location.accuracy > 0) L.circle([location.lat,location.lon],{radius:location.accuracy,color:TPColors.primary700,weight:1,fillOpacity:0.08,interactive:false}).addTo(ends.current);
       const marker = L.circleMarker([location.lat, location.lon], {
         radius: 7,
         color: TPColors.white,

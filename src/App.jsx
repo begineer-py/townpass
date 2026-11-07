@@ -75,7 +75,7 @@ import {
   readSaved,
   saveLocal,
 } from "./data";
-import { getLocation } from "./location";
+import { getLocation, locationError } from "./location";
 import { townPassUserKey } from "./townpass-bridge";
 import { travelProfiles } from "./travel-profiles";
 import { loadProfile, loadTrips, saveProfile, saveTrips } from "./local-database";
@@ -314,6 +314,7 @@ export default function App() {
     };
   }, [query]);
   const officialRequest = useRef();
+  const locationRequest=useRef(0);
   const pendingVerifications = useRef(new Map());
   const lastConstruction = useRef(null);
   const [constructionConflict,setConstructionConflict] = useState(null);
@@ -504,6 +505,8 @@ export default function App() {
         } else {
           window.speechSynthesis?.cancel();
           setSpeaking(false);
+          if(d.result.resolvedStart)setStart(d.result.resolvedStart);
+          if(d.result.resolvedEnd)setEnd(d.result.resolvedEnd);
           setRoute(d.result);
           setRouteError("");
           setStepIndex(0);
@@ -529,6 +532,7 @@ export default function App() {
     return () => { w.terminate(); for(const resolve of pendingVerifications.current.values()) resolve({error:'UNVERIFIED_NETWORK'}); pendingVerifications.current.clear(); };
   }, [graphRequested]);
   const changePoint = (which, p) => {
+    locationRequest.current++;
     request.current++;
     setRouting(false);
     clearRoute();
@@ -573,11 +577,14 @@ export default function App() {
     setSearchFor(which);
     setQuery("");
   }
+  const locationMessages={LOCATION_DENIED:'定位權限尚未開啟。請在瀏覽器網站設定或手機定位設定允許此網站，再點一次定位。',LOCATION_TIMEOUT:'定位等候較久，請移到訊號較好的地方再試一次。',LOCATION_INSECURE:'請使用HTTPS網址開啟此服務，才能使用定位。',LOCATION_UNSUPPORTED:'這個瀏覽器不支援定位，可以搜尋出發地。',LOCATION_UNAVAILABLE:'裝置目前無法提供位置，請確認手機定位服務已開啟，再試一次。'};
   async function locate(which, useAsStart = false) {
+    const locationId=++locationRequest.current;
     const version = tabVersion.current;
     setLocating(true);
     try {
       const p = await getLocation();
+      if(locationId!==locationRequest.current)return;
       if (which && version !== tabVersion.current) return;
       if (p.lat < 24.94 || p.lat > 25.24 || p.lon < 121.42 || p.lon > 121.69) {
         announce(
@@ -587,12 +594,13 @@ export default function App() {
       }
       setCurrentLocation(p);
       setFocus({ ...p, token: Date.now() });
+      if(p.needsConfirmation){announce(p.accuracy == null ? "已取得大致位置，精度暫時不明；請在地圖確認出發地。" : `已取得大致位置，誤差約 ${Math.round(p.accuracy)} 公尺；請在地圖確認出發地。`);return;}
       if (useAsStart) setStart(p);
       if (which) changePoint(which, p);
       else if (!useAsStart) announce("已找到你的位置，可以看看附近有哪些設施。");
-    } catch {
-      if (!which || version === tabVersion.current)
-        announce("目前無法取得位置。你仍可以搜尋地點，或在地圖上選擇。");
+    } catch (error) {
+      autoLocated.current=false;
+      if (locationId===locationRequest.current && (!which || version === tabVersion.current)) announce(locationMessages[locationError(error)]);
     } finally {
       setLocating(false);
     }
@@ -611,6 +619,7 @@ export default function App() {
     locate(null, true);
   }, [profileReady, travelProfile]);
   async function navigateTo(place) {
+    const locationId=++locationRequest.current;
     setSelected(null);
     setSearchFor(null);
     setQuery("");
@@ -624,6 +633,7 @@ export default function App() {
       setLocating(true);
       try {
         from = await getLocation();
+        if(locationId!==locationRequest.current)return;
         if (
           from.lat < 24.94 ||
           from.lat > 25.24 ||
@@ -634,14 +644,15 @@ export default function App() {
           announce("你目前的位置在服務範圍外。可以先選一個臺北的出發地。");
           return;
         }
-      } catch {
+      } catch (error) {
         setEnd(place);
-        announce("目前無法取得位置。請先選出發地，或在地圖上選點。");
+        announce(locationMessages[locationError(error)]);
         return;
       } finally {
         setLocating(false);
       }
     }
+    if(from.needsConfirmation){setCurrentLocation(from);setEnd(place);announce('目前位置精度較低，請先確認出發地。');return;}
     setStart(from);
     setEnd(place);
     wantedStop.current = null;
@@ -654,12 +665,12 @@ export default function App() {
   );
   async function calculate(points) {
     const from=points?.start||start,to=points?.end||end;
-    const requestPrefs={...(points?.prefs||prefs),avoidPoints};
+    const requestPrefs={...(points?.prefs||prefs),avoidPoints,startPlace:from,endPlace:to};
     if(!from||!to){announce('請先選擇出發地和目的地。');return;}
     setGraphRequested(true);
     if(!graphReady){pendingRoute.current={...points,start:from,end:to};announce('正在準備路線，完成後會繼續規劃。');return;}
     pendingRoute.current=null;
-    if (from && to && navigator.onLine && !points?.via) {
+    if (from && to && navigator.onLine && !points?.via && ![from,to].some(p=>['20','station'].includes(String(p.kind)))) {
       setGraphRequested(true);
       clearRoute();
       setRouteError("");
@@ -693,7 +704,7 @@ export default function App() {
             else if(alternatives.error==='CONSTRUCTION_UNAVAILABLE')verified=alternatives;
           }
           setConstructionConflict(verified.construction || null);
-          if(verified.error || verified.geometryVerification !== 'official-polygons-and-crossings-v1' || verified.policyVersion !== ROUTING_POLICY) setRouteError(verified.error || 'UNVERIFIED_NETWORK');
+          if(verified.error || !['official-polygons-and-crossings-v1','pedestrian-network-v1'].includes(verified.geometryVerification) || verified.policyVersion !== ROUTING_POLICY) setRouteError(verified.error || 'UNVERIFIED_NETWORK');
           else { setRoute(verified); setStepIndex(0); }
         }
       } catch (error) {
@@ -728,7 +739,8 @@ export default function App() {
     setRouteError("");
     if (!worker.current) return;
     worker.current.postMessage({
-      type: "route",
+      type: points?.via ? 'route' : 'plan-places',
+      startPlace:from,endPlace:to,
       id: ++request.current,
       start: [from.lat, from.lon],
       end: [to.lat, to.lon],
@@ -939,7 +951,7 @@ export default function App() {
       route.policyVersion !== ROUTING_POLICY
     )
       return;
-    const text = `從${start.name}前往${end.name}，路線長約${formatDistance(route.distance)}。${route.steps.map((s) => `${stepText(s)}約${Math.round(s.distance)}公尺。`).join("")}路況仍需留意現場，這是路線預覽。`;
+    const text = `從${start.name}前往${end.name}，路線長約${formatDistance(route.distance)}。${route.approaches?.some(p=>p.estimated) ? "電梯出口連接為位置估算，請先確認現場入口。" : ""}${route.steps.map((s) => `${stepText(s)}約${Math.round(s.distance)}公尺。`).join("")}路況仍需留意現場，這是路線預覽。`;
     speakText(text);
   }
   function speakText(text) {
@@ -1401,12 +1413,13 @@ export default function App() {
                     {route.viaName && (
                       <p className="quiet-note">順路停靠：{route.viaName}</p>
                     )}
+                    {route.approaches?.some(p=>p.estimated) && <p className="quiet-note">電梯出口與人行路網銜接約 {route.approaches.filter(p=>p.estimated).map(p=>p.distance).join('／')} 公尺（位置估算，請確認現場入口）。</p>}
                     <div className="route-summary">
                       <div>
                         <span className="eyebrow">路線預覽</span>
                         <h2>{formatDistance(route.distance)}</h2>
                         <p>
-                          {route.provider === "local-verified" ? "另一條人行路線" : route.provider === "local-detour" ? "已改走避開施工的人行路線" : route.provider === "taipei-official"
+                          {route.provider === "mapped-pedestrian" ? "電梯出口之間的人行路線" : route.provider === "local-verified" ? "另一條人行路線" : route.provider === "local-detour" ? "已改走避開施工的人行路線" : route.provider === "taipei-official"
                             ? "臺北市無障礙通行路線圖台回傳"
                             : "離線人行路網參考"}
                         </p>
@@ -1416,7 +1429,7 @@ export default function App() {
                       </span>
                     </div>
                     {route.unknownPct > 0 && <p className="quiet-note">路寬／坡度：尚無完整資料</p>}
-                    {!route.requiresEntryConfirmation && (route.startGap > 10 || route.endGap > 10) && (
+                    {!route.approaches && !route.requiresEntryConfirmation && (route.startGap > 10 || route.endGap > 10) && (
                       <p className="quiet-note">
                         起點距路網約 {route.startGap} 公尺，終點距路網約{" "}
                         {route.endGap} 公尺；這兩段銜接尚未確認。
@@ -1502,7 +1515,7 @@ export default function App() {
                               <small>
                                 約 {formatDistance(s.distance)}
                                 {s.unknown &&
-                                route.provider !== "taipei-official"
+                                !route.geometryVerification
                                   ? " · 通行條件待確認"
                                   : ""}
                               </small>
@@ -1702,6 +1715,8 @@ export default function App() {
             onSelect={(p) => (isLandmark(p) ? navigateTo(p) : inspect(p))}
             onViewport={setViewport}
             onMapReady={(m) => (map.current = m)}
+            sheetSnap={sheetSnap}
+            getBottomInset={()=>matchMedia('(max-width:700px)').matches && tab && panelEl.current ? window.innerHeight-panelEl.current.getBoundingClientRect().top : 0}
             onGesture={() => {
               if (
                 matchMedia("(max-width: 700px)").matches &&
