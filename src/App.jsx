@@ -66,6 +66,7 @@ import {createRouteWorkerLifecycle} from "./route-worker-lifecycle.mjs";
 import {createLiveFollow,displayedRouteCoordinates} from "./live-follow.mjs";
 import {createLiveFollowSearch} from "./live-follow-search.mjs";
 import {routeGapPresentation} from "./route-gap-presentation.mjs";
+import {partialRoutePresentation} from "./partial-route-presentation.mjs";
 import { requestOfficialRoute } from "./official-router.mjs";
 import { ROUTING_POLICY } from "./routing.mjs";
 import { BASEMAPS } from "./basemaps.mjs";
@@ -344,7 +345,9 @@ export default function App() {
   if(!nearbySearch.current)nearbySearch.current=createNearbySearch({fetchSnapshot:fetchConstruction,createWorker:()=>new Worker(new URL('./route-worker.js',import.meta.url),{type:'module'}),onState:setNearbyState,onSnapshot:s=>{lastConstruction.current=s;}});
   const [constructionConflict,setConstructionConflict] = useState(null);
   const [routeGap,setRouteGap] = useState(null);
-  const routeGapView=useMemo(()=>routeGapPresentation(routeError,routeGap),[routeError,routeGap]);
+  const [partialRoute,setPartialRoute] = useState(null);
+  const requestEndpoints=useRef(null);
+  const routeGapView=useMemo(()=>partialRoute?null:routeGapPresentation(routeError,routeGap),[routeError,routeGap,partialRoute]);
   const [routeAttempt,setRouteAttempt]=useState(0);
   function verifyOnlineRoute(route, start, end, id, construction, options=prefs) {
     return new Promise(resolve => {
@@ -529,9 +532,11 @@ export default function App() {
       if (d.type === "route" && d.id === request.current) {
         setRouting(false);
         if (d.result.error || d.result.policyVersion !== ROUTING_POLICY) {
+          const partial=partialRoutePresentation(d.result.error,d.result.partialRoute,lastConstruction.current,ROUTING_POLICY,Date.now(),requestEndpoints.current);
           clearRoute();
           setConstructionConflict(d.result.construction || null);
           setRouteGap(d.result.error==='NO_ROUTE'?d.result.routeGap||{status:'unavailable'}:null);
+          setPartialRoute(partial);
           setRouteError(d.result.error || "UNVERIFIED_NETWORK");
         } else {
           window.speechSynthesis?.cancel();
@@ -578,6 +583,7 @@ export default function App() {
     worker.current?.cancel();
     setConstructionConflict(null);
     setRouteGap(null);
+    setPartialRoute(null);
     setRouteAttempt(0);
     for(const resolve of pendingVerifications.current.values()) resolve({error:'UNVERIFIED_NETWORK'});
     pendingVerifications.current.clear();
@@ -810,6 +816,7 @@ export default function App() {
     // or a chosen nearby point. The flag permits an unregistered search
     // result's positional estimate; it is not a safety or access certificate.
     const from=fromPoint?{...fromPoint,selectionKind:'user'}:fromPoint,to=toPoint?{...toPoint,selectionKind:'user'}:toPoint;
+    requestEndpoints.current={start:from,end:to};
     const requestPrefs={...(points?.prefs||prefs),avoidPoints,startPlace:from,endPlace:to};
     if(!from||!to){announce('請先選擇出發地和目的地。');return;}
     cancelLocation();
@@ -1094,6 +1101,12 @@ export default function App() {
     return ()=>clearTimeout(timer);
   }, [route]);
   useEffect(() => {
+    if(!partialRoute)return;
+    const until=Math.min(Date.parse(partialRoute.constructionSourceUpdatedAt),Date.parse(partialRoute.constructionFetchedAt))+CONSTRUCTION_MAX_AGE-Date.now();
+    const timer=setTimeout(()=>{clearRoute();setRouteError('CONSTRUCTION_UNAVAILABLE');},Math.max(0,until));
+    return ()=>clearTimeout(timer);
+  },[partialRoute]);
+  useEffect(() => {
     window.speechSynthesis?.cancel();
     setSpeaking(false);
   }, [searchFor, modal]);
@@ -1196,13 +1209,13 @@ export default function App() {
   };
   const retryWithEntrance = ['OFFICIAL_PATH_UNVERIFIED','OFFICIAL_ROAD_CONFLICT','OFFICIAL_CROSSING_UNVERIFIED','OFFICIAL_ENTRY_UNVERIFIED','OFFICIAL_NO_ROUTE','OFFICIAL_GAP','NO_CONNECTION','NO_ROUTE'].includes(routeError);
   useEffect(()=>{
-    if(!shouldAutoSearchNearby({error:routeError,routing,graphReady,tab,start,end}))return;
+    if(partialRoute||!shouldAutoSearchNearby({error:routeError,routing,graphReady,tab,start,end}))return;
     findNearbyPositions();
     // A new route request, changed endpoint or changed preference invalidates
     // the search. Nearby status is deliberately not a dependency: cancel or
     // completion must never restart the lookup by itself.
     return ()=>nearbySearch.current?.cancel(false);
-  },[routeError,routing,graphReady,tab,start,end,prefs,avoidPoints]);
+  },[routeError,routing,graphReady,tab,start,end,prefs,avoidPoints,partialRoute]);
   const entranceChoices = useMemo(() => {
     if(!retryWithEntrance)return [];
     return [['start',start],['end',end]].flatMap(([which,point]) => {
@@ -1560,6 +1573,18 @@ export default function App() {
                     <p>
                       {errorText[routeError] || "暫時無法規劃，請稍後再試。"}
                     </p>
+                    {partialRoute && <section aria-label="未連接的部分路段">
+                      <p>{partialRoute.message}</p>
+                      {partialRoute.gap.kind==='between-network'&&Number.isFinite(partialRoute.gap.straightMetres)&&<p>兩側路網點直線相距約 {formatDistance(partialRoute.gap.straightMetres)}；中間路段尚未規劃。</p>}
+                      {partialRoute.segments.map(s=><div key={s.side}>
+                        <p><strong>{s.side==='start'?'起點側路段':'目的地側路段'}</strong> · 約 {formatDistance(s.distance)}{s.side==='end'?'（目前未與起點側連接）':''}</p>
+                        {s.side==='start'&&partialRoute.resolvedStart?.name&&partialRoute.resolvedStart.id!==start?.id&&<p>使用候選入口：{cleanName(partialRoute.resolvedStart.name)}。</p>}
+                        {s.side==='end'&&partialRoute.resolvedEnd?.name&&partialRoute.resolvedEnd.id!==end?.id&&<p>使用候選入口：{cleanName(partialRoute.resolvedEnd.name)}。</p>}
+                        {s.approaches.some(a=>a.estimated)&&<p>部分入口銜接為位置估算，實際通行狀況未確認。</p>}
+                        {s.tierSegments.some(t=>t.sharedRoad)&&<p>部分路段可能人車共行，通行與無障礙狀況未確認。</p>}
+                        {Array.isArray(s.steps)&&s.steps.length>0&&<details><summary>查看{s.side==='start'?'起點側':'目的地側'}步驟</summary><ol>{s.steps.map((step,i)=><li key={i}>{stepText(step)}，約 {formatDistance(step.distance)}{stepConditions(step)?`，${stepConditions(step)}`:''}</li>)}</ol></details>}
+                      </div>)}
+                    </section>}
                     {routeGapView && <p>{routeGapView.message}</p>}
                     {retryWithEntrance && entranceChoices.length > 0 && <div className="entrance-choices">
                       <p>附近捷運電梯出口（距離為直線估算，選擇後會更改起終點，需重新規劃）</p>
@@ -1913,6 +1938,7 @@ export default function App() {
             colorFriendly={prefs.colorFriendly}
             onBasemapStatus={setBasemapStatus}
             route={tab ? route : null}
+            partialRoute={tab==='plan' ? partialRoute : null}
             constructionConflict={tab ? constructionConflict : null}
             routeGap={tab ? routeGapView : null}
             nearbyCandidates={tab==='plan' ? nearbyState.candidates : []}

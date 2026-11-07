@@ -166,7 +166,7 @@ export function planPlaces(startPlace,endPlace,options,snapshot,{router,verifyLo
  for(const a of stationEntrances(startPlace,facilities))for(const b of stationEntrances(endPlace,facilities)){
   const start=[a.lat,a.lon],end=[b.lat,b.lon],prefs={...options,startPlace:a,endPlace:b,lineAllowed:checker.allowed,approachAllowed:(p,n,side)=>verifyLocal.approachAllowed(p,n,side==='start'?a:b,options,side)};
   attempts.push({start,end,prefs});
-  const candidate=router(start,end,prefs);if(candidate.error){failed(candidate.error==='NO_ROUTE'?{...candidate,failedPair:{start:a,end:b}}:candidate);continue;}
+  const candidate=router(start,end,prefs);if(candidate.error){failed(['NO_ROUTE','NO_CONNECTION'].includes(candidate.error)?{...candidate,failedPair:{start:a,end:b}}:candidate);continue;}
   const checked=verifyLocal(candidate,start,end,prefs);if(checked.error){failed(checked);continue;}
   const work=checker.inspect(checked.coordinates);if(work.blocked.length){blocked={error:'CONSTRUCTION_BLOCKED',construction:work};continue;}
   if(!best||checked.weightedCost<best.weightedCost)best={...checked,construction:work,resolvedStart:a,resolvedEnd:b};

@@ -20,6 +20,7 @@ const colors = {
 export default function MapView({
   items,
   route,
+  partialRoute,
   constructionConflict,
   routeGap,
   nearbyCandidates,
@@ -44,6 +45,7 @@ export default function MapView({
     map = useRef(),
     marks = useRef(),
     path = useRef(),
+    partialPath = useRef(),
     blocked = useRef(),
     gap = useRef(),
     nearby = useRef(),
@@ -63,6 +65,7 @@ export default function MapView({
     map.current = m;
     marks.current = L.layerGroup().addTo(m);
     path.current = L.layerGroup().addTo(m);
+    partialPath.current = L.layerGroup().addTo(m);
     blocked.current = L.layerGroup().addTo(m);
     gap.current = L.layerGroup().addTo(m);
     nearby.current = L.layerGroup().addTo(m);
@@ -225,6 +228,27 @@ export default function MapView({
       fit();const timer=setTimeout(fit,350);return ()=>clearTimeout(timer);
     }
   }, [route,sheetSnap,colorFriendly]);
+  useEffect(() => {
+    if(!partialPath.current)return;
+    partialPath.current.clearLayers();
+    if(!partialRoute)return;
+    const bounds=[];
+    for(const segment of partialRoute.segments){
+      bounds.push(...segment.coordinates);
+      L.polyline(segment.networkCoordinates,{color:TPColors.white,weight:10,opacity:1}).addTo(partialPath.current);
+      if(segment.tierSegments.length){
+        for(const tier of segment.tierSegments){const style=ROUTE_CONDITIONS[conditionForSegment(tier)];L.polyline(tier.coordinates,{color:colorFriendly?TPColors.primary900:style.color,weight:5,dashArray:style.dash,opacity:1}).addTo(partialPath.current);}
+      }else{
+        const style=ROUTE_CONDITIONS.unknown;L.polyline(segment.networkCoordinates,{color:colorFriendly?TPColors.primary900:style.color,weight:5,dashArray:style.dash,opacity:1}).addTo(partialPath.current);
+      }
+      for(const approach of segment.approaches){const style=ROUTE_CONDITIONS.approach;L.polyline(approach.coordinates,{color:TPColors.white,weight:8,opacity:1}).addTo(partialPath.current);const l=L.polyline(approach.coordinates,{color:colorFriendly?TPColors.primary900:style.color,weight:4,dashArray:style.dash}).addTo(partialPath.current);if(approach.estimated)l.bindTooltip('入口銜接為位置估算，實際通行狀況未確認');}
+    }
+    for(const [side,label] of [['startSide','起點側路段到此'],['endSide','目的地側路段由此開始']]){
+      const point=partialRoute.gap[side];if(!point)continue;bounds.push(point);
+      L.circleMarker(point,{radius:9,color:TPColors.white,weight:3,fillColor:TPColors.orange700,fillOpacity:1}).bindTooltip(label,{permanent:true,direction:'top'}).addTo(partialPath.current);
+    }
+    if(bounds.length&&!route){const height=map.current.getSize().y;map.current.fitBounds(L.latLngBounds(bounds),{maxZoom:17,animate:false,paddingTopLeft:[24,40],paddingBottomRight:[24,Math.min(height-120,(paddingReader.current?.()||0)+24)]});}
+  },[partialRoute,route,sheetSnap,colorFriendly]);
   useEffect(() => {
     if (!blocked.current) return;
     blocked.current.clearLayers();

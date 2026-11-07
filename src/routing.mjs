@@ -189,6 +189,8 @@ export function createRouter(graph) {
     const chosen = [];
     for (const [d, i] of raw) {
       if (blockerDist <= d) break;
+      const forced=side==='start'?options._partialForceStartNode:options._partialForceEndNode;
+      if(forced!=null && (i!==forced||d>.001))continue;
       if ((d <= 0.001 || approachClear(point, graph.nodes[i])) &&
           (!options.lineAllowed || options.lineAllowed([point,graph.nodes[i]])) &&
           (!options.approachAllowed || options.approachAllowed(point,graph.nodes[i],side))) {
@@ -199,11 +201,9 @@ export function createRouter(graph) {
     return { chosen, nearestDist };
   }
   return function route(start, end, options = {}) {
-    projectPoint(start,options,'start');projectPoint(end,options,'end');
+    if(options._partialForceStartNode==null)projectPoint(start,options,'start');
+    if(options._partialForceEndNode==null)projectPoint(end,options,'end');
     const starts=endpoints(start,options,'start'),ends=endpoints(end,options,'end');
-    if(!starts.chosen.length||!ends.chosen.length)return {error:'NO_CONNECTION',startGap:starts.nearestDist,endGap:ends.nearestDist};
-    if(metres(start,end)<.001)return {error:'SAME_POINT'};
-    const targets=new Map(ends.chosen.map(p=>[p.index,p]));
     const workAllowed = new Map();
     function canTraverse(ei){
       const e=graph.edges[ei],w=graph.ways[e[3]];
@@ -212,6 +212,36 @@ export function createRouter(graph) {
       if(!workAllowed.has(ei))workAllowed.set(ei,options.lineAllowed([graph.nodes[e[0]],...(e[4]||[]),graph.nodes[e[1]]]));
       return workAllowed.get(ei);
     }
+    function part(side,index){
+      const point=graph.nodes[index].slice(0,2),boundary=side==='start'?'end':'start';
+      const approachAllowed=(p,n,s)=>s===boundary?metres(p,n)<=.001:(!options.approachAllowed||options.approachAllowed(p,n,s));
+      const prefs={...options,diagnosePartial:false,diagnoseGap:false,approachAllowed,
+        _optimizeDeadline:Date.now()+2000,_optimizeMaxVisited:100000,
+        ...(side==='start'?{_partialForceEndNode:index}:{_partialForceStartNode:index})};
+      const result=side==='start'?route(start,point,prefs):route(point,end,prefs);
+      return result.error||!result.edgeIds?.length?null:{side,point,route:result};
+    }
+    function nearestReachable(seeds,target){
+      const seen=new Uint8Array(graph.nodes.length),queue=[];let best=-1,distance=Infinity,head=0;
+      for(const p of seeds)if(!seen[p.index]){seen[p.index]=1;queue.push(p.index);}
+      const deadline=Date.now()+1500;
+      while(head<queue.length && head<100000 && ((head&255)!==0||Date.now()<=deadline)){
+        const u=queue[head++],node=graph.nodes[u];
+        if(!node[2]&&Number.isSafeInteger(node[3])&&adjacency[u].some(([v,ei])=>!graph.nodes[v][2]&&groundEdge(graph.edges[ei],options)&&canTraverse(ei))){const d=metres(node,target);if(d<distance){distance=d;best=u;}}
+        for(const [v,ei] of adjacency[u])if(!seen[v]&&!graph.nodes[v][2]&&canTraverse(ei)){seen[v]=1;queue.push(v);}
+      }
+      return best;
+    }
+    if(!starts.chosen.length||!ends.chosen.length){
+      const failed={error:'NO_CONNECTION',startGap:starts.nearestDist,endGap:ends.nearestDist};
+      if(options.diagnosePartial && !!starts.chosen.length!==!!ends.chosen.length){
+        const side=starts.chosen.length?'start':'end',index=nearestReachable(side==='start'?starts.chosen:ends.chosen,side==='start'?end:start);
+        const segment=index<0?null:part(side,index);if(segment)failed.partialCandidates=[segment];
+      }
+      return failed;
+    }
+    if(metres(start,end)<.001)return {error:'SAME_POINT'};
+    const targets=new Map(ends.chosen.map(p=>[p.index,p]));
     const dist = new Float64Array(graph.nodes.length).fill(Infinity),
       prev = new Int32Array(graph.nodes.length).fill(-1),
       edgePrev = new Int32Array(graph.nodes.length).fill(-1);
@@ -257,10 +287,21 @@ export function createRouter(graph) {
         }
       }
     }
-    if (!found) return { error: "NO_ROUTE", visited, ...(options.diagnoseGap ? {
-      routeGap:diagnoseRouteGap({graph,adjacency,forwardDist:dist,ends:ends.chosen,canTraverse,
-        groundEdge:ei=>groundEdge(graph.edges[ei],options)})
-    } : {}) };
+    if (!found) {
+      const failed={error:'NO_ROUTE',visited};
+      if(options.diagnoseGap||options.diagnosePartial){
+        const gap=diagnoseRouteGap({graph,adjacency,forwardDist:dist,ends:ends.chosen,canTraverse,
+          groundEdge:ei=>groundEdge(graph.edges[ei],options),...(options.diagnosePartial?{includeIndices:true,maxMetres:Infinity}:{})});
+        const {startIndex,endIndex,...publicGap}=gap;failed.routeGap=publicGap;
+        if(options.diagnosePartial){
+          const indices=gap.status==='candidate'?[startIndex,endIndex]:[
+            nearestReachable(starts.chosen,end),nearestReachable(ends.chosen,start)];
+          const segments=[indices[0]>=0?part('start',indices[0]):null,indices[1]>=0?part('end',indices[1]):null].filter(Boolean);
+          if(segments.length)failed.partialCandidates=segments;
+        }
+      }
+      return failed;
+    }
     const path = [],
       es = [];
     let v = goal;

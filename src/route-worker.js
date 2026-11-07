@@ -1,4 +1,5 @@
 import { metres } from "./routing.mjs";
+import {verifiedPartialRoute} from "./partial-route.mjs";
 import { gunzipSync } from "fflate";
 import { validateNetwork } from "./network-contract.mjs";
 import { createOfficialRouteVerifier } from './verify-official-route.mjs';
@@ -78,10 +79,13 @@ self.onmessage = async ({ data }) => {
       await initialization;
       let checker;try{checker=createConstructionChecker(data.construction);}catch{postMessage({type:'route',id:data.id,result:{error:'CONSTRUCTION_UNAVAILABLE'}});return;}
       let result=planImprovedPlaces(data.startPlace,data.endPlace,data.options||{},data.construction,{graph:routeGraph,router,verifyLocal,facilities,checker});
-      if(result.error==='NO_ROUTE'&&result.failedPair){
-        const {start:a,end:b}=result.failedPair,prefs={...data.options,startPlace:a,endPlace:b,lineAllowed:checker.allowed,diagnoseGap:true};
-        const diagnostic=router([a.lat,a.lon],[b.lat,b.lon],prefs);
-        result={...result,routeGap:diagnostic.error==='NO_ROUTE'?diagnostic.routeGap:{status:'unavailable'}};
+      if(['NO_ROUTE','NO_CONNECTION'].includes(result.error)&&result.failedPair&&constructionFresh(data.construction)){
+        const {start:a,end:b}=result.failedPair,prefs={...data.options,startPlace:a,endPlace:b,lineAllowed:checker.allowed,diagnosePartial:true};
+        const start=[a.lat,a.lon],end=[b.lat,b.lon],diagnostic=router(start,end,prefs);
+        if(diagnostic.error===result.error){
+          const partialRoute=verifiedPartialRoute(diagnostic,start,end,prefs,data.construction,{verifyLocal,checker,resolvedStart:a,resolvedEnd:b});
+          result={...result,...(diagnostic.routeGap?{routeGap:diagnostic.routeGap}:{}),...(partialRoute?{partialRoute}:{})};
+        }
       }
       if(result.failedPair){const {failedPair,...rest}=result;result=rest;}
       if(!constructionFresh(data.construction))result={error:'CONSTRUCTION_UNAVAILABLE'};
@@ -121,9 +125,12 @@ self.onmessage = async ({ data }) => {
           if(['NO_ROUTE','NO_CONNECTION'].includes(candidate.error)){
             const blocked=diagnoseConstruction(start,end,prefs,data.construction,{router,verifyLocal,checker});
             if(blocked)return blocked;
-            if(candidate.error==='NO_ROUTE'){
-              const diagnostic=router(start,end,{...prefs,diagnoseGap:true});
-              return {...candidate,routeGap:diagnostic.error==='NO_ROUTE'?diagnostic.routeGap:{status:'unavailable'}};
+            if(constructionFresh(data.construction)){
+              const diagnostic=router(start,end,{...prefs,diagnosePartial:true});
+              if(diagnostic.error===candidate.error){
+                const partialRoute=verifiedPartialRoute(diagnostic,start,end,prefs,data.construction,{verifyLocal,checker,resolvedStart:prefs.startPlace,resolvedEnd:prefs.endPlace});
+                return {...candidate,...(diagnostic.routeGap?{routeGap:diagnostic.routeGap}:{}),...(partialRoute?{partialRoute}:{})};
+              }
             }
           }
           return candidate;
