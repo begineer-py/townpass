@@ -1,6 +1,6 @@
 # 設計指南 
 ## KISS原則 
-- 使用者只需要看到夠用的資訊,不要無關標語,
+- 使用者只需要看到夠用的資訊,不要無關標語,一個搜尋框預設界面
 ## 界面風格
 - 使用.agents\skills\townpass-web-design設計
 
@@ -39,4 +39,13 @@ apis/
 ```
 - 人類把需要更改的下個方向放在/plan內 不的在plan內產生修改任何檔案 
 - 設計.vscode自動排除人類不需要看的test檔案
-
+- Readme.md不應提到部屬方式 而是鏈接到/deployment
+## 自動審查
+- cursor的自動bot將會審查
+- 把針對一條條plan的版本後請生成review裡面
+- 裡面只包括針對目標的代碼片段 例如需求"(原文)"已經完成"(證據) 代碼
+- 不要把開發的無用side code 上傳
+```text
+/review
+    {version}_review.md
+```
