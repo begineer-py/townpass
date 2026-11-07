@@ -1,8 +1,8 @@
 # 專案工作方式
 
 - 專案遠端：`https://github.com/begineer-py/townpass.git`。
-- 持續開發分支：`codex/accessibility-map-dev`。
-- 使用者已要求：每次完成授權範圍內的更新與必要驗證後，建立 commit 並 push 至此開發分支，不需每次重新詢問。
+- 導航相關持續開發分支：`navigation`。
+- 使用者已要求：每次完成授權範圍內的更新與必要驗證後，建立 commit 並 push 至對應開發分支（導航工作使用 `navigation`），不需每次重新詢問。
 - 功能或路由變更執行適用測試與建置；純文件變更不需重跑應用程式測試。
 - 除非使用者另有明確指示，不把後續更新直接推到 `main`，也不強制推送。
 - 不提交憑證、`.env`、原始下載快取、虛擬環境或 `node_modules`。

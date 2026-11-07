@@ -1,4 +1,4 @@
-import {sendToTownPass} from './bridge.js';
+import {sendToTownPass} from './townpass-bridge.js';
 export function locationError(error){
  if(error?.code===1)return 'LOCATION_DENIED';
  if(error?.code===3)return 'LOCATION_TIMEOUT';

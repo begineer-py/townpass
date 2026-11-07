@@ -57,24 +57,60 @@ export function createConstructionChecker(snapshot,now=Date.now()){
  const unmapped=active.filter(w=>w.impact!=='clear'&&!w.geometries.length).length;
  const shapes=active.flatMap(w=>w.geometries.map(g=>{
   if(!['Point','LineString','Polygon'].includes(g.type)||!g.coordinates?.length||g.coordinates.some(p=>!valid(p)))throw Error('CONSTRUCTION_INVALID');
-  const coords=g.coordinates.map(xy),xs=coords.map(p=>p[0]),ys=coords.map(p=>p[1]);return {w,type:g.type,coords,box:[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)]};
+  const coords=g.coordinates.map(xy),xs=coords.map(p=>p[0]),ys=coords.map(p=>p[1]);return {w,type:g.type,coords,geometry:{type:g.type,coordinates:g.coordinates},box:[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)]};
  }));
- function inspect(line){
+ // Index complete shape bounding boxes. Oversize shapes and long queries fall
+ // back to full scans, so the index cannot exclude an intersecting shape.
+ const grid=new Map(),oversize=[],cellSize=256,maxCells=4096;
+ const cells=box=>[Math.floor(box[0]/cellSize),Math.floor(box[1]/cellSize),Math.floor(box[2]/cellSize),Math.floor(box[3]/cellSize)];
+ function cellCount(c){return (c[2]-c[0]+1)*(c[3]-c[1]+1);}
+ for(let id=0;id<shapes.length;id++){
+  const c=cells(shapes[id].box);if(cellCount(c)>maxCells){oversize.push(id);continue;}
+  for(let x=c[0];x<=c[2];x++)for(let y=c[1];y<=c[3];y++){const k=`${x},${y}`;if(!grid.has(k))grid.set(k,[]);grid.get(k).push(id);}
+ }
+ function candidates(a,b,margin){
+  const c=cells([Math.min(a[0],b[0])-margin,Math.min(a[1],b[1])-margin,Math.max(a[0],b[0])+margin,Math.max(a[1],b[1])+margin]);
+  if(cellCount(c)>maxCells)return shapes;
+  const ids=new Set(oversize);
+  for(let x=c[0];x<=c[2];x++)for(let y=c[1];y<=c[3];y++)for(const id of grid.get(`${x},${y}`)||[])ids.add(id);
+  return [...ids].sort((a,b)=>a-b).map(id=>shapes[id]);
+ }
+ function distance(a,b,g){
+  let d=g.type==='Polygon'&&(inside(a,g.coords)||inside(b,g.coords))?0:Infinity;
+  for(let j=0;j<Math.max(1,g.coords.length-1);j++)d=Math.min(d,segmentDistance(a,b,g.coords[j],g.coords[j+1]||g.coords[j]));
+  return d;
+ }
+ function validPoints(line){
   if(!Array.isArray(line)||!line.length||line.some(p=>!valid(p.slice(0,2))))throw Error('CONSTRUCTION_INVALID_ROUTE');
-  const points=line.map(xy),hits=new Map();
+  return line.map(xy);
+ }
+ function inspect(line){
+  const points=validPoints(line),hits=new Map();
   for(let i=0;i<Math.max(1,points.length-1);i++){
    const a=points[i],b=points[i+1]||a;
-   for(const g of shapes){
+   for(const g of candidates(a,b,70)){
     if(Math.max(a[0],b[0])+70<g.box[0]||Math.min(a[0],b[0])-70>g.box[2]||Math.max(a[1],b[1])+70<g.box[1]||Math.min(a[1],b[1])-70>g.box[3])continue;
-    let d=g.type==='Polygon'&&(inside(a,g.coords)||inside(b,g.coords))?0:Infinity;
-    for(let j=0;j<Math.max(1,g.coords.length-1);j++)d=Math.min(d,segmentDistance(a,b,g.coords[j],g.coords[j+1]||g.coords[j]));
+    const d=distance(a,b,g);
     if(d>70)continue;
     // A point/line is not an exact work-zone boundary: avoid a conservative 10m vicinity, labelled as such.
     const blocked=g.w.impact!=='clear'&&(g.type==='Polygon'?d<0.05:d<=10);
-    const old=hits.get(g.w.id);if(!old||d<old.distanceM||blocked&&!old.blocked)hits.set(g.w.id,{...g.w,geometries:undefined,distanceM:Math.round(d),blocked,match:g.type==='Polygon'?'area':'vicinity'});
+    const old=hits.get(g.w.id);if(!old||blocked&&!old.blocked||(blocked===old.blocked&&d<old.distanceM))hits.set(g.w.id,{id:g.w.id,address:g.w.address,start:g.w.start,end:g.w.end,hours:g.w.hours,longTerm:g.w.longTerm,impact:g.w.impact,plan:g.w.plan,geometry:g.geometry,distanceM:Math.round(d),blocked,match:g.type==='Polygon'?'area':'vicinity'});
    }
   }
   return {blocked:[...hits.values()].filter(w=>w.blocked),nearby:[...hits.values()],unmapped,sourceUpdatedAt:snapshot.sourceUpdatedAt,checkedAt:new Date(now).toISOString()};
  }
- return {inspect,allowed:line=>inspect(line).blocked.length===0};
+ function allowed(line){
+  const points=validPoints(line);
+  for(let i=0;i<Math.max(1,points.length-1);i++){
+   const a=points[i],b=points[i+1]||a;
+   for(const g of candidates(a,b,10)){
+    if(g.w.impact==='clear')continue;
+    if(Math.max(a[0],b[0])+10<g.box[0]||Math.min(a[0],b[0])-10>g.box[2]||Math.max(a[1],b[1])+10<g.box[1]||Math.min(a[1],b[1])-10>g.box[3])continue;
+    const d=distance(a,b,g);
+    if(g.type==='Polygon'?d<.05:d<=10)return false;
+   }
+  }
+  return true;
+ }
+ return {inspect,allowed};
 }

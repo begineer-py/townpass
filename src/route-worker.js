@@ -5,7 +5,7 @@ import { createOfficialRouteVerifier } from './verify-official-route.mjs';
 import {routeAroundConstruction,resolveVerifiedRoute} from './construction-routing.mjs';
 import {createConstructionChecker} from './construction.mjs';
 import {createDetourWaypoints} from './alternative-routes.mjs';
-import {createLocalRouteVerifier,planPlaces} from './local-route-verifier.mjs';
+import {createLocalRouteVerifier,planPlaces,diagnoseConstruction} from './local-route-verifier.mjs';
 let router, verifyOfficial, verifyLocal, facilities, initialization, detourWaypoints;
 function combineRoutes(a, b, viaName) {
   if (a.error) return a;
@@ -53,7 +53,7 @@ self.onmessage = async ({ data }) => {
           : JSON.parse(new TextDecoder().decode(bytes));
       validateNetwork(graph);
       const baseRouter=createRouter(graph);
-      router=(a,b,options={})=>baseRouter(a,b,{...options,approachAllowed:(p,n,side)=>verifyLocal.approachAllowed(p,n,side==='start'?options.startPlace:options.endPlace)});
+      router=(a,b,options={})=>baseRouter(a,b,{...options,approachAllowed:(p,n,side)=>verifyLocal.approachAllowed(p,n,side==='start'?options.startPlace:options.endPlace,options)});
       verifyOfficial = createOfficialRouteVerifier(graph);
       const fr=await fetch(new URL('./facilities.json.gz',data.url));if(!fr.ok)throw Error('facilities');
       const fb=new Uint8Array(await fr.arrayBuffer());facilities=JSON.parse(new TextDecoder().decode(fb[0]===31&&fb[1]===139?gunzipSync(fb):fb));
@@ -77,7 +77,13 @@ self.onmessage = async ({ data }) => {
       if (!router) throw Error("not ready");
       let checker;try{checker=createConstructionChecker(data.construction);}catch{postMessage({type:'route',id:data.id,result:{error:'CONSTRUCTION_UNAVAILABLE'}});return;}
       function leg(start,end){
-        const candidate=router(start,end,{...data.options,lineAllowed:checker.allowed});
+        const prefs={...data.options,lineAllowed:checker.allowed};
+        const candidate=router(start,end,prefs);
+        if(candidate.error){
+          if(['NO_ROUTE','NO_CONNECTION'].includes(candidate.error))
+            return diagnoseConstruction(start,end,prefs,data.construction,{router,verifyLocal,checker})||candidate;
+          return candidate;
+        }
         const checked=candidate.error?candidate:verifyLocal(candidate,start,end,data.options);
         return checked.error?checked:routeAroundConstruction({...checked,provider:'local-verified'},start,end,data.options,data.construction,{router,verifyOfficial,verifyLocal});
       }

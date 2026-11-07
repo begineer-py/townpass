@@ -1,6 +1,7 @@
+import { eligibleSharedRoad } from "./shared-road-policy.mjs";
 import { roadConnectorChecker } from "./geometry.mjs";
 import { officialGeometryEvidence } from "./supplemental-evidence.mjs";
-import {edgeTier,edgeCostFactor,ROUTE_TIERS} from "./route-tiers.mjs";
+import {edgeTier,edgeCostFactor,edgeCostDetails,ROUTE_TIERS} from "./route-tiers.mjs";
 export const ROUTING_POLICY = "pedestrian-evidence-v4";
 // Building entrances sit back from the mapped footway. 50m reaches a sidewalk;
 // the approach is still rejected when it crosses a vehicle way outside a crossing.
@@ -43,8 +44,11 @@ export class MinHeap {
 }
 export function edgeAllowed(way, options = {}, evidence = null) {
   // Safety constraints cannot be relaxed by UI options or old stored preferences.
-  if (!["footway", "path", "pedestrian", "corridor"].includes(way.highway))
+  const sharedRoad = eligibleSharedRoad(way, evidence);
+  if ((way.source === "osm-shared-street" || evidence?.sharedRoad === true) && !sharedRoad) return false;
+  if (!sharedRoad && !["footway", "path", "pedestrian", "corridor"].includes(way.highway))
     return false;
+  if (sharedRoad && options.officialOnly) return false;
   if(way.isConnector && (way.source!=='official-polygon-connector' || evidence?.connectorVerified!==true || !Number.isFinite(evidence.connectorLength) || evidence.connectorLength<=0 || evidence.connectorLength>3 || evidence.coverage<.9999 || evidence.maxUncoveredMetres>.0001))return false;
   if (
     evidence?.schemaVersion !== 2 ||
@@ -73,7 +77,7 @@ export function edgeAllowed(way, options = {}, evidence = null) {
       (way.level != null && !((mappedBridge?['0','1']:['0']).includes(String(way.level))))) return false;
   if (way.wheelchair === "no") return false;
   if (
-    way.sidewalk === "no" &&
+    !sharedRoad && way.sidewalk === "no" &&
     [
       "primary",
       "primary_link",
@@ -266,24 +270,35 @@ export function createRouter(graph) {
     es.reverse();
     let length = 0,
       unknown = 0,
+      unknownWidth = 0,
+      unknownSlope = 0,
       crossings = 0,
       roadLength = 0,
       officialLength = 0,
       previousBearing = null;
     const steps = [];
+    // Costs are relative search preferences, not a safety score. Known hard
+    // exclusions are still applied before a candidate reaches this point.
+    const approachDistance=s.distance+t.distance;
+    const costBreakdown={base:approachDistance,source:0,unknown:0,surface:0,width:0,slope:0,crossing:0,avoidPoint:0,entrance:approachDistance*(ROUTE_TIERS.connector.factor-1)};
     es.forEach((ei, k) => {
       const e = graph.edges[ei],
         w = graph.ways[e[3]];
       length += e[2];
       officialLength += e[2] * (e[5]?.coverage ?? 0);
       if (w.width == null || w.slope == null) unknown += e[2];
+      if (w.width == null) unknownWidth += e[2];
+      if (w.slope == null) unknownSlope += e[2];
+      const detail=edgeCostDetails(w,e[5],options);
+      for(const key of ['base','source','unknown','surface','width','slope','crossing'])costBreakdown[key]+=detail[key]*e[2];
+      const mid=[(graph.nodes[e[0]][0]+graph.nodes[e[1]][0])/2,(graph.nodes[e[0]][1]+graph.nodes[e[1]][1])/2];
+      if(options.avoidPoints?.some(p=>metres(mid,p)<=25))costBreakdown.avoidPoint+=edgeCostFactor(w,e[5],options)*7*e[2];
       if (w.crossing) crossings++;
       if (
         ![
           "footway",
           "path",
           "pedestrian",
-          "living_street",
           "corridor",
         ].includes(w.highway)
       )
@@ -310,6 +325,9 @@ export function createRouter(graph) {
         last &&
         last.name === w.name &&
         last.crossing === w.crossing &&
+        last.unknown === (w.width == null || w.slope == null) &&
+        last.roughSurface === (detail.surface > 0) &&
+        last.sharedRoad === (w.source === "osm-shared-street") &&
         turn === "直行"
       )
         last.distance += e[2];
@@ -323,6 +341,8 @@ export function createRouter(graph) {
           lon: a[1],
           crossing: w.crossing,
           unknown: w.width == null || w.slope == null,
+          roughSurface: detail.surface > 0,
+          sharedRoad: w.source === "osm-shared-street",
           highway: w.highway,
         });
       previousBearing = bearing(middle.at(-1) || a, b);
@@ -339,12 +359,16 @@ export function createRouter(graph) {
     const tierSegments=[];
     es.forEach((ei,k)=>{
       const e=graph.edges[ei],tier=edgeTier(e[5]),middle=e[0]===path[k] ? e[4]||[] : [...(e[4]||[])].reverse();
+      const way=graph.ways[e[3]],unknownWidth=way.width==null,unknownSlope=way.slope==null,roughSurface=edgeCostDetails(way,e[5],options).surface>0,sharedRoad=way.source==="osm-shared-street";
       const coords=[graph.nodes[path[k]].slice(0,2),...middle,graph.nodes[path[k+1]].slice(0,2)],last=tierSegments.at(-1);
-      if(last?.tier===tier){last.coordinates.push(...coords.slice(1));last.distance+=e[2];}else tierSegments.push({tier,coordinates:coords,distance:e[2]});
+      if(last?.tier===tier && last.unknownWidth===unknownWidth && last.unknownSlope===unknownSlope && last.roughSurface===roughSurface && last.sharedRoad===sharedRoad){last.coordinates.push(...coords.slice(1));last.distance+=e[2];}else tierSegments.push({tier,unknownWidth,unknownSlope,roughSurface,sharedRoad,coordinates:coords,distance:e[2]});
     });
     return {
       policyVersion: ROUTING_POLICY,
       weightedCost:bestTotal,
+      costBreakdown,
+      unknownWidthMetres:unknownWidth,
+      unknownSlopeMetres:unknownSlope,
       tierSegments,
       edgeIds: es,
       nodeIds: path,

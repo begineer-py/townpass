@@ -193,3 +193,44 @@ test("tier weighting can choose a much shorter OSM path without claiming known s
   assert.equal(createRouter(graph)(g.nodes[0],g.nodes[1],{officialOnly:true}).distance,64);
   assert.equal(result.unknownPct, 100);
 });
+
+test("a nearby elevator maintenance point makes the router take the longer sidewalk", () => {
+  const proof = {
+    schemaVersion: 2,
+    coverage: 1,
+    maxUncoveredMetres: 0,
+    crossingCoverage: 0,
+    roadCrossingVerified: true,
+    crossingVerified: true,
+  };
+  const nodes = [
+    [25, 121.5, 0],
+    [25.00015, 121.5, 0],
+    [25.0004, 121.5, 0],
+    [25, 121.5004, 0],
+    [25.0004, 121.5004, 0],
+  ];
+  const graph = {
+    officialPathEvidence: { schemaVersion: 2 },
+    roadGeometries: [],
+    officialCrossingAreas: [],
+    nodes,
+    ways: [
+      { name: "近", highway: "footway", width: 2, slope: 0 },
+      { name: "遠", highway: "footway", width: 2, slope: 0 },
+    ],
+    edges: [
+      [0, 1, 17, 0, [], proof],
+      [1, 2, 28, 0, [], proof],
+      [0, 3, 40, 1, [], proof],
+      [3, 4, 45, 1, [], proof],
+      [4, 2, 40, 1, [], proof],
+    ],
+  };
+  const route = createRouter(graph);
+  assert.equal(route(nodes[0], nodes[2]).distance, 45);
+  assert.equal(
+    route(nodes[0], nodes[2], { avoidPoints: [nodes[1]] }).distance,
+    125,
+  );
+});

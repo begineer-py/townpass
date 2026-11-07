@@ -52,7 +52,8 @@ import {
   Phone,
 } from "lucide-react";
 import MapView from "./MapView";
-import {ROUTE_TIERS} from "./route-tiers.mjs";
+import {ROUTE_CONDITIONS, conditionForSegment} from "./route-conditions.mjs";
+import {TPColors} from "./tp-colors.mjs";
 import VoiceSearch from "./VoiceSearch";
 import {searchVerifiedAlternatives} from "./alternative-routes.mjs";
 import {fetchConstruction} from "./construction-client.mjs";
@@ -78,10 +79,9 @@ import {
   saveLocal,
 } from "./data";
 import { getLocation, locationError } from "./location";
-import { townPassUserKey } from "./townpass-bridge";
+import { townPassUserKey, hasTownPass, sendToTownPass } from "./townpass-bridge";
 import { travelProfiles } from "./travel-profiles";
 import { loadProfile, loadTrips, saveProfile, saveTrips } from "./local-database";
-import { sendToTownPass } from "./bridge";
 import {
   IDENTITIES,
   DEMOS,
@@ -95,7 +95,7 @@ import {
 } from "./trip-extras.mjs";
 import { addressSearch, landmarkSearch } from "./address-search";
 import { matchStationLandmark } from "./search-station.mjs";
-import { maintenanceText, sourceCountLabel, stationKey, stepText } from "./format.mjs";
+import { maintenanceText, sourceCountLabel, stationKey, stepText, stepConditions } from "./format.mjs";
 const icons = {
   elevator: ArrowUpFromLine,
   toilet: Toilet,
@@ -285,7 +285,7 @@ export default function App() {
   const [showMapFacilities, setShowMapFacilities] = useState(false);
   const needsData =
     showMapFacilities ||
-    (tab !== null && tab !== "saved") ||
+    tab !== "saved" ||
     modal === "sources" ||
     Boolean(searchFor);
   const waitingForData = needsData && !data && !loadError;
@@ -505,6 +505,7 @@ export default function App() {
         setRouting(false);
         if (d.result.error || d.result.policyVersion !== ROUTING_POLICY) {
           clearRoute();
+          setConstructionConflict(d.result.construction || null);
           setRouteError(d.result.error || "UNVERIFIED_NETWORK");
         } else {
           window.speechSynthesis?.cancel();
@@ -808,17 +809,16 @@ export default function App() {
   async function openPhoneMap() {
     if (!start || !end) return;
     const url = mapLink(start, end);
-    if (!window.flutterObject) window.open(url, "_blank", "noopener");
-    else await sendToTownPass("launch_map", url);
+    window.open(url, "_blank", "noopener");
   }
   async function callNumber(number) {
-    if (!window.flutterObject) window.location.href = `tel:${number}`;
+    if (!hasTownPass()) window.location.href = `tel:${number}`;
     else await sendToTownPass("phone_call", number);
   }
   async function reportBlockage() {
-    if (!window.flutterObject)
+    if (!hasTownPass())
       announce("路障回報要在台北通裡同意後送出。你也可以撥 1999。");
-    else await sendToTownPass("agree1999", true);
+    else await sendToTownPass("1999agree", true);
   }
   const essential = new Set([
     "elevator",
@@ -959,7 +959,7 @@ export default function App() {
       route.policyVersion !== ROUTING_POLICY
     )
       return;
-    const text = `從${start.name}前往${end.name}，路線長約${formatDistance(route.distance)}。${route.approaches?.some(p=>p.estimated) ? "電梯出口連接為位置估算，請先確認現場入口。" : ""}${route.steps.map((s) => `${stepText(s)}約${Math.round(s.distance)}公尺。`).join("")}路況仍需留意現場，這是路線預覽。`;
+    const text = `從${start.name}前往${end.name}，路線長約${formatDistance(route.distance)}。${route.approaches?.some(p=>p.estimated) ? "捷運出口銜接為直線位置估算，通行狀況未確認，請先確認現場。" : ""}${route.steps.map((s) => `${stepText(s)}約${Math.round(s.distance)}公尺。${stepConditions(s) ? stepConditions(s)+'。' : ''}`).join("")}路況仍需留意現場，這是路線預覽。`;
     speakText(text);
   }
   function speakText(text) {
@@ -1004,7 +1004,7 @@ export default function App() {
       return;
     const text = `好好走｜${start.name} → ${end.name}\n約 ${formatDistance(route.distance)}\n${route.steps
       .slice(0, 20)
-      .map((s) => `${s.name} ${Math.round(s.distance)}公尺`)
+      .map((s) => `${s.name} ${Math.round(s.distance)}公尺${stepConditions(s) ? `（${stepConditions(s)}）` : ''}`)
       .join("\n")}\n路線依公開路網規劃，部分通行條件尚未確認，請留意現場。`;
     try {
       if (navigator.share)
@@ -1395,6 +1395,7 @@ export default function App() {
                         <ArrowUpFromLine size={18} aria-hidden="true"/><span>{which==='start'?'出發地改為':'目的地改為'} {cleanName(p.name)}<small>距原選點約 {formatDistance(p.gap)}</small></span><ChevronRight size={18} aria-hidden="true"/>
                       </button>)}
                     </div>}
+                    {constructionConflict?.blocked?.length > 0 && <p>地圖已標出影響路線的施工位置；點線位置的周邊範圍是估計，並非精確封閉邊界。</p>}
                     {constructionConflict?.blocked?.slice(0,3).map(w => <p key={w.id}>{w.address}：{w.match === 'vicinity' ? '鄰近影響通行的施工位置' : '與影響通行的施工範圍交會'}。{w.plan}</p>)}
                     {(retryWithEntrance || ["OFFICIAL_OUTSIDE_COVERAGE", "OFFICIAL_INVALID_POINTS", "OFFICIAL_ENTRY_UNVERIFIED", "OFFICIAL_PATH_UNVERIFIED", "OFFICIAL_ROAD_CONFLICT", "OFFICIAL_CROSSING_UNVERIFIED", "CONSTRUCTION_BLOCKED"].includes(routeError)) && (
                       <div className="route-tools">
@@ -1421,8 +1422,17 @@ export default function App() {
                     {route.viaName && (
                       <p className="quiet-note">順路停靠：{route.viaName}</p>
                     )}
-                    {route.approaches?.some(p=>p.estimated) && <p className="quiet-note">電梯出口與人行路網銜接約 {route.approaches.filter(p=>p.estimated).map(p=>p.distance).join('／')} 公尺（位置估算，請確認現場入口）。</p>}
-                    {route.tierSegments?.length>0 && <div className="route-key" aria-label="路段圖例">{Object.entries(ROUTE_TIERS).map(([key,tier])=><span key={key}><svg width="25" height="12" aria-hidden="true"><line x1="1" y1="6" x2="24" y2="6" stroke={tier.color} strokeWidth="3" strokeDasharray={tier.dash}/></svg>{tier.label}</span>)}</div>}
+                    {route.approaches?.some(p=>p.estimated) && <p className="quiet-note">捷運出口與人行路網銜接約 {route.approaches.filter(p=>p.estimated).map(p=>p.distance).join('／')} 公尺；虛線為直線位置估算，通行狀況未確認，請確認現場。</p>}
+                    <div className="route-key" aria-label="路段狀況圖例">
+                      {[...new Set([...(route.tierSegments?.length ? route.tierSegments.map(conditionForSegment) : ['unknown']), ...(route.approaches?.length ? ['approach'] : [])])].map(key => {
+                        const condition = ROUTE_CONDITIONS[key];
+                        return <span key={key}><svg width="32" height="12" aria-hidden="true"><line x1="1" y1="6" x2="31" y2="6" stroke={prefs.colorFriendly ? TPColors.primary900 : condition.color} strokeWidth="3" strokeDasharray={condition.dash}/></svg>{condition.label}</span>;
+                      })}
+                    </div>
+                    <p className="quiet-note">線條反映已知資料，實際路況請留意現場。</p>
+                    {route.tierSegments?.some(segment => segment.sharedRoad === true) && (
+                      <div className="notice" role="note"><AlertTriangle aria-hidden="true"/><p>路線包含可能人車共行的道路；步行許可、通行條件與無障礙狀況未確認。請留意車輛，依現場標示與狀況判斷是否通行。</p></div>
+                    )}
                     <div className="route-summary">
                       <div>
                         <span className="eyebrow">路線預覽</span>
@@ -1437,7 +1447,8 @@ export default function App() {
                         <Footprints size={32} />
                       </span>
                     </div>
-                    {route.unknownPct > 0 && <p className="quiet-note">路寬／坡度：尚無完整資料</p>}
+                    {route.costBreakdown && <p className="quiet-note">這條路依距離、路況資料、坡度與寬度等條件綜合比較；資料未知不代表無障礙。</p>}
+                    {route.unknownPct > 0 && <p className="quiet-note">路寬／坡度：尚無完整資料{Number.isFinite(route.unknownWidthMetres) && Number.isFinite(route.unknownSlopeMetres) ? `（路網中約 ${Math.round(route.unknownWidthMetres)} 公尺寬度未知、${Math.round(route.unknownSlopeMetres)} 公尺坡度未知）` : ''}。</p>}
                     {!route.approaches && !route.requiresEntryConfirmation && (route.startGap > 10 || route.endGap > 10) && (
                       <p className="quiet-note">
                         起點距路網約 {route.startGap} 公尺，終點距路網約{" "}
@@ -1523,10 +1534,7 @@ export default function App() {
                               <b>{stepText(s)}</b>
                               <small>
                                 約 {formatDistance(s.distance)}
-                                {s.unknown &&
-                                !route.geometryVerification
-                                  ? " · 通行條件待確認"
-                                  : ""}
+                                {stepConditions(s) ? ` · ${stepConditions(s)}` : ''}
                               </small>
                             </span>
                           </button>
@@ -1715,6 +1723,7 @@ export default function App() {
             colorFriendly={prefs.colorFriendly}
             onBasemapStatus={setBasemapStatus}
             route={tab ? route : null}
+            constructionConflict={tab ? constructionConflict : null}
             start={tab ? start : null}
             end={tab ? end : null}
             location={currentLocation}

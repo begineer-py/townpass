@@ -1,4 +1,7 @@
 """Build small mobile payloads and lazy address shards from verified downloads."""
+# This legacy packer collapses edges without retaining schema-2 route evidence
+# and overwrites supplemental facilities. Stop before *any* output is touched.
+raise SystemExit('Legacy data:pack is disabled: it removes route safety evidence and supplemental facilities. See handbook/apis/tiered-routing.md for the current graph pipeline.')
 from pathlib import Path
 import json,gzip,hashlib,re
 from collections import defaultdict

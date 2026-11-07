@@ -67,12 +67,9 @@ python -m venv .venv
 
 ```sh
 curl -L --fail --retry 3 -C - -o data/raw/taiwan.osm.pbf https://download.geofabrik.de/asia/taiwan-latest.osm.pbf
-.venv/Scripts/python scripts/build_graph.py
-.venv/Scripts/python scripts/pack_data.py
-.venv/Scripts/python scripts/integrate_official_paths.py
-npm test
-npm run build
 ```
+
+舊的 `scripts/pack_data.py` 已停用：它會覆蓋增補設施並刪除路網的安全證據。現行路網更新與驗證步驟見[分級權重與接點搜尋](apis/tiered-routing.md)；在完成全流程及檢查前不要替換已驗證的正式資料。
 
 維修預排 resource ID 隨月份變更，更新前應核對資料集最新資源。不要把 manifest 的取得時間稱作現場調查時間。更新來源後重新 build，Service Worker 的版本會跟著資料變更。
 
@@ -166,6 +163,22 @@ npm run build
 
 本機結果改以實際edgeIds/nodeIds重建幾何驗證，檢查獨立人行道路型態、過街證據、階梯／障礙／樓層及使用者條件，車道不能因圖資缺漏被放行。OSM明確人行線不再因另一份官方面未完整覆蓋而整段拒絕；官方API候選仍走原有面驗證。
 
-一般選點到路網的銜接仍需人行面及完整車道交會檢查；只有對得上官方捷運電梯ID與座標的入口，允許15公尺內、未跨車道的短距離位置銜接。這是估算，不是完整鋪面或路緣現勘；畫成虛線，摘要及朗讀明示。刪除先前略過銜接末端1.5公尺的檢查方式。
+一般選點到路網的銜接仍需人行面及完整車道交會檢查；只有對得上已收錄捷運出口 ID 與座標的入口，允許 50 公尺內、未跨未驗證車道的位置估算銜接。這是直線估算，通行狀況未確認，不代表有鋪面、坡道或無障礙條件；畫成虛線，摘要及朗讀明示。限制已知條件模式不接受未覆蓋的估算銜接，施工檢查仍涵蓋整段入口線。
 
 目前台北車站R10至善導寺BL13測得M4電梯至3號出口電梯約1156公尺；無一般車道邊，施工通報比對未命中。入口估算約5／11公尺，完整坡度與淨寬仍缺值，不能稱為全程輪椅認證。其他臺北地點仍需逐例驗證，不宣稱任意室內／封閉場所皆可連接。
+
+## 人車共道路網重建
+
+候選道路涵蓋 OSM 的 `living_street`、`residential`、`unclassified`、`service` 地面道路。後三者並不證明步行權利或有人行道，僅作為「可能人車共行、通行條件未確認」的路線；路寬、坡度及即時障礙同樣未知，不能視為輪椅可通行保證。路由優先既有人行路段；明確禁行、私人通道、已知障礙、橋隧、無法解析的步行條件及無法確認的高等級道路交會均排除。
+
+若重新建立或更新 `public/data/graph.json.gz`，需使用相同的 OSM PBF 更新候選並再次整合：
+
+```powershell
+.\.venv\Scripts\python.exe scripts\extract_shared_candidates.py
+.\.venv\Scripts\python.exe scripts\integrate_shared_roads.py
+.\.venv\Scripts\python.exe tests\shared_road_rules_test.py
+npm test
+npm run build
+```
+
+整合腳本只依原始 OSM 節點編號建立連接，不因座標相近自行連接；與其他車道交會須在官方行穿區內，或與另一條合格候選道路共用原始端點。共用節點只表示資料拓樸，不證明路口可安全過街。候選資料不是現場通行保證；施工封閉仍由現有檢查排除。可用環境變數 `TOWNPASS_OSM_PBF` 指定 PBF 檔；Windows pyosmium 在部分環境無法讀取中文路徑時，可在工作區以 ASCII 路徑建立唯讀硬連結。

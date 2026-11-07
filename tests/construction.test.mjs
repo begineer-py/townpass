@@ -7,8 +7,18 @@ const work=(patch={})=>({id:'x',address:'test',start:'115/11/07',end:'115/11/07'
 const snapshot=works=>({schemaVersion:1,fetchedAt:new Date(now).toISOString(),sourceUpdatedAt:new Date(now).toISOString(),works});
 test('full long segment catches mid-route work site without sampling vertices',()=>{
  const check=createConstructionChecker(snapshot([work()]),now);
- assert.equal(check.inspect([[25,121.5],[25,121.502]]).blocked.length,1);
+ const result=check.inspect([[25,121.5],[25,121.502]]);
+ assert.equal(result.blocked.length,1);
+ assert.deepEqual(result.blocked[0].geometry,work().geometries[0]);
+ assert.equal(result.blocked[0].match,'vicinity');
  assert.equal(check.inspect([[25.001,121.5],[25.001,121.502]]).blocked.length,0);
+});
+test('matched display geometry keeps blocking precedence and excludes arbitrary contact fields',()=>{
+ const c=createConstructionChecker(snapshot([work({phone:'secret',geometries:[{type:'Point',coordinates:[[25,121.501]]},{type:'Point',coordinates:[[25.0002,121.501]]}]})]),now);
+ const result=c.inspect([[25,121.5],[25,121.502]]);
+ assert.equal(result.blocked.length,1);
+ assert.equal(result.blocked[0].geometry.coordinates[0][0],25);
+ assert.ok(!JSON.stringify(result).includes('secret'));
 });
 test('polygon containment, boundary crossing and zero-length entrance are inspected',()=>{
  const w=work({geometries:[{type:'Polygon',coordinates:[[25,121.5],[25,121.502],[25.001,121.502],[25.001,121.5],[25,121.5]]}]});
