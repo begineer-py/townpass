@@ -12,6 +12,11 @@ export function maintenanceText(row) {
     .replace("N(夜保)", "夜間保養");
   return `${date} · ${where} · ${period}`;
 }
+export function sourceCountLabel(source) {
+  if (source?.status !== "ok") return "目前未取得資料";
+  if (!Number.isFinite(source.count)) return "筆數未提供";
+  return `${source.count.toLocaleString()} 筆來源紀錄`;
+}
 export const stationKey = (s) =>
   String(s || "")
     .replace(/臺/g, "台")
@@ -29,3 +34,4 @@ export const stepText = (s) =>
   s.crossing
     ? "經行穿線通過路口"
     : `${s.turn && s.turn !== "直行" ? s.turn + "，" : ""}沿${s.name}前行`;
+export const stepConditions = s => [s.roughSurface && '路面可能較顛簸', s.unknown && '寬度或坡度未知'].filter(Boolean).join('，');

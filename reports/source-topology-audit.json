@@ -1,0 +1,5 @@
+{
+  "checkedEdges": 232980,
+  "nonconsecutiveEdgesRemoved": 6,
+  "method": "original OSM way ID and consecutive node IDs"
+}
