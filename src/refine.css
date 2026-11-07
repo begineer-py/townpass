@@ -378,6 +378,38 @@ button.icon-action {
 .point-fields hr {
   border-color: color-mix(in srgb, var(--tp-grayscale950) 8%, transparent);
 }
+.point-fields .point-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+}
+.point-fields .point-row + .point-row {
+  border-top: 0.5px solid color-mix(in srgb, var(--tp-grayscale950) 10%, transparent);
+}
+.point-fields .point-row button {
+  border: 0;
+}
+.point-fields .point-main {
+  min-width: 0;
+}
+.point-fields .point-shortcut {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: auto;
+  min-width: 96px;
+  min-height: 54px;
+  padding: 8px;
+  border-left: 0.5px solid color-mix(in srgb, var(--tp-grayscale950) 10%, transparent);
+  color: var(--tp-primary700);
+  font-size: 14px;
+  font-weight: var(--tp-text-bodySemiBold-weight);
+  white-space: nowrap;
+}
+.point-fields .point-shortcut[aria-pressed="true"] {
+  background: var(--tp-primary50);
+}
 .swap {
   background: var(--tp-white);
   border-radius: 50%;
@@ -997,4 +1029,15 @@ button.icon-action {
   font-weight: 700;
   line-height: 1;
   box-shadow: 0 2px 6px color-mix(in srgb, var(--tp-grayscale950) 24%, transparent);
+}
+
+.pick-prompt button {
+  min-width: 44px;
+  min-height: 44px;
+}
+@media (max-width: 700px) {
+  .workspace[data-sheet="0"] .pick-prompt {
+    top: auto;
+    bottom: calc(24dvh + var(--nav-h) + 12px);
+  }
 }

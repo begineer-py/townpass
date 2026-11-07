@@ -1145,20 +1145,50 @@ export default function App() {
                     <i />
                   </span>
                   <div className="point-fields">
-                    <button
-                      onClick={() => openSearch("start")}
-                      aria-label="選擇出發地"
-                    >
-                      <small>從哪裡出發</small>
-                      <strong>{start?.name || "選擇出發地"}</strong>
-                    </button>
-                    <button
-                      onClick={() => openSearch("end")}
-                      aria-label="選擇目的地"
-                    >
-                      <small>想去哪裡</small>
-                      <strong>{end?.name || "選擇目的地"}</strong>
-                    </button>
+                    <div className="point-row">
+                      <button
+                        className="point-main"
+                        onClick={() => openSearch("start")}
+                        aria-label="選擇出發地"
+                      >
+                        <small>從哪裡出發</small>
+                        <strong>{start?.name || "選擇出發地"}</strong>
+                      </button>
+                      <button
+                        className="point-shortcut"
+                        aria-label="使用目前位置作為出發地"
+                        onClick={() => locate("start")}
+                        disabled={locating}
+                      >
+                        <LocateFixed size={19} aria-hidden="true" />
+                        <span>{locating ? "定位中" : "目前位置"}</span>
+                      </button>
+                    </div>
+                    <div className="point-row">
+                      <button
+                        className="point-main"
+                        onClick={() => openSearch("end")}
+                        aria-label="選擇目的地"
+                      >
+                        <small>想去哪裡</small>
+                        <strong>{end?.name || "選擇目的地"}</strong>
+                      </button>
+                      <button
+                        className="point-shortcut"
+                        aria-label="在地圖上選擇目的地"
+                        aria-pressed={pick === "end"}
+                        onClick={() => {
+                          setPick("end");
+                          setSheetSnap(0);
+                          announce("請在地圖上點選目的地。", {
+                            quiet: true,
+                          });
+                        }}
+                      >
+                        <MapPin size={19} aria-hidden="true" />
+                        <span>地圖選點</span>
+                      </button>
+                    </div>
                   </div>
                   <button
                     className="icon-button swap"
@@ -1172,33 +1202,6 @@ export default function App() {
                     }}
                   >
                     <ArrowUpDown size={20} />
-                  </button>
-                </div>
-                <div className="point-actions">
-                  <button
-                    className="text-button"
-                    aria-label="從我的位置出發"
-                    onClick={() => locate("start")}
-                    disabled={locating}
-                  >
-                    <LocateFixed size={20} aria-hidden="true" />
-                    從我的位置出發
-                  </button>
-                  <button
-                    className="text-button"
-                    aria-label="在地圖選點"
-                    onClick={() => {
-                      setPick(start ? "end" : "start");
-                      announce(
-                        start
-                          ? "請在地圖上點選目的地。"
-                          : "請在地圖上點選出發地。",
-                        { quiet: true },
-                      );
-                    }}
-                  >
-                    <MapPin size={20} aria-hidden="true" />
-                    在地圖選點
                   </button>
                 </div>
                 <div className="preference-bar">
@@ -1763,7 +1766,7 @@ export default function App() {
             </button>
           </div>
           {pick && (
-            <div className="pick-prompt">
+            <div className="pick-prompt" role="status" aria-live="polite">
               <MapPin size={19} />
               <span>
                 點一下地圖，選擇{pick === "start" ? "出發地" : "目的地"}
