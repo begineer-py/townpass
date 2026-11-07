@@ -110,7 +110,7 @@ const basePrefs = {
   minWidth: 0.8,
   maxSlope: 8,
   knownOnly: false,
-  officialOnly: true,
+  officialOnly: false,
   preferOfficial: true,
   mode: "balanced",
   largeText: false,
@@ -211,7 +211,7 @@ export default function App() {
       ...basePrefs,
       ...readSaved("hhz-preferences", {}),
       avoidSteps: true,
-      officialOnly: true,
+      officialOnly: false,
     }));
   const [saved, setSaved] = useState(() => readSaved("hhz-saved", [])),
     [trips, setTrips] = useState(() => readSaved("hhz-trips", []));
@@ -435,7 +435,7 @@ export default function App() {
     request.current++;
     setRouting(false);
     clearRoute();
-    setPrefs({ ...prefs, ...patch, avoidSteps: true, officialOnly: true });
+    setPrefs({ ...prefs, ...patch, avoidSteps: true, officialOnly: false });
   }
   function toggleSave(p) {
     const next = saved.some((x) => x.id === p.id)
@@ -1112,7 +1112,7 @@ export default function App() {
                             ...basePrefs,
                             ...t.prefs,
                             avoidSteps: true,
-                            officialOnly: true,
+                            officialOnly: false,
                           });
                           setTab("plan");
                           setRouteError("");
@@ -1652,7 +1652,7 @@ export default function App() {
             />
           </label>
           <p className="quiet-note">
-            路線一律不走車道與階梯，全段須有官方人行空間圖資。
+            路線不走車道與階梯。有市府人行空間圖資的路段會優先。
           </p>
           <button className="primary full" onClick={() => setModal(null)}>
             完成
@@ -1748,9 +1748,7 @@ export default function App() {
             </a>
           </div>
           <p className="quiet-note">
-            輪行臺北部分寬度值與文件單位有疑義，尚未用於路線寬度判定。路線目前依
-            OSM
-            已記載屬性篩選，且僅接受符合官方人行空間與過街證據檢查的獨立人行路段。圖資重疊不代表現場通行認證。
+            輪行臺北部分寬度值與文件單位有疑義，尚未用於路線寬度判定。路線只走獨立標示的人行路段，不把車道當路；過街只沿標成行穿線的路段，或落在官方行穿線範圍內的路段。圖資重疊不代表現場已確認可通行。
           </p>
         </Sheet>
       )}

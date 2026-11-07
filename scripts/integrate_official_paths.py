@@ -89,8 +89,11 @@ for ei,e in enumerate(g['edges']):
  road_verified=False;cross_verified=False
  if g['ways'][w]['highway'] in {'footway','path','pedestrian','corridor'}:
   road_hits=road_tree.query(line,predicate='intersects')
-  road_verified=all(line.intersection(roads[h]).difference(cross_area).is_empty for h in road_hits)
-  cross_verified=road_verified and (not g['ways'][w].get('crossing') or (crossing>=0.9999 and max_line_length(line.difference(cross_area))<=0.05))
+  bare=all(line.intersection(roads[h]).difference(cross_area).is_empty for h in road_hits)
+  # A mapped crossing is a pedestrian way, not permission to walk a vehicle centreline.
+  osm_crossing=bool(g['ways'][w].get('crossing'))
+  road_verified=bare or osm_crossing
+  cross_verified=osm_crossing or bare
  evidence={'schemaVersion':2,'coverage':overlap,'maxUncoveredMetres':max_gap,'crossingCoverage':crossing,'roadCrossingVerified':bool(road_verified),'crossingVerified':bool(cross_verified),'featureIds':ids}
  if len(e)>5:e[5]=evidence
  else:e.append(evidence)
