@@ -11,7 +11,7 @@ export default function ReferenceRouteResult({status,route,candidates=[],selecte
  const lines=status==='ready'?referenceRouteLines(displayed,{start,end}):[];
  if(status==='ready'&&lines.length&&!showCandidates&&!showSelectedNotice&&!showLegend&&(!comparisonStatus||comparisonStatus==='complete'))return null;
  return <section className={`reference-route-result${showCandidates?'':' reference-route-result--compact'}`} aria-label="替代路線" role="status">
-  {(showCandidates||status!=='ready')&&<div className="reference-route-result__heading"><strong>{showCandidates?'替代路線':'路線資料'}</strong><button type="button" onClick={onClose}>關閉</button></div>}
+  {(showCandidates||status!=='ready')&&<div className="reference-route-result__heading"><strong>{showCandidates?'選擇路線':'路線資料'}</strong><button type="button" onClick={onClose}>關閉</button></div>}
   {status==='loading'?<p>正在尋找路線…</p>:lines.length?<>
     {showCandidates && summaries.some(summary=>summary.hasUnknown && !summary.concern.includes('資料不足')) && <p className="route-choice__note">部分路況資料不足</p>}
     {showCandidates && choices.map((candidate,index)=><RouteChoice key={candidate.id} number={index+1} distance={candidate.route.distanceMetres} summary={summaries[index]} selected={selected===candidate.id} onClick={()=>onSelect(candidate)}/>)}

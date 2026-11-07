@@ -55,6 +55,12 @@ export async function getLocation(){
 export function watchLocation(onPosition,onError){
  let active=true,timer=null,watchId=null;
  const fail=error=>{if(active){active=false;if(watchId!=null)globalThis.navigator?.geolocation?.clearWatch?.(watchId);clearTimeout(timer);onError(error);}};
+ const fake=devLocation();
+ if(fake){
+  const poll=()=>{if(!active)return;onPosition({...fake,timestamp:Date.now()});if(active)timer=setTimeout(poll,15000);};
+  queueMicrotask(poll);
+  return ()=>{active=false;clearTimeout(timer);};
+ }
  if(hasTownPass()){
   const poll=async()=>{try{const p=await getLocation();if(!active)return;onPosition(p);timer=setTimeout(poll,15000);}catch(error){fail(error);}};
   void poll();
