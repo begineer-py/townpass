@@ -27,6 +27,7 @@ strong {
 }
 body {
   margin: 0;
+  overscroll-behavior: none;
 }
 button,
 input,
@@ -396,6 +397,37 @@ small {
   box-shadow: 0 1px 4px color-mix(in srgb, var(--tp-black) 20%, transparent);
 }
 .map-menu-button:hover {
+  background: var(--accent-surface);
+}
+.map-search-button {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 450;
+  width: min(480px, calc(100% - 220px));
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px;
+  border: 1px solid var(--tp-grayscale200);
+  border-radius: 10px;
+  background: var(--tp-white);
+  color: var(--tp-grayscale600);
+  text-align: left;
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--tp-black) 20%, transparent);
+}
+.map-search-button svg {
+  color: var(--action);
+  flex-shrink: 0;
+}
+.map-search-button span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.map-search-button:hover {
   background: var(--accent-surface);
 }
 .map-controls {
@@ -925,6 +957,12 @@ small {
   color: var(--ink);
   background: var(--paper);
 }
+.profile-select select {
+  flex: 1;
+}
+.profile-note {
+  margin-bottom: 16px;
+}
 .search-options {
   display: flex;
   gap: 10px;
@@ -1408,9 +1446,20 @@ small {
 }
 @media (max-width: 700px) {
   .map-controls {
-    top: 48px;
+    top: 74px;
     right: 10px;
     padding: 2px;
+  }
+  .map-search-button {
+    top: 12px;
+    left: 12px;
+    right: 12px;
+    transform: none;
+    width: auto;
+  }
+  .map-menu-button {
+    top: 74px;
+    left: 12px;
   }
   .map-controls button {
     min-width: 44px;
@@ -1447,13 +1496,16 @@ small {
 .search-launch,
 .endpoints,
 .primary,
-.secondary,
+.secondary {
+  border-radius: 10px;
+  box-shadow: none;
+}
 .notice,
 .station-description,
 .empty-card,
 .trip-card,
 .journey-banner {
-  border-radius: 5px;
+  border-radius: 12px;
   box-shadow: none;
 }
 .search-launch,

@@ -20,6 +20,7 @@ export default function MapView({
   route,
   start,
   end,
+  location,
   focus,
   pick,
   basemap = "street",
@@ -193,6 +194,16 @@ export default function MapView({
   useEffect(() => {
     if (!ends.current) return;
     ends.current.clearLayers();
+    if (location) {
+      const marker = L.circleMarker([location.lat, location.lon], {
+        radius: 7,
+        color: TPColors.white,
+        weight: 3,
+        fillColor: TPColors.red500,
+        fillOpacity: 1,
+      }).addTo(ends.current);
+      marker.bindTooltip("目前位置", { direction: "top" });
+    }
     [start, end].forEach((p, i) => {
       if (!p) return;
       const marker = L.marker([p.lat, p.lon], {
@@ -207,7 +218,7 @@ export default function MapView({
       el.textContent = p.name;
       marker.bindTooltip(el);
     });
-  }, [start, end]);
+  }, [start, end, location]);
   useEffect(() => {
     if (focus?.lat && map.current)
       map.current.setView([focus.lat, focus.lon], focus.zoom || 17);

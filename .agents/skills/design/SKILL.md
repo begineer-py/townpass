@@ -38,7 +38,7 @@ apis/
     {endpoint...}.md
 ```
 - 人類把需要更改的下個方向放在/plan內 不的在plan內產生修改任何檔案 
-- 設計.vscode自動排除人類不需要看的test檔案
+- 設計.vscode自動排除人類不需要看的
 - Readme.md不應提到部屬方式 而是鏈接到/deployment
 ## 自動審查
 - cursor的自動bot將會審查

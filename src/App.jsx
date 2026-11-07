@@ -59,6 +59,8 @@ import {
   currentConstruction,
 } from "./data";
 import { getLocation } from "./location";
+import { townPassUserKey } from "./townpass-bridge";
+import { travelProfiles } from "./travel-profiles";
 import { addressSearch } from "./address-search";
 import { maintenanceText, stationKey, stepText } from "./format.mjs";
 const icons = {
@@ -118,7 +120,7 @@ function Icon({ kind, ...props }) {
   const C = icons[kind] || MapPin;
   return <C size={20} aria-hidden="true" {...props} />;
 }
-function Sheet({ title, onClose, children }) {
+function Sheet({ title, onClose, children, dismissible = true }) {
   const ref = useRef();
   useLayoutEffect(() => {
     const dialog = ref.current;
@@ -135,18 +137,20 @@ function Sheet({ title, onClose, children }) {
       className="sheet-dialog"
       onCancel={(e) => {
         e.preventDefault();
-        onClose();
+        if (dismissible) onClose();
       }}
       onClick={(e) => {
-        if (e.target === ref.current) onClose();
+        if (dismissible && e.target === ref.current) onClose();
       }}
       aria-label={title}
     >
       <div className="sheet-head">
         <h2>{title}</h2>
-        <button className="icon-button" onClick={onClose} aria-label="關閉">
-          <X />
-        </button>
+        {dismissible && (
+          <button className="icon-button" onClick={onClose} aria-label="關閉">
+            <X />
+          </button>
+        )}
       </div>
       <div className="sheet-body">{children}</div>
     </dialog>
@@ -204,6 +208,10 @@ export default function App() {
     [query, setQuery] = useState("");
   const [selected, setSelected] = useState(null),
     [modal, setModal] = useState(null),
+    [travelProfile, setTravelProfile] = useState(null),
+    [profileDraft, setProfileDraft] = useState("walking"),
+    [profileStorageKey, setProfileStorageKey] = useState("hhz-profile-local"),
+    [profileReady, setProfileReady] = useState(false),
     [prefs, setPrefs] = useState(() => ({
       ...basePrefs,
       ...readSaved("hhz-preferences", {}),
@@ -225,6 +233,7 @@ export default function App() {
     [speaking, setSpeaking] = useState(false),
     [stepIndex, setStepIndex] = useState(0),
     [online, setOnline] = useState(navigator.onLine);
+  const [currentLocation, setCurrentLocation] = useState(null);
   const [basemap, setBasemap] = useState(() => {
     const v = readSaved("hhz-basemap", "street");
     return Object.prototype.hasOwnProperty.call(BASEMAPS, v) ? v : "street";
@@ -232,7 +241,10 @@ export default function App() {
   const [basemapStatus, setBasemapStatus] = useState("loading");
   const [showMapFacilities, setShowMapFacilities] = useState(false);
   const needsData =
-    showMapFacilities || (tab !== null && tab !== "saved") || modal === "sources";
+    showMapFacilities ||
+    (tab !== null && tab !== "saved") ||
+    modal === "sources" ||
+    Boolean(searchFor);
   const waitingForData = needsData && !data && !loadError;
   useEffect(() => {
     saveLocal("hhz-basemap", basemap);
@@ -256,6 +268,7 @@ export default function App() {
   const panelScroll = useRef();
   const panel = useRef();
   const menuButton = useRef();
+  const autoLocated = useRef(false);
   const routeFeedback = useRef();
   useEffect(() => {
     if(routeError) routeFeedback.current?.scrollIntoView({block:'nearest',behavior:'auto'});
@@ -266,6 +279,31 @@ export default function App() {
       panel.current.focus();
     }
   }, [tab]);
+  useEffect(() => {
+    let active = true;
+    townPassUserKey().then((userKey) => {
+      if (!active) return;
+      const key = userKey ? `hhz-profile-${userKey}` : "hhz-profile-local";
+      const stored = readSaved(key, null);
+      const savedPrefs = readSaved(
+        userKey ? `${key}-preferences` : "hhz-preferences",
+        null,
+      );
+      setProfileStorageKey(key);
+      setTravelProfile(travelProfiles[stored] ? stored : null);
+      setPrefs({
+        ...basePrefs,
+        ...(savedPrefs || travelProfiles[stored]?.preferences || {}),
+        avoidSteps: true,
+        officialOnly: true,
+      });
+      setProfileReady(true);
+      if (!travelProfiles[stored]) setModal("profile");
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
   const worker = useRef(),
     request = useRef(0),
     panelVersion = useRef(0),
@@ -310,10 +348,15 @@ export default function App() {
     };
   }, []);
   useEffect(() => {
-    saveLocal("hhz-preferences", prefs);
+    saveLocal(
+      profileStorageKey === "hhz-profile-local"
+        ? "hhz-preferences"
+        : `${profileStorageKey}-preferences`,
+      prefs,
+    );
     document.documentElement.classList.toggle("large-text", prefs.largeText);
     document.documentElement.classList.toggle("high-contrast", prefs.contrast);
-  }, [prefs]);
+  }, [prefs, profileStorageKey]);
   useEffect(() => {
     if (!graphRequested) return;
     const w = new Worker(new URL("./route-worker.js", import.meta.url), {
@@ -407,7 +450,7 @@ export default function App() {
     setSearchFor(which);
     setQuery("");
   }
-  async function locate(which) {
+  async function locate(which, useAsStart = false) {
     const version = panelVersion.current;
     setLocating(true);
     try {
@@ -419,9 +462,11 @@ export default function App() {
         );
         return;
       }
+      setCurrentLocation(p);
       setFocus({ ...p, token: Date.now() });
+      if (useAsStart) setStart(p);
       if (which) changePoint(which, p);
-      else announce("已找到你的位置，可以看看附近有哪些設施。");
+      else if (!useAsStart) announce("已找到你的位置，可以看看附近有哪些設施。");
     } catch {
       if (!which || version === panelVersion.current)
         announce("目前無法取得位置。你仍可以搜尋地點，或在地圖上選擇。");
@@ -429,6 +474,19 @@ export default function App() {
       setLocating(false);
     }
   }
+  function saveTravelProfile(id, closeSheet = true) {
+    const profile = travelProfiles[id];
+    if (!profile) return;
+    setTravelProfile(id);
+    saveLocal(profileStorageKey, id);
+    updatePrefs(profile.preferences);
+    if (closeSheet) setModal(null);
+  }
+  useEffect(() => {
+    if (!profileReady || !travelProfile || autoLocated.current) return;
+    autoLocated.current = true;
+    locate(null, true);
+  }, [profileReady, travelProfile]);
   function calculate() {
     if (!start || !end) {
       announce("選好出發地和目的地，就能一起看看適合的走法。");
@@ -489,19 +547,30 @@ export default function App() {
   const searchResults = useMemo(() => {
     if (!searchFor || !data) return [];
     const q = normalize(query);
+    const recentPlaces = trips
+      .flatMap((trip) => [trip.start, trip.end])
+      .filter((place) => Number.isFinite(place?.lat) && Number.isFinite(place?.lon));
+    const recentIds = new Set(recentPlaces.map((place) => place.id));
     const list = q
-      ? data.all.filter((p) =>
-          normalize(p.name + " " + (p.address || "")).includes(q),
-        )
-      : saved.length
-        ? saved
-        : data.fac.filter((p) => p.kind === "20");
+      ? [
+          ...recentPlaces.filter((p) =>
+            normalize(p.name + " " + (p.address || "")).includes(q),
+          ),
+          ...data.all.filter((p) =>
+            normalize(p.name + " " + (p.address || "")).includes(q),
+          ),
+        ]
+      : [...recentPlaces, ...saved, ...data.fac.filter((p) => p.kind === "20")];
     const used = new Set();
     return [...addressResults, ...list]
       .sort(
-        (a, b) =>
-          (a.name === query ? -1 : 0) - (b.name === query ? -1 : 0) ||
-          distance(viewport, a) - distance(viewport, b),
+        (a, b) => {
+          const exact = (a.name === query ? -1 : 0) - (b.name === query ? -1 : 0);
+          if (exact) return exact;
+          if (!q && recentIds.has(a.id) !== recentIds.has(b.id))
+            return recentIds.has(a.id) ? -1 : 1;
+          return distance(viewport, a) - distance(viewport, b);
+        },
       )
       .filter((p) => {
         const key =
@@ -518,6 +587,7 @@ export default function App() {
     query,
     searchFor,
     saved,
+    trips,
     addressResults,
     viewport.lat,
     viewport.lon,
@@ -1074,6 +1144,7 @@ export default function App() {
             route={tab ? route : null}
             start={tab ? start : null}
             end={tab ? end : null}
+            location={currentLocation}
             focus={{ ...viewport, ...focus }}
             pick={pick}
             onPick={selectPoint}
@@ -1081,6 +1152,14 @@ export default function App() {
             onViewport={setViewport}
             onMapReady={(m) => (map.current = m)}
           />
+          <button
+            className="map-search-button"
+            onClick={() => openSearch("explore")}
+            aria-label="搜尋地點、地址或路名"
+          >
+            <Search size={20} aria-hidden="true" />
+            <span>搜尋地點、地址或路名</span>
+          </button>
           <button
             className="map-menu-button"
             ref={menuButton}
@@ -1210,7 +1289,7 @@ export default function App() {
             </button>
           </div>
           <p className="list-caption">
-            {query ? "找到這些地方" : "附近車站與收藏"}
+            {query ? "找到這些地方" : "最近行程、收藏與附近車站"}
           </p>
           {searchResults.map((p) => (
             <FacilityRow
@@ -1233,6 +1312,38 @@ export default function App() {
               </p>
             </div>
           )}
+        </Sheet>
+      )}
+      {profileReady && modal === "profile" && (
+        <Sheet
+          title="設定主要出行方式"
+          dismissible={false}
+          onClose={() => {}}
+        >
+          <p>選一種最符合你這次出行需要的方式，之後可隨時調整。</p>
+          <label className="select-row profile-select">
+            主要出行方式
+            <select
+              value={profileDraft}
+              onChange={(event) => setProfileDraft(event.target.value)}
+            >
+              {Object.entries(travelProfiles).map(([id, profile]) => (
+                <option key={id} value={id}>
+                  {profile.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="quiet-note profile-note">
+            偏好只保存在這部裝置。路網沒有寬度或坡度資料時，會標示為未知；路線仍需留意現場。
+          </p>
+          <button
+            className="primary full"
+            onClick={() => saveTravelProfile(profileDraft)}
+          >
+            開始使用
+            <ArrowRight size={18} />
+          </button>
         </Sheet>
       )}
       {selected && (
@@ -1506,6 +1617,24 @@ export default function App() {
       {modal === "prefs" && (
         <Sheet title="通行與閱讀設定" onClose={() => setModal(null)}>
           <p className="modal-lead">選擇這次出門需要的條件，隨時都可以調整。</p>
+          <label className="select-row">
+            主要出行方式
+            <select
+              value={travelProfile || "walking"}
+              onChange={(event) =>
+                saveTravelProfile(event.target.value, false)
+              }
+            >
+              {Object.entries(travelProfiles).map(([id, profile]) => (
+                <option key={id} value={id}>
+                  {profile.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="quiet-note profile-note">
+            變更後會更新路線起始條件；寬度或坡度缺漏仍會顯示為未知。
+          </p>
           <label className="select-row">
             路線偏好
             <select
