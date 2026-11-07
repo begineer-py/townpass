@@ -65,6 +65,7 @@ strong {
 }
 body {
   margin: 0;
+  overscroll-behavior: none;
 }
 button,
 input,
@@ -79,6 +80,8 @@ input {
 button {
   cursor: pointer;
   color: inherit;
+  -webkit-user-select: none;
+  user-select: none;
 }
 button:disabled {
   cursor: wait;
@@ -562,6 +565,85 @@ small {
   font-size: var(--tp-text-caption-size) !important;
   padding: 3px 6px !important;
 }
+.map-menu-button {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 450;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 14px;
+  background: var(--paper);
+  color: var(--action);
+  border-radius: 10px;
+  font-weight: var(--tp-text-bodySemiBold-weight);
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--tp-black) 20%, transparent);
+}
+.map-menu-button:hover {
+  background: var(--accent-surface);
+}
+.map-search-button {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 450;
+  width: min(480px, calc(100% - 240px));
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px;
+  border: 1px solid var(--tp-grayscale200);
+  border-radius: 10px;
+  background: var(--tp-white);
+  color: var(--tp-grayscale600);
+  text-align: left;
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--tp-black) 20%, transparent);
+}
+.map-search-button svg {
+  color: var(--action);
+  flex-shrink: 0;
+}
+.map-search-button span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.map-search-button:hover {
+  background: var(--accent-surface);
+}
+.map-controls {
+  position: absolute;
+  right: 24px;
+  top: 100px;
+  z-index: 450;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: var(--tp-white);
+  padding: 4px;
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+.map-controls button {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: var(--tp-grayscale700);
+}
+.map-controls button:hover {
+  background: var(--accent-surface);
+}
+.map-controls > span {
+  height: 1px;
+  background: var(--line);
+  margin: 3px 5px;
+}
 .map-bottom {
   position: absolute;
   left: var(--map-inset);
@@ -1038,6 +1120,49 @@ small {
 }
 .sheet-body .search-launch {
   margin-bottom: 12px;
+}
+.menu-actions {
+  display: grid;
+}
+.menu-actions button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+.menu-actions button:hover,
+.menu-actions button[aria-current] {
+  background: var(--accent-surface);
+  color: var(--action);
+}
+.menu-actions .lucide-chevron-right {
+  margin-inline-start: auto;
+}
+.select-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  padding-block: 8px;
+}
+.select-row select {
+  max-width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--tp-grayscale300);
+  border-radius: 4px;
+  padding: 0 8px;
+  color: var(--ink);
+  background: var(--paper);
+}
+.profile-select select {
+  flex: 1;
+}
+.profile-note {
+  margin-bottom: 16px;
 }
 .search-options {
   display: flex;
@@ -1629,6 +1754,26 @@ small {
     padding-left: 15px;
     padding-right: 9px;
   }
+  .map-controls {
+    top: calc(74px + env(safe-area-inset-top));
+    right: 10px;
+    padding: 2px;
+  }
+  .map-search-button {
+    top: calc(12px + env(safe-area-inset-top));
+    left: 12px;
+    right: 12px;
+    transform: none;
+    width: auto;
+  }
+  .map-menu-button {
+    top: calc(74px + env(safe-area-inset-top));
+    left: 12px;
+  }
+  .map-controls button {
+    min-width: 44px;
+    min-height: 44px;
+  }
 }
 
 /* ==========================================================================
@@ -1660,6 +1805,11 @@ small {
   color: var(--muted);
 }
 .endpoints,
+.primary,
+.secondary {
+  border-radius: 10px;
+  box-shadow: none;
+}
 .preference-bar,
 .notice,
 .station-description,
@@ -2344,3 +2494,6 @@ small {
 .main-nav button.active { color:var(--tp-primary500); font-weight:600; }
 .high-contrast .secondary, .high-contrast .main-nav button.active { color:var(--tp-primary800); }
 @media(max-width:700px) { .sheet-grip { min-height:44px; } }
+
+.panel[hidden] { display:none; }
+@media(max-width:700px){ .map-search-button ~ .map-dock { top:76px; } .map-search-button ~ .map-compass { top:130px; } }
