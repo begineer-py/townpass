@@ -1,4 +1,4 @@
-import {generalSidewalkSegment} from './general-sidewalk.mjs';
+import {generalSidewalkSegment,generalPedestrianSegment} from './general-sidewalk.mjs';
 import proj4 from 'proj4';
 import {constructionFresh,createConstructionChecker} from './construction.mjs';
 import {polygonConnectorChecker,roadConnectorChecker} from './geometry.mjs';
@@ -114,8 +114,8 @@ function createProvisionalNetworkInner({parts,sourceHash,graph,osmEdgeIds,snapsh
    edge(endpoint.node,position.node,gap,[endpoint.point,pr.point],{...meta,osmCoordinates:[],osmPartDistanceMetres:0});
   }
  }
- function findRouteInner(start,end,{startPlace,endPlace,profile={},deadline=Infinity,visitLimit=maxVisits}={}){
- started=Date.now();activeDeadline=deadline;if(!constructionFresh(snapshot))return error('CONSTRUCTION_UNAVAILABLE');if(!valid(start)||!valid(end))return error('INVALID_PROVISIONAL_INPUT');
+ function findRouteInner(start,end,{startPlace,endPlace,profile={},deadline=Infinity,visitLimit=maxVisits,allowDistantOsm=false}={}){
+ if(!allowDistantOsm)started=Date.now();activeDeadline=deadline;if(!constructionFresh(snapshot))return error('CONSTRUCTION_UNAVAILABLE');if(!valid(start)||!valid(end))return error('INVALID_PROVISIONAL_INPUT');
  if(!profile||typeof profile!=='object'||Array.isArray(profile)||Object.entries(profile).some(([k,v])=>!['area','sidewalk','shared','join','official'].includes(k)||!Number.isFinite(v)||v<0||v>10)||!(Number.isFinite(deadline)||deadline===Infinity)||!Number.isInteger(visitLimit)||visitLimit<1)return error('INVALID_PROVISIONAL_INPUT');
  if(conditionIndex!==graph.officialConditionIndex)return error('PROVISIONAL_DATA_CHANGED');
  const expired=()=>timedOut()||Date.now()>deadline;
@@ -128,21 +128,60 @@ function createProvisionalNetworkInner({parts,sourceHash,graph,osmEdgeIds,snapsh
   if(meta.kind==='source-join'||meta.kind==='osm-join')extra+=(profile.join??0)*(1+(meta.gapMetres||0));
   return distance+extra;};
  if(!endpointVerifier.endpointAllowed(start,startPlace,'start')||!endpointVerifier.endpointAllowed(end,endPlace,'end'))return error('OFFICIAL_ENTRY_UNVERIFIED');
- function seeds(point,side){const result=[];for(const s of sourceSegments){if(expired())return null;const pr=project(point,s.a,s.b),gap=metres(point,pr.point);if(gap>ENDPOINT_METRES||!connector(point,pr.point))continue;result.push({segment:s,pr,gap,side});}return result.sort((a,b)=>a.gap-b.gap).slice(0,12);}
+ function seeds(point,side){
+  const source=[];for(const s of sourceSegments){if(expired())return null;const pr=project(point,s.a,s.b),gap=metres(point,pr.point);if(gap>ENDPOINT_METRES||!connector(point,pr.point))continue;source.push({segment:s,pr,gap,side,source:true});}
+  const osm=[];
+  for(const item of gridNearby(osmGrid,point,ENDPOINT_METRES,budget)){
+   if(expired())return null;
+   const pr=project(point,item.line[item.j-1],item.line[item.j]),gap=metres(point,pr.point);
+   // An exact original graph node has no connector to cross a road. Still
+   // screen the point for construction and obstacles.
+   const coincident=gap<=.000001&&(metres(pr.point,item.line[0])<=.000001||metres(pr.point,item.line.at(-1))<=.000001);
+   const allowed=coincident?checker.allowed([point,pr.point])&&!blocked(point,pr.point)&&!avoided(point,pr.point):connector(point,pr.point);
+   if(gap>ENDPOINT_METRES||!allowed||item.total<=0)continue;
+   const along=item.offsets[item.j-1]+metres(item.line[item.j-1],pr.point);
+   osm.push({item,pr,gap,side,along,source:false});
+  }
+  source.sort((a,b)=>a.gap-b.gap);osm.sort((a,b)=>a.gap-b.gap);
+  // Prefer similarly short OSM approaches; never replace a direct source
+  // connection with a long estimated shortcut merely because it is shorter.
+  const limit=source.length&&!allowDistantOsm?source[0].gap+2:ENDPOINT_METRES;
+  return [...source.slice(0,12),...osm.filter(s=>s.gap<=limit+1e-7).slice(0,12)];
+ }
+ function seedNeighbors(seed){
+  if(seed.source){const s=seed.segment;return [[s.aa,s.distance*seed.pr.t],[s.bb,s.distance*(1-seed.pr.t)]].map(([id,distance])=>({id,distance}));}
+  const item=seed.item,positions=osmProjections.get(item.id)||[{node:item.aa,point:item.line[0],along:0},{node:item.bb,point:item.line.at(-1),along:item.total}];
+  let left=null,right=null;
+  for(const p of positions){if(p.along<=seed.along+1e-7&&(!left||p.along>left.along))left=p;if(p.along>=seed.along-1e-7&&(!right||p.along<right.along))right=p;}
+  return [...new Set([left,right].filter(Boolean))].map(p=>({id:p.node,distance:item.e[2]*Math.abs(p.along-seed.along)/item.total,position:p}));
+ }
+ function seedSegment(seed,neighbor,startSide){
+  if(seed.source){const s=seed.segment,id=neighbor.id;return {coordinates:startSide?[seed.pr.point,nodes[id]]:[nodes[id],seed.pr.point],...s.meta,sourceStartT:startSide?seed.pr.t:(id===s.aa?0:1),sourceEndT:startSide?(id===s.aa?0:1):seed.pr.t,distanceMetres:neighbor.distance};}
+  const item=seed.item,lo=Math.min(seed.along,neighbor.position.along),hi=Math.max(seed.along,neighbor.position.along),forward=startSide?seed.along<=neighbor.position.along:neighbor.position.along<=seed.along;
+  const a=seed.along<=neighbor.position.along?seed.pr.point:neighbor.position.point,b=seed.along<=neighbor.position.along?neighbor.position.point:seed.pr.point;
+  const geometry=[a,...item.line.slice(1,-1).filter((_,i)=>item.offsets[i+1]>lo+1e-7&&item.offsets[i+1]<hi-1e-7),b];
+  return {...item.meta,partial:true,startOffsetMetres:lo,endOffsetMetres:hi,direction:forward?'forward':'reverse',coordinates:forward?geometry:geometry.reverse(),distanceMetres:neighbor.distance};
+ }
  const starts=seeds(start,'start'),ends=seeds(end,'end');if(!starts||!ends)return error('PROVISIONAL_SEARCH_LIMIT');if(!starts.length||!ends.length)return error('NO_PROVISIONAL_CONNECTION');
- const dist=new Float64Array(nodes.length).fill(Infinity),previous=new Int32Array(nodes.length).fill(-1),previousEdge=new Array(nodes.length),roots=new Map(),targets=new Map(),heap=new MinHeap();
- for(const s of starts)for(const [id,part] of [[s.segment.aa,s.segment.distance*s.pr.t],[s.segment.bb,s.segment.distance*(1-s.pr.t)]]){const w=s.gap+cost(s.segment.meta,part);if(w<dist[id]){dist[id]=w;roots.set(id,s);heap.push([w,id]);}}
- for(const s of ends)for(const [id,part] of [[s.segment.aa,s.segment.distance*s.pr.t],[s.segment.bb,s.segment.distance*(1-s.pr.t)]]){const w=s.gap+cost(s.segment.meta,part);if(!targets.has(id)||w<targets.get(id).w)targets.set(id,{w,seed:s});}
- let best=Infinity,goal=-1,visited=0;while(heap.a.length){if(expired()||++visited>Math.min(maxVisits,visitLimit))return error('PROVISIONAL_SEARCH_LIMIT');const [d,u]=heap.pop();if(d!==dist[u])continue;if(d>=best)break;const target=targets.get(u);if(target&&d+target.w<best){best=d+target.w;goal=u;}for(const item of adj[u]){budget.check();const nd=d+cost(item.meta,item.w);if(nd<dist[item.to]){dist[item.to]=nd;previous[item.to]=u;previousEdge[item.to]=item;heap.push([nd,item.to]);}}}
+ const dist=new Float64Array(nodes.length*2).fill(Infinity),previous=new Int32Array(nodes.length*2).fill(-1),previousEdge=new Array(nodes.length*2),roots=new Map(),targets=new Map(),heap=new MinHeap();
+ for(const s of starts)for(const neighbor of seedNeighbors(s)){const state=neighbor.id*2+Number(s.source&&neighbor.distance>.001),meta=s.source?s.segment.meta:s.item.meta,w=s.gap+cost(meta,neighbor.distance);if(w<dist[state]){dist[state]=w;roots.set(state,{seed:s,neighbor});heap.push([w,state]);}}
+ for(const s of ends)for(const neighbor of seedNeighbors(s)){const meta=s.source?s.segment.meta:s.item.meta,w=s.gap+cost(meta,neighbor.distance),entry={w,seed:s,neighbor};if(!targets.has(neighbor.id))targets.set(neighbor.id,[]);targets.get(neighbor.id).push(entry);}
+ let best=Infinity,goal=-1,goalTarget=null,visited=0;while(heap.a.length){if(expired()||++visited>Math.min(maxVisits,visitLimit))return error('PROVISIONAL_SEARCH_LIMIT');const [d,state]=heap.pop();if(d!==dist[state])continue;if(d>=best)break;const u=Math.floor(state/2),touched=state%2===1;for(const target of targets.get(u)||[])if((touched||(target.seed.source&&target.neighbor.distance>.001))&&d+target.w<best){best=d+target.w;goal=state;goalTarget=target;}for(const item of adj[u]){budget.check();const next=item.to*2+Number(touched||item.meta.kind==='official-line'),nd=d+cost(item.meta,item.w);if(nd<dist[next]){dist[next]=nd;previous[next]=state;previousEdge[next]=item;heap.push([nd,next]);}}}
  // Two projections on the same source segment can connect directly without
  // travelling to one of its ends; both endpoint gaps remain unconfirmed.
- let direct=null;for(const a of starts)for(const b of ends)if(a.segment===b.segment){const length=a.gap+b.gap+cost(a.segment.meta,Math.abs(a.pr.t-b.pr.t)*a.segment.distance);if(length<best){best=length;direct={a,b};}}
- if(!Number.isFinite(best))return error('NO_PROVISIONAL_ROUTE');if(!constructionFresh(snapshot))return error('CONSTRUCTION_UNAVAILABLE');
+ let direct=null;for(const a of starts)for(const b of ends)if(a.source&&b.source&&a.segment===b.segment){const length=a.gap+b.gap+cost(a.segment.meta,Math.abs(a.pr.t-b.pr.t)*a.segment.distance);if(length<best){best=length;direct={a,b};}}
+ if(!Number.isFinite(best)){
+  // A nearby official line may be disconnected; try longer, explicitly
+  // unconfirmed OSM approaches only after the short-approach search fails.
+  if(!allowDistantOsm&&!expired()&&visited<visitLimit)return findRouteInner(start,end,{startPlace,endPlace,profile,deadline,visitLimit:visitLimit-visited,allowDistantOsm:true});
+  return error('NO_PROVISIONAL_ROUTE');
+ }
+ if(!constructionFresh(snapshot))return error('CONSTRUCTION_UNAVAILABLE');
  let first,last,segments=[];
  if(direct){first=direct.a;last=direct.b;segments.push({coordinates:[first.pr.point,last.pr.point],...first.segment.meta,sourceStartT:first.pr.t,sourceEndT:last.pr.t,distanceMetres:metres(first.pr.point,last.pr.point)});}
- else {let cursor=goal;while(previous[cursor]>=0){const item=previousEdge[cursor];segments.push({coordinates:item.geometry,...item.meta,distanceMetres:item.w});cursor=previous[cursor];}segments.reverse();first=roots.get(cursor);last=targets.get(goal).seed;segments.unshift({coordinates:[first.pr.point,nodes[cursor]],...first.segment.meta,sourceStartT:first.pr.t,sourceEndT:cursor===first.segment.aa?0:1,distanceMetres:metres(first.pr.point,nodes[cursor])});segments.push({coordinates:[nodes[goal],last.pr.point],...last.segment.meta,sourceStartT:goal===last.segment.aa?0:1,sourceEndT:last.pr.t,distanceMetres:metres(nodes[goal],last.pr.point)});}
- segments.unshift({kind:'endpoint-approach',side:'start',coordinates:[start,first.pr.point],distanceMetres:first.gap,access:'unconfirmed',grade:'unknown',qgsFid:first.segment.meta.qgsFid,partIndex:first.segment.meta.partIndex,segmentIndex:first.segment.meta.segmentIndex,sourceT:first.pr.t});
- segments.push({kind:'endpoint-approach',side:'end',coordinates:[last.pr.point,end],distanceMetres:last.gap,access:'unconfirmed',grade:'unknown',qgsFid:last.segment.meta.qgsFid,partIndex:last.segment.meta.partIndex,segmentIndex:last.segment.meta.segmentIndex,sourceT:last.pr.t});
+ else {let cursor=goal;while(previous[cursor]>=0){const item=previousEdge[cursor];segments.push({coordinates:item.geometry,...item.meta,distanceMetres:item.w});cursor=previous[cursor];}segments.reverse();const root=roots.get(cursor);first=root.seed;last=goalTarget.seed;segments.unshift(seedSegment(first,root.neighbor,true));segments.push(seedSegment(last,goalTarget.neighbor,false));}
+ const approach=(seed,side,point)=>({kind:'endpoint-approach',side,coordinates:side==='start'?[point,seed.pr.point]:[seed.pr.point,point],distanceMetres:seed.gap,access:'unconfirmed',grade:'unknown',...(seed.source?{qgsFid:seed.segment.meta.qgsFid,partIndex:seed.segment.meta.partIndex,segmentIndex:seed.segment.meta.segmentIndex,sourceT:seed.pr.t}:{osmEdgeId:seed.item.id,osmSegmentIndex:seed.item.j-1,osmSegmentT:seed.pr.t})});
+ segments.unshift(approach(first,'start',start));segments.push(approach(last,'end',end));
  for(const segment of segments)if(segment.kind==='official-line'){
   const crossing=sourceRoad.inspect(segment.coordinates[0],segment.coordinates.at(-1));
   if(!crossing.allowed)return error('PROVISIONAL_GEOMETRY_INVALID');
@@ -173,7 +212,7 @@ function createProvisionalNetworkInner({parts,sourceHash,graph,osmEdgeIds,snapsh
  // known-clear segment. Each search remains on the same bounded graph.
  function metrics(route,shortest){
   let sidewalkMetres=0,sharedMetres=0,unknownMetres=0,approachMetres=0,joinCount=0;
-  for(const s of route.segments){const d=s.distanceMetres||0;if(generalSidewalkSegment(s)||(s.kind==='osm'&&!s.sharedRoad&&!s.crossing))sidewalkMetres+=d;if(s.sharedRoad===true&&s.kind==='osm')sharedMetres+=d;
+  for(const s of route.segments){const d=s.distanceMetres||0;if(generalPedestrianSegment(s))sidewalkMetres+=d;if(s.sharedRoad===true&&s.kind==='osm')sharedMetres+=d;
    if(s.kind==='official-line'||s.kind==='source-join'||s.kind==='osm-join'||s.kind==='endpoint-approach'||s.unknownDimensions!==false)unknownMetres+=d;
    if(s.kind==='endpoint-approach')approachMetres+=d;if(s.kind==='source-join'||s.kind==='osm-join')joinCount++;
   }

@@ -4,6 +4,11 @@ export function generalSidewalkSegment(segment) {
  if (segment.kind === 'official-line') return true;
  return segment.kind === 'osm' && (segment.explicitSidewalk === true || segment.officialAreaCovered === true);
 }
+// Product scoring groups verified non-shared pedestrian paths with sidewalks;
+// preserve the stricter source-evidence helper above for topology decisions.
+export function generalPedestrianSegment(segment) {
+ return generalSidewalkSegment(segment) || (segment?.kind === 'osm' && !segment.sharedRoad && !segment.crossing);
+}
 export function generalSidewalkEdge(way, proof) {
  if (!way || way.source === 'osm-shared-street' || proof?.sharedRoad || proof?.connectorVerified || (proof?.crossingCoverage ?? 0) > 0 || way.crossing === true || way.footway === 'crossing') return false;
  return (way.highway === 'footway' && way.footway === 'sidewalk') || (!proof?.gradeSeparatedPedestrian && proof?.coverage >= .9999 && proof?.maxUncoveredMetres <= .05);

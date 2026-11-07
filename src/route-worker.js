@@ -1,4 +1,4 @@
-import {generalSidewalkSegment} from './general-sidewalk.mjs';
+import {generalPedestrianSegment} from './general-sidewalk.mjs';
 import {snapMapPoint} from './map-snap.mjs';
 import { metres, ROUTING_POLICY } from "./routing.mjs";
 import {verifiedPartialRoute} from "./partial-route.mjs";
@@ -203,7 +203,7 @@ self.onmessage = async ({ data }) => {
         else {
           const shortest=Math.min(...checked.map(x=>x.distanceMetres)),candidates=checked.filter(x=>x.distanceMetres<=Math.min(shortest*1.3,shortest+300)+.00001).map((route,i)=>{
             let sidewalk=0,shared=0,unknown=0,approach=0,joins=0;
-            for(const segment of route.segments){const d=segment.distanceMetres;if(generalSidewalkSegment(segment))sidewalk+=d;if(segment.sharedRoad)shared+=d;if(segment.kind!=='osm'||segment.unknownDimensions)unknown+=d;if(segment.kind==='endpoint-approach')approach+=d;if(segment.kind.endsWith('join'))joins++;}
+            for(const segment of route.segments){const d=segment.distanceMetres;if(generalPedestrianSegment(segment))sidewalk+=d;if(segment.sharedRoad)shared+=d;if(segment.kind!=='osm'||segment.unknownDimensions)unknown+=d;if(segment.kind==='endpoint-approach')approach+=d;if(segment.kind.endsWith('join'))joins++;}
             const conditionMetrics=officialConditionMetrics(route.officialConditions);const total=route.distanceMetres||1,scoreBreakdown={officialConditions:officialConditionScore(conditionMetrics.officialConditionWeight),sidewalk:40*sidewalk/total,shared:-25*shared/total,unknown:-12*unknown/total,estimatedApproach:-15*approach/total,joins:-Math.min(10,joins*2),detour:-20*Math.max(0,route.distanceMetres-shortest)/(shortest||1)};
             return {id:`official-${i}`,route,coverage:{generalSidewalkMetres:sidewalk,sharedMetres:shared,unknownMetres:unknown,estimatedApproachMetres:approach,unconfirmedJoinCount:joins,...conditionMetrics},scoreBreakdown,score:100/(1+Math.exp(-Object.values(scoreBreakdown).reduce((a,b)=>a+b,0)/20))};
           }).sort((a,b)=>b.score-a.score||a.route.distanceMetres-b.route.distanceMetres);

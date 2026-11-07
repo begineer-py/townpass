@@ -1,6 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {generalSidewalkSegment,generalSidewalkEdge} from '../src/general-sidewalk.mjs';
+import {generalSidewalkSegment,generalSidewalkEdge,generalPedestrianSegment} from '../src/general-sidewalk.mjs';
+
+test('reference scoring includes other pedestrian paths but excludes shared roads, crossings and connectors',()=>{
+ assert.equal(generalPedestrianSegment({kind:'osm',sharedRoad:false,crossing:false}),true);
+ assert.equal(generalPedestrianSegment({kind:'official-line'}),true);
+ for(const segment of [{kind:'osm',sharedRoad:true},{kind:'osm',crossing:true},{kind:'osm-join'},{kind:'endpoint-approach'}])assert.equal(generalPedestrianSegment(segment),false);
+});
 import {edgeCostFactor} from '../src/route-tiers.mjs';
 const official={coverage:1,maxUncoveredMetres:0},osm={coverage:0,maxUncoveredMetres:100};
 test('official and OSM sidewalk evidence use the same segment and routing weight',()=>{

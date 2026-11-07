@@ -100,15 +100,15 @@ test('a route with no shared road can improve its explicit sidewalk share',()=>{
  assert.equal(result.pedestrianImprovement.originalSharedMetres,0);assert.equal(result.pedestrianImprovement.sharedMetres,0);
  assert.ok(result.pedestrianImprovement.explicitSidewalkMetres>0);assert.equal(result.pedestrianImprovement.iterations[0].improvementKind,'sidewalk-share-increased');
 });
-test('shared reduction is rejected if full-route explicit sidewalk share decreases',()=>{
+test('replaces shared road with connected pedestrian path even when explicit sidewalk share decreases',()=>{
  const g=graph();g.ways[1].footway='sidewalk';g.ways.push({...g.ways[1],footway:null});for(const e of g.edges.slice(2))e[3]=2;
  const snap=snapshot([]),checker=createConstructionChecker(snap),router=createRouter(g),verifyLocal=createLocalRouteVerifier(g),start=g.nodes[0].slice(0,2),end=g.nodes[2].slice(0,2),options={approachAllowed:(p,q)=>p[0]===q[0]&&p[1]===q[1]};
  const base=verifyLocal(router(start,end,{...options,lineAllowed:checker.allowed}),start,end,options),result=improvePedestrianRoute(base,start,end,options,snap,{graph:g,router,verifyLocal,checker});
- assert.equal(result.distance,110);assert.equal(result.pedestrianImprovement.sharedMetres,10);
- assert.ok(result.pedestrianImprovement.iterations[0].reasons.includes('sidewalk-share-regression'));
+ assert.equal(result.distance,140);assert.equal(result.pedestrianImprovement.sharedMetres,0);
+ assert.equal(result.pedestrianImprovement.iterations[0].improvementKind,'shared-reduced');
 });
 test('compares exact sidewalk share before distance rounding',()=>{
- const g={nodes:[n(0,0),n(10,0),n(100,0)],ways:[{highway:'residential',source:'osm-shared-street'},{highway:'footway',footway:'sidewalk'},{highway:'path'}],edges:[[0,1,10,0,[],shared],[1,2,90,1,[],proof],[0,1,10.001,2,[],proof]]};
+ const g={nodes:[n(0,0),n(10,0),n(100,0)],ways:[{highway:'path'},{highway:'footway',footway:'sidewalk'},{highway:'path'}],edges:[[0,1,10,0,[],proof],[1,2,90,1,[],proof],[0,1,10.001,2,[],proof]]};
  const base={edgeIds:[0,1],nodeIds:[0,1,2],coordinates:g.nodes.map(p=>p.slice(0,2)),approaches:[],distance:100},candidate={...base,edgeIds:[2,1],distance:100,costBreakdown:{base:100.001}};
  const snapshotNow=snapshot([]),checker={allowed:()=>true,inspect:()=>({blocked:[]})},result=improvePedestrianRoute(base,g.nodes[0].slice(0,2),g.nodes[2].slice(0,2),{},snapshotNow,{graph:g,router:()=>candidate,verifyLocal:x=>x,checker});
  assert.deepEqual(result.edgeIds,[0,1]);assert.ok(result.pedestrianImprovement.iterations[0].reasons.includes('sidewalk-share-regression'));
@@ -139,7 +139,7 @@ test('a via leg uses the whole original journey budget rather than a separate le
  const joint=improvePedestrianRoute(base,x.start,via,x.options,x.snap,deps,{parentBaselineDistance:110,otherLegDistance:100});
  assert.equal(joint.distance,40);assert.equal(joint.pedestrianImprovement.maxDistanceMetres,43);assert.equal(joint.pedestrianImprovement.sharedMetres,0);
  const withOtherSidewalk=improvePedestrianRoute(base,x.start,via,x.options,x.snap,deps,{parentBaselineDistance:110,otherLegDistance:100,otherLegSidewalkMetres:50});
- assert.equal(withOtherSidewalk.distance,10);assert.ok(withOtherSidewalk.pedestrianImprovement.iterations[0].reasons.includes('sidewalk-share-regression'));
+ assert.equal(withOtherSidewalk.distance,40);assert.equal(withOtherSidewalk.pedestrianImprovement.sharedMetres,0);
 });
 test('repeated improvements keep the original distance budget rather than compounding it',()=>{
  const g={nodes:[n(0,0),n(10,0),n(100,0),n(1,10),n(1,20)],ways:[{highway:'residential',source:'osm-shared-street'},{highway:'footway'}],edges:[[0,1,100,0,[],shared],[1,2,900,1,[],proof],[0,3,80,0,[],shared],[3,2,1120,1,[],proof],[0,4,60,0,[],shared],[4,2,1340,1,[],proof]]};
@@ -177,14 +177,20 @@ test('a slow synchronous search cannot deliver an improvement after the deadline
  const result=improvePedestrianRoute(x.base,x.start,x.end,x.options,x.snap,{graph:x.g,router:slow,verifyLocal:x.verifyLocal,checker:x.checker},{totalMs:5});
  assert.equal(result.distance,110);assert.equal(result.pedestrianImprovement.status,'time-limit');
 });
-test('timeout after an earlier improved round explicitly rolls back to the original route',()=>{
+test('a candidate whose verification completes after the deadline is never committed',()=>{
+ const x=setup(),alternate=x.router(x.start,x.end,{...x.options,lineAllowed:x.checker.allowed,_optimizeSharedPenalty:20});
+ const slowVerify=(...args)=>{const until=Date.now()+25;while(Date.now()<until){}return x.verifyLocal(...args);};
+ const result=improvePedestrianRoute(x.base,x.start,x.end,x.options,x.snap,{graph:x.g,router:()=>alternate,verifyLocal:slowVerify,checker:x.checker},{totalMs:10,penalties:[20],sidewalkPenalties:[0]});
+ assert.deepEqual(result.edgeIds,x.base.edgeIds);assert.equal(result.pedestrianImprovement.status,'time-limit');
+});
+test('a later timeout retains an independently verified improvement from an earlier round',()=>{
  const x=setup();x.g.ways.push({...x.g.ways[0]});x.g.edges[1][3]=2;x.g.edges[1][5]=shared;
  x.base=x.verifyLocal(x.router(x.start,x.end,{...x.options,lineAllowed:x.checker.allowed}),x.start,x.end,x.options);
  const alternate=x.router(x.start,x.end,{...x.options,lineAllowed:x.checker.allowed,_optimizeSharedPenalty:20});let calls=0;
  const delayed=()=>{if(++calls>1){const until=Date.now()+30;while(Date.now()<until){}}return alternate;};
  const result=improvePedestrianRoute(x.base,x.start,x.end,x.options,x.snap,{graph:x.g,router:delayed,verifyLocal:x.verifyLocal,checker:x.checker},{totalMs:20,penalties:[20],sidewalkPenalties:[0]});
- assert.equal(result.distance,110);assert.equal(result.pedestrianImprovement.status,'time-limit');assert.equal(result.pedestrianImprovement.rolledBack,true);
- assert.equal(result.pedestrianImprovement.iterations[0].rolledBack,true);
+ assert.equal(result.distance,140);assert.equal(result.pedestrianImprovement.status,'time-limit');assert.equal(result.pedestrianImprovement.rolledBack,false);
+ assert.equal(result.pedestrianImprovement.sharedMetres,100);assert.equal(result.pedestrianImprovement.iterations[0].result,'improved');
 });
 test('a perpendicular crossing is not an along-route pedestrian alternative',()=>{
  const g={nodes:[n(0,0),n(100,0),n(50,-20),n(50,20),n(0,20),n(100,20)],ways:[{highway:'residential',source:'osm-shared-street'},{highway:'footway',crossing:true},{highway:'footway',crossing:false}],edges:[[0,1,100,0,[],shared],[2,3,40,1,[],proof],[2,3,40,2,[],proof],[4,5,100,2,[],proof]]};

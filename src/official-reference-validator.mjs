@@ -52,7 +52,7 @@ export function verifyOfficialReferenceRoute({route,parts,sourceHash,graph,snaps
  function lineAt(o,d){if(!Number.isFinite(d)||d<-.001||d>o.total+.001)return null;d=Math.max(0,Math.min(o.total,d));for(let i=1;i<o.offsets.length;i++)if(d<=o.offsets[i]+1e-8){const length=o.offsets[i]-o.offsets[i-1];return interpolate(o.line[i-1],o.line[i],length?(d-o.offsets[i-1])/length:0);}return o.line.at(-1);}
  function subline(o,lo,hi){const a=lineAt(o,lo),b=lineAt(o,hi);if(!a||!b||hi<lo)return null;return [a,...o.line.slice(1,-1).filter((_,i)=>o.offsets[i+1]>lo+1e-7&&o.offsets[i+1]<hi-1e-7),b];}
  const lineEqual=(a,b)=>Array.isArray(a)&&a.length===b.length&&a.every((p,i)=>same(p,b[i]));
- let total=0,previous=null;const cleanSegments=[];
+ let total=0,officialLength=0,previous=null;const cleanSegments=[];
  for(let i=0;i<route.segments.length;i++){
   if(Date.now()>deadline)return {error:'REFERENCE_VALIDATION_LIMIT'};
   const s=route.segments[i],coords=s?.coordinates;if(!Array.isArray(coords)||coords.length<2||coords.some(p=>!valid(p))||(previous&&metres(previous,coords[0])>.000001))return invalid();
@@ -80,8 +80,17 @@ export function verifyOfficialReferenceRoute({route,parts,sourceHash,graph,snaps
    if(s.explicitSidewalk!==(o.w.highway==='footway'&&o.w.footway==='sidewalk')||s.sharedRoad!==(o.w.source==='osm-shared-street')||s.unknownDimensions!==(o.w.width==null||o.w.slope==null)||s.officialAreaCovered!==(o.e[5].coverage>=.9999&&o.e[5].maxUncoveredMetres<=.05))return invalid();
   }else if(s.kind==='endpoint-approach'){
    if((s.side==='start'&&i!==0)||(s.side==='end'&&i!==route.segments.length-1)||!['start','end'].includes(s.side)||s.access!=='unconfirmed'||s.grade!=='unknown')return invalid();
-   const projection=official(s.qgsFid,s.partIndex,s.segmentIndex,s.sourceT);if(!projection)return invalid();
-   expected=s.side==='start'?[start,projection.point]:[projection.point,end];length=metres(...expected);if(length>50+1e-7)return invalid();
+   let point;
+   if(s.osmEdgeId!==undefined){
+    if(s.qgsFid!==undefined||s.sourceT!==undefined)return invalid();
+    const o=osm(s.osmEdgeId),j=s.osmSegmentIndex,t=s.osmSegmentT;
+    if(!o||!Number.isSafeInteger(j)||j<0||j>=o.line.length-1||!Number.isFinite(t)||t<0||t>1)return invalid();
+    point=interpolate(o.line[j],o.line[j+1],t);
+   }else {const projection=official(s.qgsFid,s.partIndex,s.segmentIndex,s.sourceT);if(!projection)return invalid();point=projection.point;}
+   expected=s.side==='start'?[start,point]:[point,end];length=metres(...expected);if(length>50+1e-7)return invalid();
+   // An exact original graph node has no intervening road crossing; interior
+   // projections and every nonzero connector still check the road geometry.
+   if(s.osmEdgeId!==undefined&&length<=.000001){const o=osm(s.osmEdgeId);if(metres(point,o.line[0])<=.000001||metres(point,o.line.at(-1))<=.000001)roadCheck=null;}
   }else return invalid();
   if(!lineEqual(coords,expected)||!Number.isFinite(s.distanceMetres)||Math.abs(s.distanceMetres-length)>Math.max(.05,length*.0001)||(previous&&metres(previous,expected[0])>.000001)||!checkLine(expected,roadCheck))return invalid();
   const clean={kind:s.kind,coordinates:expected.map(p=>[...p]),distanceMetres:length};
@@ -91,9 +100,9 @@ export function verifyOfficialReferenceRoute({route,parts,sourceHash,graph,snaps
   if(s.kind==='official-line'){const crossing=sourceRoad.inspect(expected[0],expected.at(-1));if(!crossing.allowed)return invalid();clean.crossing=crossing.crossing;clean.approximateCrossing=crossing.approximateCrossing;clean.officialAreaCovered=area(expected[0],expected.at(-1));clean.width='unknown';clean.slope='unknown';}
   if(s.kind==='osm'){const o=osm(s.edgeId);clean.roadName=typeof o.w.name==='string'&&o.w.name.length<=200?o.w.name:'人行路段';clean.crossing=o.w.crossing===true||o.w.footway==='crossing';clean.explicitSidewalk=o.w.highway==='footway'&&o.w.footway==='sidewalk';clean.sharedRoad=o.w.source==='osm-shared-street';clean.unknownDimensions=o.w.width==null||o.w.slope==null;clean.officialAreaCovered=o.e[5].coverage>=.9999&&o.e[5].maxUncoveredMetres<=.05;}
   if(s.kind!=='osm'){clean.grade='unknown';clean.barrier='unknown';}if(s.kind==='endpoint-approach')clean.access='unconfirmed';
-  cleanSegments.push(clean);previous=expected.at(-1);total+=length;
+  cleanSegments.push(clean);previous=expected.at(-1);total+=length;if(s.kind==='official-line')officialLength+=length;
  }
- if(!same(route.segments[0].coordinates[0],start)||!same(previous,end)||Math.abs(route.distanceMetres-total)>Math.max(.1,total*.0001)||!constructionFresh(snapshot))return invalid();
+ if(officialLength<=.001||!same(route.segments[0].coordinates[0],start)||!same(previous,end)||Math.abs(route.distanceMetres-total)>Math.max(.1,total*.0001)||!constructionFresh(snapshot))return invalid();
  const coordinates=[];
  for(const segment of cleanSegments){
   for(const p of segment.coordinates)if(!coordinates.length||metres(coordinates.at(-1),p)>.000001)coordinates.push([...p]);

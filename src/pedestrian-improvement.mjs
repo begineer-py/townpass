@@ -159,8 +159,11 @@ function improvePedestrianRouteInner(base,start,end,options,snapshot,{graph,rout
    Object.assign(attempt,{distanceMetres:distance,sharedMetres:parts.shared,footwayMetres:parts.footway,explicitSidewalkMetres:parts.sidewalk,sidewalkShare:candidateShare});
    if(distance>maxDistance+1e-7){reject(attempt,'detour-limit');continue;}
    if(parts.shared>currentParts.shared+1e-7){reject(attempt,'shared-increased');continue;}
-   if(candidateShare+1e-12<currentShare){reject(attempt,'sidewalk-share-regression');continue;}
    const sharedBetter=currentParts.shared-parts.shared>=minimumReduction,sidewalkBetter=candidateShare>currentShare+1e-12;
+   // Other verified pedestrian paths also count as sidewalks. A connected
+   // pedestrian replacement must not be rejected merely because it lacks an
+   // explicit sidewalk tag; retain the old share rule for other changes.
+   if(!sharedBetter&&candidateShare+1e-12<currentShare){reject(attempt,'sidewalk-share-regression');continue;}
    if(!sharedBetter&&!sidewalkBetter){reject(attempt,'insufficient-improvement');continue;}
    let near=sidewalkBetter?hasNewSidewalkNearReplaced(graph,current,candidate,{radius,deadline,maxComparisons:config.maxComparisons??100000}):{near:false};
    let reason='sidewalk-share-increased';
@@ -178,7 +181,7 @@ function improvePedestrianRouteInner(base,start,end,options,snapshot,{graph,rout
    if(Date.now()>deadline){attempt.reason='time-limit';timedOut=true;break;}
    attempt.reason='eligible';attempt.improvementKind=reason;
    const value={...verified,provider:base.provider,construction:work,resolvedStart:base.resolvedStart,resolvedEnd:base.resolvedEnd,weightedCost:Object.values(candidate.costBreakdown||{}).reduce((a,b)=>a+b,0)};
-   if(!best||candidateShare>best.share+1e-12||(Math.abs(candidateShare-best.share)<=1e-12&&(parts.shared<best.parts.shared||(parts.shared===best.parts.shared&&distance<best.distance))))best={value,parts,distance,approaches:candidateApproaches,share:candidateShare,penalty,sidewalkPenalty,attempt};
+   if(!best||parts.shared<best.parts.shared-1e-7||(Math.abs(parts.shared-best.parts.shared)<=1e-7&&(candidateShare>best.share+1e-12||(Math.abs(candidateShare-best.share)<=1e-12&&distance<best.distance))))best={value,parts,distance,approaches:candidateApproaches,share:candidateShare,penalty,sidewalkPenalty,attempt};
   }
   if(!constructionFresh(snapshot))return {error:'CONSTRUCTION_UNAVAILABLE'};
   if(timedOut||Date.now()>deadline){iterations.push({round:round+1,result:'time-limit',reasons:[...new Set(reasons)],attempts});status='time-limit';break;}
@@ -188,11 +191,11 @@ function improvePedestrianRouteInner(base,start,end,options,snapshot,{graph,rout
   current=best.value;currentParts=best.parts;currentDistance=best.distance;currentApproaches=best.approaches;status=round+1===maxIterations?'iteration-limit':'improved';
  }
  if(!constructionFresh(snapshot))return {error:'CONSTRUCTION_UNAVAILABLE'};
- // A synchronous router cannot be preempted during projection/verification.
- // Never deliver an improvement if the total deadline expired in that work.
- let rolledBack=false;
- if(status==='time-limit'||Date.now()>deadline){status='time-limit';rolledBack=current!==base;current=base;currentParts=original;currentDistance=originalDistance;}
- if(rolledBack)for(const iteration of iterations)if(iteration.result==='improved')iteration.rolledBack=true;
+ // Every committed round was verified before the deadline. A later search
+ // timing out must not discard that completed result; the checks inside the
+ // loop still reject anything whose verification finishes after the deadline.
+ if(Date.now()>deadline)status='time-limit';
+ const rolledBack=false;
  return {...current,pedestrianImprovement:{status,rolledBack,originalDistanceMetres:originalDistance,maxDistanceMetres:maxDistance,originalSharedMetres:original.shared,sharedMetres:currentParts.shared,originalFootwayMetres:original.footway,footwayMetres:currentParts.footway,originalExplicitSidewalkMetres:original.sidewalk,explicitSidewalkMetres:currentParts.sidewalk,originalSidewalkShare:(original.sidewalk+otherSidewalk)/(originalDistance+(hasParent?other:0)),sidewalkShare:(currentParts.sidewalk+otherSidewalk)/(currentDistance+(hasParent?other:0)),radiusMetres:radius,minimumReductionMetres:minimumReduction,searchLimits:{maxIterations,totalMs,maxVisited,maxComparisons:config.maxComparisons??100000},iterations}};
 }
 

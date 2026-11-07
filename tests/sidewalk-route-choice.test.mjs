@@ -17,6 +17,20 @@ test('chooses independently verified sidewalk route from measured segments rathe
  assert.ok(r.improved.sidewalk>r.baseline.sidewalk);assert.ok(r.improved.shared<r.baseline.shared);assert.ok(r.improved.score.value>r.baseline.score.value);
  assert.equal(r.improved.score.parts.unknown,-12);assert.equal(r.baseline.score.parts.unknown,-12);
 });
+test('compares verified sidewalk geometry when condition records are unavailable for both routes',()=>{
+ const f=fixture();f.currentRoute.officialConditions={status:'unavailable'};f.referenceCandidates[0].route.officialConditions={status:'unavailable'};
+ const choice=chooseSidewalkImprovement(f);
+ assert.ok(choice);assert.equal(choice.improved.score.parts.officialConditions,-2);assert.equal(choice.baseline.score.parts.officialConditions,-2);
+ assert.ok(choice.improved.sidewalk>choice.baseline.sidewalk);assert.ok(choice.improved.shared<choice.baseline.shared);
+});
+test('accepts a shorter route with less shared road and higher sidewalk share even when sidewalk metres fall',()=>{
+ const f=fixture(),C=[25.002,121.5],r=f.currentRoute;
+ r.coordinates=[A,C,B];r.networkCoordinates=[A,C,B];r.tierSegments=[segment([A,C],{tier:'shared',sharedRoad:true}),segment([C,B],{explicitSidewalk:true})];
+ r.distance=Math.round(r.tierSegments.reduce((sum,s)=>sum+s.distance,0));
+ const choice=chooseSidewalkImprovement(f);
+ assert.ok(choice);assert.ok(choice.improved.sidewalk<=choice.baseline.sidewalk+1);assert.ok(choice.improved.distance<choice.baseline.distance);
+ assert.ok(choice.improved.shared<choice.baseline.shared);assert.ok(choice.improved.sidewalk/choice.improved.distance>choice.baseline.sidewalk/choice.baseline.distance);
+});
 test('retains the user selection or a currently followed route',()=>{
  assert.equal(chooseSidewalkImprovement({...fixture(),userSelected:true}),null);
  assert.equal(chooseSidewalkImprovement({...fixture(),following:true}),null);

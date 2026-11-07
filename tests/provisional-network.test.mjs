@@ -5,6 +5,7 @@ import {createProvisionalNetwork,findProvisionalRoute} from '../src/provisional-
 import {createOfficialConditionIndex} from '../src/official-conditions.mjs';
 import {verifyOfficialReferenceRoute} from '../src/official-reference-validator.mjs';
 import {createLocalRouteVerifier} from '../src/local-route-verifier.mjs';
+import {metres} from '../src/routing.mjs';
 
 const twd='+proj=tmerc +lat_0=0 +lon_0=121 +k=0.9999 +x_0=250000 +y_0=0 +ellps=GRS80 +units=m +no_defs';
 const ll=p=>{const [lon,lat]=proj4(twd,'EPSG:4326',p);return [lat,lon];};
@@ -58,6 +59,43 @@ test('source to OSM separation is inclusive at 2m and rejects greater gaps',()=>
  f.graph.ways=[{highway:'footway',width:1.5,slope:0}];f.graph.edges=[[0,1,100,0,[],proof]];f.osmEdgeIds=[0];
  offset(2);const within=findProvisionalRoute(f);assert.equal(within.error,undefined);assert.ok(within.segments.some(s=>s.kind==='osm-join'&&s.gapMetres>1.99&&s.gapMetres<=2+1e-7));
  offset(2.01);assert.equal(findProvisionalRoute(f).error,'NO_PROVISIONAL_ROUTE');
+});
+test('endpoints can reach official lines through connected existing OSM pedestrian edges',()=>{
+ const n=(x,y=0)=>[25.11+y/111195,121.53+x/100700],proof={schemaVersion:2,coverage:0,maxUncoveredMetres:100,crossingCoverage:0,roadCrossingVerified:true,crossingVerified:true};
+ const a=n(-80),b=n(0),c=n(100),d=n(180),f=fixture();
+ f.parts=[{qgsFid:'21',partIndex:0,coordinates:[xy(b),xy(c)]}];f.graph.nodes=[a,b,c,d].map((p,i)=>[...p,0,i+1]);
+ f.graph.ways=[{highway:'footway',width:1.5,slope:0}];f.graph.edges=[[0,1,80,0,[],proof],[2,3,80,0,[],proof]];f.osmEdgeIds=[0,1];
+ for(const [start,end] of [[a,d],[d,a]]){
+  const r=findProvisionalRoute({...f,start,end});assert.equal(r.error,undefined);assert.ok(r.segments.some(s=>s.kind==='official-line'&&s.distanceMetres>1));
+  assert.ok(r.segments.filter(s=>s.kind==='endpoint-approach').every(s=>Number.isInteger(s.osmEdgeId)));
+  const verifyLocal=createLocalRouteVerifier(f.graph,[],[]),checked=verifyOfficialReferenceRoute({...f,route:r,start,end,verifyLocal});
+  assert.equal(checked.error,undefined);assert.equal(checked.navigationAllowed,true);
+  const forged=structuredClone(r);forged.segments[0].osmSegmentT=.75;assert.equal(verifyOfficialReferenceRoute({...f,route:forged,start,end,verifyLocal}).error,'REFERENCE_VALIDATION_FAILED');
+ }
+ const fake={source:'official-passageway',sourceHash:hash,constructionSourceUpdatedAt:f.snapshot.sourceUpdatedAt,distanceMetres:80,segments:[
+  {kind:'endpoint-approach',side:'start',coordinates:[a,a],distanceMetres:0,access:'unconfirmed',grade:'unknown',osmEdgeId:0,osmSegmentIndex:0,osmSegmentT:0},
+  {kind:'osm',edgeId:0,coordinates:[a,b],distanceMetres:80,startOffsetMetres:0,endOffsetMetres:metres(a,b),direction:'forward',explicitSidewalk:false,sharedRoad:false,unknownDimensions:false,officialAreaCovered:false},
+  {kind:'endpoint-approach',side:'end',coordinates:[b,b],distanceMetres:0,access:'unconfirmed',grade:'unknown',osmEdgeId:0,osmSegmentIndex:0,osmSegmentT:1},
+ ]};
+ const verifyLocal=createLocalRouteVerifier(f.graph,[],[]);
+ assert.equal(verifyOfficialReferenceRoute({...f,route:fake,start:a,end:b,verifyLocal}).error,'REFERENCE_VALIDATION_FAILED');
+ // At an exact OSM node there is no connector that can cross this road.
+ const touchingRoad=[n(-80,-5),n(-80,5)].map(([lat,lon])=>[lon,lat]);f.graph.roadGeometries=[touchingRoad];
+ const coincident=findProvisionalRoute({...f,start:a,end:d});assert.equal(coincident.error,undefined);
+ assert.equal(verifyOfficialReferenceRoute({...f,route:coincident,start:a,end:d,verifyLocal}).error,undefined);
+ // Even a 1 cm approach across that same road is not the zero-gap exception.
+ const almost=n(-80.01),across=findProvisionalRoute({...f,start:almost,end:d});
+ assert.match(across.error,/^NO_PROVISIONAL_(CONNECTION|ROUTE)$/);
+ f.graph.roadGeometries=[[[121.79,25],[121.79,25.01]]];
+ // Nearby disconnected source lines must not prevent falling back to an
+ // existing OSM edge; the 5m endpoint approach remains explicitly estimated.
+ const offset=n(-80,5);f.parts.push({qgsFid:'22',partIndex:0,coordinates:[xy(offset),xy(n(-70,5))]});
+ const fallback=findProvisionalRoute({...f,start:offset,end:d});assert.equal(fallback.error,undefined);
+ assert.equal(fallback.segments[0].osmEdgeId,0);assert.ok(fallback.segments[0].distanceMetres>4.9);
+ assert.equal(verifyOfficialReferenceRoute({...f,route:fallback,start:offset,end:d,verifyLocal}).error,undefined);
+ // A road between an endpoint and the OSM edge cannot be crossed by a snap.
+ const p=n(-80,5),road=[n(-180,2),n(50,2)].map(([lat,lon])=>[lon,lat]);f.graph.roadGeometries=[road];
+ assert.match(findProvisionalRoute({...f,start:p,end:d}).error,/^NO_PROVISIONAL_(CONNECTION|ROUTE)$/);
 });
 test('input and search bounds fail explicitly without returning a route',()=>{
  const f=fixture(1);assert.equal(findProvisionalRoute({...f,limits:{maxVertices:2}}).error,'PROVISIONAL_SEARCH_LIMIT');

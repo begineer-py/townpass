@@ -1,6 +1,6 @@
 import {constructionFresh} from './construction.mjs';
 import {ROUTING_POLICY,metres} from './routing.mjs';
-import {generalSidewalkSegment} from './general-sidewalk.mjs';
+import {generalPedestrianSegment} from './general-sidewalk.mjs';
 import {officialConditionMetrics,officialConditionScore} from './official-conditions.mjs';
 
 const point=p=>Array.isArray(p)&&p.length===2&&p.every(Number.isFinite);
@@ -8,9 +8,12 @@ const close=(a,b)=>point(a)&&point(b)&&metres(a,b)<=.01;
 const endpoints=(route,start,end)=>Array.isArray(route?.coordinates)&&route.coordinates.length>=2&&route.coordinates.every(point)&&close(route.coordinates[0],[start.lat,start.lon])&&close(route.coordinates.at(-1),[end.lat,end.lon]);
 const conditions=route=>{
  const c=route?.officialConditions;
+ // Missing records remain unknown for both routes. They should not prevent a
+ // comparison based on verified sidewalk and shared-road geometry.
+ if(c?.status==='unavailable')return {status:'unavailable',weight:null,fetchedAt:null,sourceObservedAt:null};
  if(c?.status!=='available'||typeof c.fetchedAt!=='string'||!Number.isFinite(Date.parse(c.fetchedAt))||!Array.isArray(c.points)||c.points.some(p=>!Number.isFinite(p.distanceMetres)||p.distanceMetres<0||typeof p.type!=='string'))return null;
  const weight=officialConditionMetrics(c).officialConditionWeight;
- return Number.isFinite(weight)?{weight,fetchedAt:c.fetchedAt,sourceObservedAt:c.sourceObservedAt??null}:null;
+ return Number.isFinite(weight)?{status:'available',weight,fetchedAt:c.fetchedAt,sourceObservedAt:c.sourceObservedAt??null}:null;
 };
 // The condition overlay may split a verified edge into shorter collinear
 // pieces. Accept those splits without accepting a shortcut across a bend.
@@ -56,7 +59,7 @@ function officialMetrics(route){
   if(!['official-line','osm','osm-join','source-join','endpoint-approach'].includes(s.kind)||!Number.isFinite(s.distanceMetres)||s.distanceMetres<0||!Array.isArray(s.coordinates)||s.coordinates.length<2||s.coordinates.some(p=>!point(p))||(previous&&metres(previous,s.coordinates[0])>.000001))return null;
   for(const p of s.coordinates)if(!coords.length||metres(coords.at(-1),p)>.000001)coords.push(p);
   previous=s.coordinates.at(-1);total+=s.distanceMetres;
-  if(generalSidewalkSegment(s)||(s.kind==='osm'&&!s.sharedRoad&&!s.crossing))sidewalk+=s.distanceMetres;
+  if(generalPedestrianSegment(s))sidewalk+=s.distanceMetres;
   if(s.kind==='osm'&&s.sharedRoad===true)shared+=s.distanceMetres;
   if(s.kind==='endpoint-approach')estimated+=s.distanceMetres;
   if(s.kind.endsWith('join'))joins++;
@@ -83,7 +86,7 @@ export function chooseSidewalkImprovement(options){
  const ranked=compared.referenceCandidates.filter(item=>{
   const m=item.metrics;
   return m.distance<=Math.min(baseline.distance*1.3,baseline.distance+300)+.001 &&
-   m.shared<baseline.shared-1 && m.sidewalk>baseline.sidewalk+1 && item.score.value>baseScore.value+1e-7;
+   m.shared<baseline.shared-1 && m.sidewalk/m.distance>baseline.sidewalk/baseline.distance+1e-7 && item.score.value>baseScore.value+1e-7;
  }).sort((a,b)=>b.score.value-a.score.value||a.metrics.distance-b.metrics.distance);
  if(!ranked.length)return null;
  const winner=ranked[0];return {candidate:winner.candidate,baseline:{...baseline,score:baseScore},improved:{...winner.metrics,score:winner.score},shortestDistanceMetres:compared.shortestDistanceMetres,scoreMeaning:compared.scoreMeaning};
@@ -98,7 +101,7 @@ export function compareSidewalkRouteScores({currentRoute,localCandidates=[],refe
  const expectedHash=referenceSourceHash??referenceCandidates[0]?.route?.sourceHash;
  if(!/^[a-f0-9]{64}$/i.test(expectedHash||''))return unavailable;
  const current=localMetrics(currentRoute)||(currentRoute.sourceHash===expectedHash?officialMetrics(currentRoute):null);if(!current)return unavailable;
- const sameConditions=m=>m&&m.condition.fetchedAt===current.condition.fetchedAt&&m.condition.sourceObservedAt===current.condition.sourceObservedAt;
+ const sameConditions=m=>m&&m.condition.status===current.condition.status&&m.condition.fetchedAt===current.condition.fetchedAt&&m.condition.sourceObservedAt===current.condition.sourceObservedAt;
  const local=[];for(const candidate of localCandidates){const route=candidate?.route;
   if(typeof candidate?.id!=='string'||!endpoints(route,start,end)||!constructionMatches(route,snapshot))continue;
   const metrics=localMetrics(route);if(sameConditions(metrics))local.push({candidate,metrics});
