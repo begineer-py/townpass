@@ -158,6 +158,7 @@ export default function MapView({
       el.removeEventListener("wheel", gesture);
       el.removeEventListener("touchstart", pinch);
       observer.disconnect();
+      if (map.current === m) map.current = null;
       m.remove();
     };
   }, []);
@@ -292,7 +293,8 @@ export default function MapView({
     }
     return () => {
       for (const layer of baseLayers.current) {
-        layer.off();
+        // Leaflet's own remove listener unregisters the layer's map events.
+        // Clearing listeners first leaves zoom/viewreset callbacks on the map.
         layer.remove();
       }
       baseLayers.current = [];
@@ -480,7 +482,8 @@ export default function MapView({
       }
       for(const approach of route.approaches || []) {const style=ROUTE_CONDITIONS.approach;L.polyline(approach.coordinates,{color:TPColors.white,weight:8,opacity:1}).addTo(path.current);const line=L.polyline(approach.coordinates,{color:colorFriendly?TPColors.primary900:style.color,weight:4,dashArray:style.dash}).addTo(path.current);if(approach.estimated)line.bindTooltip('入口及實際通行狀況未確認，虛線僅為位置估算');}
       if (!hideMapIcons) drawOfficialConditions(path.current,route.officialConditions);
-      const fit=()=>{const height=map.current.getSize().y;map.current.fitBounds(L.latLngBounds(route.coordinates),{animate:false,...routePadding(height)});};
+      const m=map.current;
+      const fit=()=>{if(!m||map.current!==m)return;const height=m.getSize().y;m.fitBounds(L.latLngBounds(route.coordinates),{animate:false,...routePadding(height)});};
       fit();const timer=setTimeout(fit,350);return ()=>clearTimeout(timer);
     }
   }, [route,sheetSnap,colorFriendly,hideMapIcons]);
