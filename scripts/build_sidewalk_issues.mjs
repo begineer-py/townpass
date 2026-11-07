@@ -1,4 +1,4 @@
-// 下載臺北市無障礙通行路線平臺的「不利通行」與「行穿線未設置路緣斜坡」點位，轉成 WGS84 後壓縮存到
+// 下載臺北市無障礙通行路線平臺的「不利通行－淨寬不足」（活動區域高／中／低）與「行穿線未設置路緣斜坡」點位，轉成 WGS84 後壓縮存到
 // public/data/sidewalk-issues.json.gz。地圖在「人行道」圖層開啟時一起顯示。
 // 執行：node scripts/build_sidewalk_issues.mjs
 import fs from "node:fs";

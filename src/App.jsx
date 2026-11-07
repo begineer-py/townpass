@@ -62,7 +62,7 @@ import {constructionFresh, CONSTRUCTION_MAX_AGE} from "./construction.mjs";
 import { requestOfficialRoute } from "./official-router.mjs";
 import { ROUTING_POLICY } from "./routing.mjs";
 import { BASEMAPS } from "./basemaps.mjs";
-import { NO_WALK_URL } from "./issue-icons.mjs";
+import { ISSUE_LEVELS, NO_WALK_URLS } from "./issue-icons.mjs";
 // Layer-picker preview: the z15 tile covering Taipei Main Station.
 const layerThumb = (url) =>
   url.replace("{z}", 15).replace("{x}", 27444).replace("{y}", 14027);
@@ -1885,11 +1885,16 @@ export default function App() {
                       人行道
                     </b>
                     <span className="issue-legend">
-                      <span>
-                        <img className="issue-sign" src={NO_WALK_URL} alt="" />
-                        不利通行
+                      <span className="issue-legend-title">
+                        不利通行・淨寬不足（依活動區域）
                       </span>
-                      <span>
+                      {ISSUE_LEVELS.map((level, i) => (
+                        <span key={level.label}>
+                          <img className="issue-sign" src={NO_WALK_URLS[i]} alt="" />
+                          {level.label}
+                        </span>
+                      ))}
+                      <span className="issue-legend-title">
                         <i className="issue-ring" aria-hidden="true" />
                         行穿線無斜坡
                       </span>

@@ -88,14 +88,15 @@ export async function loadOfficialSidewalks() {
   return request;
 }
 
-// 市府平臺「缺失」圖層：不利通行（沒有路緣斜坡，依活動區域分高／中／低）與行穿線未設置路緣斜坡。
+// 市府平臺「缺失」圖層：不利通行－淨寬不足（依活動區域分高／中／低）與行穿線未設置路緣斜坡。
+// （API 欄位名稱是 missing_noCurbSlope，但平臺圖例標示為「不利通行-淨寬不足」。）
 export const SIDEWALK_ISSUES_URL =
   "https://tppano.gov.taipei/tp_roadsidewalkplatform_be/api/C00/C10/C11_mapStreetView/missing_v2";
 // 種類代碼：0 不利通行（高）、1 不利通行（中）、2 不利通行（低）、3 行穿線未設置路緣斜坡。
 export const SIDEWALK_ISSUE_KINDS = [
-  "不利通行（活動區域高）",
-  "不利通行（活動區域中）",
-  "不利通行（活動區域低）",
+  "不利通行－淨寬不足（活動區域高）",
+  "不利通行－淨寬不足（活動區域中）",
+  "不利通行－淨寬不足（活動區域低）",
   "行穿線未設置路緣斜坡",
 ];
 const LEVEL = { 高: 0, 中: 1, 低: 2 };

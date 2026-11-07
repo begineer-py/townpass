@@ -1430,7 +1430,7 @@ button.icon-action {
   }
 }
 
-/* 人行道圖層的不利通行圖例：禁止行人號誌＝不利通行，空心紅圈＝行穿線未設置路緣斜坡（與 MapView 畫法一致） */
+/* 人行道圖層的不利通行圖例：禁止行人號誌＝不利通行－淨寬不足（高紫、中黃、低青綠），空心紅圈＝行穿線未設置路緣斜坡（與 MapView 畫法一致） */
 .issue-legend {
   display: flex;
   flex-wrap: wrap;
@@ -1443,6 +1443,9 @@ button.icon-action {
   display: inline-flex;
   align-items: center;
   gap: 5px;
+}
+.issue-legend > .issue-legend-title {
+  flex-basis: 100%;
 }
 .issue-ring {
   display: inline-block;

@@ -14,7 +14,7 @@ import {
 } from "./official-sidewalks.mjs";
 import { TPColors } from "./tp-colors.mjs";
 import { mapIconElement } from "./map-icons.mjs";
-import { NO_WALK_URL } from "./issue-icons.mjs";
+import { NO_WALK_URLS } from "./issue-icons.mjs";
 // 標記底色（白色圖形放在上面，與白色的對比都在 3:1 以上）。
 const colors = {
   place: TPColors.orange700,
@@ -34,9 +34,9 @@ const colors = {
 // 每種地點用不同圖形（Lucide），不只靠顏色辨認。
 const iconKind = (k) =>
   ({ place: "store", "public-toilet": "toilet" })[k] || k;
-// 在 canvas 上畫一張圖（不利通行號誌）：數百個點也不必各建一個 DOM 標記。
+// 在 canvas 上畫一張圖（不利通行號誌，高／中／低各一張）：數百個點也不必各建一個 DOM 標記。
 // radius 決定重繪範圍，圖以 radius*2 見方畫在點的中心。
-const noWalkImage = Object.assign(new Image(), { src: NO_WALK_URL });
+const noWalkImages = NO_WALK_URLS.map((src) => Object.assign(new Image(), { src }));
 const ImageMark = L.CircleMarker.extend({
   _updatePath() {
     const r = this._renderer,
@@ -279,8 +279,8 @@ export default function MapView({
       });
       drawing = L.layerGroup([halo, official]);
       // 不利通行點位跟人行道同一個圖層：放大到 16 以上才畫。
-      // 不利通行（沒有路緣斜坡）用「禁止行人」號誌；行穿線未設置路緣斜坡為空心紅圈。
-      // 號誌比圓點大，彼此太近（同一格）只畫一個，號誌優先於紅圈。
+      // 不利通行（淨寬不足）用「禁止行人」號誌，依平臺活動區域分級上色（高紫、中黃、低青綠）；
+      // 行穿線未設置路緣斜坡為空心紅圈。號誌比圓點大，彼此太近（同一格）只畫一個：高 > 中 > 低 > 紅圈。
       if (issues && m.getZoom() >= 16) {
         const z = m.getZoom(),
           size = z >= 19 ? 26 : z >= 18 ? 22 : z >= 17 ? 18 : 16,
@@ -293,7 +293,7 @@ export default function MapView({
           return true;
         };
         const visible = visibleSidewalkIssues(issues, m.getBounds()).sort(
-          (a, b) => (a.kind === 3) - (b.kind === 3),
+          (a, b) => a.kind - b.kind,
         );
         for (const { lat, lon, kind } of visible) {
           if (!free(lat, lon, size * 0.9)) continue;
@@ -313,7 +313,7 @@ export default function MapView({
               renderer,
               pane: "official-sidewalks",
               radius: size / 2,
-              image: noWalkImage,
+              image: noWalkImages[kind],
               interactive: false,
             }).addTo(drawing);
         }
@@ -330,8 +330,9 @@ export default function MapView({
         if (!active) return;
         issues = result;
         // 號誌圖還沒解碼完時先略過，載好再重畫一次。
-        if (!noWalkImage.complete)
-          noWalkImage.addEventListener("load", () => active && draw(), { once: true });
+        for (const img of noWalkImages)
+          if (!img.complete)
+            img.addEventListener("load", () => active && draw(), { once: true });
         draw();
       })
       .catch(() => {});
