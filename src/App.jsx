@@ -55,6 +55,8 @@ import {
   TrendingUp,
 } from "lucide-react";
 import MapView from "./MapView";
+import OfficialConditions from "./OfficialConditions";
+import { createConditionDetourSearch } from "./condition-detour-search.mjs";
 import VoiceSearch from "./VoiceSearch";
 import {searchVerifiedAlternatives} from "./alternative-routes.mjs";
 import {fetchConstruction} from "./construction-client.mjs";
@@ -362,6 +364,7 @@ export default function App() {
   const tabVersion = useRef(0);
   useEffect(() => {
     tabVersion.current++;
+    if (tab !== "plan") conditionDetourSearch.current?.cancel();
   }, [tab]);
   // 起點、終點都選好時先在背景載入路網，按下規劃路線時通常已經準備好。
   useEffect(() => {
@@ -389,6 +392,15 @@ export default function App() {
   const officialRequest = useRef();
   const pendingVerifications = useRef(new Map());
   const lastConstruction = useRef(null);
+  const [conditionDetourState, setConditionDetourState] = useState({ status: "idle" });
+  const conditionDetourSearch = useRef(null);
+  if (!conditionDetourSearch.current)
+    conditionDetourSearch.current = createConditionDetourSearch({
+      fetchSnapshot: fetchConstruction,
+      createWorker: () => new Worker(new URL("./route-worker.js", import.meta.url), { type: "module" }),
+      onState: setConditionDetourState,
+      onSnapshot: (snapshot) => { lastConstruction.current = snapshot; },
+    });
   const [constructionConflict,setConstructionConflict] = useState(null);
   const [routeAttempt,setRouteAttempt]=useState(0);
   function verifyOnlineRoute(route, start, end, id, construction) {
@@ -630,7 +642,7 @@ export default function App() {
         location.href,
       ).href,
     });
-    return () => { w.terminate(); for(const resolve of pendingVerifications.current.values()) resolve({error:'UNVERIFIED_NETWORK'}); pendingVerifications.current.clear(); };
+    return () => { w.terminate(); conditionDetourSearch.current?.cancel(false); for(const resolve of pendingVerifications.current.values()) resolve({error:'UNVERIFIED_NETWORK'}); pendingVerifications.current.clear(); };
   }, [graphRequested]);
   const changePoint = (which, p) => {
     request.current++;
@@ -645,6 +657,7 @@ export default function App() {
     setFocus({ ...p, token: Date.now() });
   };
   function clearRoute() {
+    conditionDetourSearch.current.cancel();
     setConstructionConflict(null);
     setRouteAttempt(0);
     for(const resolve of pendingVerifications.current.values()) resolve({error:'UNVERIFIED_NETWORK'});
@@ -656,6 +669,40 @@ export default function App() {
     setRouting(false);
     setRoute(null);
   }
+  function avoidOfficialCondition(point) {
+    if (!route || !start || !end || !graphReady) return;
+    const a = route.resolvedStart || start, b = route.resolvedEnd || end;
+    const old = route.conditionDetour?.targets || [];
+    const targets = [
+      ...old.filter((p) => p.id !== point.id || p.type !== point.type),
+      { id: point.id, type: point.type, lat: point.lat, lon: point.lon },
+    ];
+    void conditionDetourSearch.current.start({
+      startPlace: a,
+      endPlace: b,
+      options: { ...prefs, avoidPoints },
+      url: new URL(dataUrl("graph") + "?policy=" + ROUTING_POLICY, location.href).href,
+      targets,
+      online: navigator.onLine,
+      offlineSnapshot: lastConstruction.current,
+    });
+  }
+  useEffect(() => {
+    if (conditionDetourState.status !== "ready") return;
+    const next = conditionDetourState.route;
+    if (
+      next?.policyVersion !== ROUTING_POLICY ||
+      next.geometryVerification !== "pedestrian-network-v1" ||
+      !constructionFresh(lastConstruction.current) ||
+      next.construction?.sourceUpdatedAt !== lastConstruction.current?.sourceUpdatedAt
+    ) {
+      setConditionDetourState({ status: "error", message: "無法確認繞路結果，原路線仍可查看。" });
+      return;
+    }
+    setRoute(next);
+    setRouteError("");
+    setStepIndex(0);
+  }, [conditionDetourState]);
   function selectPoint(p) {
     if (pick) changePoint(pick, p);
   }
@@ -1692,6 +1739,27 @@ export default function App() {
                         </li>
                       ))}
                     </ol>
+                    <OfficialConditions
+                      conditions={route.officialConditions}
+                      onAvoid={avoidOfficialCondition}
+                      avoiding={conditionDetourState.status === "loading"}
+                    />
+                    {conditionDetourState.status === "loading" && (
+                      <p role="status">
+                        正在尋找繞路…{" "}
+                        <button type="button" onClick={() => conditionDetourSearch.current.cancel()}>
+                          取消
+                        </button>
+                      </p>
+                    )}
+                    {conditionDetourState.status === "error" && (
+                      <p role="status">{conditionDetourState.message}</p>
+                    )}
+                    {route.conditionDetour && (
+                      <p className="quiet-note" role="note">
+                        已規劃避開 {route.conditionDetour.targets.length} 筆所選官方紀錄點 10 公尺內的路線；點位與實際路況仍需現場確認。
+                      </p>
+                    )}
                     {routeWorks.length > 0 && (
                       <>
                         <h2 className="section-title">沿途施工資料</h2>
