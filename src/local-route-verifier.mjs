@@ -6,12 +6,12 @@ const same=(a,b)=>a&&b&&a[0]===b[0]&&a[1]===b[1];
 export function createLocalRouteVerifier(graph,facilities=[]){
  const {areas,crossings}=officialGeometryEvidence(graph),covered=polygonConnectorChecker(areas),roadClear=roadConnectorChecker(graph.roadGeometries,crossings);
  const entrances=new Map(facilities.filter(p=>p.kind==='metro-elevator').map(p=>[p.id,p]));
- function allowed(point,target,place){
+ function allowed(point,target,place,options={}){
   const gap=metres(point,target),entry=entrances.get(place?.id),matched=entry&&same(point,[entry.lat,entry.lon]);
   // A point already on a verified network node has no approach to cross a road.
   // This matters for a shared-street centreline, which is itself in the road mask.
   if(gap<=.001)return true;
-  return gap<=SNAP_METRES&&roadClear(point,target)&&(gap<=.05||covered(point,target)||(matched&&gap<=15));
+  return gap<=SNAP_METRES&&roadClear(point,target)&&(gap<=.05||covered(point,target)||(matched&&!options.knownOnly));
  }
  const verify=(route,start,end,options={})=>{
   if(route.error)return route;
@@ -44,9 +44,9 @@ export function createLocalRouteVerifier(graph,facilities=[]){
   for(const [point,target,place,side]of [[start,coordinates[0],options.startPlace,'start'],[end,coordinates.at(-1),options.endPlace,'end']]){
    const gap=metres(point,target),entry=entrances.get(place?.id);
    const matched=entry&&same(point,[entry.lat,entry.lon]);
-   // The entire approach is checked against roads. A short official elevator-point link
-   // is a positional estimate, explicitly labelled rather than claimed as surveyed pavement.
-   if(!allowed(point,target,place))return {error:'OFFICIAL_ENTRY_UNVERIFIED'};
+   // The entire approach is checked against roads. A registered exit link
+   // without polygon coverage is an estimate, not a surveyed walking path.
+   if(!allowed(point,target,place,options))return {error:'OFFICIAL_ENTRY_UNVERIFIED'};
    if(gap>.05)approaches.push({side,coordinates:side==='start'?[point,target]:[target,point],distance:Math.round(gap),estimated:!covered(point,target),name:entry?.name});
   }
   const all=[...coordinates];if(!same(start,all[0]))all.unshift(start);if(!same(end,all.at(-1)))all.push(end);
@@ -77,7 +77,7 @@ export function planPlaces(startPlace,endPlace,options,snapshot,{router,verifyLo
  let last={error:'NO_ROUTE'},best=null,blocked=null;
  const attempts=[];
  for(const a of stationEntrances(startPlace,facilities))for(const b of stationEntrances(endPlace,facilities)){
-  const start=[a.lat,a.lon],end=[b.lat,b.lon],prefs={...options,startPlace:a,endPlace:b,lineAllowed:checker.allowed,approachAllowed:(p,n,side)=>verifyLocal.approachAllowed(p,n,side==='start'?a:b)};
+  const start=[a.lat,a.lon],end=[b.lat,b.lon],prefs={...options,startPlace:a,endPlace:b,lineAllowed:checker.allowed,approachAllowed:(p,n,side)=>verifyLocal.approachAllowed(p,n,side==='start'?a:b,options)};
   attempts.push({start,end,prefs});
   const candidate=router(start,end,prefs);if(candidate.error){last=candidate;continue;}
   const checked=verifyLocal(candidate,start,end,prefs);if(checked.error){last=checked;continue;}

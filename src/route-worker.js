@@ -53,7 +53,7 @@ self.onmessage = async ({ data }) => {
           : JSON.parse(new TextDecoder().decode(bytes));
       validateNetwork(graph);
       const baseRouter=createRouter(graph);
-      router=(a,b,options={})=>baseRouter(a,b,{...options,approachAllowed:(p,n,side)=>verifyLocal.approachAllowed(p,n,side==='start'?options.startPlace:options.endPlace)});
+      router=(a,b,options={})=>baseRouter(a,b,{...options,approachAllowed:(p,n,side)=>verifyLocal.approachAllowed(p,n,side==='start'?options.startPlace:options.endPlace,options)});
       verifyOfficial = createOfficialRouteVerifier(graph);
       const fr=await fetch(new URL('./facilities.json.gz',data.url));if(!fr.ok)throw Error('facilities');
       const fb=new Uint8Array(await fr.arrayBuffer());facilities=JSON.parse(new TextDecoder().decode(fb[0]===31&&fb[1]===139?gunzipSync(fb):fb));

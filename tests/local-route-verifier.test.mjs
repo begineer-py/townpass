@@ -8,6 +8,29 @@ test('mapped footway provenance replaces an unrelated full-city polygon coverage
 test('forged geometry and vehicle way cannot inherit pedestrian verification',()=>{const g=base(),r=createRouter(g)(a,b);assert.equal(createLocalRouteVerifier(g)({...r,coordinates:[a,[25.01,121.5],b]},a,b).error,'UNVERIFIED_NETWORK');g.ways[0].highway='primary';assert.equal(createLocalRouteVerifier(g)(r,a,b).error,'UNVERIFIED_NETWORK');});
 test('unknown point near the network does not gain an invented connector',()=>{const g=base(),r=createRouter(g)(a,b),p=[25.00005,121.5];assert.equal(createLocalRouteVerifier(g)(r,p,b).error,'OFFICIAL_ENTRY_UNVERIFIED');});
 test('short registered metro exit approach is labelled estimated and checks its entire road crossing',()=>{const g=base(),r=createRouter(g)(a,b),p=[25.00005,121.5],exit={id:'exit',kind:'metro-elevator',lat:p[0],lon:p[1]};const v=createLocalRouteVerifier(g,[exit])(r,p,b,{startPlace:exit});assert.equal(v.approaches[0].estimated,true);g.roadGeometries=[[[121.499,25.000025],[121.502,25.000025]]];assert.equal(createLocalRouteVerifier(g,[exit])(r,p,b,{startPlace:exit}).error,'OFFICIAL_ENTRY_UNVERIFIED');});
+test('registered exit estimate extends to 50m but remains unknown and cannot be forged',()=>{
+ const g=base(),r=createRouter(g)(a,b),p=[25+30/111195,121.5],exit={id:'exit',kind:'metro-elevator',lat:p[0],lon:p[1]},verify=createLocalRouteVerifier(g,[exit]);
+ const v=verify(r,p,b,{startPlace:exit});assert.equal(v.error,undefined);assert.equal(v.approaches[0].estimated,true);assert.equal(v.approaches[0].distance,30);
+ assert.equal(verify(r,p,b,{startPlace:exit,knownOnly:true}).error,'OFFICIAL_ENTRY_UNVERIFIED');
+ assert.equal(verify.approachAllowed(p,a,exit,{knownOnly:true}),false);
+ assert.equal(verify(r,p,b,{startPlace:{...exit,id:'other'}}).error,'OFFICIAL_ENTRY_UNVERIFIED');
+ assert.equal(verify(r,[p[0]+.000001,p[1]],b,{startPlace:exit}).error,'OFFICIAL_ENTRY_UNVERIFIED');
+ const distant=[25+51/111195,121.5],far={...exit,lat:distant[0]};assert.equal(createLocalRouteVerifier(g,[far])(r,distant,b,{startPlace:far}).error,'OFFICIAL_ENTRY_UNVERIFIED');
+});
+test('estimated metro approach still refuses an unverified vehicle crossing',()=>{
+ const g=base(),r=createRouter(g)(a,b),p=[25+30/111195,121.5],exit={id:'exit',kind:'metro-elevator',lat:p[0],lon:p[1]};
+ g.roadGeometries=[[[121.499,25+15/111195],[121.502,25+15/111195]]];
+ assert.equal(createLocalRouteVerifier(g,[exit])(r,p,b,{startPlace:exit}).error,'OFFICIAL_ENTRY_UNVERIFIED');
+});
+test('estimated exit links obey construction blocking and known-only during search',()=>{
+ const g=base(),p=[25+30/111195,121.5],exit={id:'exit',kind:'metro-elevator',lat:p[0],lon:p[1]},fac=[exit];
+ const now=Date.parse('2026-11-07T08:00:00Z'),stamp=new Date(now).toISOString(),snapshot={schemaVersion:1,fetchedAt:stamp,sourceUpdatedAt:stamp,works:[]};
+ const run=(options,works=[])=>{const s={...snapshot,works};return planPlaces(exit,{lat:b[0],lon:b[1]},options,s,{router:createRouter(g),verifyLocal:createLocalRouteVerifier(g,fac),facilities:fac,checker:createConstructionChecker(s,now)});};
+ const result=run({});assert.equal(result.error,undefined);assert.equal(result.approaches[0].estimated,true);
+ assert.ok(run({knownOnly:true}).error);
+ const closure={id:'closed',start:'115/11/07',end:'115/11/07',hours:'24小時施工',impact:'blocked',geometries:[{type:'Point',coordinates:[p]}]};
+ const blocked=run({},[closure]);assert.equal(blocked.error,'CONSTRUCTION_BLOCKED');assert.equal(blocked.coordinates,undefined);
+});
 test('station search resolves only its own published metro exits',()=>{const fac=[{kind:'metro-elevator',station:'台北車',id:'A'},{kind:'metro-elevator',station:'善導寺',id:'B'}];assert.deepEqual(stationEntrances({kind:'20',name:'臺北車站(R10)'},fac).map(p=>p.id),['A']);});
 test('route condition geometry is rebuilt from verified edges, not candidate annotations',()=>{
  const g=base(),r=createRouter(g)(a,b);
