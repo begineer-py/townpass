@@ -334,3 +334,76 @@ button:active:not(:disabled),
     animation: none;
   }
 }
+
+/* --- 搜尋結果裡的捷運站：車站標題＋電梯出口，iOS 分組清單 ------------- */
+.station-group {
+  margin: 4px 0 16px;
+  padding: 12px 12px 8px;
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--tp-primary50) 70%, var(--tp-white));
+  box-shadow: inset 0 0 0 0.5px var(--hairline);
+}
+.station-group-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+.station-group-head strong {
+  display: block;
+  font-size: var(--tp-text-h3SemiBold-size);
+  color: var(--tp-grayscale900);
+}
+.station-group-head small {
+  color: var(--tp-grayscale700);
+}
+.station-group .facility-row {
+  background: transparent;
+}
+.station-group .quiet-note {
+  margin: 6px 4px 2px;
+}
+.station-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 44px;
+  padding: 0 4px;
+  color: var(--action-text);
+  font-weight: var(--tp-text-bodySemiBold-weight);
+}
+.facility-note {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--tp-text-caption-size);
+  font-weight: var(--tp-text-caption-weight);
+  color: var(--tp-red700);
+}
+
+/* 搜尋選項：語音輸入一整列，其他三個按鈕平分一列，不再擠成直排字。 */
+.search-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.search-options .voice-search {
+  grid-column: 1 / -1;
+}
+.search-options > button {
+  flex-direction: column;
+  gap: 4px;
+  min-height: 64px;
+  padding: 8px 4px;
+  border: 0;
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--tp-grayscale100) 70%, var(--tp-white));
+  color: var(--action-text);
+  font-size: var(--tp-text-caption-size);
+  font-weight: var(--tp-text-bodySemiBold-weight);
+  line-height: 1.3;
+  text-align: center;
+}
+.search-options .voice-search .quiet-note {
+  margin: 6px 0 0;
+}

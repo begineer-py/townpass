@@ -168,7 +168,7 @@ function Sheet({ title, onClose, children, dismissible = true }) {
     </dialog>
   );
 }
-function FacilityRow({ p, from, onSelect, saved, onSave }) {
+function FacilityRow({ p, from, onSelect, saved, onSave, note }) {
   const k = category(p),
     sub = labels[k] || "設施";
   return (
@@ -185,6 +185,7 @@ function FacilityRow({ p, from, onSelect, saved, onSave }) {
               {p.exit ? ` · ${p.exit}` : ""}
             </span>
           )}
+          {note && <span className="facility-note">{note}</span>}
         </span>
         <span className="distance">{formatDistance(distance(from, p))}</span>
       </button>
@@ -242,7 +243,6 @@ export default function App() {
     [status, setStatus] = useState(""),
     [locating, setLocating] = useState(false),
     [listLimit, setListLimit] = useState(12),
-    [stationQuery, setStationQuery] = useState(""),
     [speaking, setSpeaking] = useState(false),
     [stepIndex, setStepIndex] = useState(0),
     [online, setOnline] = useState(navigator.onLine);
@@ -821,12 +821,34 @@ export default function App() {
     viewport.lat,
     viewport.lon,
   ]);
+  // 搜尋到捷運站時，在結果最上方直接列出該站的電梯／坡道出口。
+  const stationsFor = (name) =>
+    data?.fac.filter(
+      (p) => p.kind === "metro-elevator" && stationKey(p.station) === stationKey(name),
+    ) || [];
+  const exitUnderMaintenance = (p) =>
+    avoidPoints.some(([lat, lon]) => lat === p.lat && lon === p.lon);
+  const stationMatches = useMemo(() => {
+    const q = normalize(query).replace(/站$/, "");
+    if (!searchFor || !q || !data) return [];
+    const seen = new Set();
+    return (data.metro["metro-elevators"] || [])
+      .filter((s) => {
+        const n = normalize(s["車站名稱"]).replace(/站$/, "");
+        return n && (n.includes(q) || q.includes(n));
+      })
+      .filter((s) => (seen.has(s["車站名稱"]) ? false : seen.add(s["車站名稱"])))
+      .sort((a, b) => {
+        const exact = (s) => normalize(s["車站名稱"]).replace(/站$/, "") === q;
+        return exact(b) - exact(a);
+      })
+      .slice(0, 2)
+      .map((s) => ({ s, name: s["車站名稱"], exits: stationsFor(s["車站名稱"]) }));
+  }, [searchFor, query, data]);
   const stations = useMemo(
     () =>
-      data?.metro["metro-elevators"]?.filter((s) =>
-        normalize(s["車站名稱"]).includes(normalize(stationQuery)),
-      ) || [],
-    [data, stationQuery],
+      data?.metro["metro-elevators"] || [],
+    [data],
   );
   const routeWorks = route?.construction?.nearby?.slice(0,6) || [];
   useEffect(() => {
@@ -1377,27 +1399,14 @@ export default function App() {
             {tab === "stations" && (
               <>
                 <h1 className="sr-only">捷運電梯出口</h1>
-                <label className="search-launch input">
-                  <Search size={20} />
-                  <input
-                    value={stationQuery}
-                    onChange={(e) => setStationQuery(e.target.value)}
-                    placeholder="搜尋捷運站，例如：台北車站"
-                    aria-label="搜尋捷運站"
-                  />
-                </label>
                 <div className="notice soft">
                   <Info size={18} />
-                  <p>資料來自捷運公司，出發前可再向車站確認電梯是否維修。</p>
+                  <p>依離地圖中心由近到遠排列。要找特定車站，直接在上方搜尋站名。資料來自捷運公司，出發前可再向車站確認電梯是否維修。</p>
                 </div>
                 {stations
                   .map((s) => {
                     const name = s["車站名稱"];
-                    const exits = data.fac.filter(
-                      (p) =>
-                        p.kind === "metro-elevator" &&
-                        stationKey(p.station) === stationKey(name),
-                    );
+                    const exits = stationsFor(name);
                     const near = exits.length
                       ? Math.min(...exits.map((p) => distance(viewport, p)))
                       : Infinity;
@@ -1435,11 +1444,6 @@ export default function App() {
                       </button>
                     );
                   })}
-                {!stations.length && data && (
-                  <p className="quiet-note">
-                    還沒找到這個站名，試試少打幾個字。
-                  </p>
-                )}
               </>
             )}
             {tab === "saved" && (
@@ -1748,6 +1752,55 @@ export default function App() {
               <span>直接在地圖上選擇</span>
             </button>
           </div>
+          {stationMatches.map(({ s, name, exits }) => {
+            const pickExit = (p) => {
+              if (searchFor === "explore") {
+                setSearchFor(null);
+                inspect(p);
+              } else changePoint(searchFor, p);
+            };
+            return (
+              <section className="station-group" key={name} aria-label={`${name}站的無障礙出口`}>
+                <div className="station-group-head">
+                  <span className="station-icon">
+                    <TrainFront size={20} />
+                  </span>
+                  <span>
+                    <strong>{name}站</strong>
+                    <small>{s["路線別"]} · {exits.length ? `${exits.length} 處電梯／坡道出口` : "沒有出口座標"}</small>
+                  </span>
+                </div>
+                {exits.map((p) => (
+                  <FacilityRow
+                    key={p.id}
+                    p={p}
+                    from={viewport}
+                    note={exitUnderMaintenance(p) ? "今天有保養，可能無法使用" : ""}
+                    onSelect={pickExit}
+                  />
+                ))}
+                <p className="quiet-note">
+                  只標示出入口位置；大廳到月台的電梯請看車站資訊。
+                </p>
+                <button
+                  className="text-button station-more"
+                  onClick={() => {
+                    setSearchFor(null);
+                    setSelected({
+                      id: `station-${name}-${s["路線別"]}`,
+                      name: `${name}站`,
+                      kind: "station-detail",
+                      record: s,
+                      exits,
+                    });
+                  }}
+                >
+                  車站資訊與保養時段
+                  <ChevronRight size={16} />
+                </button>
+              </section>
+            );
+          })}
           <p className="list-caption">
             {query ? "找到這些地方" : "最近行程、收藏與附近車站"}
           </p>
