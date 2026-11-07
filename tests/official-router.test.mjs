@@ -95,3 +95,11 @@ test("sub-metre clipped endpoint does not generate a zero-distance turn instruct
   assert.equal(r.steps[0].turn, "直行");
   assert.equal(r.coordinates.length, 2);
 });
+
+test('candidate is not granted usable policy before independent geometry verification',()=>{
+ assert.equal(normalizeOfficialRoute(base(),a,b).policyVersion,null);
+});
+test('tiny staircase segment is rejected before instruction filtering',()=>{
+ const d=base();d.segments[0].length=0.01;d.segments[0].road_type='樓梯';
+ assert.equal(normalizeOfficialRoute(d,a,b).error,'OFFICIAL_BLOCKED');
+});

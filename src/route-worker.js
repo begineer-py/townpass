@@ -1,10 +1,12 @@
 import { createRouter } from "./routing.mjs";
 import { gunzipSync } from "fflate";
 import { validateNetwork } from "./network-contract.mjs";
-let router;
+import { createOfficialRouteVerifier } from './verify-official-route.mjs';
+let router, verifyOfficial, initialization;
 self.onmessage = async ({ data }) => {
   try {
     if (data.type === "init") {
+      initialization = (async () => {
       const r = await fetch(data.url);
       if (!r.ok) throw Error("graph");
       const bytes = new Uint8Array(await r.arrayBuffer());
@@ -14,7 +16,14 @@ self.onmessage = async ({ data }) => {
           : JSON.parse(new TextDecoder().decode(bytes));
       validateNetwork(graph);
       router = createRouter(graph);
-      postMessage({ type: "ready", nodes: graph.nodes.length });
+      verifyOfficial = createOfficialRouteVerifier(graph);
+      })();
+      await initialization;
+      postMessage({ type: "ready" });
+    } else if (data.type === 'verify-official') {
+      await initialization;
+      if (!verifyOfficial) throw Error('UNVERIFIED_NETWORK');
+      postMessage({type:'verified-official',id:data.id,result:verifyOfficial(data.route,data.start,data.end)});
     } else if (data.type === "route") {
       if (!router) throw Error("not ready");
       postMessage({

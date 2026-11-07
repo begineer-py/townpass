@@ -1,0 +1,136 @@
+{
+  "checkedAt": "2026-11-07T08:15:22.767Z",
+  "results": [
+    {
+      "name": "大安",
+      "start": [
+        25.0332,
+        121.5355
+      ],
+      "end": [
+        25.0301,
+        121.5356
+      ],
+      "accepted": false,
+      "error": "OFFICIAL_ENTRY_UNVERIFIED"
+    },
+    {
+      "name": "北投",
+      "start": [
+        25.1321,
+        121.4986
+      ],
+      "end": [
+        25.1367,
+        121.5036
+      ],
+      "accepted": false,
+      "error": "OFFICIAL_PATH_UNVERIFIED"
+    },
+    {
+      "name": "士林",
+      "start": [
+        25.0933,
+        121.5262
+      ],
+      "end": [
+        25.0878,
+        121.5255
+      ],
+      "accepted": false,
+      "error": "OFFICIAL_PATH_UNVERIFIED"
+    },
+    {
+      "name": "內湖",
+      "start": [
+        25.0834,
+        121.5655
+      ],
+      "end": [
+        25.0827,
+        121.5714
+      ],
+      "accepted": false,
+      "error": "OFFICIAL_PATH_UNVERIFIED"
+    },
+    {
+      "name": "南港",
+      "start": [
+        25.0516,
+        121.6071
+      ],
+      "end": [
+        25.0555,
+        121.6111
+      ],
+      "accepted": false,
+      "error": "OFFICIAL_PATH_UNVERIFIED"
+    },
+    {
+      "name": "信義",
+      "start": [
+        25.0331,
+        121.5637
+      ],
+      "end": [
+        25.0363,
+        121.5656
+      ],
+      "accepted": false,
+      "error": "OFFICIAL_PATH_UNVERIFIED"
+    },
+    {
+      "name": "中正",
+      "start": [
+        25.0357,
+        121.5166
+      ],
+      "end": [
+        25.0401,
+        121.513
+      ],
+      "accepted": false,
+      "error": "OFFICIAL_PATH_UNVERIFIED"
+    },
+    {
+      "name": "萬華",
+      "start": [
+        25.0353,
+        121.4995
+      ],
+      "end": [
+        25.0372,
+        121.4999
+      ],
+      "accepted": false,
+      "error": "OFFICIAL_PATH_UNVERIFIED"
+    },
+    {
+      "name": "文山",
+      "start": [
+        24.9982,
+        121.5797
+      ],
+      "end": [
+        24.9999,
+        121.5749
+      ],
+      "accepted": false,
+      "error": "OFFICIAL_BLOCKED"
+    }
+  ],
+  "entranceCase": {
+    "name": "大安公開通道路網端點重新查詢",
+    "start": [
+      25.033373551090687,
+      121.53550154779965
+    ],
+    "end": [
+      25.02972289761217,
+      121.53429186919149
+    ],
+    "accepted": true,
+    "distance": 684,
+    "geometryVerification": "official-polygons-and-crossings-v1"
+  }
+}

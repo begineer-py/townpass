@@ -246,6 +246,14 @@ export default function App() {
     };
   }, [query]);
   const officialRequest = useRef();
+  const pendingVerifications = useRef(new Map());
+  function verifyOnlineRoute(route, start, end, id) {
+    return new Promise(resolve => {
+      const timer=setTimeout(()=>{pendingVerifications.current.delete(id);resolve({error:'UNVERIFIED_NETWORK'});},30000);
+      pendingVerifications.current.set(id,result=>{clearTimeout(timer);resolve(result);});
+      worker.current.postMessage({type:'verify-official',id,route,start,end});
+    });
+  }
   const panelScroll = useRef();
   const routeFeedback = useRef();
   useEffect(() => {
@@ -310,6 +318,11 @@ export default function App() {
     });
     worker.current = w;
     w.onmessage = ({ data: d }) => {
+      if (d.type === 'verified-official') {
+        pendingVerifications.current.get(d.id)?.(d.result);
+        pendingVerifications.current.delete(d.id);
+        return;
+      }
       if (d.type === "ready") setGraphReady(true);
       if (d.type === "route" && d.id === request.current) {
         setRouting(false);
@@ -325,10 +338,13 @@ export default function App() {
         }
       }
       if (d.type === "error") {
+        for(const resolve of pendingVerifications.current.values()) resolve({error:'UNVERIFIED_NETWORK'});
+        pendingVerifications.current.clear();
         if (d.id != null && d.id !== request.current) return;
         clearRoute();
         setRouting(false);
         setGraphError(true);
+        setRouteError('UNVERIFIED_NETWORK');
       }
     };
     w.postMessage({
@@ -338,7 +354,7 @@ export default function App() {
         location.href,
       ).href,
     });
-    return () => w.terminate();
+    return () => { w.terminate(); for(const resolve of pendingVerifications.current.values()) resolve({error:'UNVERIFIED_NETWORK'}); pendingVerifications.current.clear(); };
   }, []);
   const changePoint = (which, p) => {
     request.current++;
@@ -353,6 +369,8 @@ export default function App() {
     setFocus({ ...p, token: Date.now() });
   };
   function clearRoute() {
+    for(const resolve of pendingVerifications.current.values()) resolve({error:'UNVERIFIED_NETWORK'});
+    pendingVerifications.current.clear();
     officialRequest.current?.abort();
     request.current++;
     window.speechSynthesis?.cancel();
@@ -420,8 +438,10 @@ export default function App() {
         if (id !== request.current) return;
         if (result.error) setRouteError(result.error);
         else {
-          setRoute(result);
-          setStepIndex(0);
+          const verified=await verifyOnlineRoute(result,[start.lat,start.lon],[end.lat,end.lon],id);
+          if(id!==request.current)return;
+          if(verified.error || verified.geometryVerification !== 'official-polygons-and-crossings-v1' || verified.policyVersion !== ROUTING_POLICY) setRouteError(verified.error || 'UNVERIFIED_NETWORK');
+          else { setRoute(verified); setStepIndex(0); }
         }
       } catch (error) {
         if (id === request.current) setRouteError("OFFICIAL_UNAVAILABLE");
@@ -628,6 +648,10 @@ export default function App() {
     setFocus({ ...p, token: Date.now() });
   };
   const errorText = {
+    OFFICIAL_PATH_UNVERIFIED: '這條路線有一段尚未取得連續人行空間的圖資依據，暫不提供通行指引。可以換個出入口再找路。',
+    OFFICIAL_ROAD_CONFLICT: '這條路線與車道交會的位置缺少行穿線依據，已停止提供指引。請換個出入口再試。',
+    OFFICIAL_CROSSING_UNVERIFIED: '過街路段與行穿線圖資不一致，暫時無法確認這條走法。可以改選附近入口。',
+    OFFICIAL_ENTRY_UNVERIFIED: '選擇的位置與人行通道之間還有未確認的銜接。請改選實際人行道或無障礙入口，我們再幫你找路。',
     OFFICIAL_NO_ROUTE:
       "官方圖台目前沒有回傳可連接這兩點的路線。可以改選附近的出入口。",
     OFFICIAL_BLOCKED:
@@ -951,7 +975,7 @@ export default function App() {
                     <p>
                       {errorText[routeError] || "暫時無法規劃，請稍後再試。"}
                     </p>
-                    {["OFFICIAL_OUTSIDE_COVERAGE", "OFFICIAL_INVALID_POINTS"].includes(routeError) && (
+                    {["OFFICIAL_OUTSIDE_COVERAGE", "OFFICIAL_INVALID_POINTS", "OFFICIAL_ENTRY_UNVERIFIED", "OFFICIAL_PATH_UNVERIFIED", "OFFICIAL_ROAD_CONFLICT", "OFFICIAL_CROSSING_UNVERIFIED"].includes(routeError) && (
                       <div className="route-tools">
                         <button onClick={() => openSearch("start")}>重選出發地</button>
                         <button onClick={() => openSearch("end")}>重選目的地</button>
@@ -989,7 +1013,7 @@ export default function App() {
                       <Info size={20} />
                       <p>
                         {route.provider === "taipei-official"
-                          ? "路線採用市府通道資料，已排除服務標記的障礙替代路線。尚無完整逐段淨寬、坡度及即時施工驗證，請留意現場。"
+                          ? "路線及入口銜接已通過人行空間與過街圖資檢查；圖資不代表現場認證，淨寬、坡度與即時施工仍需留意。"
                           : `約 ${route.unknownPct}% 路程缺少完整寬度或坡度資料，請留意現場。`}
                       </p>
                     </div>
@@ -1004,43 +1028,6 @@ export default function App() {
                         約 {route.roadPct}%
                         路程使用一般道路路網，尚未確認是否有連續人行空間。
                       </p>
-                    )}
-                    {route.requiresEntryConfirmation && (
-                      <div className="notice">
-                        <Info />
-                        <div>
-                          <p>
-                            官方路線起點距選點約 {route.startGap}{" "}
-                            公尺，終點距選點約 {route.endGap}{" "}
-                            公尺。這兩段銜接尚未確認，請先在地圖確認入口；此時不提供朗讀或分享。
-                          </p>
-                          <button
-                            className="secondary"
-                            onClick={() => {
-                              const a = route.coordinates[0],
-                                b = route.coordinates.at(-1);
-                              setStart({
-                                ...start,
-                                lat: a[0],
-                                lon: a[1],
-                                name: start.name + "附近人行入口",
-                              });
-                              setEnd({
-                                ...end,
-                                lat: b[0],
-                                lon: b[1],
-                                name: end.name + "附近人行入口",
-                              });
-                              clearRoute();
-                              announce(
-                                "已改用圖示的人行入口，請按規劃路線重新查詢。",
-                              );
-                            }}
-                          >
-                            改用圖示的人行入口
-                          </button>
-                        </div>
-                      </div>
                     )}
                     <div className="route-tools">
                       <button

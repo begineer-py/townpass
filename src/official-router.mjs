@@ -1,6 +1,6 @@
 import proj4 from "proj4";
 import { pointError, requestError } from "./route-request.mjs";
-import { metres, ROUTING_POLICY } from "./routing.mjs";
+import { metres } from "./routing.mjs";
 export const OFFICIAL_ROUTE_URL =
   "https://tppano.gov.taipei/shortestAccessibleRoute/api/v1/navigation_waypoints/";
 const twd97 =
@@ -61,7 +61,7 @@ export function normalizeOfficialRoute(payload, start, end, options = {}) {
     payload.all_segments.some((s) => s.source !== "main")
   )
     return { error: "OFFICIAL_BLOCKED" };
-  const steps = [];
+  const steps = [], crossingSegments = [], segmentPaths = [];
   let previousHeading = null;
   for (const seg of payload.segments) {
     if (
@@ -75,6 +75,10 @@ export function normalizeOfficialRoute(payload, start, end, options = {}) {
     const geometry = seg.geometry.coordinates;
     if (geometry.some((p) => !Number.isFinite(p[0]) || !Number.isFinite(p[1])))
       return { error: "OFFICIAL_INVALID" };
+    if (/階梯|樓梯/.test(String(seg.road_name || '') + ' ' + (seg.road_type || '')))
+      return {error:'OFFICIAL_BLOCKED'};
+    segmentPaths.push(geometry.map(toLatLon));
+    if (/行穿|斑馬/.test(seg.road_type || '')) crossingSegments.push(geometry.map(toLatLon));
     // Tiny clipped endpoint pieces remain in route geometry but must not create 0m/U-turn instructions.
     if (seg.length < 0.5) continue;
     const [lat, lon] = toLatLon(geometry[0]),
@@ -100,7 +104,7 @@ export function normalizeOfficialRoute(payload, start, end, options = {}) {
     if (/階梯|樓梯/.test(name + " " + (seg.road_type || "")))
       return { error: "OFFICIAL_BLOCKED" };
     const last = steps.at(-1);
-    if (last?.name === name && turn === "直行") last.distance += seg.length;
+    if (last?.name === name && turn === "直行" && last.crossing === /行穿|斑馬/.test(seg.road_type || '')) last.distance += seg.length;
     else
       steps.push({
         name,
@@ -118,11 +122,13 @@ export function normalizeOfficialRoute(payload, start, end, options = {}) {
     endGap = metres(end, coordinates.at(-1));
   if (!steps.length) return { error: "OFFICIAL_INVALID" };
   return {
-    policyVersion: ROUTING_POLICY,
+    policyVersion: null, // Candidate only; the independent geometry verifier grants a policy version.
     provider: "taipei-official",
     coordinates,
     distance: Math.round(m.total_distance),
     steps,
+    crossingSegments,
+    segmentPaths,
     unknownPct: 100,
     roadPct: null,
     officialCoveragePct: null,
