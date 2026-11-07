@@ -113,6 +113,82 @@ button.icon-action {
   color: var(--tp-grayscale600);
 }
 
+/* 放大主要資訊，同時壓縮純留白；觸控目標仍維持至少 44px。 */
+.panel-scroll {
+  padding-top: 6px;
+}
+.omnibox {
+  font-size: 18px;
+}
+.filter-grid {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  margin: 0 -4px 2px;
+  padding: 2px 4px 5px;
+  scrollbar-width: none;
+}
+.filter-grid::-webkit-scrollbar {
+  display: none;
+}
+.list-caption {
+  margin: 8px 0 4px;
+}
+.facility-row {
+  min-height: 66px;
+}
+.facility-copy strong {
+  font-size: 17px;
+  line-height: 1.45;
+}
+.facility-copy > span,
+.distance,
+.quiet-note,
+.notice,
+.trip-card small {
+  font-size: 15px;
+}
+.point-fields button {
+  padding-block: 8px;
+}
+.point-fields small {
+  font-size: 15px;
+}
+.point-fields strong {
+  font-size: 20px;
+  line-height: 1.35;
+}
+.preference-bar,
+.mode-tabs button,
+.route-tools button,
+.steps button,
+.settings-row {
+  font-size: 16px;
+}
+.section-title,
+.section-top h2 {
+  font-size: 20px;
+}
+.panel-footer {
+  margin-top: 8px;
+  padding-block: 8px;
+}
+
+@media (max-width: 700px) {
+  :root {
+    --nav-h: calc(56px + env(safe-area-inset-bottom));
+  }
+  .main-nav {
+    height: var(--nav-h);
+  }
+  .main-nav button {
+    min-height: 52px;
+    padding: 4px 3px;
+  }
+  .panel-scroll {
+    padding: 4px 14px 10px;
+  }
+}
+
 /* 分頁與清單內容：短距離淡入，避免切換時畫面硬跳。 */
 .panel-scroll > :not(.sr-only),
 .sheet-body > :not(.sheet-head) {
