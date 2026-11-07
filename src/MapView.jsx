@@ -4,6 +4,7 @@ import L from "leaflet";
 import "leaflet-rotate";
 import { category, cleanName } from "./data";
 import { BASEMAPS } from "./basemaps.mjs";
+import { metroExitLabel } from "./metro-exits.mjs";
 import {
   loadOfficialSidewalks,
   OFFICIAL_SIDEWALK_SOURCE,
@@ -254,7 +255,10 @@ export default function MapView({
       buckets = new Map();
     for (const p of visible) {
       const pos = m.latLngToContainerPoint([p.lat, p.lon]),
-        key = `${Math.floor(pos.x / cell)}:${Math.floor(pos.y / cell)}`;
+        key =
+          p.kind === "metro-elevator"
+            ? `metro-exit:${p.id}`
+            : `${Math.floor(pos.x / cell)}:${Math.floor(pos.y / cell)}`;
       if (!buckets.has(key)) buckets.set(key, []);
       buckets.get(key).push(p);
     }
@@ -276,10 +280,18 @@ export default function MapView({
           m.setView([p.lat, p.lon], Math.min(19, m.getZoom() + 2)),
         );
       } else {
-        face.textContent = glyphs[category(p)] || "點";
+        if (p.kind === "metro-elevator")
+          face.classList.add("metro-exit-face");
+        face.textContent =
+          p.kind === "metro-elevator"
+            ? metroExitLabel(p)
+            : glyphs[category(p)] || "點";
         marker = L.marker([p.lat, p.lon], {
           icon: L.divIcon({
-            className: "fac-pin",
+            className:
+              p.kind === "metro-elevator"
+                ? "fac-pin metro-exit-pin"
+                : "fac-pin",
             html: face,
             iconSize: [28, 28],
             iconAnchor: [14, 14],

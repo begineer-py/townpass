@@ -89,6 +89,7 @@ import {
   metroStationCodes,
   metroStationIconUrl,
 } from "./metro-station-icons.mjs";
+import { metroExitLabel } from "./metro-exits.mjs";
 import {
   maintenanceText,
   sourceCountLabel,
@@ -208,7 +209,11 @@ function FacilityRow({ p, from, onSelect, saved, onSave, note, stationCode }) {
     <div className="facility-row">
       <button className="facility-main" onClick={() => onSelect(p)}>
         <span className={`facility-icon ${k}`}>
-          {k === "station" ? (
+          {p.kind === "metro-elevator" ? (
+            <span className="metro-exit-label" aria-hidden="true">
+              {metroExitLabel(p)}
+            </span>
+          ) : k === "station" ? (
             <MetroStationIcon codes={stationCode} value={p.name} />
           ) : (
             <Icon kind={k} />
@@ -920,6 +925,32 @@ export default function App() {
         .slice(0, 12),
     [route, data],
   );
+  const endpointStationExits = useMemo(() => {
+    const stationKeys = new Set(
+      [start, end]
+        .map((point) =>
+          stationKey(
+            point?.station ||
+              (category(point || {}) === "station" ? point?.name : ""),
+          ),
+        )
+        .filter(Boolean),
+    );
+    return (data?.fac || []).filter(
+      (place) =>
+        place.kind === "metro-elevator" &&
+        stationKeys.has(stationKey(place.station)),
+    );
+  }, [data, start, end]);
+  const routeMapItems = useMemo(() => {
+    const unique = new Map();
+    for (const place of [
+      ...routeFacilities.map(({ place }) => place),
+      ...endpointStationExits,
+    ])
+      unique.set(place.id, place);
+    return [...unique.values()];
+  }, [routeFacilities, endpointStationExits]);
   const avoidedWorks = route?.construction?.avoidedWorks || [];
   const avoidedStairs = route?.avoidedStairs || [];
   useEffect(() => {
@@ -1678,10 +1709,10 @@ export default function App() {
           <MapView
             items={
               route
-                ? routeFacilities.map(({ place }) => place)
+                ? routeMapItems
                 : tab === "explore"
                   ? mapItems
-                  : []
+                  : endpointStationExits
             }
             basemap={basemap}
             showOfficialSidewalk={showOfficialSidewalk}
