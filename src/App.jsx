@@ -50,6 +50,9 @@ import {
   Compass,
   HelpCircle,
   Phone,
+  Bus,
+  DoorOpen,
+  TrendingUp,
 } from "lucide-react";
 import MapView from "./MapView";
 import VoiceSearch from "./VoiceSearch";
@@ -887,6 +890,19 @@ export default function App() {
   }, [data, viewport]);
   const avoidPoints = useMemo(() => activeElevatorStops(data), [data]);
 
+  // 沒有搜尋紀錄時的推薦：附近的捷運站、公園、醫院與無障礙廁所，由近到遠 8 個。
+  const recommendedPlaces = useMemo(() => {
+    if (!data) return [];
+    const from = currentLocation || viewport;
+    const wanted = new Set(["station", "park", "health", "toilet"]);
+    return data.all
+      .filter((p) => wanted.has(category(p)) && Number.isFinite(p.lat))
+      .map((p) => [distance(from, p), p])
+      .filter(([d]) => d < 1500)
+      .sort((a, b) => a[0] - b[0])
+      .slice(0, 8)
+      .map(([, p]) => p);
+  }, [data, currentLocation, viewport.lat, viewport.lon]);
   const searchResults = useMemo(() => {
     if (!searchFor || !data || !profileReady) return [];
     const q = normalize(query);
@@ -902,7 +918,9 @@ export default function App() {
             normalize(p.name + " " + (p.address || "")).includes(q),
           ),
         ]
-      : [...recents, ...recentPlaces, ...saved];
+      : recents.length || recentPlaces.length
+        ? [...recents, ...recentPlaces]
+        : recommendedPlaces;
     const used = new Set();
     return [...addressResults, ...list]
       .sort(
@@ -932,6 +950,7 @@ export default function App() {
     saved,
     trips,
     recents,
+    recommendedPlaces,
     addressResults,
     viewport.lat,
     viewport.lon,
@@ -2049,7 +2068,7 @@ export default function App() {
           )}
           {!query && searchResults.length > 0 && (
             <div className="list-caption recent-caption">
-              <span>最近</span>
+              <span>{recents.length || trips.length ? "最近" : "推薦"}</span>
               {recents.length > 0 && (
                 <button type="button" className="text-button" onClick={clearRecents}>
                   清除
@@ -2187,92 +2206,23 @@ export default function App() {
             </>
           ) : (
             <>
-              <div className="detail-badge">
-                <Icon kind={category(selected)} />
+              {/* Apple 地圖式地點卡：一行分類與距離、一排操作、資訊清單；不放說明文字 */}
+              <p className="place-subtitle">
                 {labels[category(selected)] || "地點"}
-              </div>
-              <button
-                className="primary full detail-primary"
-                aria-label={`導航到${cleanName(selected.name)}`}
-                onClick={() => navigateTo(selected)}
-              >
-                <Navigation size={22} aria-hidden="true" />
-                導航
-              </button>
-              {(selected.wheelchair || selected.phone) && (
-                <div className="detail-facts">
-                  {selected.wheelchair && (
-                    <div>
-                      <small>輪椅</small>
-                      <b>
-                        {{ yes: "可以進入", designated: "可以進入", limited: "部分可進入", no: "無法進入" }[selected.wheelchair] ||
-                          "未知"}
-                      </b>
-                    </div>
-                  )}
-                  {selected.phone && (
-                    <div>
-                      <small>電話</small>
-                      <b>
-                        <a href={`tel:${String(selected.phone).replace(/[^\d+]/g, "")}`}>{selected.phone}</a>
-                      </b>
-                    </div>
-                  )}
-                </div>
-              )}
-              {selected.address && (
-                <p className="detail-address">
-                  <MapPin size={18} />
-                  {selected.address}
-                </p>
-              )}
-              {(selected.accessibleCount > 0 ||
-                selected.exit ||
-                selected.slopePct != null) && (
-                <div className="detail-facts">
-                  {selected.accessibleCount > 0 && (
-                    <div>
-                      <small>無障礙廁座</small>
-                      <b>{selected.accessibleCount} 座</b>
-                    </div>
-                  )}
-                  {selected.exit && (
-                    <div>
-                      <small>出入口</small>
-                      <b>{selected.exit}</b>
-                    </div>
-                  )}
-                  {selected.slopePct != null && (
-                    <div>
-                      <small>資料記載坡度</small>
-                      <b>{selected.slopePct}%</b>
-                    </div>
-                  )}
-                </div>
-              )}
-              {selected.careBed && <p>照護床：{selected.careBed}</p>}
-              {selected.routes && (
-                <p>
-                  此站路線：{selected.routes.join("、")}
-                  。低地板車輛與班次請另向營運單位確認。
-                </p>
-              )}
-              {selected.openingHours && (
-                <p>開放時間（來源記載）：{selected.openingHours}</p>
-              )}
-              <div className="notice soft">
-                <Info size={19} />
-                <p>
-                  {category(selected) === "elevator"
-                    ? "查看下方電梯位置與保養時間。"
-                    : category(selected) === "toilet"
-                      ? "資料記載設有無障礙廁所，實際開放時間與內部設備請以現場為準。"
-                      : "這是公開資料記載的位置，實際通行與開放情形請留意現場。"}
-                </p>
-              </div>
-              <div className="detail-actions icon-actions">
+                {" · "}
+                {formatDistance(distance(currentLocation || viewport, selected))}
+              </p>
+              <div className="place-actions">
                 <button
-                  className="secondary"
+                  className="primary place-go"
+                  aria-label={`導航到${cleanName(selected.name)}`}
+                  onClick={() => navigateTo(selected)}
+                >
+                  <Navigation size={20} aria-hidden="true" />
+                  導航
+                </button>
+                <button
+                  className="place-icon-btn"
                   aria-label="從這裡出發"
                   onClick={() => {
                     changePoint("start", selected);
@@ -2280,32 +2230,49 @@ export default function App() {
                   }}
                 >
                   <MapPin size={20} aria-hidden="true" />
-                  從這裡出發
                 </button>
                 <button
-                  className="secondary icon-action"
-                  aria-label={
-                    saved.some((x) => x.id === selected.id)
-                      ? "取消收藏"
-                      : "收藏"
-                  }
+                  className="place-icon-btn"
+                  aria-label={saved.some((x) => x.id === selected.id) ? "取消收藏" : "收藏"}
+                  aria-pressed={saved.some((x) => x.id === selected.id)}
                   onClick={() => toggleSave(selected)}
                 >
                   <Heart
                     size={20}
                     aria-hidden="true"
-                    fill={
-                      saved.some((x) => x.id === selected.id)
-                        ? "currentColor"
-                        : "none"
-                    }
+                    fill={saved.some((x) => x.id === selected.id) ? "currentColor" : "none"}
                   />
                 </button>
               </div>
+              {(() => {
+                const rows = [];
+                const wheel = { yes: "可以進入", designated: "可以進入", limited: "部分可進入", no: "無法進入" }[selected.wheelchair];
+                if (wheel) rows.push(["wheel", Accessibility, "輪椅", wheel]);
+                if (selected.accessibleCount > 0) rows.push(["acc", Toilet, "無障礙廁座", `${selected.accessibleCount} 座`]);
+                if (selected.exit) rows.push(["exit", DoorOpen, "出入口", selected.exit]);
+                if (selected.slopePct != null) rows.push(["slope", TrendingUp, "坡度", `${selected.slopePct}%`]);
+                if (selected.openingHours) rows.push(["hours", Clock, "開放時間", selected.openingHours]);
+                if (selected.address) rows.push(["addr", MapPin, "地址", selected.address]);
+                if (selected.phone)
+                  rows.push(["phone", Phone, "電話",
+                    <a href={`tel:${String(selected.phone).replace(/[^\d+]/g, "")}`}>{selected.phone}</a>]);
+                if (selected.careBed) rows.push(["bed", Info, "照護床", selected.careBed]);
+                if (selected.routes) rows.push(["bus", Bus, "路線", selected.routes.join("、")]);
+                return rows.length ? (
+                  <dl className="place-info">
+                    {rows.map(([key, RowIcon, label, value]) => (
+                      <div key={key}>
+                        <RowIcon size={18} aria-hidden="true" />
+                        <dt>{label}</dt>
+                        <dd>{value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                ) : null;
+              })()}
               {selected.station && (
                 <button
-                  className="full text-button"
-                  aria-label="查看這個車站的電梯資訊"
+                  className="place-link"
                   onClick={() => {
                     const record = (data?.metro["metro-elevators"] || []).find(
                       (r) => stationKey(r["車站名稱"]) === stationKey(selected.station),
@@ -2323,17 +2290,16 @@ export default function App() {
                     });
                   }}
                 >
-                  <ArrowUpFromLine size={20} aria-hidden="true" />
-                  車站電梯資訊
+                  <ArrowUpFromLine size={18} aria-hidden="true" />
+                  <span>車站電梯資訊</span>
+                  <ChevronRight size={18} aria-hidden="true" />
                 </button>
               )}
-              <p className="source-note">
-                資料來源：
+              <p className="place-source">
                 {selected.sourceId === "osm"
-                  ? "OpenStreetMap contributors"
-                  : data?.sources.sources.find(
-                      (s) => s.id === selected.sourceId,
-                    )?.name || "臺北市開放資料"}
+                  ? "OpenStreetMap"
+                  : data?.sources.sources.find((s) => s.id === selected.sourceId)?.name ||
+                    "臺北市開放資料"}
               </p>
             </>
           )}

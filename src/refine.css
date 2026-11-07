@@ -1299,3 +1299,96 @@ button.icon-action {
   color: var(--tp-primary700);
   box-shadow: 0 1px 4px color-mix(in srgb, var(--tp-grayscale950) 25%, transparent);
 }
+
+/* --- 地點卡（商店、地標、設施）：Apple 地圖式 ------------------------- */
+.place-subtitle {
+  margin: -4px 0 14px;
+  color: var(--tp-grayscale700);
+  font-size: var(--tp-text-bodyRegular-size);
+}
+.place-actions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.place-actions .place-go {
+  flex: 1;
+  min-height: 50px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.place-icon-btn {
+  display: grid;
+  place-items: center;
+  width: 50px;
+  height: 50px;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: var(--tp-radius-btn);
+  background: color-mix(in srgb, var(--tp-grayscale100) 70%, var(--tp-white));
+  color: var(--tp-primary700);
+}
+.place-icon-btn[aria-pressed="true"] {
+  color: var(--tp-red700);
+}
+.place-info {
+  margin: 0 0 12px;
+  overflow: hidden;
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--tp-grayscale100) 55%, var(--tp-white));
+}
+.place-info > div {
+  display: grid;
+  grid-template-columns: 22px 6.5em 1fr;
+  align-items: start;
+  gap: 10px;
+  padding: 12px 14px;
+}
+.place-info > div + div {
+  border-top: 0.5px solid color-mix(in srgb, var(--tp-grayscale950) 10%, transparent);
+}
+.place-info svg {
+  margin-top: 2px;
+  color: var(--tp-primary700);
+}
+.place-info dt {
+  color: var(--tp-grayscale700);
+}
+.place-info dd {
+  margin: 0;
+  color: var(--tp-grayscale900);
+  overflow-wrap: anywhere;
+}
+.place-info a {
+  color: var(--tp-primary700);
+  font-weight: var(--tp-text-bodySemiBold-weight);
+}
+.place-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 50px;
+  margin-bottom: 12px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--tp-grayscale100) 55%, var(--tp-white));
+  color: var(--tp-grayscale900);
+  font: inherit;
+  text-align: left;
+}
+.place-link span {
+  flex: 1;
+}
+.place-link svg {
+  color: var(--tp-primary700);
+}
+.place-source {
+  margin: 4px 0 0;
+  color: var(--tp-grayscale600);
+  font-size: var(--tp-text-caption-size);
+  font-weight: 400;
+}
