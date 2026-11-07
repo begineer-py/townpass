@@ -693,19 +693,32 @@ export default function App() {
     setSelected(p);
     setFocus({ ...p, token: Date.now() });
   };
+  const retryWithEntrance = ['OFFICIAL_PATH_UNVERIFIED','OFFICIAL_ROAD_CONFLICT','OFFICIAL_CROSSING_UNVERIFIED','OFFICIAL_ENTRY_UNVERIFIED','OFFICIAL_NO_ROUTE','OFFICIAL_GAP','NO_CONNECTION','NO_ROUTE'].includes(routeError);
+  const entranceChoices = useMemo(() => {
+    if(!retryWithEntrance)return [];
+    return [['start',start],['end',end]].flatMap(([which,point]) => {
+      if(!point)return [];
+      const picked=[];
+      for(const p of (data?.fac || []).filter(p=>p.kind==='metro-elevator').map(p=>({...p,gap:distance(point,p)})).filter(p=>p.gap>=3&&p.gap<=300).sort((a,b)=>a.gap-b.gap)){
+        if(picked.some(x=>distance(x,p)<20))continue;
+        picked.push(p);if(picked.length===2)break;
+      }
+      return picked.map(p=>({which,p}));
+    });
+  }, [retryWithEntrance,data,start,end]);
   const errorText = {
     CONSTRUCTION_UNAVAILABLE: '施工資料暫時無法更新。請連上網路再查一次，附近設施仍可查看。',
     CONSTRUCTION_BLOCKED: '路線或入口遇到影響通行的施工通報，目前沒有找到通過檢查的替代路線。可以換個出入口再試。',
 
-    OFFICIAL_PATH_UNVERIFIED: '這條路線有一段尚未取得連續人行空間的圖資依據，暫不提供通行指引。可以換個出入口再找路。',
-    OFFICIAL_ROAD_CONFLICT: '這條路線與車道交會的位置缺少行穿線依據，已停止提供指引。請換個出入口再試。',
-    OFFICIAL_CROSSING_UNVERIFIED: '過街路段與行穿線圖資不一致，暫時無法確認這條走法。可以改選附近入口。',
-    OFFICIAL_ENTRY_UNVERIFIED: '選擇的位置與人行通道之間還有未確認的銜接。請改選實際人行道或無障礙入口，我們再幫你找路。',
+    OFFICIAL_PATH_UNVERIFIED: '這次還沒找到合適的走法。可以改從附近的電梯出口出發，或選擇另一個目的地入口。',
+    OFFICIAL_ROAD_CONFLICT: '這次還沒找到合適的過街走法，可以換個入口再找找看。',
+    OFFICIAL_CROSSING_UNVERIFIED: '這次還沒找到合適的過街走法，可以試試附近的電梯出口。',
+    OFFICIAL_ENTRY_UNVERIFIED: '這個地點可能有不同入口，選擇實際使用的電梯出口，再幫你找路。',
     OFFICIAL_NO_ROUTE:
-      "官方圖台目前沒有回傳可連接這兩點的路線。可以改選附近的出入口。",
+      "這次還沒找到連接兩地的走法，可以試試另一個入口。",
     OFFICIAL_BLOCKED:
       "官方回傳的替代路線包含不利通行路段，因此沒有列為建議路線。可以更換入口或目的地。",
-    OFFICIAL_GAP: "官方路線仍有未確認的銜接缺口，因此暫不提供通行指引。",
+    OFFICIAL_GAP: "這次還沒找到完整走法，可以選擇附近入口再試。",
     OFFICIAL_DIMENSIONS:
       "官方路線沒有完整淨寬與坡度，無法符合你選擇的「寬度、坡度都有資料」條件。",
     OFFICIAL_INVALID: "官方路線資料不完整，請稍後再試。",
@@ -724,9 +737,9 @@ export default function App() {
     UNVERIFIED_NETWORK:
       "人行路網資料尚未完成驗證，暫時無法規劃。請重新載入後再試。",
     NO_CONNECTION:
-      "這個位置尚未確認能接上人行道。請改選實際入口或人行道上的位置；系統不會跨越車道替你接路。",
+      "選擇實際使用的人行入口，我們再幫你找路。",
     NO_ROUTE:
-      "目前沒有足夠資料確認兩點間有連續人行路線。我們不會改走車道補接；可以更換入口，或先查詢附近設施。",
+      "這次還沒找到合適的走法，可以換個入口，或先看看附近設施。",
     SAME_POINT: "這兩個位置很接近，可以再確認一下目的地入口。",
   };
   return (
@@ -927,14 +940,20 @@ export default function App() {
                   </p>
                 )}
                 {routeError && (
-                  <div className="notice" role="alert" ref={routeFeedback}>
+                  <div className={`notice ${retryWithEntrance ? "route-recovery" : ""}`} role="status" ref={routeFeedback}>
                     <Info />
                     <div>
                     <p>
                       {errorText[routeError] || "暫時無法規劃，請稍後再試。"}
                     </p>
+                    {retryWithEntrance && entranceChoices.length > 0 && <div className="entrance-choices">
+                      <p>附近捷運電梯出口（距離為直線估算，選擇後會更改起終點，需重新規劃）</p>
+                      {entranceChoices.map(({which,p}) => <button key={which+p.id} onClick={()=>changePoint(which,p)}>
+                        <ArrowUpFromLine size={18} aria-hidden="true"/><span>{which==='start'?'出發地改為':'目的地改為'} {cleanName(p.name)}<small>距原選點約 {formatDistance(p.gap)}</small></span><ChevronRight size={18} aria-hidden="true"/>
+                      </button>)}
+                    </div>}
                     {constructionConflict?.blocked?.slice(0,3).map(w => <p key={w.id}>{w.address}：{w.match === 'vicinity' ? '鄰近影響通行的施工位置' : '與影響通行的施工範圍交會'}。{w.plan}</p>)}
-                    {["OFFICIAL_OUTSIDE_COVERAGE", "OFFICIAL_INVALID_POINTS", "OFFICIAL_ENTRY_UNVERIFIED", "OFFICIAL_PATH_UNVERIFIED", "OFFICIAL_ROAD_CONFLICT", "OFFICIAL_CROSSING_UNVERIFIED", "CONSTRUCTION_BLOCKED"].includes(routeError) && (
+                    {(retryWithEntrance || ["OFFICIAL_OUTSIDE_COVERAGE", "OFFICIAL_INVALID_POINTS", "OFFICIAL_ENTRY_UNVERIFIED", "OFFICIAL_PATH_UNVERIFIED", "OFFICIAL_ROAD_CONFLICT", "OFFICIAL_CROSSING_UNVERIFIED", "CONSTRUCTION_BLOCKED"].includes(routeError)) && (
                       <div className="route-tools">
                         <button onClick={() => openSearch("start")}>重選出發地</button>
                         <button onClick={() => openSearch("end")}>重選目的地</button>
@@ -951,7 +970,7 @@ export default function App() {
                         <span className="eyebrow">路線預覽</span>
                         <h2>{formatDistance(route.distance)}</h2>
                         <p>
-                          {route.provider === "local-detour" ? "已改走避開施工的人行路線" : route.provider === "taipei-official"
+                          {route.provider === "local-verified" ? "另一條人行路線" : route.provider === "local-detour" ? "已改走避開施工的人行路線" : route.provider === "taipei-official"
                             ? "臺北市無障礙通行路線圖台回傳"
                             : "離線人行路網參考"}
                         </p>

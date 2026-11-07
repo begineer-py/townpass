@@ -1786,3 +1786,10 @@ small {
  .panel-toolbar { padding:0 16px; }
  .map-controls { top:64px; }
 }
+
+.route-recovery { background:var(--tp-white); border-color:var(--tp-grayscale100); color:var(--tp-grayscale700); }
+.entrance-choices { margin-top:12px; }
+.entrance-choices > p { font-size:var(--tp-text-caption-size); color:var(--tp-grayscale600); }
+.entrance-choices button { width:100%; min-height:48px; display:flex; align-items:center; gap:10px; text-align:left; padding:12px 0; border-bottom:1px solid var(--tp-grayscale100); }
+.entrance-choices button > span { flex:1; }
+.entrance-choices small { display:block; color:var(--tp-grayscale600); margin-top:4px; }

@@ -2,7 +2,7 @@ import { createRouter } from "./routing.mjs";
 import { gunzipSync } from "fflate";
 import { validateNetwork } from "./network-contract.mjs";
 import { createOfficialRouteVerifier } from './verify-official-route.mjs';
-import {routeAroundConstruction} from './construction-routing.mjs';
+import {routeAroundConstruction,resolveVerifiedRoute} from './construction-routing.mjs';
 import {createConstructionChecker} from './construction.mjs';
 let router, verifyOfficial, initialization;
 self.onmessage = async ({ data }) => {
@@ -25,8 +25,7 @@ self.onmessage = async ({ data }) => {
     } else if (data.type === 'verify-official') {
       await initialization;
       if (!verifyOfficial) throw Error('UNVERIFIED_NETWORK');
-      const candidate=verifyOfficial(data.route,data.start,data.end);
-      const result=candidate.error?candidate:routeAroundConstruction(candidate,data.start,data.end,data.options,data.construction,{router,verifyOfficial});
+      const result=resolveVerifiedRoute(data.route,data.start,data.end,data.options,data.construction,{router,verifyOfficial});
       postMessage({type:'verified-official',id:data.id,result});
     } else if (data.type === "route") {
       if (!router) throw Error("not ready");

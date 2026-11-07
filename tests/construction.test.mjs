@@ -54,3 +54,20 @@ test('blocked start connector and no alternative are not presented as safe route
 test('stale or missing construction never silently becomes an empty closure list',()=>{
  assert.equal(routeAroundConstruction(candidate,A,B,{},null,deps,now).error,'CONSTRUCTION_UNAVAILABLE');
 });
+
+import {resolveVerifiedRoute} from '../src/construction-routing.mjs';
+test('unverified official geometry tries an independently verified local path',()=>{
+ const unsafe={...candidate,coordinates:[A,[25.003,121.501],B]};
+ const r=resolveVerifiedRoute(unsafe,A,B,{},snapshot([]),deps,now);
+ assert.equal(r.provider,'local-verified');assert.equal(r.distance,200);assert.equal(r.geometryVerification,'official-polygons-and-crossings-v1');
+});
+test('geometry recovery still avoids construction instead of returning unchecked fallback',()=>{
+ const unsafe={...candidate,coordinates:[A,[25.003,121.501],B]};
+ const r=resolveVerifiedRoute(unsafe,A,B,{},snapshot([work()]),deps,now);
+ assert.equal(r.provider,'local-verified');assert.equal(r.distance,422);assert.equal(r.construction.nearby.filter(x=>x.blocked).length,0);
+});
+test('missing local connection preserves failure, never releases original unsafe route',()=>{
+ const unsafe={...candidate,coordinates:[A,[25.003,121.501],B]};
+ const r=resolveVerifiedRoute(unsafe,A,B,{},snapshot([]),{...deps,router:()=>({error:'NO_ROUTE'})},now);
+ assert.equal(r.error,'OFFICIAL_PATH_UNVERIFIED');assert.equal(r.coordinates,undefined);
+});
