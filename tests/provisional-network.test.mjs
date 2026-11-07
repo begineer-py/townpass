@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import proj4 from 'proj4';
 import {createProvisionalNetwork,findProvisionalRoute} from '../src/provisional-network.mjs';
 import {createOfficialConditionIndex} from '../src/official-conditions.mjs';
+import {verifyOfficialReferenceRoute} from '../src/official-reference-validator.mjs';
+import {createLocalRouteVerifier} from '../src/local-route-verifier.mjs';
 
 const twd='+proj=tmerc +lat_0=0 +lon_0=121 +k=0.9999 +x_0=250000 +y_0=0 +ellps=GRS80 +units=m +no_defs';
 const ll=p=>{const [lon,lat]=proj4(twd,'EPSG:4326',p);return [lat,lon];};
@@ -125,4 +127,60 @@ test('comparison scores nearby official records and reports missing records as u
  assert.equal(withData.candidates[0].coverage.officialConditionWeight,3);assert.equal(withData.candidates[0].scoreBreakdown.officialConditions,-3);
  delete f.graph.officialConditionIndex;const unknown=createProvisionalNetwork(f).findCandidates(f.start,f.end);
  assert.equal(unknown.candidates[0].coverage.officialConditionWeight,null);assert.equal(unknown.candidates[0].scoreBreakdown.officialConditions,-2);
+});
+
+function teeFixture(gap=0){
+ const f=fixture();const left=[303000,2778000],joint=[303060,2778000],right=[303120,2778000],branch=[303060+gap,2778000],end=[303060+gap,2778060];
+ f.parts=[{qgsFid:'101',partIndex:0,coordinates:[left,joint,right]},{qgsFid:'102',partIndex:0,coordinates:[branch,end]}];f.start=ll(left);f.end=ll(end);return f;
+}
+test('an official endpoint joins another line interior vertex within 2m and survives independent screening',()=>{
+ for(const gap of [0,1.5,2]){
+  const f=teeFixture(gap),candidate=findProvisionalRoute(f);assert.equal(candidate.error,undefined);
+  const join=candidate.segments.find(s=>s.kind==='source-join');assert.ok(join);assert.ok(join.from.vertexIndex===1||join.to.vertexIndex===1);assert.ok(join.gapMetres<=2+1e-7);assert.equal(join.topology,'unconfirmed');
+  const result=verifyOfficialReferenceRoute({...f,route:candidate,verifyLocal:createLocalRouteVerifier(f.graph,[],[]),options:{}});assert.equal(result.error,undefined);assert.equal(result.navigationAllowed,true);assert.equal(result.unknownGrade,true);assert.equal(result.segments.find(s=>s.kind==='source-join').topology,'unconfirmed');
+ }
+ assert.equal(findProvisionalRoute(teeFixture(2.1)).error,'NO_PROVISIONAL_ROUTE');
+});
+test('interior source joins still reject road crossings, closures and declared grade separation',()=>{
+ const f=teeFixture(1.5),a=ll(f.parts[0].coordinates[1]),b=ll(f.parts[1].coordinates[0]),mid=[(a[0]+b[0])/2,(a[1]+b[1])/2];
+ f.graph.roadGeometries=[[[mid[1],mid[0]-.002],[mid[1],mid[0]+.002]]];assert.equal(findProvisionalRoute(f).error,'NO_PROVISIONAL_ROUTE');
+ const separated=teeFixture();separated.parts[1].layer='1';assert.equal(findProvisionalRoute(separated).error,'NO_PROVISIONAL_CONNECTION');
+ const blocked=teeFixture();blocked.snapshot=snapshot([{id:'blocked',impact:'blocked',start:'',end:'',hours:'24小時',geometries:[{type:'Point',coordinates:[ll(blocked.parts[0].coordinates[1])]}]}]);assert.match(findProvisionalRoute(blocked).error,/^NO_PROVISIONAL_(ROUTE|CONNECTION)$/);
+});
+test('an interior source vertex can connect to an OSM edge without inventing a cross-road shortcut',()=>{
+ const f=teeFixture(),proof={schemaVersion:2,coverage:0,maxUncoveredMetres:100,crossingCoverage:0,roadCrossingVerified:true,crossingVerified:true};
+ const joint=f.parts[0].coordinates[1],p=ll([joint[0],joint[1]+.5]),q=ll([joint[0],joint[1]+100]),end=ll([joint[0],joint[1]+160]);
+ f.parts[1].coordinates=[[joint[0],joint[1]+100],[joint[0],joint[1]+160]];f.start=ll(f.parts[0].coordinates[0]);f.end=end;
+ f.graph.nodes=[[...p,0,1],[...q,0,2]];f.graph.ways=[{highway:'footway',width:1.5,slope:0}];f.graph.edges=[[0,1,99.5,0,[],proof]];f.osmEdgeIds=[0];
+ const candidate=findProvisionalRoute(f);assert.equal(candidate.error,undefined);const join=candidate.segments.find(s=>s.kind==='osm-join'&&s.qgsFid==='101');assert.ok(join);assert.equal(join.vertexIndex,1);assert.ok(join.gapMetres<=2);const result=verifyOfficialReferenceRoute({...f,route:candidate,verifyLocal:createLocalRouteVerifier(f.graph,[],[]),options:{}});assert.equal(result.error,undefined);assert.equal(result.navigationAllowed,true);
+});
+
+test('independent verifier rejects a forged source join between two interior vertices',()=>{
+ const f=teeFixture(),candidate=findProvisionalRoute(f);assert.equal(candidate.error,undefined);
+ const forged=structuredClone(candidate),parts=structuredClone(f.parts);parts[1].coordinates.unshift([303060,2777940]);
+ for(const segment of forged.segments){
+  if(segment.kind==='source-join')for(const ref of [segment.from,segment.to])if(ref.qgsFid==='102')ref.vertexIndex=1;
+  if(segment.qgsFid==='102'&&['official-line','endpoint-approach'].includes(segment.kind))segment.segmentIndex=1;
+ }
+ const result=verifyOfficialReferenceRoute({...f,parts,route:forged,verifyLocal:createLocalRouteVerifier(f.graph,[],[]),options:{}});assert.equal(result.error,'REFERENCE_VALIDATION_FAILED');
+});
+
+function crossingAreaNear(centre,offset){
+ const n=(x,y)=>[centre[1]+x/100700,centre[0]+y/111195];
+ return {type:'Polygon',coordinates:[[n(-2,offset),n(2,offset),n(2,offset+3),n(-2,offset+3),n(-2,offset)]]};
+}
+test('official source crossing permits only quarter-metre boundary uncertainty, and verifier rebuilds flags',()=>{
+ for(const [gap,expected] of [[.2,true],[.3,false]]){
+  const f=fixture(),a=[303000,2778000],b=[303120,2778000],centre=ll([303060,2778000]);f.parts=[{qgsFid:'101',partIndex:0,coordinates:[a,b]}];f.start=ll(a);f.end=ll(b);
+  f.graph.roadGeometries=[[[centre[1],centre[0]-.002],[centre[1],centre[0]+.002]]];f.graph.officialCrossingAreas=[crossingAreaNear(centre,gap)];
+  const candidate=findProvisionalRoute(f);
+  if(!expected){assert.equal(candidate.error,'NO_PROVISIONAL_CONNECTION');continue;}
+  assert.equal(candidate.error,undefined);const line=candidate.segments.find(s=>s.kind==='official-line'&&s.crossing);assert.ok(line);assert.equal(line.crossing,true);assert.equal(line.approximateCrossing,true);
+  line.crossing=false;line.approximateCrossing=false;
+  const result=verifyOfficialReferenceRoute({...f,route:candidate,verifyLocal:createLocalRouteVerifier(f.graph,[],[]),options:{}});assert.equal(result.error,undefined);assert.equal(result.segments.find(s=>s.kind==='official-line'&&s.crossing).crossing,true);assert.equal(result.segments.find(s=>s.kind==='official-line'&&s.crossing).approximateCrossing,true);
+ }
+});
+test('quarter-metre tolerance never authorizes a source join across a road',()=>{
+ const f=teeFixture(1.5),a=ll(f.parts[0].coordinates[1]),b=ll(f.parts[1].coordinates[0]),mid=[(a[0]+b[0])/2,(a[1]+b[1])/2];
+ f.graph.roadGeometries=[[[mid[1],mid[0]-.002],[mid[1],mid[0]+.002]]];f.graph.officialCrossingAreas=[crossingAreaNear(mid,.1)];assert.equal(findProvisionalRoute(f).error,'NO_PROVISIONAL_ROUTE');
 });

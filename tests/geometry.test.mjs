@@ -95,3 +95,45 @@ test("connector with no road intersections remains valid", () => {
     true,
   );
 });
+const shiftLat = metres => metres / 111195;
+test('small boundary error may match a crossing of the same road and is reported as approximate', () => {
+ const road=[[[121.5,24.9999],[121.5,25.0001]]],crossing=polygon([box(121.49999,25+shiftLat(.2),121.50001,25+shiftLat(2))]);
+ const a=[25,121.49999],b=[25,121.50001];
+ assert.equal(roadConnectorChecker(road,[crossing])(a,b),false);
+ const check=roadConnectorChecker(road,[crossing],{crossingToleranceMetres:.25});
+ assert.deepEqual(check.inspect(a,b),{allowed:true,crossing:true,approximateCrossing:true});
+ assert.equal(check(a,b),true);
+ assert.equal(roadConnectorChecker(road,[crossing],{crossingToleranceMetres:.1})(a,b),false);
+});
+test('crossing tolerance does not match a polygon on a different parallel road or a polygon hole',()=>{
+ const road=[[[121.5,24.9999],[121.5,25.0001]]],a=[25,121.49999],b=[25,121.50001];
+ const other=polygon([box(121.500001,25-shiftLat(1),121.50001,25+shiftLat(1))]);
+ const hole=polygon([box(121.49999,25-shiftLat(2),121.50001,25+shiftLat(2)),box(121.499998,25-shiftLat(1),121.500002,25+shiftLat(1))]);
+ assert.equal(roadConnectorChecker(road,[other],{crossingToleranceMetres:.25})(a,b),false);
+ assert.equal(roadConnectorChecker(road,[hole],{crossingToleranceMetres:.25})(a,b),false);
+});
+test('tolerance never covers zero-length points or centreline overlap',()=>{
+ const road=[[[121.5,24.9999],[121.5,25.0001]]],crossing=polygon([box(121.49999,25+shiftLat(.2),121.50001,25+shiftLat(2))]);
+ const check=roadConnectorChecker(road,[crossing],{crossingToleranceMetres:.25});
+ assert.equal(check([25,121.5],[25,121.5]),false);
+ assert.equal(check([25,121.5],[25+shiftLat(1),121.5]),false);
+ assert.throws(()=>roadConnectorChecker(road,[crossing],{crossingToleranceMetres:.251}),RangeError);
+});
+test('exact intersection is not marked approximate and a second unprotected road still fails',()=>{
+ const road=[[[121.5,24.9999],[121.5,25.0001]]], crossing=polygon([box(121.49999,25-shiftLat(1),121.50001,25+shiftLat(1))]);
+ const check=roadConnectorChecker(road,[crossing],{crossingToleranceMetres:.25});
+ assert.deepEqual(check.inspect([25,121.49999],[25,121.50001]),{allowed:true,crossing:true,approximateCrossing:false});
+ const second=[...road,[[121.50002,24.9999],[121.50002,25.0001]]];
+ assert.equal(roadConnectorChecker(second,[crossing],{crossingToleranceMetres:.25})([25,121.49999],[25,121.50003]),false);
+});
+
+test('strict and tolerant variants share road index without weakening strict connector checks',()=>{
+ const road=[[[121.5,24.9999],[121.5,25.0001]]],crossing=polygon([box(121.49999,25+shiftLat(.2),121.50001,25+shiftLat(2))]);
+ const a=[25,121.49999],b=[25,121.50001],strict=roadConnectorChecker(road,[crossing]);
+ const tolerant=strict.withCrossingTolerance(.25);
+ assert.equal(strict(a,b),false);assert.equal(tolerant(a,b),true);
+ assert.deepEqual(tolerant.inspect(a,b),{allowed:true,crossing:true,approximateCrossing:true});
+ assert.equal(strict(a,b),false);assert.equal(strict.withCrossingTolerance(.25),tolerant);
+ assert.equal(strict.withCrossingTolerance(0)(a,b),false);
+ assert.throws(()=>strict.withCrossingTolerance(.251),RangeError);
+});

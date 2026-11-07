@@ -47,3 +47,8 @@ test('separates shared streets from mapped sidewalks in either direction',()=>{
  }
  assert.notEqual(REFERENCE_STYLES.shared.dashArray,REFERENCE_STYLES.sidewalk.dashArray);
 });
+
+test('approximate source crossing displays a crossing and carries its uncertainty',()=>{
+ const candidate=structuredClone(route);candidate.segments[1].crossing=true;candidate.segments[1].approximateCrossing=true;
+ const lines=referenceRouteLines(candidate,{start:A,end:D});assert.equal(lines[1].kind,'crossing');assert.equal(lines[1].approximateCrossing,true);
+});

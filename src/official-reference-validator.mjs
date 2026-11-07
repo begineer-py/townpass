@@ -23,7 +23,7 @@ export function verifyOfficialReferenceRoute({route,parts,sourceHash,graph,snaps
  if(!valid(start)||!valid(end)||options.knownOnly||!Array.isArray(parts)||parts.length>10000||(graph.nodes?.length||0)>2000000||!/^[a-f0-9]{64}$/i.test(sourceHash||'')||route?.sourceHash!==sourceHash||route?.source!=='official-passageway'||route?.constructionSourceUpdatedAt!==snapshot.sourceUpdatedAt||!Array.isArray(route.segments)||route.segments.length<1||route.segments.length>10000||!Number.isFinite(route.distanceMetres)||route.distanceMetres<0)return invalid();
  if(!verifyLocal?.endpointAllowed?.(start,startPlace,'start')||!verifyLocal?.endpointAllowed?.(end,endPlace,'end'))return invalid();
  let checker,evidence;try{checker=createConstructionChecker(snapshot);evidence=officialGeometryEvidence(graph);}catch{return invalid();}
- const road=roadConnectorChecker(graph.roadGeometries,evidence.crossings),area=polygonConnectorChecker(evidence.areas);
+ const road=roadConnectorChecker(graph.roadGeometries,evidence.crossings),sourceRoad=road.withCrossingTolerance(.25),area=polygonConnectorChecker(evidence.areas);
  const source=new Map();
  let vertices=0;for(const part of parts){if(Date.now()>deadline)return {error:'REFERENCE_VALIDATION_LIMIT'};vertices+=part.coordinates?.length||0;if(vertices>200000)return {error:'REFERENCE_VALIDATION_LIMIT'};const key=`${part.qgsFid}:${part.partIndex}`;if(source.has(key)||!/^\d+$/.test(String(part.qgsFid))||!Number.isSafeInteger(part.partIndex)||!Array.isArray(part.coordinates)||part.coordinates.length<2)return invalid();source.set(key,part);}
  const cell=.001,grid=new Map(),key=(y,x)=>`${y},${x}`;
@@ -34,9 +34,9 @@ export function verifyOfficialReferenceRoute({route,parts,sourceHash,graph,snaps
   for(let y=Math.floor((Math.min(a[0],b[0])-lat)/cell);y<=Math.floor((Math.max(a[0],b[0])+lat)/cell);y++)for(let x=Math.floor((Math.min(a[1],b[1])-lon)/cell);x<=Math.floor((Math.max(a[1],b[1])+lon)/cell);x++)for(const p of grid.get(key(y,x))||[])if(distanceToSegment(p,a,b)<=radius)return true;
   return false;
  }
- const checkLine=(coords,checkRoad)=>{
+ const checkLine=(coords,roadCheck)=>{
   if(!Array.isArray(coords)||coords.length<2||coords.some(p=>!valid(p))||!checker.allowed(coords))return false;
-  for(let i=1;i<coords.length;i++)if(Date.now()>deadline||(checkRoad&&!road(coords[i-1],coords[i]))||blocked(coords[i-1],coords[i])||avoid.some(p=>distanceToSegment(p,coords[i-1],coords[i])<=25))return false;
+  for(let i=1;i<coords.length;i++)if(Date.now()>deadline||(roadCheck&&!roadCheck(coords[i-1],coords[i]))||blocked(coords[i-1],coords[i])||avoid.some(p=>distanceToSegment(p,coords[i-1],coords[i])<=25))return false;
   return true;
  };
  function part(fid,index){const p=source.get(`${fid}:${index}`);if(!p||(p.bridge&&p.bridge!=='no')||(p.tunnel&&p.tunnel!=='no')||(p.layer!=null&&String(p.layer)!=='0')||(p.level!=null&&String(p.level)!=='0')||p.blocked===true)return null;return p;}
@@ -56,37 +56,39 @@ export function verifyOfficialReferenceRoute({route,parts,sourceHash,graph,snaps
  for(let i=0;i<route.segments.length;i++){
   if(Date.now()>deadline)return {error:'REFERENCE_VALIDATION_LIMIT'};
   const s=route.segments[i],coords=s?.coordinates;if(!Array.isArray(coords)||coords.length<2||coords.some(p=>!valid(p))||(previous&&metres(previous,coords[0])>.000001))return invalid();
-  let expected=null,length=0,checkRoad=true;
+  let expected=null,length=0,roadCheck=road;
   if(s.kind==='official-line'){
+   roadCheck=sourceRoad;
    let t0=s.sourceStartT,t1=s.sourceEndT;if(s.direction==='reverse')[t0,t1]=[t1,t0];
    const a=official(s.qgsFid,s.partIndex,s.segmentIndex,t0),b=official(s.qgsFid,s.partIndex,s.segmentIndex,t1);if(!a||!b)return invalid();
    expected=[a.point,b.point];length=metres(...expected);
    if(s.grade!=='unknown'||s.barrier!=='unknown'||s.width!=='unknown'||s.slope!=='unknown'||s.officialAreaCovered!==area(a.a,a.b))return invalid();
   }else if(s.kind==='source-join'){
-   const a=vertex(part(s.from?.qgsFid,s.from?.partIndex),s.from?.vertexIndex,true),b=vertex(part(s.to?.qgsFid,s.to?.partIndex),s.to?.vertexIndex,true);
-   if(!a||!b||`${s.from.qgsFid}:${s.from.partIndex}`===`${s.to.qgsFid}:${s.to.partIndex}`||s.topology!=='unconfirmed'||s.grade!=='unknown'||s.barrier!=='unknown')return invalid();
+   const from=part(s.from?.qgsFid,s.from?.partIndex),to=part(s.to?.qgsFid,s.to?.partIndex),a=vertex(from,s.from?.vertexIndex),b=vertex(to,s.to?.vertexIndex);
+   const fromEnd=from&&(s.from.vertexIndex===0||s.from.vertexIndex===from.coordinates.length-1),toEnd=to&&(s.to.vertexIndex===0||s.to.vertexIndex===to.coordinates.length-1);
+   if(!a||!b||(!fromEnd&&!toEnd)||`${s.from.qgsFid}:${s.from.partIndex}`===`${s.to.qgsFid}:${s.to.partIndex}`||s.topology!=='unconfirmed'||s.grade!=='unknown'||s.barrier!=='unknown')return invalid();
    expected=s.direction==='reverse'?[b,a]:[a,b];length=metres(a,b);if(length>2+1e-7||Math.abs(s.gapMetres-length)>.02)return invalid();
   }else if(s.kind==='osm-join'){
-   const a=vertex(part(s.qgsFid,s.partIndex),s.vertexIndex,true),o=osm(s.osmEdgeId),j=s.osmSegmentIndex,t=s.osmSegmentT;
+   const a=vertex(part(s.qgsFid,s.partIndex),s.vertexIndex),o=osm(s.osmEdgeId),j=s.osmSegmentIndex,t=s.osmSegmentT;
    if(!a||!o||!Number.isSafeInteger(j)||j<0||j>=o.line.length-1||!Number.isFinite(t)||t<0||t>1||s.topology!=='unconfirmed'||s.grade!=='unknown'||s.barrier!=='unknown')return invalid();
    const b=interpolate(o.line[j],o.line[j+1],t);expected=s.direction==='reverse'?[b,a]:[a,b];length=metres(a,b);
    if(length>2+1e-7||Math.abs(s.gapMetres-length)>.02)return invalid();
   }else if(s.kind==='osm'){
    const o=osm(s.edgeId);if(!o||!Number.isFinite(o.total)||o.total<=0)return invalid();
    expected=subline(o,s.startOffsetMetres,s.endOffsetMetres);if(!expected)return invalid();if(s.direction==='reverse')expected.reverse();
-   length=o.e[2]*(s.endOffsetMetres-s.startOffsetMetres)/o.total;checkRoad=false;
+   length=o.e[2]*(s.endOffsetMetres-s.startOffsetMetres)/o.total;roadCheck=null;
    if(s.explicitSidewalk!==(o.w.highway==='footway'&&o.w.footway==='sidewalk')||s.sharedRoad!==(o.w.source==='osm-shared-street')||s.unknownDimensions!==(o.w.width==null||o.w.slope==null)||s.officialAreaCovered!==(o.e[5].coverage>=.9999&&o.e[5].maxUncoveredMetres<=.05))return invalid();
   }else if(s.kind==='endpoint-approach'){
    if((s.side==='start'&&i!==0)||(s.side==='end'&&i!==route.segments.length-1)||!['start','end'].includes(s.side)||s.access!=='unconfirmed'||s.grade!=='unknown')return invalid();
    const projection=official(s.qgsFid,s.partIndex,s.segmentIndex,s.sourceT);if(!projection)return invalid();
    expected=s.side==='start'?[start,projection.point]:[projection.point,end];length=metres(...expected);if(length>50+1e-7)return invalid();
   }else return invalid();
-  if(!lineEqual(coords,expected)||!Number.isFinite(s.distanceMetres)||Math.abs(s.distanceMetres-length)>Math.max(.05,length*.0001)||(previous&&metres(previous,expected[0])>.000001)||!checkLine(expected,checkRoad))return invalid();
+  if(!lineEqual(coords,expected)||!Number.isFinite(s.distanceMetres)||Math.abs(s.distanceMetres-length)>Math.max(.05,length*.0001)||(previous&&metres(previous,expected[0])>.000001)||!checkLine(expected,roadCheck))return invalid();
   const clean={kind:s.kind,coordinates:expected.map(p=>[...p]),distanceMetres:length};
   for(const k of ['qgsFid','partIndex','segmentIndex','sourceStartT','sourceEndT','direction','vertexIndex','osmEdgeId','osmSegmentIndex','osmSegmentT','edgeId','startOffsetMetres','endOffsetMetres','side','sourceT'])if(s[k]!==undefined)clean[k]=s[k];
   if(s.kind==='source-join'){clean.from={qgsFid:s.from.qgsFid,partIndex:s.from.partIndex,vertexIndex:s.from.vertexIndex};clean.to={qgsFid:s.to.qgsFid,partIndex:s.to.partIndex,vertexIndex:s.to.vertexIndex};}
   if(s.kind.endsWith('join')){clean.topology='unconfirmed';clean.gapMetres=length;}
-  if(s.kind==='official-line'){clean.officialAreaCovered=area(expected[0],expected.at(-1));clean.width='unknown';clean.slope='unknown';}
+  if(s.kind==='official-line'){const crossing=sourceRoad.inspect(expected[0],expected.at(-1));if(!crossing.allowed)return invalid();clean.crossing=crossing.crossing;clean.approximateCrossing=crossing.approximateCrossing;clean.officialAreaCovered=area(expected[0],expected.at(-1));clean.width='unknown';clean.slope='unknown';}
   if(s.kind==='osm'){const o=osm(s.edgeId);clean.roadName=typeof o.w.name==='string'&&o.w.name.length<=200?o.w.name:'人行路段';clean.crossing=o.w.crossing===true||o.w.footway==='crossing';clean.explicitSidewalk=o.w.highway==='footway'&&o.w.footway==='sidewalk';clean.sharedRoad=o.w.source==='osm-shared-street';clean.unknownDimensions=o.w.width==null||o.w.slope==null;clean.officialAreaCovered=o.e[5].coverage>=.9999&&o.e[5].maxUncoveredMetres<=.05;}
   if(s.kind!=='osm'){clean.grade='unknown';clean.barrier='unknown';}if(s.kind==='endpoint-approach')clean.access='unconfirmed';
   cleanSegments.push(clean);previous=expected.at(-1);total+=length;

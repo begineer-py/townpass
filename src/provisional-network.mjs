@@ -39,7 +39,7 @@ function createProvisionalNetworkInner({parts,sourceHash,graph,osmEdgeIds,snapsh
  const staticEdgeCount=graph?._routeProjectionState?.baseEdges??graph?.edges?.length;
  try{validateNetwork(Number.isInteger(staticEdgeCount)&&staticEdgeCount<graph.edges.length?{...graph,edges:graph.edges.slice(0,staticEdgeCount)}:graph);}catch{return error('UNVERIFIED_NETWORK');}if(timedOut())return error('PROVISIONAL_SEARCH_LIMIT');
  let checker,evidence,endpointVerifier;try{checker=createConstructionChecker(snapshot);evidence=officialGeometryEvidence(graph);endpointVerifier=createLocalRouteVerifier(graph,facilities,places);}catch{return error('CONSTRUCTION_UNAVAILABLE');}
- const road=roadConnectorChecker(graph.roadGeometries,evidence.crossings),area=polygonConnectorChecker(evidence.areas),blocks=new Map(),avoidGrid=new Map(),nodes=[],adj=[],sourceSegments=[],endpoints=[],osmGrid=new Map(),endGrid=new Map();if(timedOut())return error('PROVISIONAL_SEARCH_LIMIT');
+ const road=roadConnectorChecker(graph.roadGeometries,evidence.crossings),sourceRoad=road.withCrossingTolerance(.25),area=polygonConnectorChecker(evidence.areas),blocks=new Map(),avoidGrid=new Map(),nodes=[],adj=[],sourceSegments=[],endpoints=[],sourceVertices=[],osmGrid=new Map(),endGrid=new Map();if(timedOut())return error('PROVISIONAL_SEARCH_LIMIT');
  const conditionIndex=graph.officialConditionIndex;
  const conditionFactor=(line,eligible=true)=>conditionIndex&&eligible?officialConditionCostFactor(line,conditionIndex.find(line,2)):null;
  const avoidPoints=routingOptions.avoidPoints??[];if(!Array.isArray(avoidPoints)||avoidPoints.some(p=>!valid(p))||avoidPoints.length>10000)return error('INVALID_PROVISIONAL_INPUT');
@@ -71,20 +71,31 @@ function createProvisionalNetworkInner({parts,sourceHash,graph,osmEdgeIds,snapsh
   if((part.bridge&&part.bridge!=='no')||(part.tunnel&&part.tunnel!=='no')||(part.layer!=null&&String(part.layer)!=='0')||(part.level!=null&&String(part.level)!=='0')||part.blocked===true)continue;
   seen.add(id);const ll=[],ids=[];for(const p of raw){budget.check();if(!Array.isArray(p)||p.length!==2||!p.every(Number.isFinite)||p[0]<100000||p[0]>400000||p[1]<2600000||p[1]>2900000)return error('INVALID_PROVISIONAL_INPUT');const [lon,lat]=proj4(TWD97,'EPSG:4326',p),point=[lat,lon];if(!valid(point))return error('INVALID_PROVISIONAL_INPUT');ll.push(point);ids.push(node(point));}
   for(let i=1;i<ll.length;i++){
-   budget.check();const a=ll[i-1],b=ll[i],distance=metres(a,b);if(distance>1000)return error('PROVISIONAL_SEARCH_LIMIT');if(distance<.001||!connector(a,b))continue;
-   const meta={kind:'official-line',qgsFid:fid,partIndex:index,segmentIndex:i-1,sourceStartT:0,sourceEndT:1,grade:'unknown',barrier:'unknown',width:'unknown',slope:'unknown',officialAreaCovered:area(a,b),officialConditionFactor:conditionFactor([a,b])};
+   budget.check();const a=ll[i-1],b=ll[i],distance=metres(a,b);if(distance>1000)return error('PROVISIONAL_SEARCH_LIMIT');const crossing=sourceRoad.inspect(a,b);if(distance<.001||!crossing.allowed||!checker.allowed([a,b])||blocked(a,b)||avoided(a,b))continue;
+   const meta={kind:'official-line',crossing:crossing.crossing,approximateCrossing:crossing.approximateCrossing,qgsFid:fid,partIndex:index,segmentIndex:i-1,sourceStartT:0,sourceEndT:1,grade:'unknown',barrier:'unknown',width:'unknown',slope:'unknown',officialAreaCovered:area(a,b),officialConditionFactor:conditionFactor([a,b])};
    edge(ids[i-1],ids[i],distance,[a,b],meta);sourceSegments.push({a,b,aa:ids[i-1],bb:ids[i],distance,meta});
   }
-  for(const i of [0,ll.length-1])endpoints.push({point:ll[i],node:ids[i],part:id,fid,index,vertexIndex:i});
+  for(let i=0;i<ll.length;i++){
+   const vertex={point:ll[i],node:ids[i],part:id,fid,index,vertexIndex:i,isEndpoint:i===0||i===ll.length-1};
+   sourceVertices.push(vertex);if(vertex.isEndpoint)endpoints.push(vertex);
+  }
  }
- for(const endpoint of endpoints){
+ // Connect each source vertex to nearby endpoints of other source parts.
+ // Source shape vertices are real source coordinates, but their grade and the
+ // physical junction remain unconfirmed even when the coordinates coincide.
+ const hasUsableSourceEdge=vertex=>adj[vertex.node].some(item=>item.meta.kind==='official-line');
+ for(const endpoint of endpoints)if(hasUsableSourceEdge(endpoint)&&!gridInsert(endGrid,endpoint.point,endpoint.point,endpoint,budget))return error('PROVISIONAL_SEARCH_LIMIT');
+ const joined=new Set();
+ for(const endpoint of sourceVertices){
+  if(!hasUsableSourceEdge(endpoint))continue;
   if(timedOut())return error('PROVISIONAL_SEARCH_LIMIT');
   for(const prior of gridNearby(endGrid,endpoint.point,JOIN_METRES,budget)){
    if(++operations>maxPairs)return error('PROVISIONAL_SEARCH_LIMIT');
-   const d=metres(endpoint.point,prior.point);if(endpoint.part===prior.part||d>JOIN_METRES+1e-7||!connector(endpoint.point,prior.point))continue;
+   const d=metres(endpoint.point,prior.point),joinKey=endpoint.node<prior.node?`${endpoint.node}:${prior.node}`:`${prior.node}:${endpoint.node}`;
+   if(endpoint.part===prior.part||joined.has(joinKey)||d>JOIN_METRES+1e-7||!connector(endpoint.point,prior.point))continue;
+   joined.add(joinKey);
    edge(endpoint.node,prior.node,d,[endpoint.point,prior.point],{kind:'source-join',gapMetres:d,connectorCoordinates:[endpoint.point,prior.point],topology:'unconfirmed',grade:'unknown',barrier:'unknown',from:{qgsFid:endpoint.fid,partIndex:endpoint.index,vertexIndex:endpoint.vertexIndex},to:{qgsFid:prior.fid,partIndex:prior.index,vertexIndex:prior.vertexIndex}});
   }
-  if(!gridInsert(endGrid,endpoint.point,endpoint.point,endpoint,budget))return error('PROVISIONAL_SEARCH_LIMIT');
   for(const item of gridNearby(osmGrid,endpoint.point,JOIN_METRES,budget)){
    if(++operations>maxPairs)return error('PROVISIONAL_SEARCH_LIMIT');
    const pr=project(endpoint.point,item.line[item.j-1],item.line[item.j]),gap=metres(endpoint.point,pr.point);
@@ -132,6 +143,11 @@ function createProvisionalNetworkInner({parts,sourceHash,graph,osmEdgeIds,snapsh
  else {let cursor=goal;while(previous[cursor]>=0){const item=previousEdge[cursor];segments.push({coordinates:item.geometry,...item.meta,distanceMetres:item.w});cursor=previous[cursor];}segments.reverse();first=roots.get(cursor);last=targets.get(goal).seed;segments.unshift({coordinates:[first.pr.point,nodes[cursor]],...first.segment.meta,sourceStartT:first.pr.t,sourceEndT:cursor===first.segment.aa?0:1,distanceMetres:metres(first.pr.point,nodes[cursor])});segments.push({coordinates:[nodes[goal],last.pr.point],...last.segment.meta,sourceStartT:goal===last.segment.aa?0:1,sourceEndT:last.pr.t,distanceMetres:metres(nodes[goal],last.pr.point)});}
  segments.unshift({kind:'endpoint-approach',side:'start',coordinates:[start,first.pr.point],distanceMetres:first.gap,access:'unconfirmed',grade:'unknown',qgsFid:first.segment.meta.qgsFid,partIndex:first.segment.meta.partIndex,segmentIndex:first.segment.meta.segmentIndex,sourceT:first.pr.t});
  segments.push({kind:'endpoint-approach',side:'end',coordinates:[last.pr.point,end],distanceMetres:last.gap,access:'unconfirmed',grade:'unknown',qgsFid:last.segment.meta.qgsFid,partIndex:last.segment.meta.partIndex,segmentIndex:last.segment.meta.segmentIndex,sourceT:last.pr.t});
+ for(const segment of segments)if(segment.kind==='official-line'){
+  const crossing=sourceRoad.inspect(segment.coordinates[0],segment.coordinates.at(-1));
+  if(!crossing.allowed)return error('PROVISIONAL_GEOMETRY_INVALID');
+  segment.crossing=crossing.crossing;segment.approximateCrossing=crossing.approximateCrossing;
+ }
  const coordinates=[],steps=[];let previousHeading=null;
  for(const segment of segments){
   if(!Array.isArray(segment.coordinates)||segment.coordinates.length<2||segment.coordinates.some(p=>!valid(p)))return error('PROVISIONAL_GEOMETRY_INVALID');

@@ -39,3 +39,7 @@ test('rough routes remain identifiable with or without unknown dimensions', () =
   const dashes=Object.values(ROUTE_CONDITIONS).map(value=>value.dash || 'solid');
   assert.equal(new Set(dashes).size,dashes.length);
 });
+
+test('near-boundary crossing instructions preserve uncertainty',()=>{
+ assert.match(stepConditions({crossing:true,approximateCrossing:true}),/過街邊界未確認/);
+});

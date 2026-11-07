@@ -12,10 +12,10 @@ export function referenceNavigationSteps(segments){
   for(let i=0;i<lengths.length;i++){
    const a=segment.coordinates[i],b=segment.coordinates[i+1],length=lengths[i],amount=sum?segment.distanceMetres*length/sum:0;
    const join=segment.kind==='source-join'||segment.kind==='osm-join',approach=segment.kind==='endpoint-approach';
-   if(join||length<.5||amount<.5){if(!pendingStart)pendingStart=a;pendingDistance+=amount;if(join||approach)pendingUnconfirmed=true;continue;}
+   if(join||length<.5||amount<.5){if(!pendingStart)pendingStart=a;pendingDistance+=amount;if(join||approach||segment.approximateCrossing)pendingUnconfirmed=true;continue;}
    const heading=(Math.atan2((b[1]-a[1])*100700,(b[0]-a[0])*111195)*180/Math.PI+360)%360;
-   const turn=approach?'直行':turnFor(heading),name=segment.kind==='official-line'?'一般人行道':segment.kind==='osm'?(segment.roadName||'人行路段'):'起終點估算銜接';
-   const previous=steps.at(-1),sameRoad=!approach&&previous?.kind===segment.kind&&previous.name===name&&previous.sharedRoad===(segment.sharedRoad===true);
+   const turn=approach?'直行':turnFor(heading),name=segment.kind==='official-line'?(segment.crossing?'過街':'一般人行道'):segment.kind==='osm'?(segment.roadName||'人行路段'):'起終點估算銜接';
+   const previous=steps.at(-1),sameRoad=!approach&&previous?.kind===segment.kind&&previous.name===name&&previous.sharedRoad===(segment.sharedRoad===true)&&previous.crossing===(segment.crossing===true)&&previous.approximateCrossing===(segment.approximateCrossing===true);
    if(sameRoad&&turn==='直行'){
     previous.distance+=pendingDistance+amount;
     if(pendingUnconfirmed)previous.access='unconfirmed';
@@ -25,7 +25,7 @@ export function referenceNavigationSteps(segments){
    }else{
     const start=pendingStart||a;
     steps.push({name,turn,lat:start[0],lon:start[1],distance:pendingDistance+amount,kind:segment.kind,unknown:true,
-     access:approach||pendingUnconfirmed?'unconfirmed':undefined,qgsFid:segment.qgsFid,partIndex:segment.partIndex,segmentIndex:segment.segmentIndex,edgeId:segment.edgeId,sharedRoad:segment.sharedRoad===true});
+     access:approach||pendingUnconfirmed?'unconfirmed':undefined,qgsFid:segment.qgsFid,partIndex:segment.partIndex,segmentIndex:segment.segmentIndex,edgeId:segment.edgeId,sharedRoad:segment.sharedRoad===true,crossing:segment.crossing===true,approximateCrossing:segment.approximateCrossing===true});
     if(!approach)anchor=heading;
    }
    resetPending();

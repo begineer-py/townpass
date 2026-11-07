@@ -26,7 +26,7 @@ export function referenceRouteLines(route,{start,end}={}){
   if(index&&!same(route.segments[index-1].coordinates?.at(-1),coordinates[0]))return [];
   if((kind==='osm-join'||kind==='source-join')&&(coordinates.length!==2||distance(coordinates[0],coordinates[1])>2.000001))return [];
   const displayKind=kind==='osm-join'||kind==='source-join'||kind==='endpoint-approach'?'join':segment.crossing?'crossing':segment.sharedRoad?'shared':generalSidewalkSegment(segment)?'sidewalk':'pedestrian';
-  lines.push({kind:displayKind,coordinates});
+  lines.push({kind:displayKind,coordinates,...(segment.approximateCrossing===true?{approximateCrossing:true}:{})});
  }
  return lines;
 }

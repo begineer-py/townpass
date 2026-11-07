@@ -10,6 +10,7 @@ export default function ReferenceRouteResult({status,route,candidates=[],selecte
   <div className="reference-route-result__heading"><strong>人行路線</strong><button type="button" onClick={onClose}>關閉</button></div>
   {status==='loading'?<p>正在尋找路線…</p>:lines.length?<>
     <p>{REFERENCE_NOTICE}</p>
+    {displayed?.segments?.some(segment=>segment.approximateCrossing===true) && <p>過街邊界未確認</p>}
     {choices.map((candidate,index)=><button className="route-alternative" type="button" key={candidate.id} aria-pressed={selected===candidate.id} onClick={()=>onSelect(candidate)}><strong>路線 {index+1} · {referenceRouteDistance(candidate.route)||'距離未提供'} · {Number.isFinite(candidate.score)?`分數 ${candidate.score.toFixed(1)}`:'分數未提供'}</strong><span>一般人行道 {referenceMetric(candidate.coverage?.generalSidewalkMetres)}</span><span>資料未知 {referenceMetric(candidate.coverage?.unknownMetres)} · 起終點銜接 {referenceMetric(candidate.coverage?.estimatedApproachMetres)}</span></button>)}
     {comparisonStatus && comparisonStatus!=='complete' && <p>部分比較未完成。</p>}
     <div className="reference-route-result__legend" aria-label="線條說明">{[...new Set(lines.map(line=>line.kind))].map(kind=>{const style=REFERENCE_STYLES[kind];return <span key={kind}><svg width="42" height="14" aria-hidden="true"><line x1="1" y1="7" x2="41" y2="7" stroke={style.color} strokeWidth="5" strokeDasharray={style.dashArray}/></svg>{style.label}</span>;})}</div>
