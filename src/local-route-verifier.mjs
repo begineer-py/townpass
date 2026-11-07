@@ -3,15 +3,30 @@ import {officialGeometryEvidence} from './supplemental-evidence.mjs';
 import {edgeAllowed,metres,ROUTING_POLICY,SNAP_METRES} from './routing.mjs';
 import {edgeTier,edgeCostDetails} from './route-tiers.mjs';
 const same=(a,b)=>a&&b&&a[0]===b[0]&&a[1]===b[1];
-export function createLocalRouteVerifier(graph,facilities=[]){
+export function createLocalRouteVerifier(graph,facilities=[],places=[]){
  const {areas,crossings}=officialGeometryEvidence(graph),covered=polygonConnectorChecker(areas),roadClear=roadConnectorChecker(graph.roadGeometries,crossings);
  const entrances=new Map(facilities.filter(p=>p.kind==='metro-elevator').map(p=>[p.id,p]));
+ const poiKinds=new Set(['place','health','park','rest','water','toilet','public-toilet','elevator','1','3','4','7','8','9','14','15','16','18']);
+ const pois=new Map();
+ for(const p of [...facilities,...places]){
+  if(!p?.id||!poiKinds.has(String(p.kind))||!Number.isFinite(p.lat)||!Number.isFinite(p.lon))continue;
+  // Duplicate IDs are ambiguous, even if coordinates match: the two records
+  // could disagree about access restrictions.
+  if(pois.has(p.id))pois.set(p.id,null);
+  else pois.set(p.id,p);
+ }
+ function matchedPoint(point,place){
+  const known=entrances.get(place?.id)||pois.get(place?.id);
+  return known&&same(point,[known.lat,known.lon])?known:null;
+ }
+ function prohibited(p){return p&&(['no','private'].includes(p.access)||['no','private'].includes(p.foot)||p.wheelchair==='no'||p['access:conditional']!=null||p['foot:conditional']!=null);}
  function allowed(point,target,place,options={}){
-  const gap=metres(point,target),entry=entrances.get(place?.id),matched=entry&&same(point,[entry.lat,entry.lon]);
+  const gap=metres(point,target),known=matchedPoint(point,place);
+  if(prohibited(known))return false;
   // A point already on a verified network node has no approach to cross a road.
   // This matters for a shared-street centreline, which is itself in the road mask.
   if(gap<=.001)return true;
-  return gap<=SNAP_METRES&&roadClear(point,target)&&(gap<=.05||covered(point,target)||(matched&&!options.knownOnly));
+  return gap<=SNAP_METRES&&roadClear(point,target)&&(gap<=.05||covered(point,target)||(known&&!options.knownOnly));
  }
  const verify=(route,start,end,options={})=>{
   if(route.error)return route;
@@ -42,12 +57,11 @@ export function createLocalRouteVerifier(graph,facilities=[]){
   });
   const approaches=[];
   for(const [point,target,place,side]of [[start,coordinates[0],options.startPlace,'start'],[end,coordinates.at(-1),options.endPlace,'end']]){
-   const gap=metres(point,target),entry=entrances.get(place?.id);
-   const matched=entry&&same(point,[entry.lat,entry.lon]);
-   // The entire approach is checked against roads. A registered exit link
+   const gap=metres(point,target),known=matchedPoint(point,place);
+   // The entire approach is checked against roads. A registered point link
    // without polygon coverage is an estimate, not a surveyed walking path.
    if(!allowed(point,target,place,options))return {error:'OFFICIAL_ENTRY_UNVERIFIED'};
-   if(gap>.05)approaches.push({side,coordinates:side==='start'?[point,target]:[target,point],distance:Math.round(gap),estimated:!covered(point,target),name:entry?.name});
+   if(gap>.05)approaches.push({side,coordinates:side==='start'?[point,target]:[target,point],distance:Math.round(gap),estimated:!covered(point,target),name:known?.name});
   }
   const all=[...coordinates];if(!same(start,all[0]))all.unshift(start);if(!same(end,all.at(-1)))all.push(end);
   return {...route,steps,tierSegments,coordinates:all,networkCoordinates:coordinates,approaches,distance:Math.round(route.distance+metres(start,coordinates[0])+metres(end,coordinates.at(-1))),provider:'mapped-pedestrian',geometryVerification:'pedestrian-network-v1',policyVersion:ROUTING_POLICY,requiresEntryConfirmation:false};

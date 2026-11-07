@@ -31,6 +31,29 @@ test('estimated exit links obey construction blocking and known-only during sear
  const closure={id:'closed',start:'115/11/07',end:'115/11/07',hours:'24小時施工',impact:'blocked',geometries:[{type:'Point',coordinates:[p]}]};
  const blocked=run({},[closure]);assert.equal(blocked.error,'CONSTRUCTION_BLOCKED');assert.equal(blocked.coordinates,undefined);
 });
+test('registered POI estimates require exact id, coordinate and permitted source data',()=>{
+ const g=base(),r=createRouter(g)(a,b),p=[25+30/111195,121.5],poi={id:'poi',kind:'health',name:'診所',lat:p[0],lon:p[1]},verify=createLocalRouteVerifier(g,[],[poi]);
+ const result=verify(r,p,b,{startPlace:poi});assert.equal(result.error,undefined);assert.equal(result.approaches[0].estimated,true);assert.equal(result.approaches[0].distance,30);
+ assert.equal(verify(r,p,b,{startPlace:{...poi,id:'forged'}}).error,'OFFICIAL_ENTRY_UNVERIFIED');
+ assert.equal(verify(r,[p[0]+.000001,p[1]],b,{startPlace:poi}).error,'OFFICIAL_ENTRY_UNVERIFIED');
+ assert.equal(verify(r,p,b,{startPlace:poi,knownOnly:true}).error,'OFFICIAL_ENTRY_UNVERIFIED');
+ const distant=[25+51/111195,121.5],far={...poi,lat:distant[0]};assert.equal(createLocalRouteVerifier(g,[],[far])(r,distant,b,{startPlace:far}).error,'OFFICIAL_ENTRY_UNVERIFIED');
+ for(const patch of [{access:'no'},{access:'private'},{foot:'no'},{wheelchair:'no'},{'foot:conditional':'no @ night'}]){
+  const blocked={...poi,...patch},v=createLocalRouteVerifier(g,[],[blocked]);assert.equal(v(r,p,b,{startPlace:poi}).error,'OFFICIAL_ENTRY_UNVERIFIED');assert.equal(v.approachAllowed(p,p,poi),false);
+ }
+ const road={...poi,kind:'road'};assert.equal(createLocalRouteVerifier(g,[],[road])(r,p,b,{startPlace:road}).error,'OFFICIAL_ENTRY_UNVERIFIED');
+ const different={...poi,lat:p[0]+.00001};assert.equal(createLocalRouteVerifier(g,[],[poi,different])(r,p,b,{startPlace:poi}).error,'OFFICIAL_ENTRY_UNVERIFIED');
+ const restrictedDuplicate={...poi,access:'private'};assert.equal(createLocalRouteVerifier(g,[],[poi,restrictedDuplicate])(r,p,b,{startPlace:poi}).error,'OFFICIAL_ENTRY_UNVERIFIED');
+});
+test('POI estimated approach cannot cross vehicle way or active construction',()=>{
+ const g=base(),p=[25+30/111195,121.5],poi={id:'poi',kind:'park',lat:p[0],lon:p[1]},r=createRouter(g)(a,b);
+ g.roadGeometries=[[[121.499,25+15/111195],[121.502,25+15/111195]]];
+ assert.equal(createLocalRouteVerifier(g,[],[poi])(r,p,b,{startPlace:poi}).error,'OFFICIAL_ENTRY_UNVERIFIED');
+ g.roadGeometries=[[[121.51,25],[121.51,25.01]]];
+ const now=Date.parse('2026-11-07T08:00:00Z'),stamp=new Date(now).toISOString(),works=[{id:'closed',start:'115/11/07',end:'115/11/07',hours:'24小時施工',impact:'blocked',geometries:[{type:'Point',coordinates:[p]}]}],snapshot={schemaVersion:1,fetchedAt:stamp,sourceUpdatedAt:stamp,works};
+ const blocked=planPlaces(poi,{lat:b[0],lon:b[1]},{},snapshot,{router:createRouter(g),verifyLocal:createLocalRouteVerifier(g,[],[poi]),facilities:[],checker:createConstructionChecker(snapshot,now)});
+ assert.equal(blocked.error,'CONSTRUCTION_BLOCKED');assert.equal(blocked.coordinates,undefined);
+});
 test('station search resolves only its own published metro exits',()=>{const fac=[{kind:'metro-elevator',station:'台北車',id:'A'},{kind:'metro-elevator',station:'善導寺',id:'B'}];assert.deepEqual(stationEntrances({kind:'20',name:'臺北車站(R10)'},fac).map(p=>p.id),['A']);});
 test('mixed station-entrance failures show connected-but-no-route instead of last no-connection',()=>{
  const exits=[{id:'one',kind:'metro-elevator',station:'文德',name:'入口1',lat:25,lon:121.5},{id:'two',kind:'metro-elevator',station:'文德',name:'入口2',lat:25,lon:121.501}];

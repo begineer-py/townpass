@@ -57,7 +57,10 @@ self.onmessage = async ({ data }) => {
       verifyOfficial = createOfficialRouteVerifier(graph);
       const fr=await fetch(new URL('./facilities.json.gz',data.url));if(!fr.ok)throw Error('facilities');
       const fb=new Uint8Array(await fr.arrayBuffer());facilities=JSON.parse(new TextDecoder().decode(fb[0]===31&&fb[1]===139?gunzipSync(fb):fb));
-      verifyLocal=createLocalRouteVerifier(graph,facilities);
+      const pr=await fetch(new URL('./places.json.gz',data.url));if(!pr.ok)throw Error('places');
+      const pb=new Uint8Array(await pr.arrayBuffer()),places=JSON.parse(new TextDecoder().decode(pb[0]===31&&pb[1]===139?gunzipSync(pb):pb));
+      if(!Array.isArray(facilities)||!Array.isArray(places))throw Error('places');
+      verifyLocal=createLocalRouteVerifier(graph,facilities,places);
       detourWaypoints=createDetourWaypoints(graph);
       })();
       await initialization;

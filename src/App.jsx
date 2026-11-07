@@ -963,7 +963,7 @@ export default function App() {
       route.policyVersion !== ROUTING_POLICY
     )
       return;
-    const text = `從${start.name}前往${end.name}，路線長約${formatDistance(route.distance)}。${route.approaches?.some(p=>p.estimated) ? "捷運出口銜接為直線位置估算，通行狀況未確認，請先確認現場。" : ""}${route.steps.map((s) => `${stepText(s)}約${Math.round(s.distance)}公尺。${stepConditions(s) ? stepConditions(s)+'。' : ''}`).join("")}路況仍需留意現場，這是路線預覽。`;
+    const text = `從${start.name}前往${end.name}，路線長約${formatDistance(route.distance)}。${route.approaches?.some(p=>p.estimated) ? "起終點銜接為直線位置估算，入口與實際通行狀況未確認，請先確認現場。" : ""}${route.steps.map((s) => `${stepText(s)}約${Math.round(s.distance)}公尺。${stepConditions(s) ? stepConditions(s)+'。' : ''}`).join("")}路況仍需留意現場，這是路線預覽。`;
     speakText(text);
   }
   function speakText(text) {
@@ -1009,7 +1009,7 @@ export default function App() {
     const text = `好好走｜${start.name} → ${end.name}\n約 ${formatDistance(route.distance)}\n${route.steps
       .slice(0, 20)
       .map((s) => `${s.name} ${Math.round(s.distance)}公尺${stepConditions(s) ? `（${stepConditions(s)}）` : ''}`)
-      .join("\n")}\n路線依公開路網規劃，部分通行條件尚未確認，請留意現場。`;
+      .join("\n")}\n${route.approaches?.some(p=>p.estimated) ? '起終點入口與實際通行狀況未確認，銜接為直線位置估算。\n' : ''}路線依公開路網規劃，部分通行條件尚未確認，請留意現場。`;
     try {
       if (navigator.share)
         await navigator.share({ title: "好好走・行程", text });
@@ -1426,7 +1426,7 @@ export default function App() {
                     {route.viaName && (
                       <p className="quiet-note">順路停靠：{route.viaName}</p>
                     )}
-                    {route.approaches?.some(p=>p.estimated) && <p className="quiet-note">捷運出口與人行路網銜接約 {route.approaches.filter(p=>p.estimated).map(p=>p.distance).join('／')} 公尺；虛線為直線位置估算，通行狀況未確認，請確認現場。</p>}
+                    {route.approaches?.some(p=>p.estimated) && <div className="notice" role="note"><AlertTriangle aria-hidden="true"/><p><strong>起終點入口與實際通行狀況未確認。</strong>虛線為直線位置估算，約 {route.approaches.filter(p=>p.estimated).map(p=>p.distance).join('／')} 公尺；可能穿過建物或圍牆，請確認現場入口及通行方式。</p></div>}
                     <div className="route-key" aria-label="路段狀況圖例">
                       {[...new Set([...(route.tierSegments?.length ? route.tierSegments.map(conditionForSegment) : ['unknown']), ...(route.approaches?.length ? ['approach'] : [])])].map(key => {
                         const condition = ROUTE_CONDITIONS[key];
@@ -1442,7 +1442,7 @@ export default function App() {
                         <span className="eyebrow">路線預覽</span>
                         <h2>{formatDistance(route.distance)}</h2>
                         <p>
-                          {route.provider === "mapped-pedestrian" ? "電梯出口之間的人行路線" : route.provider === "local-verified" ? "另一條人行路線" : route.provider === "local-detour" ? "已改走避開施工的人行路線" : route.provider === "taipei-official"
+                          {route.provider === "mapped-pedestrian" ? "路網參考路線" : route.provider === "local-verified" ? "另一條人行路線" : route.provider === "local-detour" ? "已改走避開施工的人行路線" : route.provider === "taipei-official"
                             ? "臺北市無障礙通行路線圖台回傳"
                             : "離線人行路網參考"}
                         </p>
