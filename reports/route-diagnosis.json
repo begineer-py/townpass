@@ -1,0 +1,991 @@
+{
+  "checkedAt": "2026-11-07T11:42:50.786Z",
+  "constructionSourceUpdatedAt": "Sat, 07 Nov 2026 11:30:44 GMT",
+  "scope": "Nine anonymous fixed public point pairs and two public station examples; local-route pipeline only; same construction snapshot for both masks",
+  "before": [
+    {
+      "name": "大安",
+      "entries": [
+        {
+          "startOnArea": false,
+          "endOnArea": false,
+          "error": "NO_CONNECTION",
+          "noWorkError": null,
+          "distance": null,
+          "sides": [
+            {
+              "side": "start",
+              "nearestNodeMetres": 9,
+              "eligibleCandidates": 38,
+              "roadRejected": 4,
+              "constructionRejected": 0,
+              "entryRejected": 34,
+              "accepted": 0,
+              "prunedByNearbyBlocker": 0,
+              "newCrossingWouldPassRoadCheck": 2
+            },
+            {
+              "side": "end",
+              "nearestNodeMetres": 2.1,
+              "eligibleCandidates": 58,
+              "roadRejected": 0,
+              "constructionRejected": 0,
+              "entryRejected": 58,
+              "accepted": 0,
+              "prunedByNearbyBlocker": 0,
+              "newCrossingWouldPassRoadCheck": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "北投",
+      "entries": [
+        {
+          "startOnArea": false,
+          "endOnArea": false,
+          "error": "NO_CONNECTION",
+          "noWorkError": null,
+          "distance": null,
+          "sides": [
+            {
+              "side": "start",
+              "nearestNodeMetres": 15.5,
+              "eligibleCandidates": 28,
+              "roadRejected": 5,
+              "constructionRejected": 0,
+              "entryRejected": 23,
+              "accepted": 0,
+              "prunedByNearbyBlocker": 0,
+              "newCrossingWouldPassRoadCheck": 3
+            },
+            {
+              "side": "end",
+              "nearestNodeMetres": 5.4,
+              "eligibleCandidates": 43,
+              "roadRejected": 23,
+              "constructionRejected": 0,
+              "entryRejected": 20,
+              "accepted": 0,
+              "prunedByNearbyBlocker": 0,
+              "newCrossingWouldPassRoadCheck": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "士林",
+      "entries": [
+        {
+          "startOnArea": false,
+          "endOnArea": false,
+          "error": "NO_CONNECTION",
+          "noWorkError": null,
+          "distance": null,
+          "sides": [
+            {
+              "side": "start",
+              "nearestNodeMetres": 23.8,
+              "eligibleCandidates": 2,
+              "roadRejected": 0,
+              "constructionRejected": 0,
+              "entryRejected": 2,
+              "accepted": 0,
+              "prunedByNearbyBlocker": 0,
+              "newCrossingWouldPassRoadCheck": 0
+            },
+            {
+              "side": "end",
+              "nearestNodeMetres": 13.2,
+              "eligibleCandidates": 12,
+              "roadRejected": 1,
+              "constructionRejected": 0,
+              "entryRejected": 10,
+              "accepted": 0,
+              "prunedByNearbyBlocker": 1,
+              "newCrossingWouldPassRoadCheck": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "內湖",
+      "entries": [
+        {
+          "startOnArea": false,
+          "endOnArea": true,
+          "error": "NO_CONNECTION",
+          "noWorkError": null,
+          "distance": null,
+          "sides": [
+            {
+              "side": "start",
+              "nearestNodeMetres": 3.9,
+              "eligibleCandidates": 12,
+              "roadRejected": 9,
+              "constructionRejected": 0,
+              "entryRejected": 3,
+              "accepted": 0,
+              "prunedByNearbyBlocker": 0,
+              "newCrossingWouldPassRoadCheck": 1
+            },
+            {
+              "side": "end",
+              "nearestNodeMetres": 127,
+              "eligibleCandidates": 0,
+              "roadRejected": 0,
+              "constructionRejected": 0,
+              "entryRejected": 0,
+              "accepted": 0,
+              "prunedByNearbyBlocker": 0,
+              "newCrossingWouldPassRoadCheck": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "南港",
+      "entries": [
+        {
+          "startOnArea": false,
+          "endOnArea": false,
+          "error": "NO_CONNECTION",
+          "noWorkError": null,
+          "distance": null,
+          "sides": [
+            {
+              "side": "start",
+              "nearestNodeMetres": 41.9,
+              "eligibleCandidates": 1,
+              "roadRejected": 0,
+              "constructionRejected": 0,
+              "entryRejected": 1,
+              "accepted": 0,
+              "prunedByNearbyBlocker": 0,
+              "newCrossingWouldPassRoadCheck": 0
+            },
+            {
+              "side": "end",
+              "nearestNodeMetres": 31.8,
+              "eligibleCandidates": 3,
+              "roadRejected": 2,
+              "constructionRejected": 0,
+              "entryRejected": 1,
+              "accepted": 0,
+              "prunedByNearbyBlocker": 0,
+              "newCrossingWouldPassRoadCheck": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "信義",
+      "entries": [
+        {
+          "startOnArea": true,
+          "endOnArea": false,
+          "error": "NO_CONNECTION",
+          "noWorkError": null,
+          "distance": null,
+          "sides": [
+            {
+              "side": "start",
+              "nearestNodeMetres": 0.3,
+              "eligibleCandidates": 26,
+              "roadRejected": 11,
+              "constructionRejected": 0,
+              "entryRejected": 2,
+              "accepted": 5,
+              "prunedByNearbyBlocker": 8,
+              "newCrossingWouldPassRoadCheck": 5
+            },
+            {
+              "side": "end",
+              "nearestNodeMetres": 1.3,
+              "eligibleCandidates": 15,
+              "roadRejected": 8,
+              "constructionRejected": 0,
+              "entryRejected": 7,
+              "accepted": 0,
+              "prunedByNearbyBlocker": 0,
+              "newCrossingWouldPassRoadCheck": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "中正",
+      "entries": [
+        {
+          "startOnArea": false,
+          "endOnArea": false,
+          "error": "NO_CONNECTION",
+          "noWorkError": null,
+          "distance": null,
+          "sides": [
+            {
+              "side": "start",
+              "nearestNodeMetres": 6,
+              "eligibleCandidates": 6,
+              "roadRejected": 3,
+              "constructionRejected": 0,
+              "entryRejected": 0,
+              "accepted": 0,
+              "prunedByNearbyBlocker": 3,
+              "newCrossingWouldPassRoadCheck": 0
+            },
+            {
+              "side": "end",
+              "nearestNodeMetres": 2.6,
+              "eligibleCandidates": 5,
+              "roadRejected": 2,
+              "constructionRejected": 0,
+              "entryRejected": 3,
+              "accepted": 0,
+              "prunedByNearbyBlocker": 0,
+              "newCrossingWouldPassRoadCheck": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "萬華",
+      "entries": [
+        {
+          "startOnArea": false,
+          "endOnArea": false,
+          "error": "NO_CONNECTION",
+          "noWorkError": null,
+          "distance": null,
+          "sides": [
+            {
+              "side": "start",
+              "nearestNodeMetres": 7,
+              "eligibleCandidates": 25,
+              "roadRejected": 24,
+              "constructionRejected": 0,
+              "entryRejected": 1,
+              "accepted": 0,
+              "prunedByNearbyBlocker": 0,
+              "newCrossingWouldPassRoadCheck": 3
+            },
+            {
+              "side": "end",
+              "nearestNodeMetres": 7.4,
+              "eligibleCandidates": 15,
+              "roadRejected": 0,
+              "constructionRejected": 0,
+              "entryRejected": 5,
+              "accepted": 0,
+              "prunedByNearbyBlocker": 10,
+              "newCrossingWouldPassRoadCheck": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "文山",
+      "entries": [
+        {
+          "startOnArea": true,
+          "endOnArea": false,
+          "error": "NO_CONNECTION",
+          "noWorkError": null,
+          "distance": null,
+          "sides": [
+            {
+              "side": "start",
+              "nearestNodeMetres": 25.9,
+              "eligibleCandidates": 7,
+              "roadRejected": 2,
+              "constructionRejected": 0,
+              "entryRejected": 5,
+              "accepted": 0,
+              "prunedByNearbyBlocker": 0,
+              "newCrossingWouldPassRoadCheck": 0
+            },
+            {
+              "side": "end",
+              "nearestNodeMetres": 17.5,
+              "eligibleCandidates": 6,
+              "roadRejected": 2,
+              "constructionRejected": 0,
+              "entryRejected": 4,
+              "accepted": 0,
+              "prunedByNearbyBlocker": 0,
+              "newCrossingWouldPassRoadCheck": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "台北車站→善導寺",
+      "entries": [
+        {
+          "startName": "台北車站出口電梯1",
+          "endName": "善導寺站出口電梯",
+          "startOnArea": false,
+          "endOnArea": false,
+          "error": null,
+          "noWorkError": null,
+          "distance": 1228,
+          "sides": [
+            {
+              "side": "start",
+              "nearestNodeMetres": 3.2,
+              "eligibleCandidates": 21,
+              "roadRejected": 0,
+              "constructionRejected": 0,
+              "entryRejected": 3,
+              "accepted": 4,
+              "prunedByNearbyBlocker": 14,
+              "newCrossingWouldPassRoadCheck": 0
+            },
+            {
+              "side": "end",
+              "nearestNodeMetres": 8.1,
+              "eligibleCandidates": 15,
+              "roadRejected": 0,
+              "constructionRejected": 0,
+              "entryRejected": 0,
+              "accepted": 3,
+              "prunedByNearbyBlocker": 12,
+              "newCrossingWouldPassRoadCheck": 0
+            }
+          ]
+        },
+        {
+          "startName": "台北車站出口電梯2",
+          "endName": "善導寺站出口電梯",
+          "startOnArea": false,
+          "endOnArea": false,
+          "error": null,
+          "noWorkError": null,
+          "distance": 1151,
+          "sides": [
+            {
+              "side": "start",
+              "nearestNodeMetres": 1.8,
+              "eligibleCandidates": 43,
+              "roadRejected": 0,
+              "constructionRejected": 0,
+              "entryRejected": 0,
+              "accepted": 5,
+              "prunedByNearbyBlocker": 38,
+              "newCrossingWouldPassRoadCheck": 0
+            },
+            {
+              "side": "end",
+              "nearestNodeMetres": 8.1,
+              "eligibleCandidates": 15,
+              "roadRejected": 0,
+              "constructionRejected": 0,
+              "entryRejected": 0,
+              "accepted": 3,
+              "prunedByNearbyBlocker": 12,
+              "newCrossingWouldPassRoadCheck": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "芝山→兒童新樂園",
+      "entries": [
+        {
+          "startName": "芝山站出口無障礙坡道1",
+          "endName": "兒童新樂園",
+          "startOnArea": false,
+          "endOnArea": false,
+          "error": "NO_ROUTE",
+          "noWorkError": "NO_ROUTE",
+          "distance": null,
+          "sides": [
+            {
+              "side": "start",
+              "nearestNodeMetres": 1.1,
+              "eligibleCandidates": 29,
+              "roadRejected": 1,
+              "constructionRejected": 0,
+              "entryRejected": 6,
+              "accepted": 15,
+              "prunedByNearbyBlocker": 7,
+              "newCrossingWouldPassRoadCheck": 1
+            },
+            {
+              "side": "end",
+              "nearestNodeMetres": 0,
+              "eligibleCandidates": 10,
+              "roadRejected": 5,
+              "constructionRejected": 0,
+              "entryRejected": 4,
+              "accepted": 1,
+              "prunedByNearbyBlocker": 0,
+              "newCrossingWouldPassRoadCheck": 2
+            }
+          ]
+        },
+        {
+          "startName": "芝山站出口無障礙坡道2",
+          "endName": "兒童新樂園",
+          "startOnArea": false,
+          "endOnArea": false,
+          "error": "NO_ROUTE",
+          "noWorkError": "NO_ROUTE",
+          "distance": null,
+          "sides": [
+            {
+              "side": "start",
+              "nearestNodeMetres": 7.6,
+              "eligibleCandidates": 5,
+              "roadRejected": 0,
+              "constructionRejected": 0,
+              "entryRejected": 3,
+              "accepted": 1,
+              "prunedByNearbyBlocker": 1,
+              "newCrossingWouldPassRoadCheck": 0
+            },
+            {
+              "side": "end",
+              "nearestNodeMetres": 0,
+              "eligibleCandidates": 10,
+              "roadRejected": 5,
+              "constructionRejected": 0,
+              "entryRejected": 4,
+              "accepted": 1,
+              "prunedByNearbyBlocker": 0,
+              "newCrossingWouldPassRoadCheck": 2
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "after": [
+    {
+      "name": "大安",
+      "entries": [
+        {
+          "startOnArea": false,
+          "endOnArea": false,
+          "error": "NO_CONNECTION",
+          "noWorkError": null,
+          "distance": null,
+          "sides": [
+            {
+              "side": "start",
+              "nearestNodeMetres": 9,
+              "eligibleCandidates": 38,
+              "roadRejected": 2,
+              "constructionRejected": 0,
+              "entryRejected": 36,
+              "accepted": 0,
+              "prunedByNearbyBlocker": 0,
+              "newCrossingWouldPassRoadCheck": 0
+            },
+            {
+              "side": "end",
+              "nearestNodeMetres": 2.1,
+              "eligibleCandidates": 58,
+              "roadRejected": 0,
+              "constructionRejected": 0,
+              "entryRejected": 58,
+              "accepted": 0,
+              "prunedByNearbyBlocker": 0,
+              "newCrossingWouldPassRoadCheck": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "北投",
+      "entries": [
+        {
+          "startOnArea": false,
+          "endOnArea": false,
+          "error": "NO_CONNECTION",
+          "noWorkError": null,
+          "distance": null,
+          "sides": [
+            {
+              "side": "start",
+              "nearestNodeMetres": 15.5,
+              "eligibleCandidates": 28,
+              "roadRejected": 2,
+              "constructionRejected": 0,
+              "entryRejected": 26,
+              "accepted": 0,
+              "prunedByNearbyBlocker": 0,
+              "newCrossingWouldPassRoadCheck": 0
+            },
+            {
+              "side": "end",
+              "nearestNodeMetres": 5.4,
+              "eligibleCandidates": 43,
+              "roadRejected": 22,
+              "constructionRejected": 0,
+              "entryRejected": 21,
+              "accepted": 0,
+              "prunedByNearbyBlocker": 0,
+              "newCrossingWouldPassRoadCheck": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "士林",
+      "entries": [
+        {
+          "startOnArea": false,
+          "endOnArea": false,
+          "error": "NO_CONNECTION",
+          "noWorkError": null,
+          "distance": null,
+          "sides": [
+            {
+              "side": "start",
+              "nearestNodeMetres": 23.8,
+              "eligibleCandidates": 2,
+              "roadRejected": 0,
+              "constructionRejected": 0,
+              "entryRejected": 2,
+              "accepted": 0,
+              "prunedByNearbyBlocker": 0,
+              "newCrossingWouldPassRoadCheck": 0
+            },
+            {
+              "side": "end",
+              "nearestNodeMetres": 13.2,
+              "eligibleCandidates": 12,
+              "roadRejected": 1,
+              "constructionRejected": 0,
+              "entryRejected": 10,
+              "accepted": 0,
+              "prunedByNearbyBlocker": 1,
+              "newCrossingWouldPassRoadCheck": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "內湖",
+      "entries": [
+        {
+          "startOnArea": false,
+          "endOnArea": true,
+          "error": "NO_CONNECTION",
+          "noWorkError": null,
+          "distance": null,
+          "sides": [
+            {
+              "side": "start",
+              "nearestNodeMetres": 3.9,
+              "eligibleCandidates": 12,
+              "roadRejected": 8,
+              "constructionRejected": 0,
+              "entryRejected": 4,
+              "accepted": 0,
+              "prunedByNearbyBlocker": 0,
+              "newCrossingWouldPassRoadCheck": 0
+            },
+            {
+              "side": "end",
+              "nearestNodeMetres": 127,
+              "eligibleCandidates": 0,
+              "roadRejected": 0,
+              "constructionRejected": 0,
+              "entryRejected": 0,
+              "accepted": 0,
+              "prunedByNearbyBlocker": 0,
+              "newCrossingWouldPassRoadCheck": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "南港",
+      "entries": [
+        {
+          "startOnArea": false,
+          "endOnArea": false,
+          "error": "NO_CONNECTION",
+          "noWorkError": null,
+          "distance": null,
+          "sides": [
+            {
+              "side": "start",
+              "nearestNodeMetres": 41.9,
+              "eligibleCandidates": 1,
+              "roadRejected": 0,
+              "constructionRejected": 0,
+              "entryRejected": 1,
+              "accepted": 0,
+              "prunedByNearbyBlocker": 0,
+              "newCrossingWouldPassRoadCheck": 0
+            },
+            {
+              "side": "end",
+              "nearestNodeMetres": 31.8,
+              "eligibleCandidates": 3,
+              "roadRejected": 2,
+              "constructionRejected": 0,
+              "entryRejected": 1,
+              "accepted": 0,
+              "prunedByNearbyBlocker": 0,
+              "newCrossingWouldPassRoadCheck": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "信義",
+      "entries": [
+        {
+          "startOnArea": true,
+          "endOnArea": false,
+          "error": "NO_CONNECTION",
+          "noWorkError": null,
+          "distance": null,
+          "sides": [
+            {
+              "side": "start",
+              "nearestNodeMetres": 0.3,
+              "eligibleCandidates": 26,
+              "roadRejected": 6,
+              "constructionRejected": 0,
+              "entryRejected": 6,
+              "accepted": 6,
+              "prunedByNearbyBlocker": 8,
+              "newCrossingWouldPassRoadCheck": 0
+            },
+            {
+              "side": "end",
+              "nearestNodeMetres": 1.3,
+              "eligibleCandidates": 15,
+              "roadRejected": 7,
+              "constructionRejected": 0,
+              "entryRejected": 8,
+              "accepted": 0,
+              "prunedByNearbyBlocker": 0,
+              "newCrossingWouldPassRoadCheck": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "中正",
+      "entries": [
+        {
+          "startOnArea": false,
+          "endOnArea": false,
+          "error": "NO_CONNECTION",
+          "noWorkError": null,
+          "distance": null,
+          "sides": [
+            {
+              "side": "start",
+              "nearestNodeMetres": 6,
+              "eligibleCandidates": 6,
+              "roadRejected": 3,
+              "constructionRejected": 0,
+              "entryRejected": 0,
+              "accepted": 0,
+              "prunedByNearbyBlocker": 3,
+              "newCrossingWouldPassRoadCheck": 0
+            },
+            {
+              "side": "end",
+              "nearestNodeMetres": 2.6,
+              "eligibleCandidates": 5,
+              "roadRejected": 2,
+              "constructionRejected": 0,
+              "entryRejected": 3,
+              "accepted": 0,
+              "prunedByNearbyBlocker": 0,
+              "newCrossingWouldPassRoadCheck": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "萬華",
+      "entries": [
+        {
+          "startOnArea": false,
+          "endOnArea": false,
+          "error": "NO_CONNECTION",
+          "noWorkError": null,
+          "distance": null,
+          "sides": [
+            {
+              "side": "start",
+              "nearestNodeMetres": 7,
+              "eligibleCandidates": 25,
+              "roadRejected": 21,
+              "constructionRejected": 0,
+              "entryRejected": 4,
+              "accepted": 0,
+              "prunedByNearbyBlocker": 0,
+              "newCrossingWouldPassRoadCheck": 0
+            },
+            {
+              "side": "end",
+              "nearestNodeMetres": 7.4,
+              "eligibleCandidates": 15,
+              "roadRejected": 0,
+              "constructionRejected": 0,
+              "entryRejected": 5,
+              "accepted": 0,
+              "prunedByNearbyBlocker": 10,
+              "newCrossingWouldPassRoadCheck": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "文山",
+      "entries": [
+        {
+          "startOnArea": true,
+          "endOnArea": false,
+          "error": "NO_CONNECTION",
+          "noWorkError": null,
+          "distance": null,
+          "sides": [
+            {
+              "side": "start",
+              "nearestNodeMetres": 25.9,
+              "eligibleCandidates": 7,
+              "roadRejected": 2,
+              "constructionRejected": 0,
+              "entryRejected": 5,
+              "accepted": 0,
+              "prunedByNearbyBlocker": 0,
+              "newCrossingWouldPassRoadCheck": 0
+            },
+            {
+              "side": "end",
+              "nearestNodeMetres": 17.5,
+              "eligibleCandidates": 6,
+              "roadRejected": 2,
+              "constructionRejected": 0,
+              "entryRejected": 4,
+              "accepted": 0,
+              "prunedByNearbyBlocker": 0,
+              "newCrossingWouldPassRoadCheck": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "台北車站→善導寺",
+      "entries": [
+        {
+          "startName": "台北車站出口電梯1",
+          "endName": "善導寺站出口電梯",
+          "startOnArea": false,
+          "endOnArea": false,
+          "error": null,
+          "noWorkError": null,
+          "distance": 1228,
+          "sides": [
+            {
+              "side": "start",
+              "nearestNodeMetres": 3.2,
+              "eligibleCandidates": 21,
+              "roadRejected": 0,
+              "constructionRejected": 0,
+              "entryRejected": 3,
+              "accepted": 4,
+              "prunedByNearbyBlocker": 14,
+              "newCrossingWouldPassRoadCheck": 0
+            },
+            {
+              "side": "end",
+              "nearestNodeMetres": 8.1,
+              "eligibleCandidates": 15,
+              "roadRejected": 0,
+              "constructionRejected": 0,
+              "entryRejected": 0,
+              "accepted": 3,
+              "prunedByNearbyBlocker": 12,
+              "newCrossingWouldPassRoadCheck": 0
+            }
+          ]
+        },
+        {
+          "startName": "台北車站出口電梯2",
+          "endName": "善導寺站出口電梯",
+          "startOnArea": false,
+          "endOnArea": false,
+          "error": null,
+          "noWorkError": null,
+          "distance": 1151,
+          "sides": [
+            {
+              "side": "start",
+              "nearestNodeMetres": 1.8,
+              "eligibleCandidates": 43,
+              "roadRejected": 0,
+              "constructionRejected": 0,
+              "entryRejected": 0,
+              "accepted": 5,
+              "prunedByNearbyBlocker": 38,
+              "newCrossingWouldPassRoadCheck": 0
+            },
+            {
+              "side": "end",
+              "nearestNodeMetres": 8.1,
+              "eligibleCandidates": 15,
+              "roadRejected": 0,
+              "constructionRejected": 0,
+              "entryRejected": 0,
+              "accepted": 3,
+              "prunedByNearbyBlocker": 12,
+              "newCrossingWouldPassRoadCheck": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "芝山→兒童新樂園",
+      "entries": [
+        {
+          "startName": "芝山站出口無障礙坡道1",
+          "endName": "兒童新樂園",
+          "startOnArea": false,
+          "endOnArea": false,
+          "error": "NO_ROUTE",
+          "noWorkError": "NO_ROUTE",
+          "distance": null,
+          "sides": [
+            {
+              "side": "start",
+              "nearestNodeMetres": 1.1,
+              "eligibleCandidates": 29,
+              "roadRejected": 0,
+              "constructionRejected": 0,
+              "entryRejected": 7,
+              "accepted": 15,
+              "prunedByNearbyBlocker": 7,
+              "newCrossingWouldPassRoadCheck": 0
+            },
+            {
+              "side": "end",
+              "nearestNodeMetres": 0,
+              "eligibleCandidates": 10,
+              "roadRejected": 3,
+              "constructionRejected": 0,
+              "entryRejected": 6,
+              "accepted": 1,
+              "prunedByNearbyBlocker": 0,
+              "newCrossingWouldPassRoadCheck": 0
+            }
+          ]
+        },
+        {
+          "startName": "芝山站出口無障礙坡道2",
+          "endName": "兒童新樂園",
+          "startOnArea": false,
+          "endOnArea": false,
+          "error": "NO_ROUTE",
+          "noWorkError": "NO_ROUTE",
+          "distance": null,
+          "sides": [
+            {
+              "side": "start",
+              "nearestNodeMetres": 7.6,
+              "eligibleCandidates": 5,
+              "roadRejected": 0,
+              "constructionRejected": 0,
+              "entryRejected": 3,
+              "accepted": 1,
+              "prunedByNearbyBlocker": 1,
+              "newCrossingWouldPassRoadCheck": 0
+            },
+            {
+              "side": "end",
+              "nearestNodeMetres": 0,
+              "eligibleCandidates": 10,
+              "roadRejected": 3,
+              "constructionRejected": 0,
+              "entryRejected": 6,
+              "accepted": 1,
+              "prunedByNearbyBlocker": 0,
+              "newCrossingWouldPassRoadCheck": 0
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "zhishanWithoutConstruction": {
+    "startAnchors": [
+      15,
+      1
+    ],
+    "endAnchors": [
+      1,
+      1
+    ],
+    "sharedComponents": [
+      0,
+      0
+    ],
+    "result": "NO_ROUTE"
+  },
+  "comparison": {
+    "beforeCommit": "1ca6475",
+    "change": "endpoint road checker includes supplemental official crossing polygons",
+    "acceptedBefore": 1,
+    "acceptedAfter": 1,
+    "xinyiStartAnchorsBefore": 5,
+    "xinyiStartAnchorsAfter": 6,
+    "baselineSourceSha256": "4f7d844820e6809fd14bbe2e7064daec1af435b80eebc2f05c4b649380b1c03d",
+    "fixedSourceSha256": "94b779645938fed4ee6eb30f4abc27e3cc9fee5b31f495e2b939a1daa3abe9be"
+  },
+  "zhishanFrontier": [
+    {
+      "osmFootway": 382754511,
+      "intersectingRoad": 781435991,
+      "roadType": "service",
+      "roadLayer": null,
+      "roadBridge": null,
+      "distanceToNearestKnownCrossingMetres": 6.55
+    },
+    {
+      "osmFootway": 382754513,
+      "intersectingRoad": 781435990,
+      "roadType": "service",
+      "roadLayer": null,
+      "roadBridge": null,
+      "distanceToNearestKnownCrossingMetres": 17.97
+    }
+  ],
+  "limitations": [
+    "The 9 generic test pairs contain coordinates but no named entrance metadata.",
+    "A rejected candidate does not prove the road is unsafe or that no other crossing exists.",
+    "Footway-road overlap in 2D alone cannot establish whether roads are at different heights."
+  ],
+  "graphSha256": "c8be7b55a167fa7a202d6738edb6ea786ccb7eb526e8fbbd7d65a887bd598311",
+  "sampleSha256": "00022568adf19f30cbc002f82194f62f9bedd6958abbaeebf5f37f4ee8b4f110"
+}

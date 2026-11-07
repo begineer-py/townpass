@@ -43,6 +43,21 @@ const graph = (nodes, ways, edges) => ({
   },
 });
 
+test("endpoint projection checks safety before limiting nearby candidates", () => {
+  const nodes = [], edges = [];
+  for (let north = 1; north <= 13; north++) {
+    const first = nodes.length;
+    nodes.push(node(-100, north), node(100, north));
+    edges.push(edge(first, first + 1, 200, 0));
+  }
+  const g = { ...graph(nodes, [footway], edges), roadGeometries: [], officialCrossingAreas: [] };
+  const route = createRouter(g)(node(0, 0), node(30, 13), {
+    approachAllowed: (_point, candidate) => Math.abs(candidate[0] - node(0, 13)[0]) < 0.00000001,
+    lineAllowed: () => true,
+  });
+  assert.equal(route.error, undefined);
+});
+
 test("separately mapped walking paths can pass complete evidence checks", () => {
   for (const highway of ["footway", "path", "pedestrian", "corridor"]) {
     assert.equal(

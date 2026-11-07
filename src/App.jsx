@@ -56,6 +56,7 @@ import {ROUTE_TIERS} from "./route-tiers.mjs";
 import VoiceSearch from "./VoiceSearch";
 import {searchVerifiedAlternatives} from "./alternative-routes.mjs";
 import {fetchConstruction} from "./construction-client.mjs";
+import {startLocalFallback} from "./local-fallback.mjs";
 import {constructionFresh, CONSTRUCTION_MAX_AGE} from "./construction.mjs";
 import { requestOfficialRoute } from "./official-router.mjs";
 import { ROUTING_POLICY } from "./routing.mjs";
@@ -92,7 +93,8 @@ import {
   nearestStop,
   activeElevatorStops,
 } from "./trip-extras.mjs";
-import { addressSearch } from "./address-search";
+import { addressSearch, landmarkSearch } from "./address-search";
+import { matchStationLandmark } from "./search-station.mjs";
 import { maintenanceText, sourceCountLabel, stationKey, stepText } from "./format.mjs";
 const icons = {
   elevator: ArrowUpFromLine,
@@ -303,17 +305,18 @@ export default function App() {
     const ctl = new AbortController();
     setAddressResults([]);
     const t = setTimeout(() => {
-      addressSearch(query, ctl.signal)
-        .then((r) => {
-          if (!ctl.signal.aborted) setAddressResults(r);
-        })
-        .catch(() => {});
+      if (!searchFor) return;
+      for (const request of [addressSearch(query, ctl.signal), landmarkSearch(query, ctl.signal)]) {
+        request.then(results => {
+          if (!ctl.signal.aborted) setAddressResults(previous => [...previous, ...results]);
+        }).catch(() => {});
+      }
     }, 350);
     return () => {
       clearTimeout(t);
       ctl.abort();
     };
-  }, [query]);
+  }, [query, searchFor]);
   const officialRequest = useRef();
   const locationRequest=useRef(0);
   const pendingVerifications = useRef(new Map());
@@ -681,6 +684,7 @@ export default function App() {
         controller = new AbortController();
       officialRequest.current = controller;
       const timer = setTimeout(() => controller.abort(), 90000);
+      let localStarted = false;
       try {
         const [result, construction] = await Promise.all([requestOfficialRoute(
           [from.lat, from.lon],
@@ -690,8 +694,11 @@ export default function App() {
         ), fetchConstruction(controller.signal)]);
         if (!construction.error) lastConstruction.current=construction;
         if (id !== request.current) return;
-        if (result.error) setRouteError(result.error);
-        else if(construction.error) setRouteError(construction.error);
+        if (construction.error) setRouteError(construction.error);
+        else if (result.error) {
+          localStarted=startLocalFallback(worker.current,id,from,to,requestPrefs,construction);
+          if(!localStarted) setRouteError(result.error);
+        }
         else {
           let verified=await verifyOnlineRoute(result,[from.lat,from.lon],[to.lat,to.lon],id,construction,requestPrefs);
           if(id!==request.current)return;
@@ -712,7 +719,7 @@ export default function App() {
         if (id === request.current) setRouteError(error.name === "AbortError" ? "OFFICIAL_TIMEOUT" : "OFFICIAL_UNAVAILABLE");
       } finally {
         clearTimeout(timer);
-        if (id === request.current) setRouting(false);
+        if (id === request.current && !localStarted) setRouting(false);
       }
       return;
     }
@@ -891,7 +898,7 @@ export default function App() {
         ]
       : [...recentPlaces, ...saved, ...data.fac.filter((p) => p.kind === "20")];
     const used = new Set();
-    return [...addressResults, ...list]
+    return [...addressResults.map(p => matchStationLandmark(p, data.fac)), ...list]
       .sort(
         (a, b) => {
           const exact = (a.name === query ? -1 : 0) - (b.name === query ? -1 : 0);
