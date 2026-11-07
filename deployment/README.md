@@ -6,7 +6,7 @@
 
 1. 將專案推送至可由 Vercel 存取的 GitHub、GitLab 或 Bitbucket 儲存庫。
 2. 在 Vercel Dashboard 選擇 **Add New → Project**，匯入該儲存庫。
-3. 將 **Root Directory** 設為專案根目錄。若 Vercel 自動辨識 Vite，確認下列建置設定：
+3. 將 **Root Directory** 設為專案根目錄。根目錄的 `vercel.json` 已固定使用 Vite、`npm ci`、`npm run build` 與 `dist`。若 Vercel 專案設定仍顯示 FastAPI，改選 **Vite** 並清除自訂的 Python Build／Install Command。
 
    | 設定 | 值 |
    | --- | --- |
