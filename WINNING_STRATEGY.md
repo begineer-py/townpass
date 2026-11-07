@@ -12,16 +12,12 @@
 
 ### 2. 台北通 WebView 串接方式（不修改 Flutter 代碼）
 - 網頁透過 Vercel HTTPS 網址掛載至台北通 `WebView`，**不直接修改台北通的 Flutter 程式碼**。
-- 在前端新增 `src/bridge.js` 封裝 `window.flutterObject.postMessage`，串接台北通內建的 9 個 `TPWebMessageHandler` Hook：
+- 在前端新增 `src/bridge.js` 封裝 `window.flutterObject.postMessage`，串接台北通內建的 `TPWebMessageHandler` Hook：
   - `userinfo` (`UserinfoWebMessageHandler`)：取得使用者身分資訊，自動切換預設無障礙通行偏好。
   - `location` (`LocationMessageHandler`)：取得精確定位座標（一般瀏覽器 fallback 至 `navigator.geolocation`）。
   - `launch_map` (`LaunchMapWebMessageHandler`)：一鍵喚起系統地圖導航。
   - `phone_call` (`PhoneCallMessageHandler`)：一鍵撥打北捷無障礙引導專線或 1999 專線。
   - `agree1999` (`Agree1999MessageHandler`)：串接 1999 障礙回報同意流程。
-  - `qr_code_scan` (`QRCodeScanMessageHandler`)：掃描捷運站或場館出口 QR Code 直接鎖定起點，解決地下室 GPS 漂移。
-  - `notify` (`NotifyMessageHandler`)：行程儲存或施工避障提醒時發送原生通知。
-  - `open_link` (`OpenLinkMessageHandler`)：開啟外部公告網址。
-  - `deviceinfo` (`DeviceInfoMessageHandler`)：讀取裝置資訊。
 
 ### 3. 目錄結構、人類協作與部署規範
 - **部署文件統一至 `/deployment`**：
@@ -33,7 +29,7 @@
   ├── current.md      # 目前系統架構、路網演算法、資料集狀態
   ├── fronted.md      # 前端元件架構、townpass-web-design 規範、flutterObject Hook 用法
   └── apis/
-      ├── townpass.md   # 台北通 9 個 TPWebMessageHandler 請求與回應格式
+      ├── townpass.md   # 台北通 TPWebMessageHandler 請求與回應格式
       ├── wheelroute.md # 輪行臺北 API (Get/1 ~ Get/20)
       ├── metro.md      # 北捷電梯位置、出口座標、異常與維修預排 API
       └── city-data.md  # 北市今日施工、環保局公廁、OSM 路網門牌、NLSC 圖磚
@@ -93,6 +89,6 @@
 ## 四、修改執行順序
 
 1. **P0（路網與架構）**：調整 `src/routing.mjs` 連通權重與吸附半徑；建立 `/handbook`、`/deployment`、`.vscode/settings.json` 並精簡 `Readme.md`。
-2. **P1（KISS 介面與台北通 Hook）**：精簡 `src/App.jsx` 標語，實作 `src/bridge.js` 串接 9 個 `flutterObject` Hook。
+2. **P1（KISS 介面與台北通 Hook）**：精簡 `src/App.jsx` 標語，實作 `src/bridge.js` 串接 `flutterObject` Hook。
 3. **P2（動態避障與順路停靠）**：將施工與電梯異常接入 A* 權重，新增身分膠囊、順路找廁所與一鍵 Demo 路線。
 4. **P3（離線本地 AI）**：接入 `onnxruntime-web` 離線路況障礙辨識並聯動路線重算。
