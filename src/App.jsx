@@ -114,11 +114,9 @@ const filters = [
   ["water", "飲水處", GlassWater],
 ];
 const sidewalkStatusText = {
-  idle: "放大後顯示；首次開啟需載入官方資料",
-  loading: "正在載入官方資料…",
-  ready: "橘線為官方圖台提供的無障礙通行線",
-  zoom: "請放大地圖以顯示",
-  error: "官方資料目前無法載入",
+  loading: "載入中…",
+  zoom: "請放大地圖",
+  error: "暫時無法載入",
 };
 const routeModes = {
   balanced: "均衡走法",
@@ -280,9 +278,7 @@ export default function App() {
       document.removeEventListener("keydown", esc);
     };
   }, [layersOpen]);
-  const [showMapFacilities, setShowMapFacilities] = useState(false);
   const needsData =
-    showMapFacilities ||
     tab !== "saved" ||
     modal === "sources" ||
     Boolean(searchFor);
@@ -292,7 +288,6 @@ export default function App() {
   const tabVersion = useRef(0);
   useEffect(() => {
     tabVersion.current++;
-    setShowMapFacilities(tab === "explore");
     if (tab === "plan") setGraphRequested(true);
   }, [tab]);
   useEffect(() => {
@@ -1605,7 +1600,7 @@ export default function App() {
             items={
               route
                 ? routeToilets.map(({ place }) => place)
-                : showMapFacilities
+                : tab === "explore"
                   ? mapItems
                   : []
             }
@@ -1690,23 +1685,16 @@ export default function App() {
                   ))}
                 </div>
                 <label className="toggle-row layers-toggle">
-                  <b>在地圖上顯示無障礙設施</b>
-                  <input
-                    type="checkbox"
-                    checked={showMapFacilities}
-                    onChange={(e) => setShowMapFacilities(e.target.checked)}
-                  />
-                </label>
-                <label className="toggle-row layers-toggle">
                   <span className="layer-toggle-copy">
                     <b>
                       <i className="sidewalk-legend" aria-hidden="true" />
-                      官方無障礙通行線
+                      官方通行線
                     </b>
-                    <small>
-                      {sidewalkStatusText[officialSidewalkStatus] ||
-                        sidewalkStatusText.idle}
-                    </small>
+                    {sidewalkStatusText[officialSidewalkStatus] && (
+                      <small>
+                        {sidewalkStatusText[officialSidewalkStatus]}
+                      </small>
+                    )}
                   </span>
                   <input
                     type="checkbox"

@@ -14,10 +14,4 @@ export const BASEMAPS = {
     url: `${nlsc}/PHOTO2/default/GoogleMapsCompatible/{z}/{y}/{x}`,
     attribution: credit,
   },
-  hybrid: {
-    label: "航照＋路名",
-    url: `${nlsc}/PHOTO2/default/GoogleMapsCompatible/{z}/{y}/{x}`,
-    overlay: `${nlsc}/EMAP2/default/GoogleMapsCompatible/{z}/{y}/{x}`,
-    attribution: credit,
-  },
 };
