@@ -2180,7 +2180,7 @@ small {
     transition: height 0.3s cubic-bezier(0.32, 0.72, 0, 1);
   }
   .panel[data-snap="0"] {
-    --sheet-h: 24dvh;
+    --sheet-h: 11dvh; /* 收到最低：只留把手和第一列，地圖看得更多 */
   }
   .panel[data-snap="0"] .panel-scroll {
     overflow: hidden;
@@ -2290,7 +2290,7 @@ small {
     display: none;
   }
   .workspace[data-sheet="0"] .map-locate {
-    bottom: calc(24dvh + var(--nav-h) + 12px);
+    bottom: calc(11dvh + var(--nav-h) + 12px);
   }
   .workspace[data-sheet="1"] .map-locate {
     bottom: calc(56dvh + var(--nav-h) + 12px);

@@ -1111,7 +1111,7 @@ button.icon-action {
 @media (max-width: 700px) {
   .workspace[data-sheet="0"] .pick-prompt {
     top: auto;
-    bottom: calc(24dvh + var(--nav-h) + 12px);
+    bottom: calc(11dvh + var(--nav-h) + 12px);
   }
 }
 

@@ -396,7 +396,7 @@ export default function App() {
   const [sheetSnap, setSheetSnap] = useState(1);
   // 地圖目前旋轉的角度（不是手機朝向）。指南針指針用它轉回正北。
   const [bearing, setBearing] = useState(0);
-  const SHEET_SNAPS = [0.24, 0.56, 0.9];
+  const SHEET_SNAPS = [0.11, 0.56, 0.9];
   useEffect(()=>{if(route || routeError)setSheetSnap(v=>Math.max(v,1));},[route,routeError]);
   // 抽屜最高只拉到內容的高度：內容短時，拉到最上面下面不會留白。
   useLayoutEffect(() => {
