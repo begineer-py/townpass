@@ -56,6 +56,7 @@ import {
 import MapView from "./MapView";
 import { routeFitPadding } from "./route-fit.mjs";
 import {mapRouteVisibility} from "./map-route-visibility.mjs";
+import {useReferenceComparison} from "./use-reference-comparison.js";
 import ReferenceRouteResult from "./ReferenceRouteResult";
 import RouteChoice from "./RouteChoice.jsx";
 import {describeRouteChoices} from "./route-summary.mjs";
@@ -1109,9 +1110,6 @@ export default function App() {
     () => activeElevatorStops(data),
     [data],
   );
-  useEffect(()=>{
-    referenceSearch.current.cancel(false);referenceSnapshot.current=null;setReferenceState({status:'idle'});
-  },[start,end,prefs,avoidPoints]);
   async function calculate(points) {
     stopFollowing();
     const fromPoint=points?.start||start,toPoint=points?.end||end;
@@ -1522,11 +1520,7 @@ export default function App() {
     referenceAutoAttempt.current=request.current;
     findReferenceRoute();
   },[tab,start,end,graphReady,routeError]);
-  useLayoutEffect(()=>{
-    if(tab!=='plan'||!start||!end||!graphReady||routing||routeError||!isVerifiedNavigationRoute(route)||route.viaName||followSession.current||manualRouteSelection.current||referenceState.status!=='idle'||referenceAutoAttempt.current===request.current)return;
-    if(!route.tierSegments?.some(segment=>segment.sharedRoad===true&&segment.distance>0))return;
-    findReferenceRoute(route,true);
-  },[tab,start,end,graphReady,routing,routeError,route,referenceState.status]);
+  useReferenceComparison({start,end,prefs,avoidPoints,tab,graphReady,routing,routeError,route,referenceState,referenceSearch,referenceSnapshot,setReferenceState,referenceAutoAttempt,request,manualRouteSelection,followSession,findReferenceRoute});
   useEffect(()=>{
     const original=referenceBaseline.current;
     if(tab==='plan'||!original?.automatic||route!==original.route)return;
