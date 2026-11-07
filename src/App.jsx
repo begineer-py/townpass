@@ -152,7 +152,7 @@ function MetroStationIcon({ codes, value }) {
   return (
     <span className="metro-station-icons" aria-hidden="true">
       <TrainFront className="metro-station-icon-fallback" size={20} />
-      {stationCodes.map((code) => (
+      {stationCodes.filter((code) => metroStationIconUrl(code)).map((code) => (
         <img
           key={code}
           src={metroStationIconUrl(code)}
@@ -2504,7 +2504,7 @@ export default function App() {
           </div>
           <div className="source-card">
             <b>臺北捷運車站圖標・Wikimedia Commons</b>
-            <span>臺北大眾捷運股份有限公司；公有領域文字標誌</span>
+            <span>臺北大眾捷運股份有限公司；公有領域，圖示存放於本站</span>
             <a
               href="https://commons.wikimedia.org/wiki/Category:Taipei_Metro_station_icons"
               target="_blank"
