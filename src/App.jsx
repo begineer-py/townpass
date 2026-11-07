@@ -100,6 +100,7 @@ import {
 import { getLocation, locationError, watchLocation, destinationPoint, swappedOrigin } from "./location";
 import { townPassUserKey, hasTownPass, postToTownPass } from "./townpass-bridge";
 import { travelProfiles } from "./travel-profiles";
+import { normalizeRoutingPreferences } from "./routing-preferences.mjs";
 import { clearLocalData, loadProfile, loadTrips, saveProfile, saveTrips } from "./local-database";
 import {
   IDENTITIES,
@@ -155,11 +156,11 @@ const filters = [
   ["parking", "停車設施", Car],
   ["health", "醫療與藥局", Hospital],
 ];
-const routeModes = { balanced: "均衡走法", gentle: "偏好平緩", crossings: "減少過街" };
+const routeModes = { balanced: "均衡走法", crossings: "減少過街" };
 const basePrefs = {
   avoidSteps: true,
   minWidth: 0.8,
-  maxSlope: 8,
+  maxSlope: 1000000,
   knownOnly: false,
   officialOnly: false,
   preferOfficial: true,
@@ -330,7 +331,7 @@ export default function App() {
     [profileDraft, setProfileDraft] = useState("walking"),
     [profileStorageKey, setProfileStorageKey] = useState("hhz-profile-local"),
     [profileReady, setProfileReady] = useState(false),
-    [prefs, setPrefs] = useState(() => ({
+    [prefs, setPrefs] = useState(() => normalizeRoutingPreferences({
       ...basePrefs,
       ...readSaved("hhz-preferences", {}),
       avoidSteps: true,
@@ -547,12 +548,12 @@ export default function App() {
       setProfileStorageKey(key);
       setTravelProfile(travelProfiles[stored] ? stored : null);
       setTrips(storedTrips);
-      setPrefs({
+      setPrefs(normalizeRoutingPreferences({
         ...basePrefs,
         ...(savedPrefs || travelProfiles[stored]?.preferences || {}),
         avoidSteps: true,
         officialOnly: false,
-      });
+      }));
       setProfileReady(true);
       if (!travelProfiles[stored]) setModal("profile");
     });
@@ -820,7 +821,7 @@ export default function App() {
     request.current++;
     setRouting(false);
     clearRoute();
-    setPrefs({ ...prefs, ...patch, avoidSteps: true, officialOnly: false });
+    setPrefs(normalizeRoutingPreferences({ ...prefs, ...patch, avoidSteps: true, officialOnly: false }));
   }
   function stopFollowing() {
     const session=followSession.current;
@@ -1049,7 +1050,7 @@ export default function App() {
     // result's positional estimate; it is not a safety or access certificate.
     const from=fromPoint?{...fromPoint,selectionKind:'user'}:fromPoint,to=toPoint?{...toPoint,selectionKind:'user'}:toPoint;
     requestEndpoints.current={start:from,end:to};
-    const requestPrefs={...(points?.prefs||prefs),avoidPoints:activeElevatorStops(loaded),startPlace:from,endPlace:to};
+    const requestPrefs={...normalizeRoutingPreferences(points?.prefs||prefs),avoidPoints:activeElevatorStops(loaded),startPlace:from,endPlace:to};
     if(!from||!to){announce('請先選擇出發地和目的地。');return;}
     cancelLocation();
     setGraphRequested(true);
@@ -1179,13 +1180,13 @@ export default function App() {
     const parsed = parseTripSentence(text);
     const preset = IDENTITIES.find((row) => row[0] === parsed.identity);
     const nextPrefs = preset
-      ? {
+      ? normalizeRoutingPreferences({
           ...prefs,
           ...preset[2],
           identity: parsed.identity,
           avoidSteps: true,
           officialOnly: false,
-        }
+        })
       : prefs;
     if (preset) setPrefs(nextPrefs);
     const from = matchPlace(parsed.startName, available.all);
@@ -1772,7 +1773,6 @@ export default function App() {
                 {!online && <div className="mode-tabs" aria-label="路線偏好">
                   {[
                     ["balanced", "均衡走法"],
-                    ["gentle", "偏好平緩"],
                     ["crossings", "減少過街"],
                   ].map(([id, name]) => (
                     <button
@@ -2124,12 +2124,12 @@ export default function App() {
                           setStart(t.start);
                           setEnd(t.end);
                           clearRoute();
-                          setPrefs({
+                          setPrefs(normalizeRoutingPreferences({
                             ...basePrefs,
                             ...t.prefs,
                             avoidSteps: true,
                             officialOnly: false,
-                          });
+                          }));
                           setTab("plan");
                           setRouteError("");
                           setRouting(false);
@@ -2734,7 +2734,7 @@ export default function App() {
               <div className="settings-row settings-row--stack">
                 <span id="set-mode">路線偏好</span>
                 <div className="segmented" role="radiogroup" aria-labelledby="set-mode">
-                  {Object.entries({ balanced: "均衡", gentle: "平緩", crossings: "少過街" }).map(([id, name]) => (
+                  {Object.entries({ balanced: "均衡", crossings: "少過街" }).map(([id, name]) => (
                     <button
                       key={id}
                       type="button"
@@ -2763,30 +2763,8 @@ export default function App() {
                     onChange={(e) => updatePrefs({ minWidth: Number(e.target.value) })}
                   />
                 </label>
-                <label className="settings-row settings-row--stack">
-                  <span>坡度上限<b>{prefs.maxSlope}%</b></span>
-                  <input
-                    type="range"
-                    min="2"
-                    max="15"
-                    step="1"
-                    value={prefs.maxSlope}
-                    aria-describedby="set-known-note"
-                    onChange={(e) => updatePrefs({ maxSlope: Number(e.target.value) })}
-                  />
-                </label>
-                <label className="settings-row">
-                  <span>只走有寬度、坡度資料的路段</span>
-                  <input
-                    type="checkbox"
-                    className="switch"
-                    checked={prefs.knownOnly}
-                    aria-describedby="set-known-note"
-                    onChange={(e) => updatePrefs({ knownOnly: e.target.checked })}
-                  />
-                </label>
                 <p className="sr-only" id="set-known-note">
-                  寬度與坡度只套用在有記載資料的路段；只走有資料的路段時，可能找不到路線。
+                  通道寬度只套用在有記載資料的路段。
                 </p>
                 <button
                   type="button"
