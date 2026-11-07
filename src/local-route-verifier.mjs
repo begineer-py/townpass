@@ -75,12 +75,13 @@ export function diagnoseConstruction(start,end,prefs,snapshot,{router,verifyLoca
 }
 export function planPlaces(startPlace,endPlace,options,snapshot,{router,verifyLocal,facilities,checker}){
  let last={error:'NO_ROUTE'},best=null,blocked=null;
- const attempts=[];
+ const attempts=[],failures=[];
+ function failed(result){last=result;failures.push(result);}
  for(const a of stationEntrances(startPlace,facilities))for(const b of stationEntrances(endPlace,facilities)){
   const start=[a.lat,a.lon],end=[b.lat,b.lon],prefs={...options,startPlace:a,endPlace:b,lineAllowed:checker.allowed,approachAllowed:(p,n,side)=>verifyLocal.approachAllowed(p,n,side==='start'?a:b,options)};
   attempts.push({start,end,prefs});
-  const candidate=router(start,end,prefs);if(candidate.error){last=candidate;continue;}
-  const checked=verifyLocal(candidate,start,end,prefs);if(checked.error){last=checked;continue;}
+  const candidate=router(start,end,prefs);if(candidate.error){failed(candidate);continue;}
+  const checked=verifyLocal(candidate,start,end,prefs);if(checked.error){failed(checked);continue;}
   const work=checker.inspect(checked.coordinates);if(work.blocked.length){blocked={error:'CONSTRUCTION_BLOCKED',construction:work};continue;}
   if(!best||checked.weightedCost<best.weightedCost)best={...checked,construction:work,resolvedStart:a,resolvedEnd:b};
  }
@@ -92,5 +93,11 @@ export function planPlaces(startPlace,endPlace,options,snapshot,{router,verifyLo
   const diagnosis=diagnoseConstruction(start,end,prefs,snapshot,{router,verifyLocal,checker});
   if(diagnosis)return diagnosis;
  }
- return last;
+ // A failed entrance must not hide a different entrance that reached the
+ // network but could not find a route. Keep unusual verification failures
+ // visible instead of replacing them with ordinary search failures.
+ const regular=new Set(['NO_ROUTE','NO_CONNECTION','SAME_POINT']);
+ const selected=failures.find(f=>!regular.has(f.error))||failures.find(f=>f.error==='NO_ROUTE')||failures.find(f=>f.error==='NO_CONNECTION')||last;
+ const attemptErrors={};for(const f of failures)attemptErrors[f.error]=(attemptErrors[f.error]||0)+1;
+ return {...selected,attemptErrors};
 }

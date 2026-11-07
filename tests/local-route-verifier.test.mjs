@@ -32,6 +32,21 @@ test('estimated exit links obey construction blocking and known-only during sear
  const blocked=run({},[closure]);assert.equal(blocked.error,'CONSTRUCTION_BLOCKED');assert.equal(blocked.coordinates,undefined);
 });
 test('station search resolves only its own published metro exits',()=>{const fac=[{kind:'metro-elevator',station:'台北車',id:'A'},{kind:'metro-elevator',station:'善導寺',id:'B'}];assert.deepEqual(stationEntrances({kind:'20',name:'臺北車站(R10)'},fac).map(p=>p.id),['A']);});
+test('mixed station-entrance failures show connected-but-no-route instead of last no-connection',()=>{
+ const exits=[{id:'one',kind:'metro-elevator',station:'文德',name:'入口1',lat:25,lon:121.5},{id:'two',kind:'metro-elevator',station:'文德',name:'入口2',lat:25,lon:121.501}];
+ const start={name:'文德(BR18)',kind:'20'},end={lat:25.01,lon:121.51};
+ const verify=()=>({error:'UNVERIFIED_NETWORK'});verify.approachAllowed=()=>true;
+ const router=(a,b,opts)=>({error:opts.startPlace.id==='one'?'NO_ROUTE':'NO_CONNECTION'});
+ const run=facilities=>planPlaces(start,end,{}, {works:[]},{facilities,router,verifyLocal:verify,checker:{allowed:()=>true}});
+ for(const facilities of [exits,[...exits].reverse()]){const result=run(facilities);assert.equal(result.error,'NO_ROUTE');assert.deepEqual(result.attemptErrors,{NO_ROUTE:1,NO_CONNECTION:1});}
+});
+test('unexpected verification failure remains visible when another entrance returns no-route',()=>{
+ const facilities=[{id:'one',kind:'metro-elevator',station:'文德',lat:25,lon:121.5},{id:'two',kind:'metro-elevator',station:'文德',lat:25,lon:121.501}];
+ const verify=()=>({error:'UNVERIFIED_NETWORK'});verify.approachAllowed=()=>true;
+ const router=(a,b,opts)=>opts.startPlace.id==='one'?{error:'NO_ROUTE'}:{coordinates:[]};
+ const result=planPlaces({name:'文德',kind:'20'},{lat:25.01,lon:121.51},{},{works:[]},{facilities,router,verifyLocal:verify,checker:{allowed:()=>true}});
+ assert.equal(result.error,'UNVERIFIED_NETWORK');assert.deepEqual(result.attemptErrors,{NO_ROUTE:1,UNVERIFIED_NETWORK:1});
+});
 test('route condition geometry is rebuilt from verified edges, not candidate annotations',()=>{
  const g=base(),r=createRouter(g)(a,b);
  r.tierSegments=[{coordinates:[a,b],sharedRoad:true,unknownWidth:false,unknownSlope:false}];

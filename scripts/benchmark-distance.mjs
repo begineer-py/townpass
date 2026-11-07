@@ -4,7 +4,7 @@ import {createRouter,metres} from '../src/routing.mjs';
 import {createLocalRouteVerifier,planPlaces} from '../src/local-route-verifier.mjs';
 import {createConstructionChecker} from '../src/construction.mjs';
 
-const seed=20261107; let state=seed;
+const seed=Number(process.env.BENCHMARK_SEED||20261107);if(!Number.isSafeInteger(seed)||seed<0||seed>0xffffffff)throw Error('Invalid benchmark seed');let state=seed;
 const random=()=>((state=(Math.imul(state,1664525)+1013904223)>>>0)/2**32);
 const load=name=>JSON.parse(gunzipSync(fs.readFileSync(`public/data/${name}.json.gz`)));
 const graph=load('graph'),facilities=load('facilities');

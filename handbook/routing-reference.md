@@ -176,9 +176,13 @@ curl -L --fail --retry 3 -C - -o data/raw/taiwan.osm.pbf https://download.geofab
 ```powershell
 .\.venv\Scripts\python.exe scripts\extract_shared_candidates.py
 .\.venv\Scripts\python.exe scripts\integrate_shared_roads.py
+.\.venv\Scripts\python.exe scripts\reclassify_isolated_pois.py
 .\.venv\Scripts\python.exe tests\shared_road_rules_test.py
+.\.venv\Scripts\python.exe tests\reclassify_isolated_pois_test.py
 npm test
 npm run build
 ```
 
 整合腳本只依原始 OSM 節點編號建立連接，不因座標相近自行連接；與其他車道交會須在官方行穿區內，或與另一條合格候選道路共用原始端點。共用節點只表示資料拓樸，不證明路口可安全過街。候選資料不是現場通行保證；施工封閉仍由現有檢查排除。可用環境變數 `TOWNPASS_OSM_PBF` 指定 PBF 檔；Windows pyosmium 在部分環境無法讀取中文路徑時，可在工作區以 ASCII 路徑建立唯讀硬連結。
+
+重建後須執行 POI 分類腳本：只重新分類 `wheelchair=no` 且僅為商店／設施的獨立節點，該節點必須不屬於任何 OSM way、不連接路網、無道路或入口／障礙／通行限制標籤，且原始節點編號與座標一致。這只避免將商店自身的輪椅狀態誤當路網障礙，商店仍不是無障礙保證；所有道路節點和已知障礙繼續封鎖。腳本須使用建立路網的同一份 OSM PBF，結果記錄在圖資 `isolatedPoiBlockerAudit`，重複執行會重新確認。
