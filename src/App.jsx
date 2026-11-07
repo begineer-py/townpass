@@ -171,15 +171,20 @@ function RouteLegend({ segments, colorFriendly }) {
     ...(route.tierSegments?.length ? route.tierSegments.map(conditionForSegment) : [fallbackRouteCondition(route)]),
     ...(route.approaches?.length ? ['approach'] : []),
   ]))];
+  const labelFor = key => key.startsWith('sidewalk') ? '人行道' : key.startsWith('official') ? '官方人行區域' : key.startsWith('shared') ? '人車共行' : key === 'approach' ? '起終點銜接' : '其他人行路段';
+  const groups = new Map();
+  for (const key of keys) {
+    const label = labelFor(key);
+    if (!groups.has(label)) groups.set(label, []);
+    groups.get(label).push(key);
+  }
   return <div className="route-key" role="group" aria-label="路線線條說明">
-    <strong>路線線條說明</strong>
-    {keys.map(key => {
+    {[...groups].map(([label, styles]) => <span key={label}>{styles.map(key => {
       const condition = ROUTE_CONDITIONS[key];
-      return <span key={key}><svg width="52" height="16" aria-hidden="true"><line x1="2" y1="8" x2="50" y2="8" stroke={colorFriendly ? TPColors.primary900 : condition.color} strokeWidth="6" strokeDasharray={condition.dash}/></svg>{condition.label}</span>;
-    })}
-    {segments.some(route => route.tierSegments?.some(segment => segment.nearbyOfficialCondition === true)) && <span><svg width="52" height="16" aria-hidden="true"><line x1="2" y1="8" x2="50" y2="8" stroke="#7036a3" strokeWidth="4" strokeDasharray="3 4"/></svg>2 公尺內有官方不利通行紀錄，位置及影響未確認</span>}
-    {segments.some(route => route.crossingUncertainties?.length > 0) && <span><svg width="52" height="16" aria-hidden="true"><line x1="2" y1="8" x2="50" y2="8" stroke={TPColors.primary900} strokeWidth="3" strokeDasharray="2 5"/></svg>過街位置來自 OSM，官方資料未完整確認</span>}
-    <small>線條表示資料狀況，並不代表已確認安全。</small>
+      return <svg key={key} width="52" height="16" aria-hidden="true"><line x1="2" y1="8" x2="50" y2="8" stroke={colorFriendly ? TPColors.primary900 : condition.color} strokeWidth="6" strokeDasharray={condition.dash}/></svg>;
+    })}{label}</span>)}
+    {segments.some(route => route.tierSegments?.some(segment => segment.nearbyOfficialCondition === true)) && <span><svg width="52" height="16" aria-hidden="true"><line x1="2" y1="8" x2="50" y2="8" stroke="#7036a3" strokeWidth="4" strokeDasharray="3 4"/></svg>不利通行</span>}
+    {segments.some(route => route.crossingUncertainties?.length > 0) && <span><svg width="52" height="16" aria-hidden="true"><line x1="2" y1="8" x2="50" y2="8" stroke={TPColors.primary900} strokeWidth="3" strokeDasharray="2 5"/></svg>過街</span>}
   </div>;
 }
 
