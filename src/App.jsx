@@ -58,7 +58,7 @@ import { createLiveFollow, displayedRouteCoordinates } from "./live-follow.mjs";
 import { createRouteWorkerLifecycle } from "./route-worker-lifecycle.mjs";
 import { createLiveFollowSearch } from "./live-follow-search.mjs";
 import { presentRouteCandidates, sortRouteCandidates } from "./route-candidates-presentation.mjs";
-import { createNearbySearch } from "./nearby-search.mjs";
+import { createNearbySearch, shouldAutoSearchNearby } from "./nearby-search.mjs";
 import { nearbyReplacement, nearbyWarnings } from "./nearby-presentation.mjs";
 import { partialRoutePresentation } from "./partial-route-presentation.mjs";
 import { canFallbackAfterVerification, startLocalFallback } from "./local-fallback.mjs";
@@ -572,6 +572,7 @@ export default function App() {
       fetchSnapshot: fetchConstruction,
       createWorker: () => new Worker(new URL("./route-worker.js", import.meta.url), { type: "module" }),
       onState: setNearbyState,
+      onSnapshot: snapshot => { lastConstruction.current = snapshot; },
     });
   }
   useEffect(() => {
@@ -1076,10 +1077,23 @@ export default function App() {
     });
   }
   function chooseNearby(candidate) {
-    const side = candidate.side;
-    const point = nearbyReplacement(candidate, side === "start" ? start : end);
-    changePoint(side, point);
-    void calculate(null, side === "start" ? { start: point, end } : { start, end: point });
+    const snapshot = lastConstruction.current;
+    const route = candidate.route;
+    if (!constructionFresh(snapshot) || route?.policyVersion !== ROUTING_POLICY ||
+        route.geometryVerification !== "pedestrian-network-v1" ||
+        route.construction?.sourceUpdatedAt !== snapshot.sourceUpdatedAt) {
+      findNearbyPositions();
+      return;
+    }
+    const from = candidate.start ? nearbyReplacement(candidate.start, start) : start;
+    const to = candidate.end ? nearbyReplacement(candidate.end, end) : end;
+    clearRoute();
+    setStart(from);
+    setEnd(to);
+    setRouteError("");
+    showRoute(route);
+    setStepIndex(0);
+    setSheetSnap(snap => Math.max(snap, 1));
   }
   function addStop(kind) {
     const hit = nearestStop(route, data?.all, kind);
@@ -1167,6 +1181,12 @@ export default function App() {
     };
   }, [placeBands, busStops, viewport, currentLocation]);
   const avoidPoints = useMemo(() => activeElevatorStops(data), [data]);
+  useEffect(() => {
+    if (shouldAutoSearchNearby({ error: routeError, routing, graphReady, tab, start, end })) {
+      findNearbyPositions();
+    }
+    return () => nearbySearch.current.cancel(false);
+  }, [routeError, routing, graphReady, tab, start, end, prefs, avoidPoints]);
 
   // 沒有搜尋紀錄時的推薦：附近的捷運站、公園、醫院與無障礙廁所，由近到遠 8 個。
   const recommendedPlaces = useMemo(() => {
@@ -1766,18 +1786,22 @@ export default function App() {
                     {(retryWithEntrance || routeError === "CONSTRUCTION_BLOCKED") && start && end && graphReady && (
                       <div className="entrance-choices">
                         {nearbyState.status === "loading" ? (
-                          <p>正在檢查附近路網與施工… <button type="button" onClick={() => nearbySearch.current.cancel()}>取消</button></p>
+                          <p>正在找附近可走的路線… <button type="button" onClick={() => nearbySearch.current.cancel()}>取消</button></p>
                         ) : (
-                          <button type="button" onClick={findNearbyPositions}>搜尋附近人行路網位置</button>
+                          nearbyState.status !== "ready" && <button type="button" onClick={findNearbyPositions}>再找附近路線</button>
                         )}
                         {nearbyState.status === "error" && <p>{nearbyState.message}</p>}
                         {nearbyState.status === "ready" && (
                           <>
-                            <p>{nearbyState.candidates.length ? "選擇附近位置後會重新規劃。原地點和候選位置間的通行狀況仍待確認。" : "附近沒有找到符合條件的人行路網位置。"}</p>
-                            {nearbyState.candidates.map((candidate, index) => (
-                              <button type="button" key={`${candidate.side}-${candidate.point.id}`} onClick={() => chooseNearby(candidate)}>
-                                <span>{candidate.side === "start" ? "起點" : "目的地"}候選 {index + 1}
-                                  <small>距原位置直線約 {formatDistance(candidate.straightMetres)}</small>
+                            <p>{nearbyState.candidates.length
+                              ? "可改用附近位置。請先確認你能到達這個位置。"
+                              : nearbyState.truncated ? "已檢查部分附近位置。可換個入口再試。"
+                                : "附近也未找到完整路線。請換個入口，或查看可走的部分路段。"}</p>
+                            {nearbyState.candidates.map(candidate => (
+                              <button type="button" key={`${candidate.start?.point.id || ""}:${candidate.end?.point.id || ""}`} onClick={() => chooseNearby(candidate)}>
+                                <span>使用這條路線 · {formatDistance(candidate.route.distance)}
+                                  {candidate.start && <small>起點改到{candidate.start.point.kind === "metro-elevator" ? candidate.start.point.name : "附近人行道"}（約 {formatDistance(candidate.start.straightMetres)}）</small>}
+                                  {candidate.end && <small>終點改到{candidate.end.point.kind === "metro-elevator" ? candidate.end.point.name : "附近人行道"}（約 {formatDistance(candidate.end.straightMetres)}）</small>}
                                 </span>
                                 <ChevronRight size={18} aria-hidden="true" />
                               </button>

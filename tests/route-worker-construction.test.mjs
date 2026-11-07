@@ -76,7 +76,7 @@ test('worker loads registered POIs before planning estimated approaches',async()
  }finally{globalThis.fetch=oldFetch;globalThis.self=oldSelf;globalThis.postMessage=oldPost;}
 });
 
-test('worker offers an unverified nearby point for an upstairs POI',async()=>{
+test('worker verifies a route from a replacement point for an upstairs POI',async()=>{
  const a=[25,121.5],b=[25,121.501],p=[25+30/111195,121.5],poi={id:'poi',kind:'place',name:'二樓店',lat:p[0],lon:p[1],level:'1'};
  const proof={schemaVersion:2,coverage:0,maxUncoveredMetres:100,crossingCoverage:0,roadCrossingVerified:true,crossingVerified:true};
  const area={type:'Polygon',coordinates:[[[121.51,25],[121.511,25],[121.511,25.001],[121.51,25.001],[121.51,25]]]};
@@ -90,8 +90,13 @@ test('worker offers an unverified nearby point for an upstairs POI',async()=>{
   await self.onmessage({data:{type:'plan-places',id:50,startPlace:poi,endPlace,options:{},construction}});
   assert.equal(replies.find(m=>m.id===50)?.result.error,'NO_CONNECTION');
   await self.onmessage({data:{type:'nearby-positions',id:51,startPlace:poi,endPlace,options:{},construction}});
-  const result=replies.find(m=>m.id===51)?.result,candidate=result.candidates.find(c=>c.side==='start');
-  assert.ok(candidate);assert.deepEqual([candidate.point.lat,candidate.point.lon],a);assert.equal(candidate.routeVerified,false);assert.equal(candidate.routeDistance,null);assert.ok(!('coordinates' in candidate));
+  const result=replies.find(m=>m.id===51)?.result,candidate=result.candidates.find(c=>c.start && !c.end);
+  assert.ok(candidate);
+  assert.deepEqual([candidate.start.point.lat,candidate.start.point.lon],a);
+  assert.equal(candidate.route.geometryVerification,'pedestrian-network-v1');
+  assert.deepEqual(candidate.route.coordinates[0],a);
+  assert.deepEqual(candidate.route.coordinates.at(-1),b);
+  assert.ok(!candidate.route.coordinates.some(point=>point[0]===poi.lat&&point[1]===poi.lon));
  }finally{globalThis.fetch=oldFetch;globalThis.self=oldSelf;globalThis.postMessage=oldPost;}
 });
 

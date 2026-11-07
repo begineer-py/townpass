@@ -8,7 +8,7 @@ import {routeAroundConstruction,resolveVerifiedRoute} from './construction-routi
 import {createConstructionChecker,constructionFresh} from './construction.mjs';
 import {createDetourWaypoints} from './alternative-routes.mjs';
 import {createLocalRouteVerifier,diagnoseConstruction} from './local-route-verifier.mjs';
-import {createNearbyRoutes} from './nearby-routes.mjs';
+import {createNearbyRoutes, verifyNearbyRoutes} from './nearby-routes.mjs';
 import {createVerifiedRouter,planImprovedPlaces} from './pedestrian-planning.mjs';
 import {improvePedestrianRoute,measurePedestrianRoute} from './pedestrian-improvement.mjs';
 import {findRouteCandidates} from './route-candidates.mjs';
@@ -125,8 +125,12 @@ self.onmessage = async ({ data }) => {
       await initialization;
       let checker;try{checker=createConstructionChecker(data.construction);}catch{postMessage({type:'nearby-positions',id:data.id,result:{error:'CONSTRUCTION_UNAVAILABLE'}});return;}
       if(!nearbyRoutes)nearbyRoutes=createNearbyRoutes(routeGraph,{router,verifyLocal,facilities});
-      const result=nearbyRoutes(data.startPlace,data.endPlace,data.options||{},data.construction,checker);
-      postMessage({type:'nearby-positions',id:data.id,result});
+      const result=nearbyRoutes(data.startPlace,data.endPlace,data.options||{},data.construction,checker,{radius:120,includeOuter:true});
+      const checked = result.error ? result : verifyNearbyRoutes(
+        result, data.startPlace, data.endPlace, data.options || {}, data.construction,
+        { router, verifyLocal, facilities, checker },
+      );
+      postMessage({type:'nearby-positions',id:data.id,result:checked});
     } else if(data.type==='avoid-official-condition'){
       await initialization;
       let checker;try{checker=createConstructionChecker(data.construction);}catch{postMessage({type:'avoid-official-condition',id:data.id,result:{error:'CONSTRUCTION_UNAVAILABLE'}});return;}
