@@ -6,6 +6,6 @@ export function eligibleSharedRoad(way, evidence) {
   if ((way.bridge && way.bridge !== 'no') || (way.tunnel && way.tunnel !== 'no')) return false;
   if (way.layer != null && String(way.layer) !== '0') return false;
   if (way.level != null && String(way.level) !== '0') return false;
-  return evidence?.sourceTopologyVerified === true && evidence?.junctionsVerified === true &&
+  return evidence?.sharedRoad === true && evidence?.sourceTopologyVerified === true && evidence?.junctionsVerified === true &&
     evidence?.roadIntersectionsVerified === true && evidence?.barriersVerified === true;
 }

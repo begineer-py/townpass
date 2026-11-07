@@ -166,3 +166,18 @@ curl -L --fail --retry 3 -C - -o data/raw/taiwan.osm.pbf https://download.geofab
 一般選點到路網的銜接仍需人行面及完整車道交會檢查；只有對得上官方捷運電梯ID與座標的入口，允許15公尺內、未跨車道的短距離位置銜接。這是估算，不是完整鋪面或路緣現勘；畫成虛線，摘要及朗讀明示。刪除先前略過銜接末端1.5公尺的檢查方式。
 
 目前台北車站R10至善導寺BL13測得M4電梯至3號出口電梯約1156公尺；無一般車道邊，施工通報比對未命中。入口估算約5／11公尺，完整坡度與淨寬仍缺值，不能稱為全程輪椅認證。其他臺北地點仍需逐例驗證，不宣稱任意室內／封閉場所皆可連接。
+
+## 人車共道路網重建
+
+人車共道只使用 OSM 標為 `living_street` 的地面道路；資料未證實實際路寬、坡度、即時障礙或輪椅可通行性。路由會優先既有人行路段，共道路段需顯示提醒；禁止通行、私人通道、明確障礙及無法確認的車道交會仍排除。
+
+若重新建立或更新 `public/data/graph.json.gz`，需使用相同的 OSM PBF 更新候選並再次整合：
+
+```powershell
+.\.venv\Scripts\python.exe scripts\extract_shared_candidates.py
+.\.venv\Scripts\python.exe scripts\integrate_shared_roads.py
+npm test
+npm run build
+```
+
+整合腳本只依原始 OSM 節點編號建立連接，不因座標相近自行連接；與其他車道的交會須在官方行穿區內，或是與另一條 `living_street` 共用原始端點。候選資料及路網都不是現場安全保證；施工封閉仍由現有檢查排除。OSM 的共道標籤可能不足，未標記的道路不會因缺乏禁止資料而自動納入。

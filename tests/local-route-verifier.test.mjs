@@ -1,5 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import{createRouter}from'../src/routing.mjs';import{createLocalRouteVerifier,stationEntrances}from'../src/local-route-verifier.mjs';
+import{createRouter}from'../src/routing.mjs';import{createLocalRouteVerifier,stationEntrances,planPlaces}from'../src/local-route-verifier.mjs';
+import{routeAroundConstruction}from'../src/construction-routing.mjs';
+import{createConstructionChecker}from'../src/construction.mjs';
 const a=[25,121.5],b=[25,121.501],proof={schemaVersion:2,coverage:0,maxUncoveredMetres:100,crossingCoverage:0,roadCrossingVerified:true,crossingVerified:true};
 const base=()=>({officialPathEvidence:{schemaVersion:2},nodes:[[...a,0],[...b,0]],ways:[{highway:'footway',width:2,slope:0}],edges:[[0,1,100,0,[],proof]],officialAreas:[],officialCrossingAreas:[],roadGeometries:[[[121.51,25],[121.51,25.01]]]});
 test('mapped footway provenance replaces an unrelated full-city polygon coverage requirement',()=>{const g=base(),r=createRouter(g)(a,b);const v=createLocalRouteVerifier(g)(r,a,b);assert.equal(v.error,undefined);assert.equal(v.geometryVerification,'pedestrian-network-v1');});
@@ -7,3 +9,50 @@ test('forged geometry and vehicle way cannot inherit pedestrian verification',()
 test('unknown point near the network does not gain an invented connector',()=>{const g=base(),r=createRouter(g)(a,b),p=[25.00005,121.5];assert.equal(createLocalRouteVerifier(g)(r,p,b).error,'OFFICIAL_ENTRY_UNVERIFIED');});
 test('short registered metro exit approach is labelled estimated and checks its entire road crossing',()=>{const g=base(),r=createRouter(g)(a,b),p=[25.00005,121.5],exit={id:'exit',kind:'metro-elevator',lat:p[0],lon:p[1]};const v=createLocalRouteVerifier(g,[exit])(r,p,b,{startPlace:exit});assert.equal(v.approaches[0].estimated,true);g.roadGeometries=[[[121.499,25.000025],[121.502,25.000025]]];assert.equal(createLocalRouteVerifier(g,[exit])(r,p,b,{startPlace:exit}).error,'OFFICIAL_ENTRY_UNVERIFIED');});
 test('station search resolves only its own published metro exits',()=>{const fac=[{kind:'metro-elevator',station:'台北車',id:'A'},{kind:'metro-elevator',station:'善導寺',id:'B'}];assert.deepEqual(stationEntrances({kind:'20',name:'臺北車站(R10)'},fac).map(p=>p.id),['A']);});
+test('route condition geometry is rebuilt from verified edges, not candidate annotations',()=>{
+ const g=base(),r=createRouter(g)(a,b);
+ r.tierSegments=[{coordinates:[a,b],sharedRoad:true,unknownWidth:false,unknownSlope:false}];
+ r.steps[0].sharedRoad=true;
+ g.ways[0].width=null;
+ const v=createLocalRouteVerifier(g)(r,a,b);
+ assert.equal(v.error,undefined);assert.equal(v.tierSegments[0].sharedRoad,false);
+ assert.equal(v.steps[0].sharedRoad,false);
+ assert.equal(v.tierSegments[0].unknownWidth,true);assert.deepEqual(v.tierSegments[0].coordinates,[a,b]);
+});
+test('an exact network endpoint needs no invented road crossing, while a nearby approach still does',()=>{
+ const g=base(),r=createRouter(g)(a,b);
+ g.roadGeometries=[[[121.5,24.999],[121.5,25.001]]];
+ const verify=createLocalRouteVerifier(g);
+ assert.equal(verify(r,a,b).error,undefined);
+ assert.equal(verify(r,[25,121.499999],b).error,'OFFICIAL_ENTRY_UNVERIFIED');
+});
+test('a verified shared street remains marked through local verification and fails if its access evidence changes',()=>{
+ const g=base();
+ g.ways[0]={name:'共道路段',highway:'living_street',source:'osm-shared-street',width:null,slope:null};
+ g.edges[0][5]={...proof,sharedRoad:true,sourceTopologyVerified:true,junctionsVerified:true,roadIntersectionsVerified:true,barriersVerified:true};
+ g.roadGeometries=[[[a[1],a[0]],[b[1],b[0]]]];
+ const candidate=createRouter(g)(a,b),verify=createLocalRouteVerifier(g);
+ assert.equal(candidate.error,undefined);
+ const result=verify(candidate,a,b);
+ assert.equal(result.error,undefined);assert.equal(result.tierSegments[0].sharedRoad,true);
+ assert.equal(result.steps[0].sharedRoad,true);assert.equal(result.tierSegments[0].unknownWidth,true);
+ const now=Date.parse('2026-11-07T08:00:00Z'),stamp=new Date(now).toISOString();
+ const construction={schemaVersion:1,fetchedAt:stamp,sourceUpdatedAt:stamp,works:[{id:'closure',start:'115/11/07',end:'115/11/07',hours:'24小時施工',impact:'blocked',geometries:[{type:'Point',coordinates:[[25,121.5005]]}]}]};
+ assert.equal(routeAroundConstruction(result,a,b,{},construction,{router:createRouter(g),verifyLocal:verify},now).error,'CONSTRUCTION_BLOCKED');
+ g.ways[0].foot='no';assert.equal(verify(candidate,a,b).error,'UNVERIFIED_NETWORK');
+});
+test('place planning reports a closure when it is the only way, without returning the diagnostic route',()=>{
+ const g=base(),now=Date.parse('2026-11-07T08:00:00Z'),stamp=new Date(now).toISOString();
+ const snapshot={schemaVersion:1,fetchedAt:stamp,sourceUpdatedAt:stamp,works:[{id:'closure',start:'115/11/07',end:'115/11/07',hours:'24小時施工',impact:'blocked',geometries:[{type:'Point',coordinates:[[25,121.5005]]}]}]};
+ const result=planPlaces({lat:a[0],lon:a[1]},{lat:b[0],lon:b[1]}, {},snapshot,{router:createRouter(g),verifyLocal:createLocalRouteVerifier(g),facilities:[],checker:createConstructionChecker(snapshot,now)});
+ assert.equal(result.error,'CONSTRUCTION_BLOCKED');assert.equal(result.coordinates,undefined);
+ assert.deepEqual(result.construction.blocked.map(w=>w.id),['closure']);
+});
+test('place planning prefers a verified alternative to the blocked direct route',()=>{
+ const g=base(),c=[25.0003,121.5],d=[25.0003,121.501];
+ g.nodes.push([...c,0],[...d,0]);g.edges.push([0,2,33,0,[],proof],[2,3,100,0,[],proof],[3,1,33,0,[],proof]);
+ const now=Date.parse('2026-11-07T08:00:00Z'),stamp=new Date(now).toISOString();
+ const snapshot={schemaVersion:1,fetchedAt:stamp,sourceUpdatedAt:stamp,works:[{id:'closure',start:'115/11/07',end:'115/11/07',hours:'24小時施工',impact:'blocked',geometries:[{type:'Point',coordinates:[[25,121.5005]]}]}]};
+ const result=planPlaces({lat:a[0],lon:a[1]},{lat:b[0],lon:b[1]}, {},snapshot,{router:createRouter(g),verifyLocal:createLocalRouteVerifier(g),facilities:[],checker:createConstructionChecker(snapshot,now)});
+ assert.equal(result.error,undefined);assert.ok(result.coordinates.some(p=>p[0]===c[0]));assert.equal(result.construction.blocked.length,0);
+});

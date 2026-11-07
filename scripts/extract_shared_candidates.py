@@ -7,7 +7,7 @@ import osmium
 ROOT = Path(__file__).resolve().parent.parent
 INPUT = ROOT / 'data/raw/taiwan.osm.pbf'
 OUTPUT = ROOT / 'data/processed/shared-road-candidates.json'
-FIELDS = ('highway', 'foot', 'access', 'wheelchair', 'width', 'incline',
+FIELDS = ('name', 'name:zh', 'highway', 'foot', 'access', 'wheelchair', 'width', 'incline',
           'maxspeed', 'surface', 'sidewalk', 'layer', 'level', 'bridge', 'tunnel')
 
 class Extract(osmium.SimpleHandler):

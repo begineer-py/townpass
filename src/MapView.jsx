@@ -19,6 +19,7 @@ const colors = {
 export default function MapView({
   items,
   route,
+  constructionConflict,
   start,
   end,
   location,
@@ -39,6 +40,7 @@ export default function MapView({
     map = useRef(),
     marks = useRef(),
     path = useRef(),
+    blocked = useRef(),
     ends = useRef();
   const baseLayers = useRef([]);
   const paddingReader=useRef(getBottomInset);paddingReader.current=getBottomInset;
@@ -55,6 +57,7 @@ export default function MapView({
     map.current = m;
     marks.current = L.layerGroup().addTo(m);
     path.current = L.layerGroup().addTo(m);
+    blocked.current = L.layerGroup().addTo(m);
     ends.current = L.layerGroup().addTo(m);
     const viewport = () => {
       const b = m.getBounds(),
@@ -208,7 +211,7 @@ export default function MapView({
         opacity: 1,
       }).addTo(path.current);
       if(route.tierSegments?.length){
-        for(const segment of route.tierSegments){const style=ROUTE_CONDITIONS[conditionForSegment(segment)];L.polyline(segment.coordinates,{color:colorFriendly?TPColors.primary900:style.color,weight:5,dashArray:style.dash,opacity:1}).addTo(path.current);}
+        for(const segment of route.tierSegments){const style=ROUTE_CONDITIONS[conditionForSegment(segment)];const line=L.polyline(segment.coordinates,{color:colorFriendly?TPColors.primary900:style.color,weight:5,dashArray:style.dash,opacity:1}).addTo(path.current);if(segment.sharedRoad===true)line.bindTooltip(`${style.label}；請留意車輛及現場通行狀況`);}
       }else {
         // The online response does not certify width or slope.
         const style=ROUTE_CONDITIONS.unknown;
@@ -219,6 +222,25 @@ export default function MapView({
       fit();const timer=setTimeout(fit,350);return ()=>clearTimeout(timer);
     }
   }, [route,sheetSnap,colorFriendly]);
+  useEffect(() => {
+    if (!blocked.current) return;
+    blocked.current.clearLayers();
+    const bounds = [];
+    for (const work of constructionConflict?.blocked || []) {
+      const g = work.geometry;
+      if (!g || !Array.isArray(g.coordinates) || !g.coordinates.length) continue;
+      const label = document.createElement('span');
+      label.textContent = `${work.address || '施工位置'}：${g.type === 'Polygon' ? '施工範圍影響通行' : '施工位置附近可能影響通行，範圍為估計'}`;
+      let shape;
+      if (g.type === 'Point') shape = L.circle(g.coordinates[0], {radius:10, color:TPColors.red700, fillOpacity:0.2, weight:3});
+      else if (g.type === 'LineString') shape = L.polyline(g.coordinates, {color:TPColors.red700, weight:8, dashArray:'5 5'});
+      else if (g.type === 'Polygon') shape = L.polygon(g.coordinates, {color:TPColors.red700, fillOpacity:0.2, weight:3});
+      if (!shape) continue;
+      shape.bindTooltip(label).addTo(blocked.current);
+      bounds.push(...g.coordinates);
+    }
+    if (bounds.length && !route) map.current.fitBounds(L.latLngBounds(bounds), {maxZoom:17, padding:[60,60], animate:false});
+  }, [constructionConflict, route]);
   useEffect(() => {
     if (!ends.current) return;
     ends.current.clearLayers();
