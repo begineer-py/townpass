@@ -1232,70 +1232,64 @@ export default function App() {
               <>
                 <h1 className="sr-only">規劃路線</h1>
                 <div className="endpoints">
-                  <span className="route-dots">
-                    <i />
-                    <span />
-                    <i />
-                  </span>
-                  <div className="point-fields">
-                    <div className="point-row">
-                      <button
-                        className="point-main"
-                        onClick={() => openSearch("start")}
-                        aria-label="選擇出發地"
-                      >
-                        <small>從哪裡出發</small>
-                        <strong>{start?.name || "選擇出發地"}</strong>
-                      </button>
-                      <button
-                        className="point-shortcut"
-                        aria-label="使用目前位置作為出發地"
-                        onClick={() => locate("start")}
-                        disabled={locating}
-                      >
-                        <LocateFixed size={19} aria-hidden="true" />
-                        <span>{locating ? "定位中" : "目前位置"}</span>
-                      </button>
-                    </div>
-                    <div className="point-row">
-                      <button
-                        className="point-main"
-                        onClick={() => openSearch("end")}
-                        aria-label="選擇目的地"
-                      >
-                        <small>想去哪裡</small>
-                        <strong>{end?.name || "選擇目的地"}</strong>
-                      </button>
-                      <button
-                        className="point-shortcut"
-                        aria-label="在地圖上選擇目的地"
-                        aria-pressed={pick === "end"}
-                        onClick={() => {
-                          setPick("end");
-                          setSheetSnap(0);
-                          announce("請在地圖上點選目的地。", {
-                            quiet: true,
-                          });
-                        }}
-                      >
-                        <MapPin size={19} aria-hidden="true" />
-                        <span>地圖選點</span>
-                      </button>
-                    </div>
+                  <div className="route-rail">
+                    <i className="rail-start" aria-hidden="true" />
+                    <button
+                      className="swap"
+                      aria-label="交換出發地與目的地"
+                      onClick={() => {
+                        setStart(end);
+                        setEnd(start);
+                        clearRoute();
+                        setRouting(false);
+                        request.current++;
+                      }}
+                    >
+                      <ArrowUpDown size={18} aria-hidden="true" />
+                    </button>
+                    <i className="rail-end" aria-hidden="true" />
                   </div>
-                  <button
-                    className="icon-button swap"
-                    aria-label="交換起點與終點"
-                    onClick={() => {
-                      setStart(end);
-                      setEnd(start);
-                      clearRoute();
-                      setRouting(false);
-                      request.current++;
-                    }}
-                  >
-                    <ArrowUpDown size={20} />
-                  </button>
+                  <div className="point-fields">
+                    {[
+                      ["start", "從哪裡出發", "選擇出發地", "出發地", start],
+                      ["end", "想去哪裡", "選擇目的地", "目的地", end],
+                    ].map(([which, label, placeholder, noun, point]) => (
+                      <div className="point-row" key={which}>
+                        <button
+                          className="point-main"
+                          onClick={() => openSearch(which)}
+                          aria-label={point ? `${noun}：${point.name}，點一下重新選擇` : placeholder}
+                        >
+                          <small>{label}</small>
+                          <strong className={point ? "" : "placeholder"}>
+                            {point?.name || placeholder}
+                          </strong>
+                        </button>
+                        <div className="point-tools">
+                          <button
+                            className="point-tool"
+                            aria-label={`用目前位置當${noun}`}
+                            onClick={() => locate(which)}
+                            disabled={locating}
+                          >
+                            <LocateFixed size={20} aria-hidden="true" />
+                          </button>
+                          <button
+                            className="point-tool"
+                            aria-label={`在地圖上選${noun}`}
+                            aria-pressed={pick === which}
+                            onClick={() => {
+                              setPick(which);
+                              setSheetSnap(0);
+                              announce(`請在地圖上點選${noun}。`, { quiet: true });
+                            }}
+                          >
+                            <MapPin size={20} aria-hidden="true" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
                 <div className="preference-bar">
                   <Accessibility size={20} />

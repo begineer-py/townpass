@@ -1114,3 +1114,104 @@ button.icon-action {
     bottom: calc(24dvh + var(--nav-h) + 12px);
   }
 }
+
+/* --- 起訖卡（2026-11-07 改版）：兩列對稱、交換鈕在左側軌道內、未選用灰字 --- */
+.endpoints {
+  display: flex;
+  align-items: stretch;
+  padding: 0 4px 0 0;
+}
+.endpoints .route-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  width: 48px;
+  flex-shrink: 0;
+  /* 圓點對齊兩列文字的中線 */
+  padding: 30px 0;
+}
+.route-rail i {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  border: 3px solid var(--tp-primary700);
+  border-radius: 50%;
+}
+.route-rail .rail-end {
+  border-color: var(--tp-secondary700);
+  border-radius: 3px;
+}
+.endpoints .swap {
+  position: static;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  color: var(--tp-primary700);
+}
+/* 交換鈕的點擊範圍仍維持 44px（WCAG 2.5.8） */
+.endpoints .swap::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+}
+.endpoints .swap {
+  position: relative;
+  top: auto;
+  right: auto;
+}
+.endpoints .point-fields .point-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.endpoints .point-fields .point-main {
+  flex: 1;
+  min-width: 0;
+  min-height: 64px;
+  padding: 10px 4px 10px 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+.endpoints .point-fields strong.placeholder {
+  color: var(--tp-grayscale600);
+  font-weight: var(--tp-text-bodyRegular-weight);
+}
+.point-tools {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.endpoints .point-fields .point-tool {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--tp-primary700);
+}
+.endpoints .point-fields .point-tool:hover {
+  background: var(--tp-primary50);
+}
+.endpoints .point-fields .point-tool[aria-pressed="true"] {
+  background: var(--tp-primary700);
+  color: var(--tp-white);
+}
+.endpoints .point-fields .point-tool:disabled {
+  opacity: 0.5;
+}
+@media (max-width: 700px) {
+  .endpoints {
+    padding-right: 4px;
+  }
+}
