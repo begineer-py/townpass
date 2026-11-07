@@ -55,6 +55,7 @@ import {
 } from "lucide-react";
 import MapView from "./MapView";
 import { routeFitPadding } from "./route-fit.mjs";
+import {mapRouteVisibility} from "./map-route-visibility.mjs";
 import ReferenceRouteResult from "./ReferenceRouteResult";
 import RouteChoice from "./RouteChoice.jsx";
 import {describeRouteChoices} from "./route-summary.mjs";
@@ -1063,6 +1064,7 @@ export default function App() {
     rememberPlace(place);
     stopFollowing();
     cancelPendingNavigation();
+    clearRoute();setRouteError('');
     const locationId=++locationRequest.current;
     setSelected(null);
     setSearchFor(null);
@@ -1133,7 +1135,7 @@ export default function App() {
     if(!from||!to){announce('請先選擇出發地和目的地。');return;}
     cancelLocation();
     setGraphRequested(true);
-    if(!graphReadyRef.current){pendingRoute.current={...points,start:from,end:to};worker.current?.start();announce('正在準備路線，完成後會繼續規劃。');return;}
+    if(!graphReadyRef.current){clearRoute();setRouteError('');setRouting(true);pendingRoute.current={...points,start:from,end:to};worker.current?.start();announce('正在準備路線，完成後會繼續規劃。');return;}
     pendingRoute.current=null;
     if (from && to && navigator.onLine && !points?.via && ![from,to].some(p=>['20','station'].includes(String(p.kind)))) {
       setGraphRequested(true);
@@ -1494,6 +1496,8 @@ export default function App() {
   };
   const retryWithEntrance = ['OFFICIAL_PATH_UNVERIFIED','OFFICIAL_ROAD_CONFLICT','OFFICIAL_CROSSING_UNVERIFIED','OFFICIAL_ENTRY_UNVERIFIED','OFFICIAL_NO_ROUTE','OFFICIAL_GAP','NO_CONNECTION','NO_ROUTE'].includes(routeError);
   const simpleNoRoute=['NO_ROUTE','NO_CONNECTION','OFFICIAL_NO_ROUTE','OFFICIAL_GAP'].includes(routeError);
+  const automaticComparisonLoading=referenceState.status==='loading'&&referenceBaseline.current?.automatic===true&&referenceBaseline.current.route===route;
+  const mapRoutes=mapRouteVisibility({tab,routing,automaticComparisonLoading,route,partialRoute,simpleNoRoute});
   useEffect(()=>{
     if(['NO_ROUTE','NO_CONNECTION'].includes(routeError) && referenceState.status!=='error')return;
     if(!shouldAutoSearchNearby({error:routeError,routing,graphReady,tab,start,end}))return;
@@ -1518,7 +1522,7 @@ export default function App() {
     referenceAutoAttempt.current=request.current;
     findReferenceRoute();
   },[tab,start,end,graphReady,routeError]);
-  useEffect(()=>{
+  useLayoutEffect(()=>{
     if(tab!=='plan'||!start||!end||!graphReady||routing||routeError||!isVerifiedNavigationRoute(route)||route.viaName||followSession.current||manualRouteSelection.current||referenceState.status!=='idle'||referenceAutoAttempt.current===request.current)return;
     if(!route.tierSegments?.some(segment=>segment.sharedRoad===true&&segment.distance>0))return;
     findReferenceRoute(route,true);
@@ -1529,7 +1533,7 @@ export default function App() {
     manualRouteSelection.current=true;
     if(referenceState.status==='loading'){referenceSearch.current.cancel();referenceSnapshot.current=null;referenceBaseline.current=null;}
   },[tab,route,referenceState.status]);
-  useEffect(()=>{
+  useLayoutEffect(()=>{
     const original=referenceBaseline.current;
     if(tab!=='plan'||referenceState.status!=='ready'||!original?.automatic||original.requestId!==request.current||route!==original.route)return;
     const improvement=chooseSidewalkImprovement({currentRoute:route,localCandidates:routeCandidates,referenceCandidates:referenceState.candidates,start,end,snapshot:lastConstruction.current,referenceSnapshot:referenceSnapshot.current,referenceSourceHash:referenceState.sourceHash,userSelected:manualRouteSelection.current,following:!!followSession.current});
@@ -1827,7 +1831,8 @@ export default function App() {
                   </div>
                 )}
                 {!simpleNoRoute && (route || routeError) && start && end && ['idle','error'].includes(referenceState.status) && <button type="button" onClick={()=>findReferenceRoute(isVerifiedNavigationRoute(route)?route:null)}>尋找更多人行路線</button>}
-                {unifiedRouteChoices?.length>0 && <section className="route-alternatives" aria-label="選擇路線">
+                {automaticComparisonLoading && <p role="status">正在比較路線…</p>}
+                {!mapRoutes.pending && unifiedRouteChoices?.length>0 && <section className="route-alternatives" aria-label="選擇路線">
                   <h3>選擇路線</h3>
                   {unifiedRouteChoices.length>1 && <div className="candidate-sort" role="group" aria-label="路線排序">
                     <button type="button" aria-pressed={candidateSort==='score'} onClick={()=>{manualRouteSelection.current=true;setCandidateSort('score');}}>較好走優先</button>
@@ -1837,8 +1842,8 @@ export default function App() {
                   {unifiedRouteChoices.map((item,index)=>{const candidate=item.candidate,source=item.source==='reference';return <RouteChoice key={`${item.source}:${candidate.id}`} number={index+1} distance={item.distance} summary={unifiedRouteSummaries[index]} selected={route===candidate.route || (!source&&selectedRouteCandidate===candidate.id)} disabled={source?!isCurrentOfficialRoute(candidate.route):!constructionFresh(lastConstruction.current)||candidate.route?.construction?.sourceUpdatedAt!==lastConstruction.current?.sourceUpdatedAt} onClick={()=>source?selectOfficialCandidate(candidate):selectRouteCandidate(candidate)}/>;})}
                 </section>}
                 {referenceCollapsed && referenceState.status==='ready' && <button type="button" onClick={()=>setReferenceCollapsed(false)}>查看線條說明</button>}
-                {!simpleNoRoute && <ReferenceRouteResult status={referenceCollapsed?'idle':referenceState.status} route={referenceRoute} candidates={displayedReferenceCandidates} selected={selectedRouteCandidate} onSelect={selectOfficialCandidate} comparisonStatus={referenceState.comparisonStatus} showCandidates={!unifiedRouteChoices} showLegend={route?.kind==='official-passageway'||!route} showSelectedNotice={route?.kind==='official-passageway'||!route} showIssueIcons={true} start={start} end={end} message={referenceState.message} onClose={()=>{if(route?.kind==='official-passageway')setReferenceCollapsed(true);else {referenceSearch.current.cancel();referenceSnapshot.current=null;referenceBaseline.current=null;}}} />}
-                {route && (
+                {!simpleNoRoute && !mapRoutes.pending && <ReferenceRouteResult status={referenceCollapsed?'idle':referenceState.status} route={referenceRoute} candidates={displayedReferenceCandidates} selected={selectedRouteCandidate} onSelect={selectOfficialCandidate} comparisonStatus={referenceState.comparisonStatus} showCandidates={!unifiedRouteChoices} showLegend={route?.kind==='official-passageway'||!route} showSelectedNotice={route?.kind==='official-passageway'||!route} showIssueIcons={true} start={start} end={end} message={referenceState.message} onClose={()=>{if(route?.kind==='official-passageway')setReferenceCollapsed(true);else {referenceSearch.current.cancel();referenceSnapshot.current=null;referenceBaseline.current=null;}}} />}
+                {route && !mapRoutes.pending && (
                   <>
                     <div className="route-summary"><h2>{start?.nearbyOriginal||end?.nearbyOriginal?'路網路線':'全程'} {formatDistance(route.distance)}</h2></div>
                     {(route.routeSearchStatus==='projection-limit'||route.conditionDetourComparison==='projection-limit'||route.pedestrianImprovement?.status==='projection-limit'||route.routeCandidates?.status==='projection-limit'||route.avoidanceStatus==='projection-limit') && <p role="status">部分比較未完成，路線仍可查看；可重新規劃。</p>}
@@ -2177,19 +2182,19 @@ export default function App() {
             onOfficialSidewalkStatus={setSidewalkStatus}
             colorFriendly={prefs.colorFriendly}
             onBasemapStatus={setBasemapStatus}
-            route={tab ? route : null}
-            onAvoidOfficialCondition={tab==='plan' && route ? avoidOfficialCondition : null}
+            route={mapRoutes.route}
+            onAvoidOfficialCondition={tab==='plan' && mapRoutes.route ? avoidOfficialCondition : null}
             avoidingOfficialCondition={conditionDetourState.status==='loading'}
-            referenceRoute={tab==='plan' && (!route || route.kind==='official-passageway') ? referenceRoute : null}
-            partialRoute={tab==='plan' && !simpleNoRoute ? partialRoute : null}
-            onAvoidConstruction={tab==='plan' && route ? avoidConstruction : null}
+            referenceRoute={null}
+            partialRoute={mapRoutes.partialRoute}
+            onAvoidConstruction={tab==='plan' && mapRoutes.route ? avoidConstruction : null}
             avoidingConstruction={constructionDetourState.status==='loading'}
-            constructionConflict={tab && showConstruction ? constructionConflict : null}
+            constructionConflict={tab && showConstruction && !mapRoutes.pending ? constructionConflict : null}
             constructionSnapshot={constructionFeed.snapshot}
             showConstruction={showConstruction}
             onConstructionStatus={setConstructionMapStatus}
-            routeGap={tab && !simpleNoRoute ? routeGapView : null}
-            nearbyCandidates={tab==='plan' && !simpleNoRoute ? nearbyState.candidates : NO_MAP_ICONS}
+            routeGap={tab && !simpleNoRoute && !mapRoutes.pending ? routeGapView : null}
+            nearbyCandidates={tab==='plan' && !simpleNoRoute && !mapRoutes.pending ? nearbyState.candidates : NO_MAP_ICONS}
             onNearbySelect={chooseNearby}
             start={tab ? start : null}
             end={tab ? end : null}
