@@ -86,6 +86,10 @@ import { clearLocalData, loadProfile, loadTrips, saveProfile, saveTrips } from "
 import { addressSearch } from "./address-search";
 import { nearestSheetSnapIndex } from "./sheet-snap.mjs";
 import {
+  metroStationCodes,
+  metroStationIconUrl,
+} from "./metro-station-icons.mjs";
+import {
   maintenanceText,
   sourceCountLabel,
   stationKey,
@@ -141,6 +145,26 @@ function Icon({ kind, ...props }) {
   const C = icons[kind] || MapPin;
   return <C size={20} aria-hidden="true" {...props} />;
 }
+function MetroStationIcon({ codes, value }) {
+  const stationCodes = metroStationCodes(codes, value);
+  if (!stationCodes.length) return <TrainFront size={20} aria-hidden="true" />;
+  return (
+    <span className="metro-station-icons" aria-hidden="true">
+      <TrainFront className="metro-station-icon-fallback" size={20} />
+      {stationCodes.map((code) => (
+        <img
+          key={code}
+          src={metroStationIconUrl(code)}
+          alt=""
+          loading="lazy"
+          onError={(event) => {
+            event.currentTarget.hidden = true;
+          }}
+        />
+      ))}
+    </span>
+  );
+}
 function Sheet({ title, onClose, children, dismissible = true }) {
   const ref = useRef();
   useLayoutEffect(() => {
@@ -177,14 +201,18 @@ function Sheet({ title, onClose, children, dismissible = true }) {
     </dialog>
   );
 }
-function FacilityRow({ p, from, onSelect, saved, onSave, note }) {
+function FacilityRow({ p, from, onSelect, saved, onSave, note, stationCode }) {
   const k = category(p),
     sub = labels[k] || "設施";
   return (
     <div className="facility-row">
       <button className="facility-main" onClick={() => onSelect(p)}>
         <span className={`facility-icon ${k}`}>
-          <Icon kind={k} />
+          {k === "station" ? (
+            <MetroStationIcon codes={stationCode} value={p.name} />
+          ) : (
+            <Icon kind={k} />
+          )}
         </span>
         <span className="facility-copy">
           <strong>{cleanName(p.name)}</strong>
@@ -835,6 +863,15 @@ export default function App() {
     data?.fac.filter(
       (p) => p.kind === "metro-elevator" && stationKey(p.station) === stationKey(name),
     ) || [];
+  const stationCodesFor = (name) =>
+    metroStationCodes(
+      (data?.metro["metro-elevators"] || [])
+        .filter(
+          (record) =>
+            stationKey(record["車站名稱"]) === stationKey(name),
+        )
+        .map((record) => record["車站編號"]),
+    );
   const selectSearchPlace = (p) => {
     if (searchFor === "explore") {
       setSearchFor(null);
@@ -1873,7 +1910,7 @@ export default function App() {
               <section className="station-group" key={name} aria-label={`${name}站的無障礙出口`}>
                 <div className="station-group-head">
                   <span className="station-icon">
-                    <TrainFront size={20} />
+                    <MetroStationIcon codes={stationCodesFor(name)} />
                   </span>
                   <span>
                     <strong>{name}站</strong>
@@ -1972,7 +2009,9 @@ export default function App() {
           {selected.kind === "station-detail" ? (
             <>
               <div className="detail-badge">
-                <TrainFront size={17} />
+                <MetroStationIcon
+                  codes={stationCodesFor(selected.record["車站名稱"])}
+                />
                 {selected.record["路線別"]}
               </div>
               <h3>電梯在哪裡</h3>
@@ -2429,6 +2468,18 @@ export default function App() {
               rel="noopener"
             >
               來源與授權
+              <ExternalLink size={14} />
+            </a>
+          </div>
+          <div className="source-card">
+            <b>臺北捷運車站圖標・Wikimedia Commons</b>
+            <span>臺北大眾捷運股份有限公司；公有領域文字標誌</span>
+            <a
+              href="https://commons.wikimedia.org/wiki/Category:Taipei_Metro_station_icons"
+              target="_blank"
+              rel="noopener"
+            >
+              圖標來源與授權
               <ExternalLink size={14} />
             </a>
           </div>
