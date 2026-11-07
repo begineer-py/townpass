@@ -58,6 +58,8 @@ import MapView from "./MapView";
 import { createLiveFollow, displayedRouteCoordinates } from "./live-follow.mjs";
 import { createLiveFollowSearch } from "./live-follow-search.mjs";
 import { presentRouteCandidates, sortRouteCandidates } from "./route-candidates-presentation.mjs";
+import { createNearbySearch } from "./nearby-search.mjs";
+import { nearbyReplacement, nearbyWarnings } from "./nearby-presentation.mjs";
 import { partialRoutePresentation } from "./partial-route-presentation.mjs";
 import { canFallbackAfterVerification, startLocalFallback } from "./local-fallback.mjs";
 import OfficialConditions from "./OfficialConditions";
@@ -86,7 +88,7 @@ import {
   readSaved,
   saveLocal,
 } from "./data";
-import { getLocation, locationErrorText, watchLocation } from "./location";
+import { getLocation, locationErrorText, watchLocation, destinationPoint, swappedOrigin } from "./location";
 import { installTownPassLinks, postToTownPass, townPassUserKey } from "./townpass-bridge";
 import {
   activeElevatorStops,
@@ -546,6 +548,19 @@ export default function App() {
   const [candidateSort, setCandidateSort] = useState("score");
   const sortedRouteCandidates = useMemo(() => sortRouteCandidates(routeCandidates, candidateSort), [routeCandidates, candidateSort]);
   const [partialRoute, setPartialRoute] = useState(null);
+  const [nearbyState, setNearbyState] = useState({ status: "idle", candidates: [] });
+  const nearbySearch = useRef(null);
+  if (!nearbySearch.current) {
+    nearbySearch.current = createNearbySearch({
+      fetchSnapshot: fetchConstruction,
+      createWorker: () => new Worker(new URL("./route-worker.js", import.meta.url), { type: "module" }),
+      onState: setNearbyState,
+    });
+  }
+  useEffect(() => {
+    if (tab !== "plan") nearbySearch.current.cancel();
+    return () => nearbySearch.current.cancel(false);
+  }, [tab]);
   const [followState, setFollowState] = useState({ active: false, status: "idle", message: "" });
   const followSession = useRef(null);
   const requestEndpoints = useRef(null);
@@ -669,12 +684,12 @@ export default function App() {
     setRouting(false);
     clearRoute();
     setRouteError("");
-    which === "start" ? setStart(p) : setEnd(p);
+    which === "start" ? setStart(swappedOrigin(p)) : setEnd(destinationPoint(p));
     setSearchFor(null);
     setQuery("");
     setPick(null);
     setTab("plan");
-    setFocus({ ...p, token: Date.now() });
+    setSheetSnap(snap => Math.max(snap, 1));
   };
   function showRoute(result) {
     const candidates = result.viaName ? [] : presentRouteCandidates(
@@ -686,6 +701,7 @@ export default function App() {
     setRoute(result);
   }
   function clearRoute() {
+    nearbySearch.current.cancel();
     stopFollowing();
     locationRequest.current++;
     setLocating(false);
@@ -900,21 +916,28 @@ export default function App() {
     autoLocated.current = true;
     locate(null, true);
   }, [profileReady, travelProfile]);
-  async function calculate(via = null) {
-    const from = start && { ...start, lat: Number(start.lat ?? NaN), lon: Number(start.lon ?? NaN) };
-    const to = end && { ...end, lat: Number(end.lat ?? NaN), lon: Number(end.lon ?? NaN) };
+  async function calculate(via = null, endpoints = { start, end }) {
+    const asEndpoint = (point) => point && {
+      ...point,
+      selectionKind: "user",
+      lat: Number(point.lat ?? NaN),
+      lon: Number(point.lon ?? NaN),
+    };
+    const from = asEndpoint(swappedOrigin(endpoints.start));
+    const to = asEndpoint(destinationPoint(endpoints.end));
     if (from && to && ![from.lat, from.lon, to.lat, to.lon].every(Number.isFinite)) {
       clearRoute();
       setRouteError("OFFICIAL_INVALID_POINTS");
       return;
     }
     const options = { ...prefs, avoidPoints, startPlace: from, endPlace: to };
-    if (start && end && navigator.onLine) {
+    if (from && to && navigator.onLine) {
       setGraphRequested(true);
       clearRoute();
       setRouteError("");
       setRouting(true);
       setTab("plan");
+      setSheetSnap(snap => Math.max(snap, 1));
       const id = request.current,
         controller = new AbortController();
       officialRequest.current = controller;
@@ -967,7 +990,7 @@ export default function App() {
       }
       return;
     }
-    if (!start || !end) {
+    if (!from || !to) {
       announce("選好出發地和目的地，就能一起看看適合的走法。");
       return;
     }
@@ -994,14 +1017,12 @@ export default function App() {
     }
   }
   // 從詳細卡直接導航：沒有出發地時先取得目前位置，再規劃路線。
-  const [routeRequest, setRouteRequest] = useState(0);
-  useEffect(() => {
-    if (routeRequest) calculate();
-  }, [routeRequest]);
   async function navigateTo(place) {
     setSelected(null);
-    changePoint("end", place);
-    if (!start) {
+    const destination = destinationPoint(place);
+    changePoint("end", destination);
+    let origin = start;
+    if (!origin) {
       const locationId = ++locationRequest.current;
       setLocating(true);
       try {
@@ -1011,8 +1032,13 @@ export default function App() {
           announce("你目前的位置在服務範圍外。可以先選一個臺北的出發地。");
           return;
         }
-        setStart(here);
         setCurrentLocation(here);
+        if (here.needsConfirmation) {
+          announce("目前定位精度較低，請在地圖上確認出發地。");
+          return;
+        }
+        origin = here;
+        setStart(here);
       } catch (error) {
         if (locationId === locationRequest.current) announce(locationErrorText(error));
         return;
@@ -1021,7 +1047,24 @@ export default function App() {
       }
     }
     announce(`正在規劃前往${cleanName(place.name)}的路線。`, { quiet: true });
-    setRouteRequest((n) => n + 1);
+    void calculate(null, { start: origin, end: destination });
+  }
+  function findNearbyPositions() {
+    if (!start || !end || !graphReady) return;
+    void nearbySearch.current.start({
+      startPlace: start,
+      endPlace: end,
+      options: { ...prefs, avoidPoints },
+      url: new URL(dataUrl("graph") + "?policy=" + ROUTING_POLICY, location.href).href,
+      online: navigator.onLine,
+      offlineSnapshot: lastConstruction.current,
+    });
+  }
+  function chooseNearby(candidate) {
+    const side = candidate.side;
+    const point = nearbyReplacement(candidate, side === "start" ? start : end);
+    changePoint(side, point);
+    void calculate(null, side === "start" ? { start: point, end } : { start, end: point });
   }
   function addStop(kind) {
     const hit = nearestStop(route, data?.all, kind);
@@ -1444,7 +1487,7 @@ export default function App() {
           onPointerDown={(e) => {
             if (!matchMedia("(max-width: 700px)").matches || sheetSnap !== 0)
               return;
-            if (e.target.closest(".sheet-grip")) return;
+            if (e.target.closest("button, a, input, select, textarea")) return;
             gripDown(e);
           }}
           onClickCapture={(e) => {
@@ -1581,8 +1624,8 @@ export default function App() {
                       className="swap"
                       aria-label="交換出發地與目的地"
                       onClick={() => {
-                        setStart(end);
-                        setEnd(start);
+                        setStart(swappedOrigin(end));
+                        setEnd(destinationPoint(start));
                         clearRoute();
                         setRouting(false);
                         request.current++;
@@ -1622,8 +1665,7 @@ export default function App() {
                             aria-label={`在地圖上選${noun}`}
                             aria-pressed={pick === which}
                             onClick={() => {
-                              setPick(which);
-                              setSheetSnap(0);
+                              setPick(pick === which ? null : which);
                               announce(`請在地圖上點選${noun}。`, { quiet: true });
                             }}
                           >
@@ -1679,6 +1721,9 @@ export default function App() {
                 {(followState.active || followState.message) && <p className="quiet-note" role="status">
                   {followState.message || ({following:'位置跟隨中；偏離門檻依定位精度調整，輕微偏離可能不會觸發。',replanning:'偵測到偏離，正在重新規劃。',uncertain:'定位精度或時間不足，暫停自動重新規劃。',failed:'暫時無法重新規劃。',unavailable:'目前路線資料不足，暫停位置跟隨。'}[followState.status]||'')}
                 </p>}
+                {nearbyWarnings(start, end).map(message => (
+                  <p key={message} className="quiet-note">{message}</p>
+                ))}
                 {routeError && (
                   <div className={`notice ${retryWithEntrance ? "route-recovery" : ""}`} role="status" ref={routeFeedback}>
                     <Info />
@@ -1707,6 +1752,29 @@ export default function App() {
                         <ArrowUpFromLine size={18} aria-hidden="true"/><span>{which==='start'?'出發地改為':'目的地改為'} {cleanName(p.name)}<small>距原選點約 {formatDistance(p.gap)}</small></span><ChevronRight size={18} aria-hidden="true"/>
                       </button>)}
                     </div>}
+                    {(retryWithEntrance || routeError === "CONSTRUCTION_BLOCKED") && start && end && graphReady && (
+                      <div className="entrance-choices">
+                        {nearbyState.status === "loading" ? (
+                          <p>正在檢查附近路網與施工… <button type="button" onClick={() => nearbySearch.current.cancel()}>取消</button></p>
+                        ) : (
+                          <button type="button" onClick={findNearbyPositions}>搜尋附近人行路網位置</button>
+                        )}
+                        {nearbyState.status === "error" && <p>{nearbyState.message}</p>}
+                        {nearbyState.status === "ready" && (
+                          <>
+                            <p>{nearbyState.candidates.length ? "選擇附近位置後會重新規劃。原地點和候選位置間的通行狀況仍待確認。" : "附近沒有找到符合條件的人行路網位置。"}</p>
+                            {nearbyState.candidates.map((candidate, index) => (
+                              <button type="button" key={`${candidate.side}-${candidate.point.id}`} onClick={() => chooseNearby(candidate)}>
+                                <span>{candidate.side === "start" ? "起點" : "目的地"}候選 {index + 1}
+                                  <small>距原位置直線約 {formatDistance(candidate.straightMetres)}</small>
+                                </span>
+                                <ChevronRight size={18} aria-hidden="true" />
+                              </button>
+                            ))}
+                          </>
+                        )}
+                      </div>
+                    )}
                     {constructionConflict?.blocked?.slice(0,3).map(w => <p key={w.id}>{w.address}：{w.match === 'vicinity' ? '鄰近影響通行的施工位置' : '與影響通行的施工範圍交會'}。{w.plan}</p>)}
                     {(retryWithEntrance || ["OFFICIAL_OUTSIDE_COVERAGE", "OFFICIAL_INVALID_POINTS", "OFFICIAL_ENTRY_UNVERIFIED", "OFFICIAL_PATH_UNVERIFIED", "OFFICIAL_ROAD_CONFLICT", "OFFICIAL_CROSSING_UNVERIFIED", "CONSTRUCTION_BLOCKED"].includes(routeError)) && (
                       <div className="route-tools">
@@ -2116,7 +2184,8 @@ export default function App() {
             onGesture={() => {
               if (
                 matchMedia("(max-width: 700px)").matches &&
-                sheetSnap > 0
+                sheetSnap > 0 &&
+                !(tab === "plan" && (pick || start || end))
               )
                 setSheetSnap(0);
             }}
