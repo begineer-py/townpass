@@ -1,0 +1,10 @@
+import fs from 'node:fs';import{gunzipSync}from'node:zlib';
+import{createRouter}from'../src/routing.mjs';import{createOfficialRouteVerifier}from'../src/verify-official-route.mjs';import{requestOfficialRoute}from'../src/official-router.mjs';import{resolveVerifiedRoute}from'../src/construction-routing.mjs';import{createDetourWaypoints,searchVerifiedAlternatives}from'../src/alternative-routes.mjs';
+const g=JSON.parse(gunzipSync(fs.readFileSync('public/data/graph.json.gz'))),fac=JSON.parse(gunzipSync(fs.readFileSync('public/data/facilities.json.gz')));
+const start=fac.find(p=>p.kind==='metro-elevator'&&p.name==='台北車站出口電梯1'),end=fac.find(p=>p.name==='中山站出口電梯2-出口5');
+const a=[start.lat,start.lon],b=[end.lat,end.lon],deps={router:createRouter(g),verifyOfficial:createOfficialRouteVerifier(g)};
+const r=await fetch('http://localhost:4173/api/construction');if(!r.ok)throw Error('Construction unavailable');const snapshot=await r.json();
+const query=(x,y,via,signal)=>requestOfficialRoute(x,y,{via},signal,'http://localhost:4173/api/accessible-route');
+const original=await query(a,b);const initial=original.error?original:resolveVerifiedRoute(original,a,b,{},snapshot,deps);const attempts=[];
+const result=await searchVerifiedAlternatives({start:a,end:b,waypoints:createDetourWaypoints(g)(a,b,initial.detourCenter),signal:AbortSignal.timeout(90000),query:async(x,y,via,signal)=>{const c=await query(x,y,via,signal);attempts.push({via,distance:c.distance,sourceError:c.error});return c;},verify:async c=>{const v=resolveVerifiedRoute(c,a,b,{},snapshot,deps);attempts.at(-1).verification=v.error||'passed';return v;}});
+const report={checkedAt:new Date().toISOString(),sourceUpdatedAt:snapshot.sourceUpdatedAt,start:{name:start.name,point:a},end:{name:end.name,point:b},initial:initial.error||'passed',attempts,accepted:!!result.route,error:result.error};fs.writeFileSync('reports/alternative-route-audit.json',JSON.stringify(report,null,2));console.log(JSON.stringify(report));

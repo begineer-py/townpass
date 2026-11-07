@@ -1,0 +1,16 @@
+{
+  "checkedAt": "2026-11-07T08:45:46.216Z",
+  "http": 200,
+  "sourceUpdatedAt": "Sat, 07 Nov 2026 08:40:48 GMT",
+  "records": 1089,
+  "blockedRecords": 112,
+  "unmappedActive": 0,
+  "privateFieldNamesPresent": false,
+  "publicRoute": {
+    "name": "大安 (official entrance requery)",
+    "provider": "taipei-official",
+    "distance": 684,
+    "nearby": 0,
+    "avoided": 0
+  }
+}

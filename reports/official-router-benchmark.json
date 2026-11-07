@@ -1,0 +1,243 @@
+[
+  {
+    "name": "大安",
+    "start": [
+      25.0332,
+      121.5355
+    ],
+    "end": [
+      25.0301,
+      121.5356
+    ],
+    "success": true,
+    "distance": 684.02,
+    "alternative": false,
+    "issues": {
+      "unfavorable": 0,
+      "unaligned": 0
+    },
+    "gaps": 0,
+    "seconds": 0.11,
+    "accepted": true,
+    "entranceConfirmation": true,
+    "startGap": 19,
+    "endGap": 138,
+    "elapsedMs": 148,
+    "checkedAt": "2026-11-07T07:40:12.594Z",
+    "responseReceived": true
+  },
+  {
+    "name": "北投",
+    "start": [
+      25.1321,
+      121.4986
+    ],
+    "end": [
+      25.1367,
+      121.5036
+    ],
+    "success": true,
+    "distance": 937.21,
+    "alternative": false,
+    "issues": {
+      "unfavorable": 0,
+      "unaligned": 0
+    },
+    "gaps": 2,
+    "seconds": 0.36,
+    "accepted": true,
+    "entranceConfirmation": true,
+    "startGap": 18,
+    "endGap": 6,
+    "elapsedMs": 134,
+    "checkedAt": "2026-11-07T07:40:12.727Z",
+    "responseReceived": true
+  },
+  {
+    "name": "士林",
+    "start": [
+      25.0933,
+      121.5262
+    ],
+    "end": [
+      25.0878,
+      121.5255
+    ],
+    "success": true,
+    "distance": 1214.13,
+    "alternative": false,
+    "issues": {
+      "unfavorable": 0,
+      "unaligned": 0
+    },
+    "gaps": 0,
+    "seconds": 0.19,
+    "accepted": true,
+    "entranceConfirmation": true,
+    "startGap": 65,
+    "endGap": 47,
+    "elapsedMs": 88,
+    "checkedAt": "2026-11-07T07:40:12.816Z",
+    "responseReceived": true
+  },
+  {
+    "name": "內湖",
+    "start": [
+      25.0834,
+      121.5655
+    ],
+    "end": [
+      25.0827,
+      121.5714
+    ],
+    "success": true,
+    "distance": 820.6,
+    "alternative": false,
+    "issues": {
+      "unfavorable": 0,
+      "unaligned": 0
+    },
+    "gaps": 1,
+    "seconds": 0.47,
+    "accepted": true,
+    "entranceConfirmation": true,
+    "startGap": 5,
+    "endGap": 2,
+    "elapsedMs": 75,
+    "checkedAt": "2026-11-07T07:40:12.891Z",
+    "responseReceived": true
+  },
+  {
+    "name": "南港",
+    "start": [
+      25.0516,
+      121.6071
+    ],
+    "end": [
+      25.0555,
+      121.6111
+    ],
+    "success": true,
+    "distance": 738.92,
+    "alternative": false,
+    "issues": {
+      "unfavorable": 0,
+      "unaligned": 0
+    },
+    "gaps": 1,
+    "seconds": 0.58,
+    "accepted": true,
+    "entranceConfirmation": true,
+    "startGap": 42,
+    "endGap": 33,
+    "elapsedMs": 49,
+    "checkedAt": "2026-11-07T07:40:12.939Z",
+    "responseReceived": true
+  },
+  {
+    "name": "信義",
+    "start": [
+      25.0331,
+      121.5637
+    ],
+    "end": [
+      25.0363,
+      121.5656
+    ],
+    "success": true,
+    "distance": 537.72,
+    "alternative": false,
+    "issues": {
+      "unfavorable": 0,
+      "unaligned": 0
+    },
+    "gaps": 1,
+    "seconds": 0.3,
+    "accepted": true,
+    "entranceConfirmation": false,
+    "startGap": 0,
+    "endGap": 0,
+    "elapsedMs": 27,
+    "checkedAt": "2026-11-07T07:40:12.966Z",
+    "responseReceived": true
+  },
+  {
+    "name": "中正",
+    "start": [
+      25.0357,
+      121.5166
+    ],
+    "end": [
+      25.0401,
+      121.513
+    ],
+    "success": true,
+    "distance": 840.07,
+    "alternative": false,
+    "issues": {
+      "unfavorable": 0,
+      "unaligned": 0
+    },
+    "gaps": 1,
+    "seconds": 0.08,
+    "accepted": true,
+    "entranceConfirmation": true,
+    "startGap": 9,
+    "endGap": 10,
+    "elapsedMs": 52,
+    "checkedAt": "2026-11-07T07:40:13.019Z",
+    "responseReceived": true
+  },
+  {
+    "name": "萬華",
+    "start": [
+      25.0353,
+      121.4995
+    ],
+    "end": [
+      25.0372,
+      121.4999
+    ],
+    "success": true,
+    "distance": 336.72,
+    "alternative": false,
+    "issues": {
+      "unfavorable": 0,
+      "unaligned": 0
+    },
+    "gaps": 0,
+    "seconds": 0.08,
+    "accepted": true,
+    "entranceConfirmation": true,
+    "startGap": 4,
+    "endGap": 30,
+    "elapsedMs": 33,
+    "checkedAt": "2026-11-07T07:40:13.052Z",
+    "responseReceived": true
+  },
+  {
+    "name": "文山",
+    "start": [
+      24.9982,
+      121.5797
+    ],
+    "end": [
+      24.9999,
+      121.5749
+    ],
+    "success": true,
+    "distance": 2060.07,
+    "alternative": true,
+    "issues": {
+      "unfavorable": 4,
+      "unaligned": 0
+    },
+    "gaps": 6,
+    "seconds": 1.1,
+    "accepted": false,
+    "rejection": "OFFICIAL_BLOCKED",
+    "elapsedMs": 846,
+    "checkedAt": "2026-11-07T07:40:13.898Z",
+    "responseReceived": true
+  }
+]

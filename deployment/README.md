@@ -1,6 +1,7 @@
-# Vercel 部署說明
+# 部署
 
-本專案是 Vite 靜態網站，路線計算在瀏覽器的 Web Worker 執行，地圖資料隨網站一併發布。部署不需要伺服器函式、資料庫、環境變數或 Flutter 專案。
+<<<<<<<< HEAD:deployment/README.md
+本專案是 Vite 網站，路線驗證在瀏覽器的 Web Worker 執行，地圖資料隨網站一併發布。根目錄 `api/accessible-route.js` 與 `api/construction.js` 會由 Vercel 建立成 Node 函式，負責轉接市府路線查詢與施工資料，所以不能只上傳 `dist`。部署不需要資料庫、環境變數或 Flutter 專案。
 
 ## 以 Git 儲存庫部署
 
@@ -24,6 +25,7 @@ Vercel 可在專案設定自訂網域；設定完成後應使用該 HTTPS 網域
 
 - 開啟部署根網址，確認首頁及地圖可正常載入。
 - 確認 `/data/graph.json.gz`、`/data/facilities.json.gz`、`/data/address-index.json` 回應成功，並確認 gzip 資料能在頁面內正常載入。
+- 確認 `POST /api/accessible-route` 與施工 API 正常；以 GET 呼叫回 405 是預期行為。
 - 確認路線規劃、設施搜尋、地址搜尋及 Service Worker 離線快取可用。
 - 在手機 HTTPS 瀏覽器測試定位權限；台北通 WebView 也需由宿主允許網站定位。
 - 更新資料或程式後重新部署，確認正式網址仍載入新版本。
@@ -37,3 +39,6 @@ npm run preview
 ```
 
 Vite 會先驗證路網資料，再將靜態成品輸出至 `dist/`。Vercel 的 Vite 設定與輸出目錄可參考[官方建置設定說明](https://vercel.com/docs/builds/configure-a-build)；Git 連接與自動部署方式請參考[官方 Git 部署說明](https://vercel.com/docs/git)。
+========
+Vercel 設定與發布流程集中於 [deployment/README.md](deployment/README.md)。
+>>>>>>>> origin/codex/accessibility-map-dev:DEPLOYMENT.md

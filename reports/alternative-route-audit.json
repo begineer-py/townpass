@@ -1,0 +1,79 @@
+{
+  "checkedAt": "2026-11-07T09:05:45.576Z",
+  "sourceUpdatedAt": "Sat, 07 Nov 2026 09:00:53 GMT",
+  "start": {
+    "name": "台北車站出口電梯1",
+    "point": [
+      25.0482356,
+      121.5186428
+    ]
+  },
+  "end": {
+    "name": "中山站出口電梯2-出口5",
+    "point": [
+      25.0529936,
+      121.5194307
+    ]
+  },
+  "initial": "OFFICIAL_PATH_UNVERIFIED",
+  "attempts": [
+    {
+      "via": [
+        25.0468678,
+        121.5199621
+      ],
+      "distance": 1283,
+      "verification": "OFFICIAL_PATH_UNVERIFIED"
+    },
+    {
+      "via": [
+        25.0485756,
+        121.516445
+      ],
+      "distance": 987,
+      "verification": "OFFICIAL_PATH_UNVERIFIED"
+    },
+    {
+      "via": [
+        25.046293,
+        121.5177943
+      ],
+      "distance": 1766,
+      "verification": "OFFICIAL_PATH_UNVERIFIED"
+    },
+    {
+      "via": [
+        25.0465709,
+        121.5166126
+      ],
+      "distance": 1525,
+      "verification": "OFFICIAL_PATH_UNVERIFIED"
+    },
+    {
+      "via": [
+        25.050265,
+        121.5201238
+      ],
+      "distance": 1141,
+      "verification": "OFFICIAL_PATH_UNVERIFIED"
+    },
+    {
+      "via": [
+        25.0483835,
+        121.5200398
+      ],
+      "distance": 1148,
+      "verification": "OFFICIAL_PATH_UNVERIFIED"
+    },
+    {
+      "via": [
+        25.0508314,
+        121.5168326
+      ],
+      "distance": 1058,
+      "verification": "OFFICIAL_PATH_UNVERIFIED"
+    }
+  ],
+  "accepted": false,
+  "error": "NO_VERIFIED_ALTERNATIVE"
+}
