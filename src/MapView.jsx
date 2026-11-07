@@ -12,6 +12,7 @@ import {
 } from "./official-sidewalks.mjs";
 import { TPColors } from "./tp-colors.mjs";
 const colors = {
+  place: TPColors.grayscale600,
   elevator: TPColors.primary700,
   toilet: TPColors.grayscale700,
   rest: TPColors.secondary800,
@@ -25,6 +26,7 @@ const colors = {
 };
 // 每個設施都有文字代號，不只靠顏色辨認。
 const glyphs = {
+  place: "店",
   elevator: "梯",
   toilet: "廁",
   "public-toilet": "廁",

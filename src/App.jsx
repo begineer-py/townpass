@@ -320,7 +320,7 @@ export default function App() {
     return Object.prototype.hasOwnProperty.call(BASEMAPS, v) ? v : "street";
   });
   const [basemapStatus, setBasemapStatus] = useState("loading");
-  // 官方通行線（人行道）預設顯示；使用者關掉後會記住。
+  // 人行道圖層（官方無障礙通行線）預設顯示；使用者關掉後會記住。
   const [showOfficialSidewalk, setShowOfficialSidewalk] = useState(() =>
     readSaved("hhz-show-sidewalk", true),
   );
@@ -844,6 +844,22 @@ export default function App() {
       ),
     [facilities, viewport],
   );
+  // 商店、餐廳等一般地點（places 裡 kind 為 place）：放大到街區（縮放 17 以上）才顯示，
+  // 避免整張地圖都是點；最多 250 個，由近到遠。
+  const poiItems = useMemo(() => {
+    if (!data || (viewport.zoom ?? 15) < 17) return [];
+    return data.places
+      .filter(
+        (p) =>
+          p.kind === "place" &&
+          p.lat >= viewport.bounds[0] &&
+          p.lat <= viewport.bounds[2] &&
+          p.lon >= viewport.bounds[1] &&
+          p.lon <= viewport.bounds[3],
+      )
+      .sort((a, b) => distance(viewport, a) - distance(viewport, b))
+      .slice(0, 250);
+  }, [data, viewport]);
   const avoidPoints = useMemo(() => activeElevatorStops(data), [data]);
   const searchResults = useMemo(() => {
     if (!searchFor || !data || !profileReady) return [];
@@ -1722,13 +1738,14 @@ export default function App() {
         </aside>
         <main className="map-area" aria-label="地圖與設施">
           <MapView
-            items={
-              route
+            items={[
+              ...(route
                 ? routeMapItems
                 : tab === "explore"
                   ? mapItems
-                  : endpointStationExits
-            }
+                  : endpointStationExits),
+              ...(route ? [] : poiItems),
+            ]}
             basemap={basemap}
             showOfficialSidewalk={showOfficialSidewalk}
             colorFriendly={prefs.colorFriendly}
@@ -1813,7 +1830,7 @@ export default function App() {
                   <span className="layer-toggle-copy">
                     <b>
                       <i className="sidewalk-legend" aria-hidden="true" />
-                      官方通行線
+                      人行道
                     </b>
                     {sidewalkStatusText[officialSidewalkStatus] && (
                       <small>
@@ -2142,6 +2159,35 @@ export default function App() {
                 <Icon kind={category(selected)} />
                 {labels[category(selected)] || "地點"}
               </div>
+              <button
+                className="primary full detail-primary"
+                aria-label={`導航到${cleanName(selected.name)}`}
+                onClick={() => navigateTo(selected)}
+              >
+                <Navigation size={22} aria-hidden="true" />
+                導航
+              </button>
+              {(selected.wheelchair || selected.phone) && (
+                <div className="detail-facts">
+                  {selected.wheelchair && (
+                    <div>
+                      <small>輪椅</small>
+                      <b>
+                        {{ yes: "可以進入", designated: "可以進入", limited: "部分可進入", no: "無法進入" }[selected.wheelchair] ||
+                          "未知"}
+                      </b>
+                    </div>
+                  )}
+                  {selected.phone && (
+                    <div>
+                      <small>電話</small>
+                      <b>
+                        <a href={`tel:${String(selected.phone).replace(/[^\d+]/g, "")}`}>{selected.phone}</a>
+                      </b>
+                    </div>
+                  )}
+                </div>
+              )}
               {selected.address && (
                 <p className="detail-address">
                   <MapPin size={18} />
@@ -2192,14 +2238,6 @@ export default function App() {
                       : "這是公開資料記載的位置，實際通行與開放情形請留意現場。"}
                 </p>
               </div>
-              <button
-                className="primary full detail-primary"
-                aria-label="我要到這裡"
-                onClick={() => navigateTo(selected)}
-              >
-                <Navigation size={22} aria-hidden="true" />
-                前往這裡
-              </button>
               <div className="detail-actions icon-actions">
                 <button
                   className="secondary"
