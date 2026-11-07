@@ -24,11 +24,13 @@ export default function MapView({
   focus,
   pick,
   basemap = "street",
+  colorFriendly = false,
   onBasemapStatus,
   onPick,
   onSelect,
   onViewport,
   onMapReady,
+  onGesture,
 }) {
   const root = useRef(),
     map = useRef(),
@@ -36,8 +38,8 @@ export default function MapView({
     path = useRef(),
     ends = useRef();
   const baseLayers = useRef([]);
-  const cb = useRef({ onPick, onSelect, onViewport, pick });
-  cb.current = { onPick, onSelect, onViewport, pick };
+  const cb = useRef({ onPick, onSelect, onViewport, onGesture, pick });
+  cb.current = { onPick, onSelect, onViewport, onGesture, pick };
   useEffect(() => {
     const m = L.map(root.current, {
       zoomControl: false,
@@ -70,11 +72,22 @@ export default function MapView({
           id: `point-${Date.now()}`,
         });
     });
+    // User pan/zoom gestures only (not taps, not fitBounds/setView), so the
+    // phone sheet can get out of the way the way Google Maps does.
+    const gesture = () => cb.current.onGesture?.();
+    const el = root.current;
+    const pinch = (e) => e.touches.length > 1 && gesture();
+    m.on("dragstart", gesture);
+    m.on("dblclick", gesture);
+    el.addEventListener("wheel", gesture, { passive: true });
+    el.addEventListener("touchstart", pinch, { passive: true });
     viewport();
     onMapReady(m);
-    const observer = new ResizeObserver(() => m.invalidateSize());
+    const observer = new ResizeObserver(() => m.invalidateSize({pan:false, debounceMoveend:true}));
     observer.observe(root.current);
     return () => {
+      el.removeEventListener("wheel", gesture);
+      el.removeEventListener("touchstart", pinch);
       observer.disconnect();
       m.remove();
     };
@@ -146,9 +159,9 @@ export default function MapView({
     for (const bucket of buckets.values()) {
       const p = bucket[0],
         count = bucket.length,
-        color = colors[category(p)] || TPColors.primary700;
+        color = colorFriendly ? TPColors.primary900 : colors[category(p)] || TPColors.primary700;
       const marker = L.circleMarker([p.lat, p.lon], {
-        radius: count > 1 ? 12 : 6,
+        radius: count > 1 || colorFriendly ? 12 : 6,
         color: TPColors.white,
         weight: 2,
         fillColor: color,
@@ -168,11 +181,19 @@ export default function MapView({
           m.setView([p.lat, p.lon], Math.min(19, m.getZoom() + 2)),
         );
       } else {
-        marker.bindTooltip(tip, { direction: "top" });
-        marker.on("click", () => cb.current.onSelect(p));
+        if (colorFriendly) {
+          const label = document.createElement('span');
+          label.textContent = ({elevator:'梯',toilet:'廁','public-toilet':'廁',rest:'休',water:'水',park:'園',ramp:'坡',station:'站',friendly:'店',parking:'停',bus:'車',health:'醫'})[category(p)] || '點';
+          marker.bindTooltip(label, {permanent:true,direction:'center',className:'cluster-label'});
+        } else marker.bindTooltip(tip, { direction: "top" });
+        marker.on("click", (ev) => {
+          L.DomEvent.stopPropagation(ev);
+          if (cb.current.pick) cb.current.onPick(p);
+          else cb.current.onSelect(p);
+        });
       }
     }
-  }, [items, focus]);
+  }, [items, focus, colorFriendly]);
   useEffect(() => {
     if (!path.current) return;
     path.current.clearLayers();
@@ -187,6 +208,7 @@ export default function MapView({
         weight: 6,
         opacity: 1,
         lineCap: "round",
+        dashArray: route.requiresEntryConfirmation ? "8 6" : undefined,
       }).addTo(path.current);
       map.current.fitBounds(L.latLngBounds(route.coordinates).pad(0.2));
     }
@@ -218,7 +240,20 @@ export default function MapView({
       el.textContent = p.name;
       marker.bindTooltip(el);
     });
-  }, [start, end, location]);
+    if (route?.requiresEntryConfirmation) {
+      [route.coordinates[0], route.coordinates.at(-1)].forEach((p, i) => {
+        const text = i ? "路線終點" : "路線起點";
+        L.marker(p, {
+          icon: L.divIcon({
+            className: "route-entry-marker",
+            html: `<span>${text}</span>`,
+            iconSize: [72, 28],
+            iconAnchor: [36, 14],
+          }),
+        }).addTo(ends.current);
+      });
+    }
+  }, [start, end, route, location]);
   useEffect(() => {
     if (focus?.lat && map.current)
       map.current.setView([focus.lat, focus.lon], focus.zoom || 17);

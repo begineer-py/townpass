@@ -23,6 +23,10 @@ export const normalize = (s) =>
     .replace(/臺/g, "台")
     .replace(/[\s・·（）()\-]/g, "")
     .toLowerCase();
+export function isLandmark(p) {
+  const kind = category(p);
+  return kind === "park" || kind === "station";
+}
 export function category(p) {
   return (
     {

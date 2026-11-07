@@ -1,12 +1,22 @@
 {
   "files.exclude": {
-    "**/tests": true,
-    "**/*.test.*": true,
-    "**/*.spec.*": true
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/.venv": true,
+    "**/__pycache__": true,
+    "tests": true,
+    "data/raw": true,
+    "data/processed": true,
+    "tests/**": true,
+    "reports/**": true,
+    "public/data/addresses/**": true
   },
   "search.exclude": {
-    "**/tests/**": true,
-    "**/*.test.*": true,
-    "**/*.spec.*": true
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/data/raw": true,
+    "tests/**": true,
+    "reports/**": true,
+    "public/data/addresses/**": true
   }
 }

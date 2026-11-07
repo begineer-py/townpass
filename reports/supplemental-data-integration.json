@@ -1,0 +1,59 @@
+{
+  "processedAt": "2026-11-07T08:26:05.532442+00:00",
+  "polygonsBySource": {
+    "sidewalk-range-2026": 15055,
+    "marked-sidewalk-2026": 18731
+  },
+  "excludedMarkings": {
+    "unconfirmedMarkingType": 22522
+  },
+  "rampRawCount": 34684,
+  "newRampPoints": 6579,
+  "totalFacilities": 46612,
+  "sources": [
+    {
+      "id": "sidewalk-range-2026",
+      "name": "人行道範圍圖",
+      "url": "https://data.taipei/dataset/detail?id=715d3a83-8445-4496-b6bf-b0900538b7e7",
+      "endpoint": "https://data.taipei/api/frontstage/tpeod/dataset/resource.download?rid=b11d6142-1d71-41d5-a843-7b7cfcea61ef",
+      "sourceUpdatedAt": "2026-01-14",
+      "processedAt": "2026-11-07T08:26:05.532442+00:00",
+      "sha256": "edd23396fc53bf39e2e08a752b2886dce3039edbf813fdada27ac57ae2d11b6c",
+      "status": "ok",
+      "observedAt": null
+    },
+    {
+      "id": "crosswalk-2026",
+      "name": "行穿線",
+      "url": "https://data.taipei/dataset/detail?id=4d6bd0c6-9f56-408b-bb96-ac41134a95d5",
+      "endpoint": "https://data.taipei/api/frontstage/tpeod/dataset/resource.download?rid=d56fe03c-0fbd-4a8b-998e-205a5e169211",
+      "sourceUpdatedAt": "2026-03-19",
+      "processedAt": "2026-11-07T08:26:05.532442+00:00",
+      "sha256": "a7f4241ea1ecccfb09050fb38f4d8537a7f5ec1d4134eb7b8929217601ba0493",
+      "status": "ok",
+      "observedAt": null
+    },
+    {
+      "id": "marked-sidewalk-2026",
+      "name": "標線型人行道匯出（僅採已確認行穿線代碼）",
+      "url": "https://data.taipei/dataset/detail?id=d647b3af-4bbd-4e8f-b420-8f6c1bc1b597",
+      "endpoint": "https://data.taipei/api/frontstage/tpeod/dataset/resource.download?rid=2d82d5f1-8f97-45db-89df-162ba161dedb",
+      "sourceUpdatedAt": "2026-10-30",
+      "processedAt": "2026-11-07T08:26:05.532442+00:00",
+      "sha256": "c17a853905ee242f88a9cbdefd4cf59130c08ab0eae40495365b6d36857a70a9",
+      "status": "ok",
+      "observedAt": null
+    },
+    {
+      "id": "curb-ramps-2026",
+      "name": "人行道無障礙斜坡道",
+      "url": "https://data.taipei/dataset/detail?id=8ab0c662-b560-4310-a825-001ae7fdc524",
+      "endpoint": "https://data.taipei/api/frontstage/tpeod/dataset/resource.download?rid=ee522d94-daa7-4118-b52a-4bf144af2744",
+      "sourceUpdatedAt": "2026-01-14",
+      "processedAt": "2026-11-07T08:26:05.532442+00:00",
+      "sha256": "ff19ae7430b5c96a7b8d610271ebfd044966af2ae9d09162127e9b31e865fe62",
+      "status": "ok",
+      "observedAt": null
+    }
+  ]
+}

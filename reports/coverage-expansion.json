@@ -1,0 +1,69 @@
+{
+  "checkedAt": "2026-11-07T08:27:53.575543+00:00",
+  "method": "Exact polygon union in EPSG:3826, no buffers; cached public route samples; coverage only, not pass rate",
+  "results": [
+    {
+      "name": "大安",
+      "lengthM": 684.02,
+      "missingBeforeM": 0.001,
+      "missingAfterM": 0.0,
+      "recoveredM": 0.001
+    },
+    {
+      "name": "北投",
+      "lengthM": 937.21,
+      "missingBeforeM": 279.509,
+      "missingAfterM": 190.271,
+      "recoveredM": 89.239
+    },
+    {
+      "name": "士林",
+      "lengthM": 1214.13,
+      "missingBeforeM": 216.684,
+      "missingAfterM": 185.326,
+      "recoveredM": 31.358
+    },
+    {
+      "name": "內湖",
+      "lengthM": 820.6,
+      "missingBeforeM": 173.513,
+      "missingAfterM": 113.73,
+      "recoveredM": 59.783
+    },
+    {
+      "name": "南港",
+      "lengthM": 738.92,
+      "missingBeforeM": 254.506,
+      "missingAfterM": 217.438,
+      "recoveredM": 37.068
+    },
+    {
+      "name": "信義",
+      "lengthM": 537.72,
+      "missingBeforeM": 347.434,
+      "missingAfterM": 328.144,
+      "recoveredM": 19.291
+    },
+    {
+      "name": "中正",
+      "lengthM": 840.07,
+      "missingBeforeM": 113.57,
+      "missingAfterM": 97.239,
+      "recoveredM": 16.331
+    },
+    {
+      "name": "萬華",
+      "lengthM": 336.72,
+      "missingBeforeM": 119.789,
+      "missingAfterM": 42.692,
+      "recoveredM": 77.097
+    },
+    {
+      "name": "文山",
+      "lengthM": 2063.54,
+      "missingBeforeM": 250.893,
+      "missingAfterM": 173.246,
+      "recoveredM": 77.647
+    }
+  ]
+}
