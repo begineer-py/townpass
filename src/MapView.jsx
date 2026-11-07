@@ -12,6 +12,7 @@ import {
   visibleSidewalkIssues,
   visibleSidewalkLines,
 } from "./official-sidewalks.mjs";
+import { ROUTE_CONDITIONS, conditionForSegment } from "./route-conditions.mjs";
 import { TPColors } from "./tp-colors.mjs";
 import { mapIconElement } from "./map-icons.mjs";
 import { NO_WALK_URLS } from "./issue-icons.mjs";
@@ -64,9 +65,17 @@ const labelWidth = (name) =>
     99,
     [...name].reduce((w, ch) => w + (ch.charCodeAt(0) > 0x2e80 ? 11 : 6.5), 0),
   ) + 4;
+function drawOfficialConditions(group,conditions){
+  for(const point of conditions?.points||[]){
+    if(!Number.isFinite(point.lat)||!Number.isFinite(point.lon))continue;
+    const label=document.createElement('span');label.textContent=`${point.label}；與路線的實際關係未確認`;
+    L.circleMarker([point.lat,point.lon],{radius:6,color:TPColors.white,weight:2,fillColor:TPColors.orange700,fillOpacity:1}).bindTooltip(label).addTo(group);
+  }
+}
 export default function MapView({
   items,
   route,
+  partialRoute,
   start,
   end,
   location,
@@ -137,6 +146,7 @@ export default function MapView({
           lat: e.latlng.lat,
           lon: e.latlng.lng,
           name: "地圖上選的位置",
+          originKind: "map",
           id: `point-${Date.now()}`,
         });
     });
@@ -263,7 +273,7 @@ export default function MapView({
     const draw = () => {
       if (!active || !features) return;
       clear();
-      if (m.getZoom() < 14) {
+      if (m.getZoom() < 16) {
         onOfficialSidewalkStatus?.("zoom");
         return;
       }
@@ -331,6 +341,11 @@ export default function MapView({
       drawing.addTo(m);
       onOfficialSidewalkStatus?.("ready");
     };
+    let redrawTimer;
+    const scheduleDraw = () => {
+      clearTimeout(redrawTimer);
+      redrawTimer = setTimeout(draw, 120);
+    };
     onOfficialSidewalkStatus?.("loading");
     // 不利通行點位載入失敗時，人行道照常顯示。
     loadSidewalkIssues()
@@ -349,14 +364,15 @@ export default function MapView({
         if (!active) return;
         features = result;
         draw();
-        m.on("moveend", draw);
+        m.on("moveend", scheduleDraw);
       })
       .catch(() => {
         if (active) onOfficialSidewalkStatus?.("error");
       });
     return () => {
       active = false;
-      m.off("moveend", draw);
+      clearTimeout(redrawTimer);
+      m.off("moveend", scheduleDraw);
       clear();
       renderer.remove();
     };
@@ -386,8 +402,8 @@ export default function MapView({
         key =
           p.kind === "metro-elevator"
             ? `metro-exit:${p.id}`
-            : category(p) === "station"
-              ? `station:${p.lat.toFixed(5)}:${p.lon.toFixed(5)}`
+            : p.overview || category(p) === "station"
+              ? `landmark:${p.lat.toFixed(5)}:${p.lon.toFixed(5)}`
               : `${Math.floor(pos.x / cell)}:${Math.floor(pos.y / cell)}`;
       if (!buckets.has(key)) buckets.set(key, []);
       buckets.get(key).push(p);
@@ -445,9 +461,8 @@ export default function MapView({
           m.setView([p.lat, p.lon], Math.min(19, m.getZoom() + 2)),
         );
       } else {
-        if (p.kind === "metro-elevator")
-          face.classList.add("metro-exit-face");
-        const exitIcon = p.kind === "metro-elevator" ? metroExitIconUrl(p) : "";
+        const exitIcon = metroExitIconUrl(p);
+        if (exitIcon || p.kind === "metro-elevator") face.classList.add("metro-exit-face");
         if (exitIcon) {
           face.classList.add("has-exit-icon");
           const img = document.createElement("img");
@@ -477,7 +492,7 @@ export default function MapView({
         marker = L.marker([p.lat, p.lon], {
           icon: L.divIcon({
             className:
-              p.kind === "metro-elevator"
+              exitIcon || p.kind === "metro-elevator"
                 ? "fac-pin metro-exit-pin"
                 : p.landmark
                   ? "fac-pin landmark"
@@ -501,7 +516,7 @@ export default function MapView({
         });
       }
     }
-  }, [items, focus, colorFriendly]);
+  }, [items, colorFriendly]);
   useEffect(() => {
     if (!path.current) return;
     path.current.clearLayers();
@@ -578,8 +593,29 @@ export default function MapView({
         layer.bindTooltip(label, { direction: "top" });
       }
       map.current.fitBounds(L.latLngBounds(route.coordinates).pad(0.2));
+    } else if (partialRoute) {
+      const bounds=[];
+      for(const segment of partialRoute.segments){
+        drawOfficialConditions(path.current,segment.officialConditions);
+        bounds.push(...segment.coordinates);
+        L.polyline(segment.networkCoordinates,{color:TPColors.white,weight:10,opacity:1}).addTo(path.current);
+        if(segment.tierSegments.length){
+          for(const tier of segment.tierSegments){const style=ROUTE_CONDITIONS[conditionForSegment(tier)];L.polyline(tier.coordinates,{color:colorFriendly?TPColors.primary900:style.color,weight:5,dashArray:style.dash,opacity:1}).addTo(path.current);}
+        }else{
+          const style=ROUTE_CONDITIONS.unknown;L.polyline(segment.networkCoordinates,{color:colorFriendly?TPColors.primary900:style.color,weight:5,dashArray:style.dash,opacity:1}).addTo(path.current);
+        }
+        for(const crossing of segment.crossingUncertainties||[]){const coords=crossing.coordinates;if(!Array.isArray(coords)||coords.length<2||!coords.every(p=>Array.isArray(p)&&p.length>=2&&Number.isFinite(p[0])&&Number.isFinite(p[1])))continue;L.polyline(coords,{color:TPColors.primary900,weight:3,dashArray:'2 5',opacity:.9}).bindTooltip('OSM 過街位置，官方資料未完整確認').addTo(path.current);}
+        for(const approach of segment.approaches){const style=ROUTE_CONDITIONS.approach;L.polyline(approach.coordinates,{color:TPColors.white,weight:8,opacity:1}).addTo(path.current);const l=L.polyline(approach.coordinates,{color:colorFriendly?TPColors.primary900:style.color,weight:4,dashArray:style.dash}).addTo(path.current);if(approach.estimated)l.bindTooltip('入口銜接為位置估算，實際通行狀況未確認');}
+      }
+      for(const [side,label] of [['startSide','起點側路段到此'],['endSide','目的地側路段由此開始']]){
+        const point=partialRoute.gap[side];if(!point)continue;bounds.push(point);
+        L.circleMarker(point,{radius:9,color:TPColors.white,weight:3,fillColor:TPColors.orange700,fillOpacity:1}).bindTooltip(label,{permanent:true,direction:side==='startSide'?'top':'bottom',offset:side==='startSide'?[0,-8]:[0,8]}).addTo(path.current);
+      }
+      if (bounds.length) {
+        map.current.fitBounds(L.latLngBounds(bounds).pad(0.2), { maxZoom: 17 });
+      }
     }
-  }, [route]);
+  }, [route, partialRoute, colorFriendly]);
   useEffect(() => {
     if (!ends.current) return;
     ends.current.clearLayers();
@@ -632,7 +668,7 @@ export default function MapView({
   }, [start, end, route, location]);
   useEffect(() => {
     if (focus?.lat && map.current)
-      map.current.setView([focus.lat, focus.lon], focus.zoom || 17);
+      map.current.setView([focus.lat, focus.lon], focus.zoom ?? Math.max(17, map.current.getZoom()));
   }, [focus?.token]);
   return (
     <div
