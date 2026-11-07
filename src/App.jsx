@@ -24,7 +24,6 @@ import {
   SlidersHorizontal,
   TrainFront,
   Accessibility,
-  Footprints,
   Toilet,
   ArrowUpFromLine,
   Armchair,
@@ -412,7 +411,6 @@ export default function App() {
       onSnapshot: (snapshot) => { lastConstruction.current = snapshot; },
     });
   const [constructionConflict,setConstructionConflict] = useState(null);
-  const [routeAttempt,setRouteAttempt]=useState(0);
   const verificationSequence = useRef(0);
   function verifyOnlineRoute(route, start, end, requestId, construction, options) {
     return new Promise(resolve => {
@@ -736,7 +734,6 @@ export default function App() {
     setPartialRoute(null);
     conditionDetourSearch.current.cancel();
     setConstructionConflict(null);
-    setRouteAttempt(0);
     for(const resolve of pendingVerifications.current.values()) resolve({error:'UNVERIFIED_NETWORK'});
     pendingVerifications.current.clear();
     officialRequest.current?.abort();
@@ -992,7 +989,6 @@ export default function App() {
           if(id!==request.current)return;
           if(!via && verified.error && verified.detourWaypoints?.length){
             const alternatives=await searchVerifiedAlternatives({start:[from.lat,from.lon],end:[to.lat,to.lon],waypoints:verified.detourWaypoints,signal:controller.signal,
-              onProgress:n=>{if(id===request.current)setRouteAttempt(n);},
               query:(a,b,via,signal)=>requestOfficialRoute(a,b,{...prefs,via},signal),
               verify:candidate=>verifyOnlineRoute(candidate,[from.lat,from.lon],[to.lat,to.lon],id,construction,options)});
             if(id!==request.current)return;
@@ -1508,6 +1504,7 @@ export default function App() {
       <div className="workspace" data-sheet={sheetSnap}>
         <aside
           className="panel"
+          data-tab={tab}
           id="main-content"
           ref={panelEl}
           data-snap={sheetSnap}
@@ -1729,15 +1726,11 @@ export default function App() {
                   ) : (
                     <Route size={19} />
                   )}{" "}
-                  {routing ? (routeAttempt ? `正在嘗試第 ${routeAttempt} 條繞路…` : "正在找路線…") : "規劃路線"}
+                  {routing ? "正在找路線…" : "規劃路線"}
                   <ArrowRight size={19} />
                 </button>
-                {!graphReady && !online && (
-                  <p className="quiet-note">
-                    {graphError
-                      ? "路線資料暫時讀取不到，請重新整理再試。"
-                      : "路網正在背景準備，請先選擇起點與終點。"}
-                  </p>
+                {graphError && !online && (
+                  <p className="quiet-note" role="status">路線資料讀取失敗，請重新整理再試。</p>
                 )}
                 {nearbyWarnings(start, end).map(message => (
                   <p key={message} className="quiet-note">{message}</p>
@@ -1806,29 +1799,20 @@ export default function App() {
                 {route && (
                   <>
                     <div className="route-summary">
-                      <div>
-                        <span className="eyebrow">路線預覽</span>
-                        <h2>{formatDistance(route.distance)}</h2>
-                      </div>
-                      <span className="route-symbol">
-                        <Footprints size={32} />
-                      </span>
+                      <h2>全程 {formatDistance(route.distance)}</h2>
                     </div>
                     {(route.requiresEntryConfirmation || route.approaches?.some(point => point.estimated) ||
                       route.startGap > 10 || route.endGap > 10) && (
-                      <p className="quiet-note" role="note">出發前，請先確認入口能否通行。</p>
+                      <p className="quiet-note" role="note">請先確認入口能否通行。</p>
                     )}
                     {route.roadPct > 0 && (
-                      <p className="quiet-note" role="note">有些路段可能要與車輛共用道路，請留意來車。</p>
+                      <p className="quiet-note" role="note">部分路段可能人車共用，請留意來車。</p>
                     )}
                     {route.officialConditions?.points?.length > 0 && (
-                      <p className="quiet-note" role="note">路線附近有通行問題紀錄，可在路線詳情查看。</p>
+                      <p className="quiet-note" role="note">沿途附近有通行問題紀錄。</p>
                     )}
                     {routeWorks.length > 0 && (
-                      <p className="quiet-note" role="note">路線附近有施工，請留意現場指引。</p>
-                    )}
-                    {route.officialConditions?.status === "unavailable" && (
-                      <p className="quiet-note" role="note">目前查不到沿途通行問題紀錄。</p>
+                      <p className="quiet-note" role="note">附近有施工，請留意現場指引。</p>
                     )}
                     {(followState.active || (!route.viaName && !route.requiresEntryConfirmation && !route.conditionDetour)) && (
                       <button type="button" className="primary full" disabled={routing}

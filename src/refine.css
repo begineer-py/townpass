@@ -1478,3 +1478,31 @@ button.icon-action {
   font-weight: 600;
   cursor: pointer;
 }
+
+.panel[data-tab="plan"] .route-summary h2 {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+}
+
+.panel[data-tab="plan"] .point-main strong,
+.panel[data-tab="plan"] .primary.full,
+.panel[data-tab="plan"] .route-disclosure > summary {
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.panel[data-tab="plan"] .point-main small,
+.panel[data-tab="plan"] .quiet-note,
+.panel[data-tab="plan"] .notice p,
+.panel[data-tab="plan"] .steps small {
+  color: var(--tp-grayscale900);
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.panel[data-tab="plan"] .route-summary h2,
+.panel[data-tab="plan"] .route-disclosure > summary,
+.panel[data-tab="plan"] .endpoints .point-fields strong.placeholder {
+  color: var(--tp-grayscale900);
+}
