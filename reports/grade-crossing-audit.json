@@ -1,0 +1,348 @@
+{
+  "summary": {
+    "checkedAt": "2026-11-07T13:44:58.901073+00:00",
+    "checkedEdges": 363,
+    "maskedRoadSegments": 3544,
+    "excludedEdges": 15,
+    "conflictCounts": {
+      "shared-node": 24,
+      "unknown-layer": 4
+    },
+    "method": "exact OSM node/source checks; shared nodes require official crossing; different explicit layers or implicit ground road treated as map separation only; no real-world safety certification"
+  },
+  "excluded": [
+    {
+      "edgeIndex": 98623,
+      "wayOsmId": 616648137,
+      "nodeOsmIds": [
+        5829765118,
+        5753565092
+      ],
+      "sourceVerified": true,
+      "conflicts": [
+        {
+          "roadOsmId": 606989626,
+          "reason": "shared-node",
+          "pedLayer": 1.0,
+          "roadLayer": 0
+        }
+      ]
+    },
+    {
+      "edgeIndex": 104387,
+      "wayOsmId": 659566468,
+      "nodeOsmIds": [
+        3885280913,
+        3885280917
+      ],
+      "sourceVerified": true,
+      "conflicts": [
+        {
+          "roadOsmId": 255691575,
+          "reason": "unknown-layer",
+          "pedLayer": 1.0,
+          "roadLayer": null
+        }
+      ]
+    },
+    {
+      "edgeIndex": 135340,
+      "wayOsmId": 866629332,
+      "nodeOsmIds": [
+        8882907546,
+        8882907547
+      ],
+      "sourceVerified": true,
+      "conflicts": [
+        {
+          "roadOsmId": 378922041,
+          "reason": "shared-node",
+          "pedLayer": 1.0,
+          "roadLayer": 0
+        },
+        {
+          "roadOsmId": 378922041,
+          "reason": "shared-node",
+          "pedLayer": 1.0,
+          "roadLayer": 0
+        }
+      ]
+    },
+    {
+      "edgeIndex": 138348,
+      "wayOsmId": 909274094,
+      "nodeOsmIds": [
+        8442505393,
+        8442504962
+      ],
+      "sourceVerified": true,
+      "conflicts": [
+        {
+          "roadOsmId": 316665569,
+          "reason": "shared-node",
+          "pedLayer": 1.0,
+          "roadLayer": 1.0
+        },
+        {
+          "roadOsmId": 316665569,
+          "reason": "shared-node",
+          "pedLayer": 1.0,
+          "roadLayer": 1.0
+        }
+      ]
+    },
+    {
+      "edgeIndex": 138349,
+      "wayOsmId": 909274094,
+      "nodeOsmIds": [
+        8442504962,
+        8442504963
+      ],
+      "sourceVerified": true,
+      "conflicts": [
+        {
+          "roadOsmId": 316665569,
+          "reason": "shared-node",
+          "pedLayer": 1.0,
+          "roadLayer": 1.0
+        },
+        {
+          "roadOsmId": 316665569,
+          "reason": "shared-node",
+          "pedLayer": 1.0,
+          "roadLayer": 1.0
+        }
+      ]
+    },
+    {
+      "edgeIndex": 138351,
+      "wayOsmId": 909274095,
+      "nodeOsmIds": [
+        8442504990,
+        7561216675
+      ],
+      "sourceVerified": true,
+      "conflicts": [
+        {
+          "roadOsmId": 316665577,
+          "reason": "shared-node",
+          "pedLayer": 1.0,
+          "roadLayer": 1.0
+        },
+        {
+          "roadOsmId": 316665577,
+          "reason": "shared-node",
+          "pedLayer": 1.0,
+          "roadLayer": 1.0
+        }
+      ]
+    },
+    {
+      "edgeIndex": 138352,
+      "wayOsmId": 909274095,
+      "nodeOsmIds": [
+        7561216675,
+        8442505396
+      ],
+      "sourceVerified": true,
+      "conflicts": [
+        {
+          "roadOsmId": 316665577,
+          "reason": "shared-node",
+          "pedLayer": 1.0,
+          "roadLayer": 1.0
+        },
+        {
+          "roadOsmId": 316665577,
+          "reason": "shared-node",
+          "pedLayer": 1.0,
+          "roadLayer": 1.0
+        }
+      ]
+    },
+    {
+      "edgeIndex": 142059,
+      "wayOsmId": 960082420,
+      "nodeOsmIds": [
+        8882907529,
+        5315951512
+      ],
+      "sourceVerified": true,
+      "conflicts": [
+        {
+          "roadOsmId": 550376917,
+          "reason": "shared-node",
+          "pedLayer": 1.0,
+          "roadLayer": 0
+        },
+        {
+          "roadOsmId": 550376917,
+          "reason": "shared-node",
+          "pedLayer": 1.0,
+          "roadLayer": 0
+        }
+      ]
+    },
+    {
+      "edgeIndex": 142060,
+      "wayOsmId": 960082420,
+      "nodeOsmIds": [
+        5315951512,
+        8882907528
+      ],
+      "sourceVerified": true,
+      "conflicts": [
+        {
+          "roadOsmId": 550376917,
+          "reason": "shared-node",
+          "pedLayer": 1.0,
+          "roadLayer": 0
+        },
+        {
+          "roadOsmId": 550376917,
+          "reason": "shared-node",
+          "pedLayer": 1.0,
+          "roadLayer": 0
+        }
+      ]
+    },
+    {
+      "edgeIndex": 144811,
+      "wayOsmId": 1007177131,
+      "nodeOsmIds": [
+        9291785999,
+        3909033164
+      ],
+      "sourceVerified": true,
+      "conflicts": [
+        {
+          "roadOsmId": 87192059,
+          "reason": "shared-node",
+          "pedLayer": 1.0,
+          "roadLayer": 0
+        },
+        {
+          "roadOsmId": 87192059,
+          "reason": "shared-node",
+          "pedLayer": 1.0,
+          "roadLayer": 0
+        },
+        {
+          "roadOsmId": 387653618,
+          "reason": "shared-node",
+          "pedLayer": 1.0,
+          "roadLayer": 0
+        }
+      ]
+    },
+    {
+      "edgeIndex": 145749,
+      "wayOsmId": 1011998744,
+      "nodeOsmIds": [
+        9336635026,
+        9336635027
+      ],
+      "sourceVerified": true,
+      "conflicts": [
+        {
+          "roadOsmId": 255360527,
+          "reason": "shared-node",
+          "pedLayer": 1.0,
+          "roadLayer": 0
+        },
+        {
+          "roadOsmId": 255360527,
+          "reason": "shared-node",
+          "pedLayer": 1.0,
+          "roadLayer": 0
+        }
+      ]
+    },
+    {
+      "edgeIndex": 145750,
+      "wayOsmId": 1011998745,
+      "nodeOsmIds": [
+        9336635030,
+        9336635029
+      ],
+      "sourceVerified": true,
+      "conflicts": [
+        {
+          "roadOsmId": 255360526,
+          "reason": "shared-node",
+          "pedLayer": 1.0,
+          "roadLayer": 0
+        },
+        {
+          "roadOsmId": 255360526,
+          "reason": "shared-node",
+          "pedLayer": 1.0,
+          "roadLayer": 0
+        }
+      ]
+    },
+    {
+      "edgeIndex": 177217,
+      "wayOsmId": 1246055976,
+      "nodeOsmIds": [
+        11584271524,
+        3885280909
+      ],
+      "sourceVerified": true,
+      "conflicts": [
+        {
+          "roadOsmId": 212584928,
+          "reason": "unknown-layer",
+          "pedLayer": null,
+          "roadLayer": 0
+        },
+        {
+          "roadOsmId": 230721087,
+          "reason": "unknown-layer",
+          "pedLayer": null,
+          "roadLayer": 0
+        }
+      ]
+    },
+    {
+      "edgeIndex": 177218,
+      "wayOsmId": 1246055976,
+      "nodeOsmIds": [
+        3885280909,
+        3885280905
+      ],
+      "sourceVerified": true,
+      "conflicts": [
+        {
+          "roadOsmId": 255691575,
+          "reason": "unknown-layer",
+          "pedLayer": null,
+          "roadLayer": null
+        }
+      ]
+    },
+    {
+      "edgeIndex": 189103,
+      "wayOsmId": 1322881973,
+      "nodeOsmIds": [
+        7593863075,
+        12241188627
+      ],
+      "sourceVerified": true,
+      "conflicts": [
+        {
+          "roadOsmId": 1322881974,
+          "reason": "shared-node",
+          "pedLayer": 1.0,
+          "roadLayer": 0
+        },
+        {
+          "roadOsmId": 1322881974,
+          "reason": "shared-node",
+          "pedLayer": 1.0,
+          "roadLayer": 0
+        }
+      ]
+    }
+  ]
+}

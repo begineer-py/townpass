@@ -38,7 +38,10 @@ export function createOfficialRouteVerifier(graph) {
     const same=(a,b)=>a[0]===b[0]&&a[1]===b[1];
     if(!same(start,coords[0])) coordinates.unshift(start);
     if(!same(end,coords.at(-1))) coordinates.push(end);
-    return {...route,coordinates,policyVersion:ROUTING_POLICY,requiresEntryConfirmation:false,
+    const officialConditions=graph.officialConditionIndex
+      ? {status:'available',fetchedAt:graph.officialConditionIndex.fetchedAt,sourceObservedAt:graph.officialConditionIndex.sourceObservedAt,points:graph.officialConditionIndex.find(coordinates,10)}
+      : {status:'unavailable',points:[]};
+    return {...route,coordinates,officialConditions,policyVersion:ROUTING_POLICY,requiresEntryConfirmation:false,
       distance:Math.round(route.distance+metres(start,coords[0])+metres(end,coords.at(-1))),
       geometryVerification:'official-polygons-and-crossings-v1',
       // This verifies supplied GIS evidence, not real-time accessibility or lane area coverage.

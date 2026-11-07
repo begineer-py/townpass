@@ -5,7 +5,7 @@ const norm = addressNorm;
 export async function landmarkSearch(query, signal) {
   if (query.trim().length < 2 || query.trim().length > 60) return [];
   const response = await fetch(`${import.meta.env.BASE_URL}api/landmark-search?q=${encodeURIComponent(query.trim())}`, {signal});
-  if (!response.ok) return [];
+  if (!response.ok) throw Error('landmark search unavailable');
   const data = await response.json();
   return Array.isArray(data) ? data : [];
 }
@@ -38,7 +38,7 @@ export async function addressSearch(query, signal) {
           `${import.meta.env.BASE_URL}data/addresses/${x.file}.json`,
           { signal },
         );
-        if (!r.ok) return [];
+        if (!r.ok) throw Error('address data unavailable');
         cache.set(x.file, await r.json());
         if (cache.size > 20) cache.delete(cache.keys().next().value);
       }

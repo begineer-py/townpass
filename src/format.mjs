@@ -20,6 +20,7 @@ export function sourceCountLabel(source) {
 export const stationKey = (s) =>
   String(s || "")
     .replace(/臺/g, "台")
+    .replace(/[（(].*$/, "")
     .replace(/站$/, "");
 export const addressNorm = (s) =>
   String(s ?? "")
@@ -32,6 +33,6 @@ export const addressNorm = (s) =>
     .replace(/號$/, "");
 export const stepText = (s) =>
   s.crossing
-    ? "經行穿線通過路口"
+    ? (['partial','none'].includes(s.crossingEvidence) ? "經 OSM 過街路段通過路口" : "經行穿線通過路口")
     : `${s.turn && s.turn !== "直行" ? s.turn + "，" : ""}沿${s.name}前行`;
-export const stepConditions = s => [s.sharedRoad && '人車共道，留意車輛', s.roughSurface && '路面可能較顛簸', s.unknown && '寬度或坡度未知'].filter(Boolean).join('，');
+export const stepConditions = s => [s.sharedRoad && '可能人車共行，通行條件未確認，留意車輛', ['partial','none'].includes(s.crossingEvidence) && 'OSM 過街位置，官方資料未完整確認', s.roughSurface && '路面可能較顛簸', s.unknown && '寬度或坡度未知'].filter(Boolean).join('，');

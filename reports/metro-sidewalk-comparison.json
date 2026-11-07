@@ -1,0 +1,4417 @@
+{
+  "status": "complete",
+  "startedAt": "2026-11-07T14:53:36.718Z",
+  "sampleSeed": 20261107,
+  "total": 60,
+  "method": "Paired local station routes: independent freshly parsed graph/router per baseline and optimized run, identical captured graph and construction snapshot. Explicit sidewalk is only OSM footway=sidewalk; mapped pedestrian includes footway/path/pedestrian/corridor, excluding synthetic connectors. Distances are data outputs, not real-world accessibility. No official online route or real-time elevator maintenance.",
+  "graphSha256": "bb211a0e906221556b5eb7621921733dd6586bb3649ba3dbf988907e22552f2d",
+  "facilitiesSha256": "914e019fa1b52f4ed44da95dd265a2568127ec787a566e345a8077fe82bf541c",
+  "placesSha256": "f6d28df1737b45a41beb7e515c2125c38e15e2bef664af79b1999d89dea03d41",
+  "codeHashes": {
+    "src/routing.mjs": "e4e3a224c68f9f6c3cfab7878886f40f56e992c3f266acdbc21a5bcdeff1e0c2",
+    "src/local-route-verifier.mjs": "931d02eb0a782308967c023a64e6413ee227b7ba26e17a201b481c268a459afd",
+    "src/pedestrian-improvement.mjs": "9554974c826a06eccf3315c5fb63ecbf316f3e338ec953ea97b613ed683a4718",
+    "src/pedestrian-planning.mjs": "e59385b02fa211711bb024572799505b1b821d6c1a8e648da3c9262063dcf381",
+    "src/route-tiers.mjs": "b28d6ba6009a674d338e1cb24c851fe823cb5eb9c7280a27fa191c40757f17b1",
+    "src/construction.mjs": "4b7433dfe2d618f6d5fcea0ad3b9a6a61366f86e5b46687d2c8d2d286d858645",
+    "src/geometry.mjs": "27264e6113326d681465dc4694eb2c394e57b9d886ce48eba3be499c46d02138",
+    "src/supplemental-evidence.mjs": "86b90ff2314cfe78db9f9b137835dba9544cd73ac06334bbaa25671d842dc029",
+    "src/shared-road-policy.mjs": "caf2bf442c29dcdc4e9bf501f22f558a3924fa4bb39c276257b5248c78cab37f"
+  },
+  "constructionFetchedAt": "2026-11-07T14:53:36.343Z",
+  "constructionUpdatedAt": "Sat, 07 Nov 2026 14:50:54 GMT",
+  "constructionWorksSha256": "2ae07ba54c06d9ec2f99b3d6f459eb8bcbdee91aebb427308b5b683e0832c9ca",
+  "results": [
+    {
+      "bin": "0.5–1 km",
+      "start": "南港展覽館(BL23)",
+      "end": "南港軟體園區(BR23)",
+      "startId": "w20-105",
+      "endId": "w20-14",
+      "straightMetres": 564,
+      "baseline": {
+        "success": true,
+        "distance": 696,
+        "networkMetres": 630.9938000000001,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 630.9938000000001,
+        "explicitSidewalkMetres": 590.9596000000001,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 65,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-180",
+        "resolvedEndId": "metro-exits-34",
+        "weightedCost": 1785.7516468725353,
+        "constructionBlocked": 0,
+        "optimization": null,
+        "initMs": 2331,
+        "searchMs": 199
+      },
+      "optimized": {
+        "success": true,
+        "distance": 696,
+        "networkMetres": 630.9938000000001,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 630.9938000000001,
+        "explicitSidewalkMetres": 590.9596000000001,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 65,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-180",
+        "resolvedEndId": "metro-exits-34",
+        "weightedCost": 1785.7516468725353,
+        "constructionBlocked": 0,
+        "optimization": {
+          "status": "no-shared-segments",
+          "rolledBack": false,
+          "originalDistanceMetres": 696.373991677867,
+          "maxDistanceMetres": 905.2861891812272,
+          "originalSharedMetres": 0,
+          "sharedMetres": 0,
+          "originalFootwayMetres": 630.9938000000001,
+          "footwayMetres": 630.9938000000001,
+          "originalExplicitSidewalkMetres": 590.9596000000001,
+          "explicitSidewalkMetres": 590.9596000000001,
+          "radiusMetres": 50,
+          "minimumReductionMetres": 1,
+          "searchLimits": {
+            "maxIterations": 3,
+            "totalMs": 4000,
+            "maxVisited": 40000,
+            "maxComparisons": 100000
+          },
+          "iterations": []
+        },
+        "initMs": 3417,
+        "searchMs": 279
+      },
+      "sameResolved": true
+    },
+    {
+      "bin": "0.5–1 km",
+      "start": "中正紀念堂(R08)",
+      "end": "古亭(O05)",
+      "startId": "w20-43",
+      "endId": "w20-65",
+      "straightMetres": 848,
+      "baseline": {
+        "success": true,
+        "distance": 1001,
+        "networkMetres": 984.388,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 984.388,
+        "explicitSidewalkMetres": 843.2119,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 16,
+        "estimatedApproaches": 1,
+        "resolvedStartId": "metro-exits-35",
+        "resolvedEndId": "metro-exits-107",
+        "weightedCost": 2115.7804710528367,
+        "constructionBlocked": 0,
+        "optimization": null,
+        "initMs": 2557,
+        "searchMs": 87
+      },
+      "optimized": {
+        "success": true,
+        "distance": 1001,
+        "networkMetres": 984.388,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 984.388,
+        "explicitSidewalkMetres": 843.2119,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 16,
+        "estimatedApproaches": 1,
+        "resolvedStartId": "metro-exits-35",
+        "resolvedEndId": "metro-exits-107",
+        "weightedCost": 2115.7804710528367,
+        "constructionBlocked": 0,
+        "optimization": {
+          "status": "no-shared-segments",
+          "rolledBack": false,
+          "originalDistanceMetres": 1001.4991288722393,
+          "maxDistanceMetres": 1301.4991288722395,
+          "originalSharedMetres": 0,
+          "sharedMetres": 0,
+          "originalFootwayMetres": 984.388,
+          "footwayMetres": 984.388,
+          "originalExplicitSidewalkMetres": 843.2119,
+          "explicitSidewalkMetres": 843.2119,
+          "radiusMetres": 50,
+          "minimumReductionMetres": 1,
+          "searchLimits": {
+            "maxIterations": 3,
+            "totalMs": 4000,
+            "maxVisited": 40000,
+            "maxComparisons": 100000
+          },
+          "iterations": []
+        },
+        "initMs": 3173,
+        "searchMs": 74
+      },
+      "sameResolved": true
+    },
+    {
+      "bin": "0.5–1 km",
+      "start": "善導寺(BL13)",
+      "end": "中山(R11)",
+      "startId": "w20-113",
+      "endId": "w20-40",
+      "straightMetres": 952,
+      "baseline": {
+        "success": true,
+        "distance": 1690,
+        "networkMetres": 1668.2000412818013,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 1668.2000412818013,
+        "explicitSidewalkMetres": 1289.6918412818009,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 22,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-167",
+        "resolvedEndId": "metro-exits-42",
+        "weightedCost": 4239.574386844463,
+        "constructionBlocked": 0,
+        "optimization": null,
+        "initMs": 2590,
+        "searchMs": 145
+      },
+      "optimized": {
+        "success": true,
+        "distance": 1690,
+        "networkMetres": 1668.2000412818013,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 1668.2000412818013,
+        "explicitSidewalkMetres": 1289.6918412818009,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 22,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-167",
+        "resolvedEndId": "metro-exits-42",
+        "weightedCost": 4239.574386844463,
+        "constructionBlocked": 0,
+        "optimization": {
+          "status": "no-shared-segments",
+          "rolledBack": false,
+          "originalDistanceMetres": 1689.8489977342033,
+          "maxDistanceMetres": 1989.8489977342033,
+          "originalSharedMetres": 0,
+          "sharedMetres": 0,
+          "originalFootwayMetres": 1668.2000412818013,
+          "footwayMetres": 1668.2000412818013,
+          "originalExplicitSidewalkMetres": 1289.6918412818009,
+          "explicitSidewalkMetres": 1289.6918412818009,
+          "radiusMetres": 50,
+          "minimumReductionMetres": 1,
+          "searchLimits": {
+            "maxIterations": 3,
+            "totalMs": 4000,
+            "maxVisited": 40000,
+            "maxComparisons": 100000
+          },
+          "iterations": []
+        },
+        "initMs": 3044,
+        "searchMs": 131
+      },
+      "sameResolved": true
+    },
+    {
+      "bin": "0.5–1 km",
+      "start": "科技大樓(BR08)",
+      "end": "六張犁(BR07)",
+      "startId": "w20-97",
+      "endId": "w20-98",
+      "straightMetres": 996,
+      "baseline": {
+        "success": true,
+        "distance": 1651,
+        "networkMetres": 1626.1669767544693,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 1626.1669767544693,
+        "explicitSidewalkMetres": 1498.6795767544695,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 25,
+        "estimatedApproaches": 1,
+        "resolvedStartId": "metro-exits-8",
+        "resolvedEndId": "metro-exits-7",
+        "weightedCost": 3662.283607525843,
+        "constructionBlocked": 0,
+        "optimization": null,
+        "initMs": 2481,
+        "searchMs": 95
+      },
+      "optimized": {
+        "success": true,
+        "distance": 1651,
+        "networkMetres": 1626.1669767544693,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 1626.1669767544693,
+        "explicitSidewalkMetres": 1498.6795767544695,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 25,
+        "estimatedApproaches": 1,
+        "resolvedStartId": "metro-exits-8",
+        "resolvedEndId": "metro-exits-7",
+        "weightedCost": 3662.283607525843,
+        "constructionBlocked": 0,
+        "optimization": {
+          "status": "no-shared-segments",
+          "rolledBack": false,
+          "originalDistanceMetres": 1651.636116577768,
+          "maxDistanceMetres": 1951.636116577768,
+          "originalSharedMetres": 0,
+          "sharedMetres": 0,
+          "originalFootwayMetres": 1626.1669767544693,
+          "footwayMetres": 1626.1669767544693,
+          "originalExplicitSidewalkMetres": 1498.6795767544695,
+          "explicitSidewalkMetres": 1498.6795767544695,
+          "radiusMetres": 50,
+          "minimumReductionMetres": 1,
+          "searchLimits": {
+            "maxIterations": 3,
+            "totalMs": 4000,
+            "maxVisited": 40000,
+            "maxComparisons": 100000
+          },
+          "iterations": []
+        },
+        "initMs": 3355,
+        "searchMs": 101
+      },
+      "sameResolved": true
+    },
+    {
+      "bin": "0.5–1 km",
+      "start": "東湖(BR22)",
+      "end": "葫洲(BR21)",
+      "startId": "w20-86",
+      "endId": "w20-87",
+      "straightMetres": 733,
+      "baseline": {
+        "success": true,
+        "distance": 2709,
+        "networkMetres": 2680.864700000001,
+        "sharedMetres": 2148.2384,
+        "mappedPedestrianMetres": 532.6262999999999,
+        "explicitSidewalkMetres": 223.1923,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 28,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-32",
+        "resolvedEndId": "metro-exits-28",
+        "weightedCost": 10368.194208217437,
+        "constructionBlocked": 0,
+        "optimization": null,
+        "initMs": 2348,
+        "searchMs": 158
+      },
+      "optimized": {
+        "success": true,
+        "distance": 2709,
+        "networkMetres": 2680.864700000001,
+        "sharedMetres": 2148.2384,
+        "mappedPedestrianMetres": 532.6262999999999,
+        "explicitSidewalkMetres": 223.1923,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 28,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-32",
+        "resolvedEndId": "metro-exits-28",
+        "weightedCost": 10368.194208217437,
+        "constructionBlocked": 0,
+        "optimization": {
+          "status": "no-improvement",
+          "rolledBack": false,
+          "originalDistanceMetres": 2709.1721012049834,
+          "maxDistanceMetres": 3009.1721012049834,
+          "originalSharedMetres": 2148.2384,
+          "sharedMetres": 2148.2384,
+          "originalFootwayMetres": 532.6262999999999,
+          "footwayMetres": 532.6262999999999,
+          "originalExplicitSidewalkMetres": 223.1923,
+          "explicitSidewalkMetres": 223.1923,
+          "radiusMetres": 50,
+          "minimumReductionMetres": 1,
+          "searchLimits": {
+            "maxIterations": 3,
+            "totalMs": 4000,
+            "maxVisited": 40000,
+            "maxComparisons": 100000
+          },
+          "iterations": [
+            {
+              "round": 1,
+              "result": "no-improvement",
+              "reasons": [
+                "no-connected-pedestrian-within-50m"
+              ],
+              "attempts": [
+                {
+                  "penalty": 2,
+                  "pathPenalty": 0,
+                  "distanceMetres": 2743.327901204984,
+                  "sharedMetres": 2095.0277000000006,
+                  "footwayMetres": 619.9927999999999,
+                  "explicitSidewalkMetres": 223.1923,
+                  "reason": "no-connected-pedestrian-within-50m"
+                },
+                {
+                  "penalty": 2,
+                  "pathPenalty": 1.5,
+                  "distanceMetres": 2743.327901204984,
+                  "sharedMetres": 2095.0277000000006,
+                  "footwayMetres": 619.9927999999999,
+                  "explicitSidewalkMetres": 223.1923,
+                  "reason": "no-connected-pedestrian-within-50m"
+                },
+                {
+                  "penalty": 6,
+                  "pathPenalty": 0,
+                  "distanceMetres": 2743.327901204984,
+                  "sharedMetres": 2095.0277000000006,
+                  "footwayMetres": 619.9927999999999,
+                  "explicitSidewalkMetres": 223.1923,
+                  "reason": "no-connected-pedestrian-within-50m"
+                },
+                {
+                  "penalty": 6,
+                  "pathPenalty": 1.5,
+                  "distanceMetres": 2743.327901204984,
+                  "sharedMetres": 2095.0277000000006,
+                  "footwayMetres": 619.9927999999999,
+                  "explicitSidewalkMetres": 223.1923,
+                  "reason": "no-connected-pedestrian-within-50m"
+                },
+                {
+                  "penalty": 12,
+                  "pathPenalty": 0,
+                  "distanceMetres": 2743.327901204984,
+                  "sharedMetres": 2095.0277000000006,
+                  "footwayMetres": 619.9927999999999,
+                  "explicitSidewalkMetres": 223.1923,
+                  "reason": "no-connected-pedestrian-within-50m"
+                },
+                {
+                  "penalty": 12,
+                  "pathPenalty": 1.5,
+                  "distanceMetres": 2743.327901204984,
+                  "sharedMetres": 2095.0277000000006,
+                  "footwayMetres": 619.9927999999999,
+                  "explicitSidewalkMetres": 223.1923,
+                  "reason": "no-connected-pedestrian-within-50m"
+                }
+              ]
+            }
+          ]
+        },
+        "initMs": 3702,
+        "searchMs": 649
+      },
+      "sameResolved": true
+    },
+    {
+      "bin": "0.5–1 km",
+      "start": "西門(G12)",
+      "end": "北門(G13)",
+      "startId": "w20-10",
+      "endId": "w20-76",
+      "straightMetres": 827,
+      "baseline": {
+        "success": true,
+        "distance": 885,
+        "networkMetres": 843.4469624562477,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 843.4469624562477,
+        "explicitSidewalkMetres": 746.6383624562477,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 16,
+        "estimatedApproaches": 1,
+        "resolvedStartId": "metro-exits-166",
+        "resolvedEndId": "metro-exits-122",
+        "weightedCost": 2126.462753650382,
+        "constructionBlocked": 0,
+        "optimization": null,
+        "initMs": 4238,
+        "searchMs": 231
+      },
+      "optimized": {
+        "success": true,
+        "distance": 885,
+        "networkMetres": 843.4469624562477,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 843.4469624562477,
+        "explicitSidewalkMetres": 746.6383624562477,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 16,
+        "estimatedApproaches": 1,
+        "resolvedStartId": "metro-exits-166",
+        "resolvedEndId": "metro-exits-122",
+        "weightedCost": 2126.462753650382,
+        "constructionBlocked": 0,
+        "optimization": {
+          "status": "no-shared-segments",
+          "rolledBack": false,
+          "originalDistanceMetres": 885.1522812475014,
+          "maxDistanceMetres": 1150.6979656217518,
+          "originalSharedMetres": 0,
+          "sharedMetres": 0,
+          "originalFootwayMetres": 843.4469624562477,
+          "footwayMetres": 843.4469624562477,
+          "originalExplicitSidewalkMetres": 746.6383624562477,
+          "explicitSidewalkMetres": 746.6383624562477,
+          "radiusMetres": 50,
+          "minimumReductionMetres": 1,
+          "searchLimits": {
+            "maxIterations": 3,
+            "totalMs": 4000,
+            "maxVisited": 40000,
+            "maxComparisons": 100000
+          },
+          "iterations": []
+        },
+        "initMs": 5354,
+        "searchMs": 251
+      },
+      "sameResolved": true
+    },
+    {
+      "bin": "0.5–1 km",
+      "start": "中山國小(O10)",
+      "end": "行天宮(O09)",
+      "startId": "w20-61",
+      "endId": "w20-62",
+      "straightMetres": 761,
+      "baseline": {
+        "success": true,
+        "distance": 1121,
+        "networkMetres": 1114.5663972566288,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 1114.5663972566288,
+        "explicitSidewalkMetres": 926.7363014031974,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 2,
+        "estimatedApproaches": 1,
+        "resolvedStartId": "metro-exits-137",
+        "resolvedEndId": "metro-exits-138",
+        "weightedCost": 2548.0912957398677,
+        "constructionBlocked": 0,
+        "optimization": null,
+        "initMs": 4873,
+        "searchMs": 145
+      },
+      "optimized": {
+        "success": true,
+        "distance": 1121,
+        "networkMetres": 1114.5663972566288,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 1114.5663972566288,
+        "explicitSidewalkMetres": 926.7363014031974,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 2,
+        "estimatedApproaches": 1,
+        "resolvedStartId": "metro-exits-137",
+        "resolvedEndId": "metro-exits-138",
+        "weightedCost": 2548.0912957398677,
+        "constructionBlocked": 0,
+        "optimization": {
+          "status": "no-shared-segments",
+          "rolledBack": false,
+          "originalDistanceMetres": 1121.0602685071474,
+          "maxDistanceMetres": 1421.0602685071474,
+          "originalSharedMetres": 0,
+          "sharedMetres": 0,
+          "originalFootwayMetres": 1114.5663972566288,
+          "footwayMetres": 1114.5663972566288,
+          "originalExplicitSidewalkMetres": 926.7363014031974,
+          "explicitSidewalkMetres": 926.7363014031974,
+          "radiusMetres": 50,
+          "minimumReductionMetres": 1,
+          "searchLimits": {
+            "maxIterations": 3,
+            "totalMs": 4000,
+            "maxVisited": 40000,
+            "maxComparisons": 100000
+          },
+          "iterations": []
+        },
+        "initMs": 5823,
+        "searchMs": 151
+      },
+      "sameResolved": true
+    },
+    {
+      "bin": "0.5–1 km",
+      "start": "辛亥(BR05)",
+      "end": "萬芳醫院(BR04)",
+      "startId": "w20-100",
+      "endId": "w20-101",
+      "straightMetres": 690,
+      "baseline": {
+        "success": true,
+        "distance": 885,
+        "networkMetres": 856.0255176509016,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 856.0255176509016,
+        "explicitSidewalkMetres": 837.9054176509018,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 29,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-5",
+        "resolvedEndId": "metro-exits-4",
+        "weightedCost": 2185.6267506056884,
+        "constructionBlocked": 0,
+        "optimization": null,
+        "initMs": 4975,
+        "searchMs": 89
+      },
+      "optimized": {
+        "success": true,
+        "distance": 885,
+        "networkMetres": 856.0255176509016,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 856.0255176509016,
+        "explicitSidewalkMetres": 837.9054176509018,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 29,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-5",
+        "resolvedEndId": "metro-exits-4",
+        "weightedCost": 2185.6267506056884,
+        "constructionBlocked": 0,
+        "optimization": {
+          "status": "no-shared-segments",
+          "rolledBack": false,
+          "originalDistanceMetres": 885.1103355352546,
+          "maxDistanceMetres": 1150.643436195831,
+          "originalSharedMetres": 0,
+          "sharedMetres": 0,
+          "originalFootwayMetres": 856.0255176509016,
+          "footwayMetres": 856.0255176509016,
+          "originalExplicitSidewalkMetres": 837.9054176509018,
+          "explicitSidewalkMetres": 837.9054176509018,
+          "radiusMetres": 50,
+          "minimumReductionMetres": 1,
+          "searchLimits": {
+            "maxIterations": 3,
+            "totalMs": 4000,
+            "maxVisited": 40000,
+            "maxComparisons": 100000
+          },
+          "iterations": []
+        },
+        "initMs": 6290,
+        "searchMs": 91
+      },
+      "sameResolved": true
+    },
+    {
+      "bin": "0.5–1 km",
+      "start": "善導寺(BL13)",
+      "end": "忠孝新生(BL14)",
+      "startId": "w20-113",
+      "endId": "w20-19",
+      "straightMetres": 936,
+      "baseline": {
+        "success": true,
+        "distance": 992,
+        "networkMetres": 972.1545412818016,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 972.1545412818016,
+        "explicitSidewalkMetres": 784.2413412818014,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 20,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-167",
+        "resolvedEndId": "metro-exits-168",
+        "weightedCost": 2195.1377372750194,
+        "constructionBlocked": 0,
+        "optimization": null,
+        "initMs": 4789,
+        "searchMs": 155
+      },
+      "optimized": {
+        "success": true,
+        "distance": 992,
+        "networkMetres": 972.1545412818016,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 972.1545412818016,
+        "explicitSidewalkMetres": 784.2413412818014,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 20,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-167",
+        "resolvedEndId": "metro-exits-168",
+        "weightedCost": 2195.1377372750194,
+        "constructionBlocked": 0,
+        "optimization": {
+          "status": "no-shared-segments",
+          "rolledBack": false,
+          "originalDistanceMetres": 991.8150150000761,
+          "maxDistanceMetres": 1289.359519500099,
+          "originalSharedMetres": 0,
+          "sharedMetres": 0,
+          "originalFootwayMetres": 972.1545412818016,
+          "footwayMetres": 972.1545412818016,
+          "originalExplicitSidewalkMetres": 784.2413412818014,
+          "explicitSidewalkMetres": 784.2413412818014,
+          "radiusMetres": 50,
+          "minimumReductionMetres": 1,
+          "searchLimits": {
+            "maxIterations": 3,
+            "totalMs": 4000,
+            "maxVisited": 40000,
+            "maxComparisons": 100000
+          },
+          "iterations": []
+        },
+        "initMs": 5554,
+        "searchMs": 115
+      },
+      "sameResolved": true
+    },
+    {
+      "bin": "0.5–1 km",
+      "start": "雙連(R12)",
+      "end": "大橋頭(O12)",
+      "startId": "w20-39",
+      "endId": "w20-59",
+      "straightMetres": 996,
+      "baseline": {
+        "success": true,
+        "distance": 1268,
+        "networkMetres": 1260.5459949086148,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 1260.5459949086148,
+        "explicitSidewalkMetres": 592.1961558231185,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 7,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-45",
+        "resolvedEndId": "metro-exits-135",
+        "weightedCost": 3127.0599273328453,
+        "constructionBlocked": 0,
+        "optimization": null,
+        "initMs": 4172,
+        "searchMs": 76
+      },
+      "optimized": {
+        "success": true,
+        "distance": 1268,
+        "networkMetres": 1260.5459949086148,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 1260.5459949086148,
+        "explicitSidewalkMetres": 592.1961558231185,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 7,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-45",
+        "resolvedEndId": "metro-exits-135",
+        "weightedCost": 3127.0599273328453,
+        "constructionBlocked": 0,
+        "optimization": {
+          "status": "no-shared-segments",
+          "rolledBack": false,
+          "originalDistanceMetres": 1267.379453720017,
+          "maxDistanceMetres": 1567.379453720017,
+          "originalSharedMetres": 0,
+          "sharedMetres": 0,
+          "originalFootwayMetres": 1260.5459949086148,
+          "footwayMetres": 1260.5459949086148,
+          "originalExplicitSidewalkMetres": 592.1961558231185,
+          "explicitSidewalkMetres": 592.1961558231185,
+          "radiusMetres": 50,
+          "minimumReductionMetres": 1,
+          "searchLimits": {
+            "maxIterations": 3,
+            "totalMs": 4000,
+            "maxVisited": 40000,
+            "maxComparisons": 100000
+          },
+          "iterations": []
+        },
+        "initMs": 5079,
+        "searchMs": 104
+      },
+      "sameResolved": true
+    },
+    {
+      "bin": "0.5–1 km",
+      "start": "南京復興(G16)",
+      "end": "中山國中(BR12)",
+      "startId": "w20-73",
+      "endId": "w20-94",
+      "straightMetres": 979,
+      "baseline": {
+        "success": true,
+        "distance": 1025,
+        "networkMetres": 982.4652139663602,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 982.4652139663602,
+        "explicitSidewalkMetres": 895.6603139663603,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 43,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-118",
+        "resolvedEndId": "metro-exits-10",
+        "weightedCost": 2629.335533698125,
+        "constructionBlocked": 0,
+        "optimization": null,
+        "initMs": 4178,
+        "searchMs": 191
+      },
+      "optimized": {
+        "success": true,
+        "distance": 1025,
+        "networkMetres": 982.4652139663602,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 982.4652139663602,
+        "explicitSidewalkMetres": 895.6603139663603,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 43,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-118",
+        "resolvedEndId": "metro-exits-10",
+        "weightedCost": 2629.335533698125,
+        "constructionBlocked": 0,
+        "optimization": {
+          "status": "no-shared-segments",
+          "rolledBack": false,
+          "originalDistanceMetres": 1025.4322973119672,
+          "maxDistanceMetres": 1325.4322973119672,
+          "originalSharedMetres": 0,
+          "sharedMetres": 0,
+          "originalFootwayMetres": 982.4652139663602,
+          "footwayMetres": 982.4652139663602,
+          "originalExplicitSidewalkMetres": 895.6603139663603,
+          "explicitSidewalkMetres": 895.6603139663603,
+          "radiusMetres": 50,
+          "minimumReductionMetres": 1,
+          "searchLimits": {
+            "maxIterations": 3,
+            "totalMs": 4000,
+            "maxVisited": 40000,
+            "maxComparisons": 100000
+          },
+          "iterations": []
+        },
+        "initMs": 5241,
+        "searchMs": 187
+      },
+      "sameResolved": true
+    },
+    {
+      "bin": "0.5–1 km",
+      "start": "六張犁(BR07)",
+      "end": "麟光(BR06)",
+      "startId": "w20-98",
+      "endId": "w20-99",
+      "straightMetres": 832,
+      "baseline": {
+        "success": true,
+        "distance": 933,
+        "networkMetres": 907.7454069339611,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 907.7454069339611,
+        "explicitSidewalkMetres": 857.0952069339612,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 25,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-7",
+        "resolvedEndId": "metro-exits-6",
+        "weightedCost": 2450.7164968899547,
+        "constructionBlocked": 0,
+        "optimization": null,
+        "initMs": 4598,
+        "searchMs": 77
+      },
+      "optimized": {
+        "success": true,
+        "distance": 933,
+        "networkMetres": 907.7454069339611,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 907.7454069339611,
+        "explicitSidewalkMetres": 857.0952069339612,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 25,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-7",
+        "resolvedEndId": "metro-exits-6",
+        "weightedCost": 2450.7164968899547,
+        "constructionBlocked": 0,
+        "optimization": {
+          "status": "no-shared-segments",
+          "rolledBack": false,
+          "originalDistanceMetres": 932.7745355138409,
+          "maxDistanceMetres": 1212.6068961679932,
+          "originalSharedMetres": 0,
+          "sharedMetres": 0,
+          "originalFootwayMetres": 907.7454069339611,
+          "footwayMetres": 907.7454069339611,
+          "originalExplicitSidewalkMetres": 857.0952069339612,
+          "explicitSidewalkMetres": 857.0952069339612,
+          "radiusMetres": 50,
+          "minimumReductionMetres": 1,
+          "searchLimits": {
+            "maxIterations": 3,
+            "totalMs": 4000,
+            "maxVisited": 40000,
+            "maxComparisons": 100000
+          },
+          "iterations": []
+        },
+        "initMs": 4804,
+        "searchMs": 75
+      },
+      "sameResolved": true
+    },
+    {
+      "bin": "0.5–1 km",
+      "start": "關渡(R25)",
+      "end": "忠義(R24)",
+      "startId": "w20-0",
+      "endId": "w20-1",
+      "straightMetres": 867,
+      "baseline": {
+        "success": true,
+        "distance": 1077,
+        "networkMetres": 1065.3771169949223,
+        "sharedMetres": 242.0199,
+        "mappedPedestrianMetres": 823.3572169949222,
+        "explicitSidewalkMetres": 554.0941101687682,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 12,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-73",
+        "resolvedEndId": "metro-exits-70",
+        "weightedCost": 3137.596825472255,
+        "constructionBlocked": 0,
+        "optimization": null,
+        "initMs": 3684,
+        "searchMs": 210
+      },
+      "optimized": {
+        "success": true,
+        "distance": 1077,
+        "networkMetres": 1065.3771169949223,
+        "sharedMetres": 242.0199,
+        "mappedPedestrianMetres": 823.3572169949222,
+        "explicitSidewalkMetres": 554.0941101687682,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 12,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-73",
+        "resolvedEndId": "metro-exits-70",
+        "weightedCost": 3137.596825472255,
+        "constructionBlocked": 0,
+        "optimization": {
+          "status": "no-improvement",
+          "rolledBack": false,
+          "originalDistanceMetres": 1076.9504242466596,
+          "maxDistanceMetres": 1376.9504242466596,
+          "originalSharedMetres": 242.0199,
+          "sharedMetres": 242.0199,
+          "originalFootwayMetres": 816.483410168768,
+          "footwayMetres": 816.483410168768,
+          "originalExplicitSidewalkMetres": 554.0941101687682,
+          "explicitSidewalkMetres": 554.0941101687682,
+          "radiusMetres": 50,
+          "minimumReductionMetres": 1,
+          "searchLimits": {
+            "maxIterations": 3,
+            "totalMs": 4000,
+            "maxVisited": 40000,
+            "maxComparisons": 100000
+          },
+          "iterations": [
+            {
+              "round": 1,
+              "result": "no-improvement",
+              "reasons": [
+                "insufficient-shared-reduction"
+              ],
+              "attempts": [
+                {
+                  "penalty": 2,
+                  "pathPenalty": 0,
+                  "distanceMetres": 1076.9504242466596,
+                  "sharedMetres": 242.0199,
+                  "footwayMetres": 816.483410168768,
+                  "explicitSidewalkMetres": 554.0941101687682,
+                  "reason": "insufficient-shared-reduction"
+                },
+                {
+                  "penalty": 2,
+                  "pathPenalty": 1.5,
+                  "distanceMetres": 1076.9504242466596,
+                  "sharedMetres": 242.0199,
+                  "footwayMetres": 816.483410168768,
+                  "explicitSidewalkMetres": 554.0941101687682,
+                  "reason": "insufficient-shared-reduction"
+                },
+                {
+                  "penalty": 6,
+                  "pathPenalty": 0,
+                  "distanceMetres": 1076.9504242466596,
+                  "sharedMetres": 242.0199,
+                  "footwayMetres": 816.483410168768,
+                  "explicitSidewalkMetres": 554.0941101687682,
+                  "reason": "insufficient-shared-reduction"
+                },
+                {
+                  "penalty": 6,
+                  "pathPenalty": 1.5,
+                  "distanceMetres": 1076.9504242466596,
+                  "sharedMetres": 242.0199,
+                  "footwayMetres": 816.483410168768,
+                  "explicitSidewalkMetres": 554.0941101687682,
+                  "reason": "insufficient-shared-reduction"
+                },
+                {
+                  "penalty": 12,
+                  "pathPenalty": 0,
+                  "distanceMetres": 1076.9504242466596,
+                  "sharedMetres": 242.0199,
+                  "footwayMetres": 816.483410168768,
+                  "explicitSidewalkMetres": 554.0941101687682,
+                  "reason": "insufficient-shared-reduction"
+                },
+                {
+                  "penalty": 12,
+                  "pathPenalty": 1.5,
+                  "distanceMetres": 1076.9504242466596,
+                  "sharedMetres": 242.0199,
+                  "footwayMetres": 816.483410168768,
+                  "explicitSidewalkMetres": 554.0941101687682,
+                  "reason": "insufficient-shared-reduction"
+                }
+              ]
+            }
+          ]
+        },
+        "initMs": 4911,
+        "searchMs": 444
+      },
+      "sameResolved": true
+    },
+    {
+      "bin": "0.5–1 km",
+      "start": "萬芳社區(BR03)",
+      "end": "木柵(BR02)",
+      "startId": "w20-102",
+      "endId": "w20-103",
+      "straightMetres": 509,
+      "baseline": {
+        "success": true,
+        "distance": 1195,
+        "networkMetres": 1117.4358999999997,
+        "sharedMetres": 121.66709999999999,
+        "mappedPedestrianMetres": 995.7687999999999,
+        "explicitSidewalkMetres": 938.3874999999999,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 78,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-3",
+        "resolvedEndId": "metro-exits-2",
+        "weightedCost": 3114.13659364057,
+        "constructionBlocked": 0,
+        "optimization": null,
+        "initMs": 2732,
+        "searchMs": 51
+      },
+      "optimized": {
+        "success": true,
+        "distance": 1195,
+        "networkMetres": 1117.4358999999997,
+        "sharedMetres": 121.66709999999999,
+        "mappedPedestrianMetres": 995.7687999999999,
+        "explicitSidewalkMetres": 938.3874999999999,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 78,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-3",
+        "resolvedEndId": "metro-exits-2",
+        "weightedCost": 3114.13659364057,
+        "constructionBlocked": 0,
+        "optimization": {
+          "status": "no-improvement",
+          "rolledBack": false,
+          "originalDistanceMetres": 1195.579684468734,
+          "maxDistanceMetres": 1495.579684468734,
+          "originalSharedMetres": 121.66709999999999,
+          "sharedMetres": 121.66709999999999,
+          "originalFootwayMetres": 995.7687999999999,
+          "footwayMetres": 995.7687999999999,
+          "originalExplicitSidewalkMetres": 938.3874999999999,
+          "explicitSidewalkMetres": 938.3874999999999,
+          "radiusMetres": 50,
+          "minimumReductionMetres": 1,
+          "searchLimits": {
+            "maxIterations": 3,
+            "totalMs": 4000,
+            "maxVisited": 40000,
+            "maxComparisons": 100000
+          },
+          "iterations": [
+            {
+              "round": 1,
+              "result": "no-improvement",
+              "reasons": [
+                "no-connected-pedestrian-within-50m"
+              ],
+              "attempts": [
+                {
+                  "penalty": 2,
+                  "pathPenalty": 0,
+                  "distanceMetres": 1232.717263999279,
+                  "sharedMetres": 50.5533,
+                  "footwayMetres": 1092.0549999999998,
+                  "explicitSidewalkMetres": 1018.0372000000001,
+                  "reason": "no-connected-pedestrian-within-50m"
+                },
+                {
+                  "penalty": 2,
+                  "pathPenalty": 1.5,
+                  "distanceMetres": 1232.717263999279,
+                  "sharedMetres": 50.5533,
+                  "footwayMetres": 1092.0549999999998,
+                  "explicitSidewalkMetres": 1018.0372000000001,
+                  "reason": "no-connected-pedestrian-within-50m"
+                },
+                {
+                  "penalty": 6,
+                  "pathPenalty": 0,
+                  "distanceMetres": 1232.717263999279,
+                  "sharedMetres": 50.5533,
+                  "footwayMetres": 1092.0549999999998,
+                  "explicitSidewalkMetres": 1018.0372000000001,
+                  "reason": "no-connected-pedestrian-within-50m"
+                },
+                {
+                  "penalty": 6,
+                  "pathPenalty": 1.5,
+                  "distanceMetres": 1232.717263999279,
+                  "sharedMetres": 50.5533,
+                  "footwayMetres": 1092.0549999999998,
+                  "explicitSidewalkMetres": 1018.0372000000001,
+                  "reason": "no-connected-pedestrian-within-50m"
+                },
+                {
+                  "penalty": 12,
+                  "pathPenalty": 0,
+                  "distanceMetres": 1232.717263999279,
+                  "sharedMetres": 50.5533,
+                  "footwayMetres": 1092.0549999999998,
+                  "explicitSidewalkMetres": 1018.0372000000001,
+                  "reason": "no-connected-pedestrian-within-50m"
+                },
+                {
+                  "penalty": 12,
+                  "pathPenalty": 1.5,
+                  "distanceMetres": 1232.717263999279,
+                  "sharedMetres": 50.5533,
+                  "footwayMetres": 1092.0549999999998,
+                  "explicitSidewalkMetres": 1018.0372000000001,
+                  "reason": "no-connected-pedestrian-within-50m"
+                }
+              ]
+            }
+          ]
+        },
+        "initMs": 2946,
+        "searchMs": 253
+      },
+      "sameResolved": true
+    },
+    {
+      "bin": "0.5–1 km",
+      "start": "木柵(BR02)",
+      "end": "動物園(BR01)",
+      "startId": "w20-103",
+      "endId": "w20-104",
+      "straightMetres": 642,
+      "baseline": {
+        "success": false,
+        "error": "NO_ROUTE",
+        "initMs": 2466,
+        "searchMs": 1112
+      },
+      "optimized": {
+        "success": false,
+        "error": "NO_ROUTE",
+        "initMs": 2696,
+        "searchMs": 1039
+      },
+      "sameResolved": null
+    },
+    {
+      "bin": "1–2 km",
+      "start": "永春(BL19)",
+      "end": "國父紀念館(BL17)",
+      "startId": "w20-109",
+      "endId": "w20-111",
+      "straightMetres": 1852,
+      "baseline": {
+        "success": true,
+        "distance": 1913,
+        "networkMetres": 1908.6691912262374,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 1908.6691912262374,
+        "explicitSidewalkMetres": 1691.9542912262377,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 4,
+        "estimatedApproaches": 1,
+        "resolvedStartId": "metro-exits-175",
+        "resolvedEndId": "metro-exits-172",
+        "weightedCost": 4375.314114354746,
+        "constructionBlocked": 0,
+        "optimization": null,
+        "initMs": 2473,
+        "searchMs": 100
+      },
+      "optimized": {
+        "success": true,
+        "distance": 1913,
+        "networkMetres": 1908.6691912262374,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 1908.6691912262374,
+        "explicitSidewalkMetres": 1691.9542912262377,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 4,
+        "estimatedApproaches": 1,
+        "resolvedStartId": "metro-exits-175",
+        "resolvedEndId": "metro-exits-172",
+        "weightedCost": 4375.314114354746,
+        "constructionBlocked": 0,
+        "optimization": {
+          "status": "no-shared-segments",
+          "rolledBack": false,
+          "originalDistanceMetres": 1912.5987917798923,
+          "maxDistanceMetres": 2212.598791779892,
+          "originalSharedMetres": 0,
+          "sharedMetres": 0,
+          "originalFootwayMetres": 1908.6691912262374,
+          "footwayMetres": 1908.6691912262374,
+          "originalExplicitSidewalkMetres": 1691.9542912262377,
+          "explicitSidewalkMetres": 1691.9542912262377,
+          "radiusMetres": 50,
+          "minimumReductionMetres": 1,
+          "searchLimits": {
+            "maxIterations": 3,
+            "totalMs": 4000,
+            "maxVisited": 40000,
+            "maxComparisons": 100000
+          },
+          "iterations": []
+        },
+        "initMs": 3053,
+        "searchMs": 83
+      },
+      "sameResolved": true
+    },
+    {
+      "bin": "1–2 km",
+      "start": "中山(R11)",
+      "end": "行天宮(O09)",
+      "startId": "w20-40",
+      "endId": "w20-62",
+      "straightMetres": 1483,
+      "baseline": {
+        "success": true,
+        "distance": 2702,
+        "networkMetres": 2690.3108795379057,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 2690.3108795379057,
+        "explicitSidewalkMetres": 1897.1534836844764,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 12,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-42",
+        "resolvedEndId": "metro-exits-138",
+        "weightedCost": 6422.782754011659,
+        "constructionBlocked": 0,
+        "optimization": null,
+        "initMs": 2429,
+        "searchMs": 195
+      },
+      "optimized": {
+        "success": true,
+        "distance": 2702,
+        "networkMetres": 2690.3108795379057,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 2690.3108795379057,
+        "explicitSidewalkMetres": 1897.1534836844764,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 12,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-42",
+        "resolvedEndId": "metro-exits-138",
+        "weightedCost": 6422.782754011659,
+        "constructionBlocked": 0,
+        "optimization": {
+          "status": "no-shared-segments",
+          "rolledBack": false,
+          "originalDistanceMetres": 2702.533108586065,
+          "maxDistanceMetres": 3002.533108586065,
+          "originalSharedMetres": 0,
+          "sharedMetres": 0,
+          "originalFootwayMetres": 2690.3108795379057,
+          "footwayMetres": 2690.3108795379057,
+          "originalExplicitSidewalkMetres": 1897.1534836844764,
+          "explicitSidewalkMetres": 1897.1534836844764,
+          "radiusMetres": 50,
+          "minimumReductionMetres": 1,
+          "searchLimits": {
+            "maxIterations": 3,
+            "totalMs": 4000,
+            "maxVisited": 40000,
+            "maxComparisons": 100000
+          },
+          "iterations": []
+        },
+        "initMs": 2717,
+        "searchMs": 152
+      },
+      "sameResolved": true
+    },
+    {
+      "bin": "1–2 km",
+      "start": "行天宮(O09)",
+      "end": "南京復興(G16)",
+      "startId": "w20-62",
+      "endId": "w20-73",
+      "straightMetres": 1379,
+      "baseline": {
+        "success": true,
+        "distance": 1689,
+        "networkMetres": 1667.9814114194937,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 1667.9814114194937,
+        "explicitSidewalkMetres": 1483.4426114194941,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 21,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-138",
+        "resolvedEndId": "metro-exits-117",
+        "weightedCost": 4141.375964148827,
+        "constructionBlocked": 0,
+        "optimization": null,
+        "initMs": 2359,
+        "searchMs": 129
+      },
+      "optimized": {
+        "success": true,
+        "distance": 1689,
+        "networkMetres": 1667.9814114194937,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 1667.9814114194937,
+        "explicitSidewalkMetres": 1483.4426114194941,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 21,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-138",
+        "resolvedEndId": "metro-exits-117",
+        "weightedCost": 4141.375964148827,
+        "constructionBlocked": 0,
+        "optimization": {
+          "status": "no-shared-segments",
+          "rolledBack": false,
+          "originalDistanceMetres": 1689.066550641156,
+          "maxDistanceMetres": 1989.066550641156,
+          "originalSharedMetres": 0,
+          "sharedMetres": 0,
+          "originalFootwayMetres": 1667.9814114194937,
+          "footwayMetres": 1667.9814114194937,
+          "originalExplicitSidewalkMetres": 1483.4426114194941,
+          "explicitSidewalkMetres": 1483.4426114194941,
+          "radiusMetres": 50,
+          "minimumReductionMetres": 1,
+          "searchLimits": {
+            "maxIterations": 3,
+            "totalMs": 4000,
+            "maxVisited": 40000,
+            "maxComparisons": 100000
+          },
+          "iterations": []
+        },
+        "initMs": 2808,
+        "searchMs": 110
+      },
+      "sameResolved": true
+    },
+    {
+      "bin": "1–2 km",
+      "start": "南港展覽館(BL23)",
+      "end": "東湖(BR22)",
+      "startId": "w20-105",
+      "endId": "w20-86",
+      "straightMetres": 1494,
+      "baseline": {
+        "success": false,
+        "error": "NO_ROUTE",
+        "initMs": 2366,
+        "searchMs": 4461
+      },
+      "optimized": {
+        "success": false,
+        "error": "NO_ROUTE",
+        "initMs": 2637,
+        "searchMs": 4641
+      },
+      "sameResolved": null
+    },
+    {
+      "bin": "1–2 km",
+      "start": "復興崗(R23)",
+      "end": "北投(R22)",
+      "startId": "w20-2",
+      "endId": "w20-29",
+      "straightMetres": 1470,
+      "baseline": {
+        "success": true,
+        "distance": 1852,
+        "networkMetres": 1813.7669,
+        "sharedMetres": 175.5524,
+        "mappedPedestrianMetres": 1638.2145000000005,
+        "explicitSidewalkMetres": 157.27040000000002,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 11,
+        "estimatedApproaches": 1,
+        "resolvedStartId": "metro-exits-68",
+        "resolvedEndId": "metro-exits-65",
+        "weightedCost": 5097.069153387017,
+        "constructionBlocked": 0,
+        "optimization": null,
+        "initMs": 2358,
+        "searchMs": 149
+      },
+      "optimized": {
+        "success": true,
+        "distance": 1852,
+        "networkMetres": 1813.7669,
+        "sharedMetres": 175.5524,
+        "mappedPedestrianMetres": 1638.2145000000005,
+        "explicitSidewalkMetres": 157.27040000000002,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 11,
+        "estimatedApproaches": 1,
+        "resolvedStartId": "metro-exits-68",
+        "resolvedEndId": "metro-exits-65",
+        "weightedCost": 5097.069153387017,
+        "constructionBlocked": 0,
+        "optimization": {
+          "status": "no-improvement",
+          "rolledBack": false,
+          "originalDistanceMetres": 1851.426895824862,
+          "maxDistanceMetres": 2151.426895824862,
+          "originalSharedMetres": 175.5524,
+          "sharedMetres": 175.5524,
+          "originalFootwayMetres": 1586.3288000000007,
+          "footwayMetres": 1586.3288000000007,
+          "originalExplicitSidewalkMetres": 157.27040000000002,
+          "explicitSidewalkMetres": 157.27040000000002,
+          "radiusMetres": 50,
+          "minimumReductionMetres": 1,
+          "searchLimits": {
+            "maxIterations": 3,
+            "totalMs": 4000,
+            "maxVisited": 40000,
+            "maxComparisons": 100000
+          },
+          "iterations": [
+            {
+              "round": 1,
+              "result": "no-improvement",
+              "reasons": [
+                "insufficient-shared-reduction"
+              ],
+              "attempts": [
+                {
+                  "penalty": 2,
+                  "pathPenalty": 0,
+                  "distanceMetres": 1851.426895824862,
+                  "sharedMetres": 175.5524,
+                  "footwayMetres": 1586.3288000000007,
+                  "explicitSidewalkMetres": 157.27040000000002,
+                  "reason": "insufficient-shared-reduction"
+                },
+                {
+                  "penalty": 2,
+                  "pathPenalty": 1.5,
+                  "distanceMetres": 1848.289795824862,
+                  "sharedMetres": 195.4136,
+                  "footwayMetres": 1615.2162000000008,
+                  "explicitSidewalkMetres": 157.27040000000002,
+                  "reason": "insufficient-shared-reduction"
+                },
+                {
+                  "penalty": 6,
+                  "pathPenalty": 0,
+                  "distanceMetres": 1851.426895824862,
+                  "sharedMetres": 175.5524,
+                  "footwayMetres": 1586.3288000000007,
+                  "explicitSidewalkMetres": 157.27040000000002,
+                  "reason": "insufficient-shared-reduction"
+                },
+                {
+                  "penalty": 6,
+                  "pathPenalty": 1.5,
+                  "distanceMetres": 1851.426895824862,
+                  "sharedMetres": 175.5524,
+                  "footwayMetres": 1586.3288000000007,
+                  "explicitSidewalkMetres": 157.27040000000002,
+                  "reason": "insufficient-shared-reduction"
+                },
+                {
+                  "penalty": 12,
+                  "pathPenalty": 0,
+                  "distanceMetres": 1851.426895824862,
+                  "sharedMetres": 175.5524,
+                  "footwayMetres": 1586.3288000000007,
+                  "explicitSidewalkMetres": 157.27040000000002,
+                  "reason": "insufficient-shared-reduction"
+                },
+                {
+                  "penalty": 12,
+                  "pathPenalty": 1.5,
+                  "distanceMetres": 1851.426895824862,
+                  "sharedMetres": 175.5524,
+                  "footwayMetres": 1586.3288000000007,
+                  "explicitSidewalkMetres": 157.27040000000002,
+                  "reason": "insufficient-shared-reduction"
+                }
+              ]
+            }
+          ]
+        },
+        "initMs": 2924,
+        "searchMs": 330
+      },
+      "sameResolved": true
+    },
+    {
+      "bin": "1–2 km",
+      "start": "市政府(BL18)",
+      "end": "南京三民(G18)",
+      "startId": "w20-110",
+      "endId": "w20-71",
+      "straightMetres": 1166,
+      "baseline": {
+        "success": true,
+        "distance": 1525,
+        "networkMetres": 1503.5948600897145,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 1503.5948600897145,
+        "explicitSidewalkMetres": 1281.0837600897141,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 21,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-174",
+        "resolvedEndId": "metro-exits-112",
+        "weightedCost": 3752.3069425149383,
+        "constructionBlocked": 0,
+        "optimization": null,
+        "initMs": 2490,
+        "searchMs": 120
+      },
+      "optimized": {
+        "success": true,
+        "distance": 1525,
+        "networkMetres": 1503.5948600897145,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 1503.5948600897145,
+        "explicitSidewalkMetres": 1281.0837600897141,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 21,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-174",
+        "resolvedEndId": "metro-exits-112",
+        "weightedCost": 3752.3069425149383,
+        "constructionBlocked": 0,
+        "optimization": {
+          "status": "no-shared-segments",
+          "rolledBack": false,
+          "originalDistanceMetres": 1524.418840416196,
+          "maxDistanceMetres": 1824.418840416196,
+          "originalSharedMetres": 0,
+          "sharedMetres": 0,
+          "originalFootwayMetres": 1503.5948600897145,
+          "footwayMetres": 1503.5948600897145,
+          "originalExplicitSidewalkMetres": 1281.0837600897141,
+          "explicitSidewalkMetres": 1281.0837600897141,
+          "radiusMetres": 50,
+          "minimumReductionMetres": 1,
+          "searchLimits": {
+            "maxIterations": 3,
+            "totalMs": 4000,
+            "maxVisited": 40000,
+            "maxComparisons": 100000
+          },
+          "iterations": []
+        },
+        "initMs": 2913,
+        "searchMs": 99
+      },
+      "sameResolved": true
+    },
+    {
+      "bin": "1–2 km",
+      "start": "忠孝新生(BL14)",
+      "end": "中正紀念堂(R08)",
+      "startId": "w20-19",
+      "endId": "w20-43",
+      "straightMetres": 1807,
+      "baseline": {
+        "success": true,
+        "distance": 2366,
+        "networkMetres": 2341.7303999999995,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 2341.7303999999995,
+        "explicitSidewalkMetres": 2054.8315000000002,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 12,
+        "estimatedApproaches": 1,
+        "resolvedStartId": "metro-exits-168",
+        "resolvedEndId": "metro-exits-36",
+        "weightedCost": 5256.128488380628,
+        "constructionBlocked": 0,
+        "optimization": null,
+        "initMs": 2477,
+        "searchMs": 250
+      },
+      "optimized": {
+        "success": true,
+        "distance": 2366,
+        "networkMetres": 2341.7303999999995,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 2341.7303999999995,
+        "explicitSidewalkMetres": 2054.8315000000002,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 12,
+        "estimatedApproaches": 1,
+        "resolvedStartId": "metro-exits-168",
+        "resolvedEndId": "metro-exits-36",
+        "weightedCost": 5256.128488380628,
+        "constructionBlocked": 0,
+        "optimization": {
+          "status": "no-shared-segments",
+          "rolledBack": false,
+          "originalDistanceMetres": 2365.6347086801793,
+          "maxDistanceMetres": 2665.6347086801793,
+          "originalSharedMetres": 0,
+          "sharedMetres": 0,
+          "originalFootwayMetres": 2341.7303999999995,
+          "footwayMetres": 2341.7303999999995,
+          "originalExplicitSidewalkMetres": 2054.8315000000002,
+          "explicitSidewalkMetres": 2054.8315000000002,
+          "radiusMetres": 50,
+          "minimumReductionMetres": 1,
+          "searchLimits": {
+            "maxIterations": 3,
+            "totalMs": 4000,
+            "maxVisited": 40000,
+            "maxComparisons": 100000
+          },
+          "iterations": []
+        },
+        "initMs": 2953,
+        "searchMs": 224
+      },
+      "sameResolved": true
+    },
+    {
+      "bin": "1–2 km",
+      "start": "萬隆(G06)",
+      "end": "景美(G05)",
+      "startId": "w20-81",
+      "endId": "w20-82",
+      "straightMetres": 1032,
+      "baseline": {
+        "success": true,
+        "distance": 1232,
+        "networkMetres": 1227.4901357649144,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 1227.4901357649144,
+        "explicitSidewalkMetres": 1066.943175558264,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 3,
+        "estimatedApproaches": 1,
+        "resolvedStartId": "metro-exits-103",
+        "resolvedEndId": "metro-exits-102",
+        "weightedCost": 3015.053631175113,
+        "constructionBlocked": 0,
+        "optimization": null,
+        "initMs": 2436,
+        "searchMs": 63
+      },
+      "optimized": {
+        "success": true,
+        "distance": 1232,
+        "networkMetres": 1227.4901357649144,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 1227.4901357649144,
+        "explicitSidewalkMetres": 1066.943175558264,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 3,
+        "estimatedApproaches": 1,
+        "resolvedStartId": "metro-exits-103",
+        "resolvedEndId": "metro-exits-102",
+        "weightedCost": 3015.053631175113,
+        "constructionBlocked": 0,
+        "optimization": {
+          "status": "no-shared-segments",
+          "rolledBack": false,
+          "originalDistanceMetres": 1232.0757478623877,
+          "maxDistanceMetres": 1532.0757478623877,
+          "originalSharedMetres": 0,
+          "sharedMetres": 0,
+          "originalFootwayMetres": 1227.4901357649144,
+          "footwayMetres": 1227.4901357649144,
+          "originalExplicitSidewalkMetres": 1066.943175558264,
+          "explicitSidewalkMetres": 1066.943175558264,
+          "radiusMetres": 50,
+          "minimumReductionMetres": 1,
+          "searchLimits": {
+            "maxIterations": 3,
+            "totalMs": 4000,
+            "maxVisited": 40000,
+            "maxComparisons": 100000
+          },
+          "iterations": []
+        },
+        "initMs": 3190,
+        "searchMs": 61
+      },
+      "sameResolved": true
+    },
+    {
+      "bin": "1–2 km",
+      "start": "善導寺(BL13)",
+      "end": "雙連(R12)",
+      "startId": "w20-113",
+      "endId": "w20-39",
+      "straightMetres": 1470,
+      "baseline": {
+        "success": true,
+        "distance": 2321,
+        "networkMetres": 2312.096550276051,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 2312.096550276051,
+        "explicitSidewalkMetres": 1325.4618412818008,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 9,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-167",
+        "resolvedEndId": "metro-exits-45",
+        "weightedCost": 5738.954516518837,
+        "constructionBlocked": 0,
+        "optimization": null,
+        "initMs": 2502,
+        "searchMs": 91
+      },
+      "optimized": {
+        "success": true,
+        "distance": 2321,
+        "networkMetres": 2312.096550276051,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 2312.096550276051,
+        "explicitSidewalkMetres": 1325.4618412818008,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 9,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-167",
+        "resolvedEndId": "metro-exits-45",
+        "weightedCost": 5738.954516518837,
+        "constructionBlocked": 0,
+        "optimization": {
+          "status": "no-shared-segments",
+          "rolledBack": false,
+          "originalDistanceMetres": 2320.9098567884566,
+          "maxDistanceMetres": 2620.9098567884566,
+          "originalSharedMetres": 0,
+          "sharedMetres": 0,
+          "originalFootwayMetres": 2312.096550276051,
+          "footwayMetres": 2312.096550276051,
+          "originalExplicitSidewalkMetres": 1325.4618412818008,
+          "explicitSidewalkMetres": 1325.4618412818008,
+          "radiusMetres": 50,
+          "minimumReductionMetres": 1,
+          "searchLimits": {
+            "maxIterations": 3,
+            "totalMs": 4000,
+            "maxVisited": 40000,
+            "maxComparisons": 100000
+          },
+          "iterations": []
+        },
+        "initMs": 3050,
+        "searchMs": 76
+      },
+      "sameResolved": true
+    },
+    {
+      "bin": "1–2 km",
+      "start": "象山(R02)",
+      "end": "麟光(BR06)",
+      "startId": "w20-5",
+      "endId": "w20-99",
+      "straightMetres": 1954,
+      "baseline": {
+        "success": true,
+        "distance": 3182,
+        "networkMetres": 3143.758328464318,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 3143.758328464318,
+        "explicitSidewalkMetres": 2239.3492284643175,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 38,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-91",
+        "resolvedEndId": "metro-exits-6",
+        "weightedCost": 7780.427406827237,
+        "constructionBlocked": 0,
+        "optimization": null,
+        "initMs": 2210,
+        "searchMs": 156
+      },
+      "optimized": {
+        "success": true,
+        "distance": 3182,
+        "networkMetres": 3143.758328464318,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 3143.758328464318,
+        "explicitSidewalkMetres": 2239.3492284643175,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 38,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-91",
+        "resolvedEndId": "metro-exits-6",
+        "weightedCost": 7780.427406827237,
+        "constructionBlocked": 0,
+        "optimization": {
+          "status": "no-shared-segments",
+          "rolledBack": false,
+          "originalDistanceMetres": 3181.8330808655446,
+          "maxDistanceMetres": 3481.8330808655446,
+          "originalSharedMetres": 0,
+          "sharedMetres": 0,
+          "originalFootwayMetres": 3143.758328464318,
+          "footwayMetres": 3143.758328464318,
+          "originalExplicitSidewalkMetres": 2239.3492284643175,
+          "explicitSidewalkMetres": 2239.3492284643175,
+          "radiusMetres": 50,
+          "minimumReductionMetres": 1,
+          "searchLimits": {
+            "maxIterations": 3,
+            "totalMs": 4000,
+            "maxVisited": 40000,
+            "maxComparisons": 100000
+          },
+          "iterations": []
+        },
+        "initMs": 2825,
+        "searchMs": 117
+      },
+      "sameResolved": true
+    },
+    {
+      "bin": "1–2 km",
+      "start": "忠孝敦化(BL16)",
+      "end": "南京三民(G18)",
+      "startId": "w20-112",
+      "endId": "w20-71",
+      "straightMetres": 1822,
+      "baseline": {
+        "success": true,
+        "distance": 2383,
+        "networkMetres": 2376.8432633575485,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 2376.8432633575485,
+        "explicitSidewalkMetres": 1823.0397633575487,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 4,
+        "estimatedApproaches": 1,
+        "resolvedStartId": "metro-exits-171",
+        "resolvedEndId": "metro-exits-112",
+        "weightedCost": 5904.261691927895,
+        "constructionBlocked": 0,
+        "optimization": null,
+        "initMs": 2724,
+        "searchMs": 149
+      },
+      "optimized": {
+        "success": true,
+        "distance": 2383,
+        "networkMetres": 2376.8432633575485,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 2376.8432633575485,
+        "explicitSidewalkMetres": 1823.0397633575487,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 4,
+        "estimatedApproaches": 1,
+        "resolvedStartId": "metro-exits-171",
+        "resolvedEndId": "metro-exits-112",
+        "weightedCost": 5904.261691927895,
+        "constructionBlocked": 0,
+        "optimization": {
+          "status": "no-shared-segments",
+          "rolledBack": false,
+          "originalDistanceMetres": 2383.220621383485,
+          "maxDistanceMetres": 2683.220621383485,
+          "originalSharedMetres": 0,
+          "sharedMetres": 0,
+          "originalFootwayMetres": 2376.8432633575485,
+          "footwayMetres": 2376.8432633575485,
+          "originalExplicitSidewalkMetres": 1823.0397633575487,
+          "explicitSidewalkMetres": 1823.0397633575487,
+          "radiusMetres": 50,
+          "minimumReductionMetres": 1,
+          "searchLimits": {
+            "maxIterations": 3,
+            "totalMs": 4000,
+            "maxVisited": 40000,
+            "maxComparisons": 100000
+          },
+          "iterations": []
+        },
+        "initMs": 2933,
+        "searchMs": 113
+      },
+      "sameResolved": true
+    },
+    {
+      "bin": "1–2 km",
+      "start": "雙連(R12)",
+      "end": "松江南京(O08)",
+      "startId": "w20-39",
+      "endId": "w20-63",
+      "straightMetres": 1340,
+      "baseline": {
+        "success": true,
+        "distance": 1917,
+        "networkMetres": 1914.2167508967602,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 1914.2167508967602,
+        "explicitSidewalkMetres": 1221.1145419025106,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 3,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-45",
+        "resolvedEndId": "metro-exits-119",
+        "weightedCost": 4451.278478903066,
+        "constructionBlocked": 0,
+        "optimization": null,
+        "initMs": 2475,
+        "searchMs": 144
+      },
+      "optimized": {
+        "success": true,
+        "distance": 1917,
+        "networkMetres": 1914.2167508967602,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 1914.2167508967602,
+        "explicitSidewalkMetres": 1221.1145419025106,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 3,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-45",
+        "resolvedEndId": "metro-exits-119",
+        "weightedCost": 4451.278478903066,
+        "constructionBlocked": 0,
+        "optimization": {
+          "status": "no-shared-segments",
+          "rolledBack": false,
+          "originalDistanceMetres": 1917.2236508927276,
+          "maxDistanceMetres": 2217.2236508927276,
+          "originalSharedMetres": 0,
+          "sharedMetres": 0,
+          "originalFootwayMetres": 1914.2167508967602,
+          "footwayMetres": 1914.2167508967602,
+          "originalExplicitSidewalkMetres": 1221.1145419025106,
+          "explicitSidewalkMetres": 1221.1145419025106,
+          "radiusMetres": 50,
+          "minimumReductionMetres": 1,
+          "searchLimits": {
+            "maxIterations": 3,
+            "totalMs": 4000,
+            "maxVisited": 40000,
+            "maxComparisons": 100000
+          },
+          "iterations": []
+        },
+        "initMs": 3255,
+        "searchMs": 137
+      },
+      "sameResolved": true
+    },
+    {
+      "bin": "1–2 km",
+      "start": "後山埤(BL20)",
+      "end": "南京三民(G18)",
+      "startId": "w20-108",
+      "endId": "w20-71",
+      "straightMetres": 1926,
+      "baseline": {
+        "success": true,
+        "distance": 2676,
+        "networkMetres": 2662.7659366819285,
+        "sharedMetres": 501.61150000000004,
+        "mappedPedestrianMetres": 2161.1544366819303,
+        "explicitSidewalkMetres": 1678.8547000000003,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 13,
+        "estimatedApproaches": 1,
+        "resolvedStartId": "metro-exits-176",
+        "resolvedEndId": "metro-exits-112",
+        "weightedCost": 7260.996858906234,
+        "constructionBlocked": 0,
+        "optimization": null,
+        "initMs": 2596,
+        "searchMs": 154
+      },
+      "optimized": {
+        "success": true,
+        "distance": 2676,
+        "networkMetres": 2662.7659366819285,
+        "sharedMetres": 501.61150000000004,
+        "mappedPedestrianMetres": 2161.1544366819303,
+        "explicitSidewalkMetres": 1678.8547000000003,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 13,
+        "estimatedApproaches": 1,
+        "resolvedStartId": "metro-exits-176",
+        "resolvedEndId": "metro-exits-112",
+        "weightedCost": 7260.996858906234,
+        "constructionBlocked": 0,
+        "optimization": {
+          "status": "no-improvement",
+          "rolledBack": false,
+          "originalDistanceMetres": 2675.4411970051815,
+          "maxDistanceMetres": 2975.4411970051815,
+          "originalSharedMetres": 501.61150000000004,
+          "sharedMetres": 501.61150000000004,
+          "originalFootwayMetres": 2067.5861366819304,
+          "footwayMetres": 2067.5861366819304,
+          "originalExplicitSidewalkMetres": 1678.8547000000003,
+          "explicitSidewalkMetres": 1678.8547000000003,
+          "radiusMetres": 50,
+          "minimumReductionMetres": 1,
+          "searchLimits": {
+            "maxIterations": 3,
+            "totalMs": 4000,
+            "maxVisited": 40000,
+            "maxComparisons": 100000
+          },
+          "iterations": [
+            {
+              "round": 1,
+              "result": "no-improvement",
+              "reasons": [
+                "insufficient-shared-reduction",
+                "no-connected-pedestrian-within-50m"
+              ],
+              "attempts": [
+                {
+                  "penalty": 2,
+                  "pathPenalty": 0,
+                  "distanceMetres": 2675.4411970051815,
+                  "sharedMetres": 501.61150000000004,
+                  "footwayMetres": 2067.5861366819304,
+                  "explicitSidewalkMetres": 1678.8547000000003,
+                  "reason": "insufficient-shared-reduction"
+                },
+                {
+                  "penalty": 2,
+                  "pathPenalty": 1.5,
+                  "distanceMetres": 2676.9853970051818,
+                  "sharedMetres": 511.2124,
+                  "footwayMetres": 2129.72173668193,
+                  "explicitSidewalkMetres": 1716.0294000000004,
+                  "reason": "insufficient-shared-reduction"
+                },
+                {
+                  "penalty": 6,
+                  "pathPenalty": 0,
+                  "distanceMetres": 2779.7095970051814,
+                  "sharedMetres": 452.1295,
+                  "footwayMetres": 2221.3365366819303,
+                  "explicitSidewalkMetres": 1727.9367000000004,
+                  "reason": "no-connected-pedestrian-within-50m"
+                },
+                {
+                  "penalty": 6,
+                  "pathPenalty": 1.5,
+                  "distanceMetres": 2780.769597005182,
+                  "sharedMetres": 451.7718,
+                  "footwayMetres": 2245.60533668193,
+                  "explicitSidewalkMetres": 1727.9367000000004,
+                  "reason": "no-connected-pedestrian-within-50m"
+                },
+                {
+                  "penalty": 12,
+                  "pathPenalty": 0,
+                  "distanceMetres": 2780.769597005182,
+                  "sharedMetres": 451.7718,
+                  "footwayMetres": 2245.60533668193,
+                  "explicitSidewalkMetres": 1727.9367000000004,
+                  "reason": "no-connected-pedestrian-within-50m"
+                },
+                {
+                  "penalty": 12,
+                  "pathPenalty": 1.5,
+                  "distanceMetres": 2780.769597005182,
+                  "sharedMetres": 451.7718,
+                  "footwayMetres": 2245.60533668193,
+                  "explicitSidewalkMetres": 1727.9367000000004,
+                  "reason": "no-connected-pedestrian-within-50m"
+                }
+              ]
+            }
+          ]
+        },
+        "initMs": 3302,
+        "searchMs": 401
+      },
+      "sameResolved": true
+    },
+    {
+      "bin": "1–2 km",
+      "start": "民權西路(R13)",
+      "end": "松江南京(O08)",
+      "startId": "w20-38",
+      "endId": "w20-63",
+      "straightMetres": 1714,
+      "baseline": {
+        "success": true,
+        "distance": 2462,
+        "networkMetres": 2452.7763138335395,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 2452.7763138335395,
+        "explicitSidewalkMetres": 1526.4255419025098,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 8,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-47",
+        "resolvedEndId": "metro-exits-119",
+        "weightedCost": 5715.258757887417,
+        "constructionBlocked": 0,
+        "optimization": null,
+        "initMs": 2587,
+        "searchMs": 329
+      },
+      "optimized": {
+        "success": true,
+        "distance": 2462,
+        "networkMetres": 2452.7763138335395,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 2452.7763138335395,
+        "explicitSidewalkMetres": 1526.4255419025098,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 8,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-47",
+        "resolvedEndId": "metro-exits-119",
+        "weightedCost": 5715.258757887417,
+        "constructionBlocked": 0,
+        "optimization": {
+          "status": "no-shared-segments",
+          "rolledBack": false,
+          "originalDistanceMetres": 2461.504563926975,
+          "maxDistanceMetres": 2761.504563926975,
+          "originalSharedMetres": 0,
+          "sharedMetres": 0,
+          "originalFootwayMetres": 2452.7763138335395,
+          "footwayMetres": 2452.7763138335395,
+          "originalExplicitSidewalkMetres": 1526.4255419025098,
+          "explicitSidewalkMetres": 1526.4255419025098,
+          "radiusMetres": 50,
+          "minimumReductionMetres": 1,
+          "searchLimits": {
+            "maxIterations": 3,
+            "totalMs": 4000,
+            "maxVisited": 40000,
+            "maxComparisons": 100000
+          },
+          "iterations": []
+        },
+        "initMs": 3222,
+        "searchMs": 260
+      },
+      "sameResolved": true
+    },
+    {
+      "bin": "1–2 km",
+      "start": "台北車站(BL12)",
+      "end": "雙連(R12)",
+      "startId": "w20-114",
+      "endId": "w20-39",
+      "straightMetres": 1295,
+      "baseline": {
+        "success": true,
+        "distance": 1602,
+        "networkMetres": 1593.0273089942505,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 1593.0273089942505,
+        "explicitSidewalkMetres": 1366.5312000000006,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 9,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-40",
+        "resolvedEndId": "metro-exits-45",
+        "weightedCost": 3866.0366299961765,
+        "constructionBlocked": 0,
+        "optimization": null,
+        "initMs": 2307,
+        "searchMs": 108
+      },
+      "optimized": {
+        "success": true,
+        "distance": 1602,
+        "networkMetres": 1593.0273089942505,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 1593.0273089942505,
+        "explicitSidewalkMetres": 1366.5312000000006,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 9,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-40",
+        "resolvedEndId": "metro-exits-45",
+        "weightedCost": 3866.0366299961765,
+        "constructionBlocked": 0,
+        "optimization": {
+          "status": "no-shared-segments",
+          "rolledBack": false,
+          "originalDistanceMetres": 1602.113557431912,
+          "maxDistanceMetres": 1902.113557431912,
+          "originalSharedMetres": 0,
+          "sharedMetres": 0,
+          "originalFootwayMetres": 1593.0273089942505,
+          "footwayMetres": 1593.0273089942505,
+          "originalExplicitSidewalkMetres": 1366.5312000000006,
+          "explicitSidewalkMetres": 1366.5312000000006,
+          "radiusMetres": 50,
+          "minimumReductionMetres": 1,
+          "searchLimits": {
+            "maxIterations": 3,
+            "totalMs": 4000,
+            "maxVisited": 40000,
+            "maxComparisons": 100000
+          },
+          "iterations": []
+        },
+        "initMs": 2929,
+        "searchMs": 111
+      },
+      "sameResolved": true
+    },
+    {
+      "bin": "2–4 km",
+      "start": "小南門(G11)",
+      "end": "公館(G07)",
+      "startId": "w20-11",
+      "endId": "w20-80",
+      "straightMetres": 3316,
+      "baseline": {
+        "success": true,
+        "distance": 3904,
+        "networkMetres": 3897.323627879793,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 3897.323627879793,
+        "explicitSidewalkMetres": 3038.116763798501,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 0,
+        "estimatedApproaches": 0,
+        "resolvedStartId": "metro-exits-108",
+        "resolvedEndId": "metro-exits-104",
+        "weightedCost": 9086.713003690138,
+        "constructionBlocked": 0,
+        "optimization": null,
+        "initMs": 2621,
+        "searchMs": 276
+      },
+      "optimized": {
+        "success": true,
+        "distance": 3904,
+        "networkMetres": 3897.323627879793,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 3897.323627879793,
+        "explicitSidewalkMetres": 3038.116763798501,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 0,
+        "estimatedApproaches": 0,
+        "resolvedStartId": "metro-exits-108",
+        "resolvedEndId": "metro-exits-104",
+        "weightedCost": 9086.713003690138,
+        "constructionBlocked": 0,
+        "optimization": {
+          "status": "no-shared-segments",
+          "rolledBack": false,
+          "originalDistanceMetres": 3904.492484497204,
+          "maxDistanceMetres": 4204.492484497204,
+          "originalSharedMetres": 0,
+          "sharedMetres": 0,
+          "originalFootwayMetres": 3832.910527879793,
+          "footwayMetres": 3832.910527879793,
+          "originalExplicitSidewalkMetres": 3038.116763798501,
+          "explicitSidewalkMetres": 3038.116763798501,
+          "radiusMetres": 50,
+          "minimumReductionMetres": 1,
+          "searchLimits": {
+            "maxIterations": 3,
+            "totalMs": 4000,
+            "maxVisited": 40000,
+            "maxComparisons": 100000
+          },
+          "iterations": []
+        },
+        "initMs": 3609,
+        "searchMs": 225
+      },
+      "sameResolved": true
+    },
+    {
+      "bin": "2–4 km",
+      "start": "台北車站(BL12)",
+      "end": "忠孝復興(BR10)",
+      "startId": "w20-114",
+      "endId": "w20-17",
+      "straightMetres": 2710,
+      "baseline": {
+        "success": true,
+        "distance": 2953,
+        "networkMetres": 2933.3116325505193,
+        "sharedMetres": 26.3542,
+        "mappedPedestrianMetres": 2906.957432550519,
+        "explicitSidewalkMetres": 2465.172832550519,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 20,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-40",
+        "resolvedEndId": "metro-exits-170",
+        "weightedCost": 6608.034524356716,
+        "constructionBlocked": 0,
+        "optimization": null,
+        "initMs": 2152,
+        "searchMs": 163
+      },
+      "optimized": {
+        "success": true,
+        "distance": 2953,
+        "networkMetres": 2933.3116325505193,
+        "sharedMetres": 26.3542,
+        "mappedPedestrianMetres": 2906.957432550519,
+        "explicitSidewalkMetres": 2465.172832550519,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 20,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-40",
+        "resolvedEndId": "metro-exits-170",
+        "weightedCost": 6608.034524356716,
+        "constructionBlocked": 0,
+        "optimization": {
+          "status": "no-improvement",
+          "rolledBack": false,
+          "originalDistanceMetres": 2953.251919356034,
+          "maxDistanceMetres": 3253.251919356034,
+          "originalSharedMetres": 26.3542,
+          "sharedMetres": 26.3542,
+          "originalFootwayMetres": 2906.957432550519,
+          "footwayMetres": 2906.957432550519,
+          "originalExplicitSidewalkMetres": 2465.172832550519,
+          "explicitSidewalkMetres": 2465.172832550519,
+          "radiusMetres": 50,
+          "minimumReductionMetres": 1,
+          "searchLimits": {
+            "maxIterations": 3,
+            "totalMs": 4000,
+            "maxVisited": 40000,
+            "maxComparisons": 100000
+          },
+          "iterations": [
+            {
+              "round": 1,
+              "result": "no-improvement",
+              "reasons": [
+                "no-connected-pedestrian-within-50m"
+              ],
+              "attempts": [
+                {
+                  "penalty": 2,
+                  "pathPenalty": 0,
+                  "distanceMetres": 2969.711519356033,
+                  "sharedMetres": 0,
+                  "footwayMetres": 2910.199732550519,
+                  "explicitSidewalkMetres": 2484.479432550519,
+                  "reason": "no-connected-pedestrian-within-50m"
+                },
+                {
+                  "penalty": 2,
+                  "pathPenalty": 1.5,
+                  "distanceMetres": 2969.711519356033,
+                  "sharedMetres": 0,
+                  "footwayMetres": 2910.199732550519,
+                  "explicitSidewalkMetres": 2484.479432550519,
+                  "reason": "no-connected-pedestrian-within-50m"
+                },
+                {
+                  "penalty": 6,
+                  "pathPenalty": 0,
+                  "distanceMetres": 2969.711519356033,
+                  "sharedMetres": 0,
+                  "footwayMetres": 2910.199732550519,
+                  "explicitSidewalkMetres": 2484.479432550519,
+                  "reason": "no-connected-pedestrian-within-50m"
+                },
+                {
+                  "penalty": 6,
+                  "pathPenalty": 1.5,
+                  "distanceMetres": 2969.711519356033,
+                  "sharedMetres": 0,
+                  "footwayMetres": 2910.199732550519,
+                  "explicitSidewalkMetres": 2484.479432550519,
+                  "reason": "no-connected-pedestrian-within-50m"
+                },
+                {
+                  "penalty": 12,
+                  "pathPenalty": 0,
+                  "distanceMetres": 2969.711519356033,
+                  "sharedMetres": 0,
+                  "footwayMetres": 2910.199732550519,
+                  "explicitSidewalkMetres": 2484.479432550519,
+                  "reason": "no-connected-pedestrian-within-50m"
+                },
+                {
+                  "penalty": 12,
+                  "pathPenalty": 1.5,
+                  "distanceMetres": 2969.711519356033,
+                  "sharedMetres": 0,
+                  "footwayMetres": 2910.199732550519,
+                  "explicitSidewalkMetres": 2484.479432550519,
+                  "reason": "no-connected-pedestrian-within-50m"
+                }
+              ]
+            }
+          ]
+        },
+        "initMs": 5225,
+        "searchMs": 830
+      },
+      "sameResolved": true
+    },
+    {
+      "bin": "2–4 km",
+      "start": "劍潭(R15)",
+      "end": "大直(BR14)",
+      "startId": "w20-36",
+      "endId": "w20-93",
+      "straightMetres": 2262,
+      "baseline": {
+        "success": true,
+        "distance": 4940,
+        "networkMetres": 4872.600700000003,
+        "sharedMetres": 1488.0829000000006,
+        "mappedPedestrianMetres": 3384.5177999999996,
+        "explicitSidewalkMetres": 888.2465,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 68,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-52",
+        "resolvedEndId": "metro-exits-14",
+        "weightedCost": 15512.624759555229,
+        "constructionBlocked": 0,
+        "optimization": null,
+        "initMs": 2538,
+        "searchMs": 439
+      },
+      "optimized": {
+        "success": true,
+        "distance": 4960,
+        "networkMetres": 4893.233600000002,
+        "sharedMetres": 1446.4366000000002,
+        "mappedPedestrianMetres": 3446.797,
+        "explicitSidewalkMetres": 888.2465,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 68,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-52",
+        "resolvedEndId": "metro-exits-14",
+        "weightedCost": 15560.264787555225,
+        "constructionBlocked": 0,
+        "optimization": {
+          "status": "improved",
+          "rolledBack": false,
+          "originalDistanceMetres": 4939.753475872923,
+          "maxDistanceMetres": 5239.753475872923,
+          "originalSharedMetres": 1488.0829000000006,
+          "sharedMetres": 1446.4366000000002,
+          "originalFootwayMetres": 2086.1420999999996,
+          "footwayMetres": 2086.1420999999996,
+          "originalExplicitSidewalkMetres": 888.2465,
+          "explicitSidewalkMetres": 888.2465,
+          "radiusMetres": 50,
+          "minimumReductionMetres": 1,
+          "searchLimits": {
+            "maxIterations": 3,
+            "totalMs": 4000,
+            "maxVisited": 40000,
+            "maxComparisons": 100000
+          },
+          "iterations": [
+            {
+              "round": 1,
+              "result": "improved",
+              "previousSharedMetres": 1488.0829000000006,
+              "sharedMetres": 1446.4366000000002,
+              "distanceMetres": 4960.386375872923,
+              "penalty": 2,
+              "pathPenalty": 0,
+              "attempts": [
+                {
+                  "penalty": 2,
+                  "pathPenalty": 0,
+                  "distanceMetres": 4960.386375872923,
+                  "sharedMetres": 1446.4366000000002,
+                  "footwayMetres": 2086.1420999999996,
+                  "explicitSidewalkMetres": 888.2465,
+                  "reason": "eligible",
+                  "selected": true
+                },
+                {
+                  "penalty": 2,
+                  "pathPenalty": 1.5,
+                  "distanceMetres": 4939.753475872923,
+                  "sharedMetres": 1488.0829000000006,
+                  "footwayMetres": 2086.1420999999996,
+                  "explicitSidewalkMetres": 888.2465,
+                  "reason": "insufficient-shared-reduction"
+                },
+                {
+                  "penalty": 6,
+                  "pathPenalty": 0,
+                  "distanceMetres": 5369.114975872922,
+                  "sharedMetres": 1205.2433,
+                  "footwayMetres": 2736.0640000000003,
+                  "explicitSidewalkMetres": 1170.3982999999998,
+                  "reason": "detour-limit"
+                },
+                {
+                  "penalty": 6,
+                  "pathPenalty": 1.5,
+                  "distanceMetres": 5369.114975872922,
+                  "sharedMetres": 1205.2433,
+                  "footwayMetres": 2736.0640000000003,
+                  "explicitSidewalkMetres": 1170.3982999999998,
+                  "reason": "detour-limit"
+                },
+                {
+                  "penalty": 12,
+                  "pathPenalty": 0,
+                  "distanceMetres": 5369.114975872922,
+                  "sharedMetres": 1205.2433,
+                  "footwayMetres": 2736.0640000000003,
+                  "explicitSidewalkMetres": 1170.3982999999998,
+                  "reason": "detour-limit"
+                },
+                {
+                  "penalty": 12,
+                  "pathPenalty": 1.5,
+                  "distanceMetres": 5369.114975872922,
+                  "sharedMetres": 1205.2433,
+                  "footwayMetres": 2736.0640000000003,
+                  "explicitSidewalkMetres": 1170.3982999999998,
+                  "reason": "detour-limit"
+                }
+              ]
+            },
+            {
+              "round": 2,
+              "result": "no-improvement",
+              "reasons": [
+                "insufficient-shared-reduction",
+                "detour-limit"
+              ],
+              "attempts": [
+                {
+                  "penalty": 2,
+                  "pathPenalty": 0,
+                  "distanceMetres": 4960.386375872923,
+                  "sharedMetres": 1446.4366000000002,
+                  "footwayMetres": 2086.1420999999996,
+                  "explicitSidewalkMetres": 888.2465,
+                  "reason": "insufficient-shared-reduction"
+                },
+                {
+                  "penalty": 2,
+                  "pathPenalty": 1.5,
+                  "distanceMetres": 4939.753475872923,
+                  "sharedMetres": 1488.0829000000006,
+                  "footwayMetres": 2086.1420999999996,
+                  "explicitSidewalkMetres": 888.2465,
+                  "reason": "insufficient-shared-reduction"
+                },
+                {
+                  "penalty": 6,
+                  "pathPenalty": 0,
+                  "distanceMetres": 5369.114975872922,
+                  "sharedMetres": 1205.2433,
+                  "footwayMetres": 2736.0640000000003,
+                  "explicitSidewalkMetres": 1170.3982999999998,
+                  "reason": "detour-limit"
+                },
+                {
+                  "penalty": 6,
+                  "pathPenalty": 1.5,
+                  "distanceMetres": 5369.114975872922,
+                  "sharedMetres": 1205.2433,
+                  "footwayMetres": 2736.0640000000003,
+                  "explicitSidewalkMetres": 1170.3982999999998,
+                  "reason": "detour-limit"
+                },
+                {
+                  "penalty": 12,
+                  "pathPenalty": 0,
+                  "distanceMetres": 5369.114975872922,
+                  "sharedMetres": 1205.2433,
+                  "footwayMetres": 2736.0640000000003,
+                  "explicitSidewalkMetres": 1170.3982999999998,
+                  "reason": "detour-limit"
+                },
+                {
+                  "penalty": 12,
+                  "pathPenalty": 1.5,
+                  "distanceMetres": 5369.114975872922,
+                  "sharedMetres": 1205.2433,
+                  "footwayMetres": 2736.0640000000003,
+                  "explicitSidewalkMetres": 1170.3982999999998,
+                  "reason": "detour-limit"
+                }
+              ]
+            }
+          ]
+        },
+        "initMs": 3231,
+        "searchMs": 1411
+      },
+      "sameResolved": true
+    },
+    {
+      "bin": "2–4 km",
+      "start": "國父紀念館(BL17)",
+      "end": "公館(G07)",
+      "startId": "w20-111",
+      "endId": "w20-80",
+      "straightMetres": 3784,
+      "baseline": {
+        "success": true,
+        "distance": 5380,
+        "networkMetres": 5364.973333523075,
+        "sharedMetres": 190.80549999999997,
+        "mappedPedestrianMetres": 5174.167833523075,
+        "explicitSidewalkMetres": 4304.6274335230755,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 15,
+        "estimatedApproaches": 1,
+        "resolvedStartId": "metro-exits-172",
+        "resolvedEndId": "metro-exits-105",
+        "weightedCost": 13821.087272688666,
+        "constructionBlocked": 0,
+        "optimization": null,
+        "initMs": 2230,
+        "searchMs": 592
+      },
+      "optimized": {
+        "success": true,
+        "distance": 5442,
+        "networkMetres": 5426.756233523075,
+        "sharedMetres": 160.3638,
+        "mappedPedestrianMetres": 5266.392433523076,
+        "explicitSidewalkMetres": 4340.162233523074,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 15,
+        "estimatedApproaches": 1,
+        "resolvedStartId": "metro-exits-172",
+        "resolvedEndId": "metro-exits-105",
+        "weightedCost": 13951.34302068865,
+        "constructionBlocked": 0,
+        "optimization": {
+          "status": "improved",
+          "rolledBack": false,
+          "originalDistanceMetres": 5380.291177044317,
+          "maxDistanceMetres": 5680.291177044317,
+          "originalSharedMetres": 190.80549999999997,
+          "sharedMetres": 160.3638,
+          "originalFootwayMetres": 4848.914333523075,
+          "footwayMetres": 4882.341433523075,
+          "originalExplicitSidewalkMetres": 4304.6274335230755,
+          "explicitSidewalkMetres": 4340.162233523074,
+          "radiusMetres": 50,
+          "minimumReductionMetres": 1,
+          "searchLimits": {
+            "maxIterations": 3,
+            "totalMs": 4000,
+            "maxVisited": 40000,
+            "maxComparisons": 100000
+          },
+          "iterations": [
+            {
+              "round": 1,
+              "result": "improved",
+              "previousSharedMetres": 190.80549999999997,
+              "sharedMetres": 160.3638,
+              "distanceMetres": 5442.074077044317,
+              "penalty": 6,
+              "pathPenalty": 0,
+              "attempts": [
+                {
+                  "penalty": 2,
+                  "pathPenalty": 0,
+                  "distanceMetres": 5380.291177044317,
+                  "sharedMetres": 190.80549999999997,
+                  "footwayMetres": 4848.914333523075,
+                  "explicitSidewalkMetres": 4304.6274335230755,
+                  "reason": "insufficient-shared-reduction"
+                },
+                {
+                  "penalty": 2,
+                  "pathPenalty": 1.5,
+                  "distanceMetres": 5380.291177044317,
+                  "sharedMetres": 190.80549999999997,
+                  "footwayMetres": 4848.914333523075,
+                  "explicitSidewalkMetres": 4304.6274335230755,
+                  "reason": "insufficient-shared-reduction"
+                },
+                {
+                  "penalty": 6,
+                  "pathPenalty": 0,
+                  "distanceMetres": 5442.074077044317,
+                  "sharedMetres": 160.3638,
+                  "footwayMetres": 4882.341433523075,
+                  "explicitSidewalkMetres": 4340.162233523074,
+                  "reason": "eligible",
+                  "selected": true
+                },
+                {
+                  "penalty": 6,
+                  "pathPenalty": 1.5,
+                  "distanceMetres": 5380.291177044317,
+                  "sharedMetres": 190.80549999999997,
+                  "footwayMetres": 4848.914333523075,
+                  "explicitSidewalkMetres": 4304.6274335230755,
+                  "reason": "insufficient-shared-reduction"
+                },
+                {
+                  "penalty": 12,
+                  "pathPenalty": 0,
+                  "distanceMetres": 6854.056269625667,
+                  "sharedMetres": 0,
+                  "footwayMetres": 6773.878233523081,
+                  "explicitSidewalkMetres": 6046.75043352308,
+                  "reason": "detour-limit"
+                },
+                {
+                  "penalty": 12,
+                  "pathPenalty": 1.5,
+                  "distanceMetres": 6863.745062183485,
+                  "sharedMetres": 0,
+                  "footwayMetres": 6854.800833523081,
+                  "explicitSidewalkMetres": 5864.820833523077,
+                  "reason": "detour-limit"
+                }
+              ]
+            },
+            {
+              "round": 2,
+              "result": "no-improvement",
+              "reasons": [
+                "insufficient-shared-reduction",
+                "detour-limit"
+              ],
+              "attempts": [
+                {
+                  "penalty": 2,
+                  "pathPenalty": 0,
+                  "distanceMetres": 5380.291177044317,
+                  "sharedMetres": 190.80549999999997,
+                  "footwayMetres": 4848.914333523075,
+                  "explicitSidewalkMetres": 4304.6274335230755,
+                  "reason": "insufficient-shared-reduction"
+                },
+                {
+                  "penalty": 2,
+                  "pathPenalty": 1.5,
+                  "distanceMetres": 5380.291177044317,
+                  "sharedMetres": 190.80549999999997,
+                  "footwayMetres": 4848.914333523075,
+                  "explicitSidewalkMetres": 4304.6274335230755,
+                  "reason": "insufficient-shared-reduction"
+                },
+                {
+                  "penalty": 6,
+                  "pathPenalty": 0,
+                  "distanceMetres": 5442.074077044317,
+                  "sharedMetres": 160.3638,
+                  "footwayMetres": 4882.341433523075,
+                  "explicitSidewalkMetres": 4340.162233523074,
+                  "reason": "insufficient-shared-reduction"
+                },
+                {
+                  "penalty": 6,
+                  "pathPenalty": 1.5,
+                  "distanceMetres": 5380.291177044317,
+                  "sharedMetres": 190.80549999999997,
+                  "footwayMetres": 4848.914333523075,
+                  "explicitSidewalkMetres": 4304.6274335230755,
+                  "reason": "insufficient-shared-reduction"
+                },
+                {
+                  "penalty": 12,
+                  "pathPenalty": 0,
+                  "distanceMetres": 6854.056269625667,
+                  "sharedMetres": 0,
+                  "footwayMetres": 6773.878233523081,
+                  "explicitSidewalkMetres": 6046.75043352308,
+                  "reason": "detour-limit"
+                },
+                {
+                  "penalty": 12,
+                  "pathPenalty": 1.5,
+                  "distanceMetres": 6863.745062183485,
+                  "sharedMetres": 0,
+                  "footwayMetres": 6854.800833523081,
+                  "explicitSidewalkMetres": 5864.820833523077,
+                  "reason": "detour-limit"
+                }
+              ]
+            }
+          ]
+        },
+        "initMs": 2750,
+        "searchMs": 2645
+      },
+      "sameResolved": true
+    },
+    {
+      "bin": "2–4 km",
+      "start": "木柵(BR02)",
+      "end": "麟光(BR06)",
+      "startId": "w20-103",
+      "endId": "w20-99",
+      "straightMetres": 2673,
+      "baseline": {
+        "success": true,
+        "distance": 6995,
+        "networkMetres": 6958.414128464316,
+        "sharedMetres": 1207.8265,
+        "mappedPedestrianMetres": 5750.587628464319,
+        "explicitSidewalkMetres": 4183.693228464318,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 36,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-2",
+        "resolvedEndId": "metro-exits-6",
+        "weightedCost": 18952.000178002327,
+        "constructionBlocked": 0,
+        "optimization": null,
+        "initMs": 2598,
+        "searchMs": 118
+      },
+      "optimized": {
+        "success": true,
+        "distance": 6995,
+        "networkMetres": 6958.414128464316,
+        "sharedMetres": 1207.8265,
+        "mappedPedestrianMetres": 5750.587628464319,
+        "explicitSidewalkMetres": 4183.693228464318,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 36,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-2",
+        "resolvedEndId": "metro-exits-6",
+        "weightedCost": 18952.000178002327,
+        "constructionBlocked": 0,
+        "optimization": {
+          "status": "no-improvement",
+          "rolledBack": false,
+          "originalDistanceMetres": 6994.920142344136,
+          "maxDistanceMetres": 7294.920142344136,
+          "originalSharedMetres": 1207.8265,
+          "sharedMetres": 1207.8265,
+          "originalFootwayMetres": 4513.452528464317,
+          "footwayMetres": 4513.452528464317,
+          "originalExplicitSidewalkMetres": 4183.693228464318,
+          "explicitSidewalkMetres": 4183.693228464318,
+          "radiusMetres": 50,
+          "minimumReductionMetres": 1,
+          "searchLimits": {
+            "maxIterations": 3,
+            "totalMs": 4000,
+            "maxVisited": 40000,
+            "maxComparisons": 100000
+          },
+          "iterations": [
+            {
+              "round": 1,
+              "result": "no-improvement",
+              "reasons": [
+                "no-connected-pedestrian-within-50m",
+                "detour-limit"
+              ],
+              "attempts": [
+                {
+                  "penalty": 2,
+                  "pathPenalty": 0,
+                  "distanceMetres": 7032.05772187468,
+                  "sharedMetres": 1136.7126999999998,
+                  "footwayMetres": 4609.738728464317,
+                  "explicitSidewalkMetres": 4263.342928464317,
+                  "reason": "no-connected-pedestrian-within-50m"
+                },
+                {
+                  "penalty": 2,
+                  "pathPenalty": 1.5,
+                  "distanceMetres": 8525.562621874693,
+                  "sharedMetres": 552.7482,
+                  "footwayMetres": 7506.92352846432,
+                  "explicitSidewalkMetres": 7011.857828464318,
+                  "reason": "detour-limit"
+                },
+                {
+                  "penalty": 6,
+                  "pathPenalty": 0,
+                  "distanceMetres": 8525.562621874693,
+                  "sharedMetres": 552.7482,
+                  "footwayMetres": 7506.92352846432,
+                  "explicitSidewalkMetres": 7011.857828464318,
+                  "reason": "detour-limit"
+                },
+                {
+                  "penalty": 6,
+                  "pathPenalty": 1.5,
+                  "distanceMetres": 8525.562621874693,
+                  "sharedMetres": 552.7482,
+                  "footwayMetres": 7506.92352846432,
+                  "explicitSidewalkMetres": 7011.857828464318,
+                  "reason": "detour-limit"
+                },
+                {
+                  "penalty": 12,
+                  "pathPenalty": 0,
+                  "distanceMetres": 8525.562621874693,
+                  "sharedMetres": 552.7482,
+                  "footwayMetres": 7506.92352846432,
+                  "explicitSidewalkMetres": 7011.857828464318,
+                  "reason": "detour-limit"
+                },
+                {
+                  "penalty": 12,
+                  "pathPenalty": 1.5,
+                  "distanceMetres": 8525.562621874693,
+                  "sharedMetres": 552.7482,
+                  "footwayMetres": 7506.92352846432,
+                  "explicitSidewalkMetres": 7011.857828464318,
+                  "reason": "detour-limit"
+                }
+              ]
+            }
+          ]
+        },
+        "initMs": 2674,
+        "searchMs": 584
+      },
+      "sameResolved": true
+    },
+    {
+      "bin": "2–4 km",
+      "start": "大橋頭(O12)",
+      "end": "大直(BR14)",
+      "startId": "w20-59",
+      "endId": "w20-93",
+      "straightMetres": 3850,
+      "baseline": {
+        "success": false,
+        "error": "NO_ROUTE",
+        "initMs": 2452,
+        "searchMs": 1016
+      },
+      "optimized": {
+        "success": false,
+        "error": "NO_ROUTE",
+        "initMs": 2687,
+        "searchMs": 1067
+      },
+      "sameResolved": null
+    },
+    {
+      "bin": "2–4 km",
+      "start": "士林(R16)",
+      "end": "民權西路(R13)",
+      "startId": "w20-35",
+      "endId": "w20-38",
+      "straightMetres": 3527,
+      "baseline": {
+        "success": false,
+        "error": "NO_ROUTE",
+        "initMs": 2514,
+        "searchMs": 926
+      },
+      "optimized": {
+        "success": false,
+        "error": "NO_ROUTE",
+        "initMs": 2887,
+        "searchMs": 848
+      },
+      "sameResolved": null
+    },
+    {
+      "bin": "2–4 km",
+      "start": "大安森林公園(R06)",
+      "end": "南京復興(G16)",
+      "startId": "w20-45",
+      "endId": "w20-73",
+      "straightMetres": 2248,
+      "baseline": {
+        "success": true,
+        "distance": 2816,
+        "networkMetres": 2794.5720008463654,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 2794.5720008463654,
+        "explicitSidewalkMetres": 2393.596500846365,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 19,
+        "estimatedApproaches": 1,
+        "resolvedStartId": "metro-exits-81",
+        "resolvedEndId": "metro-exits-117",
+        "weightedCost": 6455.294762856665,
+        "constructionBlocked": 0,
+        "optimization": null,
+        "initMs": 2400,
+        "searchMs": 594
+      },
+      "optimized": {
+        "success": true,
+        "distance": 2816,
+        "networkMetres": 2794.5720008463654,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 2794.5720008463654,
+        "explicitSidewalkMetres": 2393.596500846365,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 19,
+        "estimatedApproaches": 1,
+        "resolvedStartId": "metro-exits-81",
+        "resolvedEndId": "metro-exits-117",
+        "weightedCost": 6455.294762856665,
+        "constructionBlocked": 0,
+        "optimization": {
+          "status": "no-shared-segments",
+          "rolledBack": false,
+          "originalDistanceMetres": 2815.3052240554066,
+          "maxDistanceMetres": 3115.3052240554066,
+          "originalSharedMetres": 0,
+          "sharedMetres": 0,
+          "originalFootwayMetres": 2794.5720008463654,
+          "footwayMetres": 2794.5720008463654,
+          "originalExplicitSidewalkMetres": 2393.596500846365,
+          "explicitSidewalkMetres": 2393.596500846365,
+          "radiusMetres": 50,
+          "minimumReductionMetres": 1,
+          "searchLimits": {
+            "maxIterations": 3,
+            "totalMs": 4000,
+            "maxVisited": 40000,
+            "maxComparisons": 100000
+          },
+          "iterations": []
+        },
+        "initMs": 2743,
+        "searchMs": 552
+      },
+      "sameResolved": true
+    },
+    {
+      "bin": "2–4 km",
+      "start": "萬芳醫院(BR04)",
+      "end": "動物園(BR01)",
+      "startId": "w20-101",
+      "endId": "w20-104",
+      "straightMetres": 2159,
+      "baseline": {
+        "success": false,
+        "error": "NO_ROUTE",
+        "initMs": 2191,
+        "searchMs": 1025
+      },
+      "optimized": {
+        "success": false,
+        "error": "NO_ROUTE",
+        "initMs": 2800,
+        "searchMs": 1012
+      },
+      "sameResolved": null
+    },
+    {
+      "bin": "2–4 km",
+      "start": "港墘(BR17)",
+      "end": "劍南路(BR15)",
+      "startId": "w20-90",
+      "endId": "w20-92",
+      "straightMetres": 2041,
+      "baseline": {
+        "success": true,
+        "distance": 2163,
+        "networkMetres": 2145.1849563011133,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 2145.1849563011133,
+        "explicitSidewalkMetres": 1546.4510563011136,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 18,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-21",
+        "resolvedEndId": "metro-exits-16",
+        "weightedCost": 5475.750917153398,
+        "constructionBlocked": 0,
+        "optimization": null,
+        "initMs": 2306,
+        "searchMs": 185
+      },
+      "optimized": {
+        "success": true,
+        "distance": 2163,
+        "networkMetres": 2145.1849563011133,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 2145.1849563011133,
+        "explicitSidewalkMetres": 1546.4510563011136,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 18,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-21",
+        "resolvedEndId": "metro-exits-16",
+        "weightedCost": 5475.750917153398,
+        "constructionBlocked": 0,
+        "optimization": {
+          "status": "no-shared-segments",
+          "rolledBack": false,
+          "originalDistanceMetres": 2163.114349448075,
+          "maxDistanceMetres": 2463.114349448075,
+          "originalSharedMetres": 0,
+          "sharedMetres": 0,
+          "originalFootwayMetres": 2145.1849563011133,
+          "footwayMetres": 2145.1849563011133,
+          "originalExplicitSidewalkMetres": 1546.4510563011136,
+          "explicitSidewalkMetres": 1546.4510563011136,
+          "radiusMetres": 50,
+          "minimumReductionMetres": 1,
+          "searchLimits": {
+            "maxIterations": 3,
+            "totalMs": 4000,
+            "maxVisited": 40000,
+            "maxComparisons": 100000
+          },
+          "iterations": []
+        },
+        "initMs": 2959,
+        "searchMs": 160
+      },
+      "sameResolved": true
+    },
+    {
+      "bin": "2–4 km",
+      "start": "後山埤(BL20)",
+      "end": "港墘(BR17)",
+      "startId": "w20-108",
+      "endId": "w20-90",
+      "straightMetres": 3996,
+      "baseline": {
+        "success": false,
+        "error": "NO_ROUTE",
+        "initMs": 2502,
+        "searchMs": 1042
+      },
+      "optimized": {
+        "success": false,
+        "error": "NO_ROUTE",
+        "initMs": 3041,
+        "searchMs": 1000
+      },
+      "sameResolved": null
+    },
+    {
+      "bin": "2–4 km",
+      "start": "萬芳醫院(BR04)",
+      "end": "公館(G07)",
+      "startId": "w20-101",
+      "endId": "w20-80",
+      "straightMetres": 2944,
+      "baseline": {
+        "success": true,
+        "distance": 3694,
+        "networkMetres": 3674.9581640812935,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 3674.9581640812935,
+        "explicitSidewalkMetres": 3025.4388000000013,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 18,
+        "estimatedApproaches": 1,
+        "resolvedStartId": "metro-exits-4",
+        "resolvedEndId": "metro-exits-104",
+        "weightedCost": 8599.066755143449,
+        "constructionBlocked": 0,
+        "optimization": null,
+        "initMs": 2486,
+        "searchMs": 151
+      },
+      "optimized": {
+        "success": true,
+        "distance": 3694,
+        "networkMetres": 3674.9581640812935,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 3674.9581640812935,
+        "explicitSidewalkMetres": 3025.4388000000013,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 18,
+        "estimatedApproaches": 1,
+        "resolvedStartId": "metro-exits-4",
+        "resolvedEndId": "metro-exits-104",
+        "weightedCost": 8599.066755143449,
+        "constructionBlocked": 0,
+        "optimization": {
+          "status": "no-shared-segments",
+          "rolledBack": false,
+          "originalDistanceMetres": 3693.7825869691133,
+          "maxDistanceMetres": 3993.7825869691133,
+          "originalSharedMetres": 0,
+          "sharedMetres": 0,
+          "originalFootwayMetres": 3674.9581640812935,
+          "footwayMetres": 3674.9581640812935,
+          "originalExplicitSidewalkMetres": 3025.4388000000013,
+          "explicitSidewalkMetres": 3025.4388000000013,
+          "radiusMetres": 50,
+          "minimumReductionMetres": 1,
+          "searchLimits": {
+            "maxIterations": 3,
+            "totalMs": 4000,
+            "maxVisited": 40000,
+            "maxComparisons": 100000
+          },
+          "iterations": []
+        },
+        "initMs": 2913,
+        "searchMs": 116
+      },
+      "sameResolved": true
+    },
+    {
+      "bin": "2–4 km",
+      "start": "中山國中(BR12)",
+      "end": "科技大樓(BR08)",
+      "startId": "w20-94",
+      "endId": "w20-97",
+      "straightMetres": 3863,
+      "baseline": {
+        "success": true,
+        "distance": 4365,
+        "networkMetres": 4346.631845413079,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 4346.631845413079,
+        "explicitSidewalkMetres": 3884.1614454130795,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 18,
+        "estimatedApproaches": 1,
+        "resolvedStartId": "metro-exits-10",
+        "resolvedEndId": "metro-exits-8",
+        "weightedCost": 10509.953465076449,
+        "constructionBlocked": 0,
+        "optimization": null,
+        "initMs": 2192,
+        "searchMs": 209
+      },
+      "optimized": {
+        "success": true,
+        "distance": 4365,
+        "networkMetres": 4346.631845413079,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 4346.631845413079,
+        "explicitSidewalkMetres": 3884.1614454130795,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 18,
+        "estimatedApproaches": 1,
+        "resolvedStartId": "metro-exits-10",
+        "resolvedEndId": "metro-exits-8",
+        "weightedCost": 10509.953465076449,
+        "constructionBlocked": 0,
+        "optimization": {
+          "status": "no-shared-segments",
+          "rolledBack": false,
+          "originalDistanceMetres": 4365.010311330292,
+          "maxDistanceMetres": 4665.010311330292,
+          "originalSharedMetres": 0,
+          "sharedMetres": 0,
+          "originalFootwayMetres": 4346.631845413079,
+          "footwayMetres": 4346.631845413079,
+          "originalExplicitSidewalkMetres": 3884.1614454130795,
+          "explicitSidewalkMetres": 3884.1614454130795,
+          "radiusMetres": 50,
+          "minimumReductionMetres": 1,
+          "searchLimits": {
+            "maxIterations": 3,
+            "totalMs": 4000,
+            "maxVisited": 40000,
+            "maxComparisons": 100000
+          },
+          "iterations": []
+        },
+        "initMs": 2676,
+        "searchMs": 183
+      },
+      "sameResolved": true
+    },
+    {
+      "bin": "2–4 km",
+      "start": "西門(G12)",
+      "end": "中山國小(O10)",
+      "startId": "w20-10",
+      "endId": "w20-61",
+      "straightMetres": 2909,
+      "baseline": {
+        "success": true,
+        "distance": 3855,
+        "networkMetres": 3826.260652652599,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 3826.260652652599,
+        "explicitSidewalkMetres": 3332.6512526525994,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 3,
+        "estimatedApproaches": 1,
+        "resolvedStartId": "metro-exits-166",
+        "resolvedEndId": "metro-exits-136",
+        "weightedCost": 9290.775191029792,
+        "constructionBlocked": 0,
+        "optimization": null,
+        "initMs": 2264,
+        "searchMs": 351
+      },
+      "optimized": {
+        "success": true,
+        "distance": 3855,
+        "networkMetres": 3826.260652652599,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 3826.260652652599,
+        "explicitSidewalkMetres": 3332.6512526525994,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 3,
+        "estimatedApproaches": 1,
+        "resolvedStartId": "metro-exits-166",
+        "resolvedEndId": "metro-exits-136",
+        "weightedCost": 9290.775191029792,
+        "constructionBlocked": 0,
+        "optimization": {
+          "status": "no-shared-segments",
+          "rolledBack": false,
+          "originalDistanceMetres": 3855.152942885375,
+          "maxDistanceMetres": 4155.1529428853755,
+          "originalSharedMetres": 0,
+          "sharedMetres": 0,
+          "originalFootwayMetres": 3826.260652652599,
+          "footwayMetres": 3826.260652652599,
+          "originalExplicitSidewalkMetres": 3332.6512526525994,
+          "explicitSidewalkMetres": 3332.6512526525994,
+          "radiusMetres": 50,
+          "minimumReductionMetres": 1,
+          "searchLimits": {
+            "maxIterations": 3,
+            "totalMs": 4000,
+            "maxVisited": 40000,
+            "maxComparisons": 100000
+          },
+          "iterations": []
+        },
+        "initMs": 2725,
+        "searchMs": 285
+      },
+      "sameResolved": true
+    },
+    {
+      "bin": "2–4 km",
+      "start": "台北車站(BL12)",
+      "end": "台電大樓(G08)",
+      "startId": "w20-114",
+      "endId": "w20-79",
+      "straightMetres": 3042,
+      "baseline": {
+        "success": true,
+        "distance": 3998,
+        "networkMetres": 3984.0710320223966,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 3984.0710320223966,
+        "explicitSidewalkMetres": 3147.6815320223977,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 2,
+        "estimatedApproaches": 1,
+        "resolvedStartId": "metro-exits-41",
+        "resolvedEndId": "metro-exits-106",
+        "weightedCost": 8569.492615604093,
+        "constructionBlocked": 0,
+        "optimization": null,
+        "initMs": 2511,
+        "searchMs": 215
+      },
+      "optimized": {
+        "success": true,
+        "distance": 3998,
+        "networkMetres": 3984.0710320223966,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 3984.0710320223966,
+        "explicitSidewalkMetres": 3147.6815320223977,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 2,
+        "estimatedApproaches": 1,
+        "resolvedStartId": "metro-exits-41",
+        "resolvedEndId": "metro-exits-106",
+        "weightedCost": 8569.492615604093,
+        "constructionBlocked": 0,
+        "optimization": {
+          "status": "no-shared-segments",
+          "rolledBack": false,
+          "originalDistanceMetres": 3997.7046989141377,
+          "maxDistanceMetres": 4297.704698914138,
+          "originalSharedMetres": 0,
+          "sharedMetres": 0,
+          "originalFootwayMetres": 3984.0710320223966,
+          "footwayMetres": 3984.0710320223966,
+          "originalExplicitSidewalkMetres": 3147.6815320223977,
+          "explicitSidewalkMetres": 3147.6815320223977,
+          "radiusMetres": 50,
+          "minimumReductionMetres": 1,
+          "searchLimits": {
+            "maxIterations": 3,
+            "totalMs": 4000,
+            "maxVisited": 40000,
+            "maxComparisons": 100000
+          },
+          "iterations": []
+        },
+        "initMs": 3066,
+        "searchMs": 195
+      },
+      "sameResolved": true
+    },
+    {
+      "bin": "4–8 km",
+      "start": "木柵(BR02)",
+      "end": "南京三民(G18)",
+      "startId": "w20-103",
+      "endId": "w20-71",
+      "straightMetres": 5992,
+      "baseline": {
+        "success": true,
+        "distance": 11055,
+        "networkMetres": 11013.670541488282,
+        "sharedMetres": 1238.2681999999998,
+        "mappedPedestrianMetres": 9775.40234148828,
+        "explicitSidewalkMetres": 7634.1476414882745,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 40,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-2",
+        "resolvedEndId": "metro-exits-112",
+        "weightedCost": 29282.821233014274,
+        "constructionBlocked": 0,
+        "optimization": null,
+        "initMs": 2323,
+        "searchMs": 359
+      },
+      "optimized": {
+        "success": true,
+        "distance": 11055,
+        "networkMetres": 11013.670541488282,
+        "sharedMetres": 1238.2681999999998,
+        "mappedPedestrianMetres": 9775.40234148828,
+        "explicitSidewalkMetres": 7634.1476414882745,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 40,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-2",
+        "resolvedEndId": "metro-exits-112",
+        "weightedCost": 29282.821233014274,
+        "constructionBlocked": 0,
+        "optimization": {
+          "status": "search-limit",
+          "rolledBack": false,
+          "originalDistanceMetres": 11054.256038678612,
+          "maxDistanceMetres": 11354.256038678612,
+          "originalSharedMetres": 1238.2681999999998,
+          "sharedMetres": 1238.2681999999998,
+          "originalFootwayMetres": 8597.064741488277,
+          "footwayMetres": 8597.064741488277,
+          "originalExplicitSidewalkMetres": 7634.1476414882745,
+          "explicitSidewalkMetres": 7634.1476414882745,
+          "radiusMetres": 50,
+          "minimumReductionMetres": 1,
+          "searchLimits": {
+            "maxIterations": 3,
+            "totalMs": 4000,
+            "maxVisited": 40000,
+            "maxComparisons": 100000
+          },
+          "iterations": [
+            {
+              "round": 1,
+              "result": "search-limit",
+              "reasons": [
+                "search-limit"
+              ],
+              "attempts": [
+                {
+                  "penalty": 2,
+                  "pathPenalty": 0,
+                  "reason": "search-limit"
+                },
+                {
+                  "penalty": 2,
+                  "pathPenalty": 1.5,
+                  "reason": "search-limit"
+                },
+                {
+                  "penalty": 6,
+                  "pathPenalty": 0,
+                  "reason": "search-limit"
+                },
+                {
+                  "penalty": 6,
+                  "pathPenalty": 1.5,
+                  "reason": "search-limit"
+                },
+                {
+                  "penalty": 12,
+                  "pathPenalty": 0,
+                  "reason": "search-limit"
+                },
+                {
+                  "penalty": 12,
+                  "pathPenalty": 1.5,
+                  "reason": "search-limit"
+                }
+              ]
+            }
+          ]
+        },
+        "initMs": 2844,
+        "searchMs": 1503
+      },
+      "sameResolved": true
+    },
+    {
+      "bin": "4–8 km",
+      "start": "劍潭(R15)",
+      "end": "南京復興(G16)",
+      "startId": "w20-36",
+      "endId": "w20-73",
+      "straightMetres": 4072,
+      "baseline": {
+        "success": false,
+        "error": "NO_ROUTE",
+        "initMs": 2564,
+        "searchMs": 2033
+      },
+      "optimized": {
+        "success": false,
+        "error": "NO_ROUTE",
+        "initMs": 2710,
+        "searchMs": 2368
+      },
+      "sameResolved": null
+    },
+    {
+      "bin": "4–8 km",
+      "start": "台北小巨蛋(G17)",
+      "end": "景美(G05)",
+      "startId": "w20-72",
+      "endId": "w20-82",
+      "straightMetres": 6635,
+      "baseline": {
+        "success": true,
+        "distance": 9014,
+        "networkMetres": 9009.6409936326,
+        "sharedMetres": 190.80549999999997,
+        "mappedPedestrianMetres": 8818.8354936326,
+        "explicitSidewalkMetres": 7929.864733425944,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 3,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-114",
+        "resolvedEndId": "metro-exits-102",
+        "weightedCost": 21560.134818696155,
+        "constructionBlocked": 0,
+        "optimization": null,
+        "initMs": 2776,
+        "searchMs": 777
+      },
+      "optimized": {
+        "success": true,
+        "distance": 9014,
+        "networkMetres": 9009.6409936326,
+        "sharedMetres": 190.80549999999997,
+        "mappedPedestrianMetres": 8818.8354936326,
+        "explicitSidewalkMetres": 7929.864733425944,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 3,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-114",
+        "resolvedEndId": "metro-exits-102",
+        "weightedCost": 21560.134818696155,
+        "constructionBlocked": 0,
+        "optimization": {
+          "status": "search-limit",
+          "rolledBack": false,
+          "originalDistanceMetres": 9013.261866779885,
+          "maxDistanceMetres": 9313.261866779885,
+          "originalSharedMetres": 190.80549999999997,
+          "sharedMetres": 190.80549999999997,
+          "originalFootwayMetres": 8818.8354936326,
+          "footwayMetres": 8818.8354936326,
+          "originalExplicitSidewalkMetres": 7929.864733425944,
+          "explicitSidewalkMetres": 7929.864733425944,
+          "radiusMetres": 50,
+          "minimumReductionMetres": 1,
+          "searchLimits": {
+            "maxIterations": 3,
+            "totalMs": 4000,
+            "maxVisited": 40000,
+            "maxComparisons": 100000
+          },
+          "iterations": [
+            {
+              "round": 1,
+              "result": "search-limit",
+              "reasons": [
+                "search-limit"
+              ],
+              "attempts": [
+                {
+                  "penalty": 2,
+                  "pathPenalty": 0,
+                  "reason": "search-limit"
+                },
+                {
+                  "penalty": 2,
+                  "pathPenalty": 1.5,
+                  "reason": "search-limit"
+                },
+                {
+                  "penalty": 6,
+                  "pathPenalty": 0,
+                  "reason": "search-limit"
+                },
+                {
+                  "penalty": 6,
+                  "pathPenalty": 1.5,
+                  "reason": "search-limit"
+                },
+                {
+                  "penalty": 12,
+                  "pathPenalty": 0,
+                  "reason": "search-limit"
+                },
+                {
+                  "penalty": 12,
+                  "pathPenalty": 1.5,
+                  "reason": "search-limit"
+                }
+              ]
+            }
+          ]
+        },
+        "initMs": 3288,
+        "searchMs": 2027
+      },
+      "sameResolved": true
+    },
+    {
+      "bin": "4–8 km",
+      "start": "忠孝復興(BR10)",
+      "end": "大湖公園(BR20)",
+      "startId": "w20-17",
+      "endId": "w20-88",
+      "straightMetres": 7567,
+      "baseline": {
+        "success": false,
+        "error": "NO_ROUTE",
+        "initMs": 2842,
+        "searchMs": 1134
+      },
+      "optimized": {
+        "success": false,
+        "error": "NO_ROUTE",
+        "initMs": 2672,
+        "searchMs": 1119
+      },
+      "sameResolved": null
+    },
+    {
+      "bin": "4–8 km",
+      "start": "木柵(BR02)",
+      "end": "中山國中(BR12)",
+      "startId": "w20-103",
+      "endId": "w20-94",
+      "straightMetres": 7546,
+      "baseline": {
+        "success": true,
+        "distance": 12210,
+        "networkMetres": 12156.032413966357,
+        "sharedMetres": 1238.2681999999998,
+        "mappedPedestrianMetres": 10917.764213966351,
+        "explicitSidewalkMetres": 8794.883513966355,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 54,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-2",
+        "resolvedEndId": "metro-exits-10",
+        "weightedCost": 31426.28863050547,
+        "constructionBlocked": 0,
+        "optimization": null,
+        "initMs": 2572,
+        "searchMs": 260
+      },
+      "optimized": {
+        "success": true,
+        "distance": 12210,
+        "networkMetres": 12156.032413966357,
+        "sharedMetres": 1238.2681999999998,
+        "mappedPedestrianMetres": 10917.764213966351,
+        "explicitSidewalkMetres": 8794.883513966355,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 54,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-2",
+        "resolvedEndId": "metro-exits-10",
+        "weightedCost": 31426.28863050547,
+        "constructionBlocked": 0,
+        "optimization": {
+          "status": "search-limit",
+          "rolledBack": false,
+          "originalDistanceMetres": 12209.76128954263,
+          "maxDistanceMetres": 12509.76128954263,
+          "originalSharedMetres": 1238.2681999999998,
+          "sharedMetres": 1238.2681999999998,
+          "originalFootwayMetres": 9739.426613966352,
+          "footwayMetres": 9739.426613966352,
+          "originalExplicitSidewalkMetres": 8794.883513966355,
+          "explicitSidewalkMetres": 8794.883513966355,
+          "radiusMetres": 50,
+          "minimumReductionMetres": 1,
+          "searchLimits": {
+            "maxIterations": 3,
+            "totalMs": 4000,
+            "maxVisited": 40000,
+            "maxComparisons": 100000
+          },
+          "iterations": [
+            {
+              "round": 1,
+              "result": "search-limit",
+              "reasons": [
+                "search-limit"
+              ],
+              "attempts": [
+                {
+                  "penalty": 2,
+                  "pathPenalty": 0,
+                  "reason": "search-limit"
+                },
+                {
+                  "penalty": 2,
+                  "pathPenalty": 1.5,
+                  "reason": "search-limit"
+                },
+                {
+                  "penalty": 6,
+                  "pathPenalty": 0,
+                  "reason": "search-limit"
+                },
+                {
+                  "penalty": 6,
+                  "pathPenalty": 1.5,
+                  "reason": "search-limit"
+                },
+                {
+                  "penalty": 12,
+                  "pathPenalty": 0,
+                  "reason": "search-limit"
+                },
+                {
+                  "penalty": 12,
+                  "pathPenalty": 1.5,
+                  "reason": "search-limit"
+                }
+              ]
+            }
+          ]
+        },
+        "initMs": 3103,
+        "searchMs": 1389
+      },
+      "sameResolved": true
+    },
+    {
+      "bin": "4–8 km",
+      "start": "北門(G13)",
+      "end": "麟光(BR06)",
+      "startId": "w20-76",
+      "endId": "w20-99",
+      "straightMetres": 5994,
+      "baseline": {
+        "success": true,
+        "distance": 7470,
+        "networkMetres": 7441.198228464314,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 7441.198228464314,
+        "explicitSidewalkMetres": 6584.718128464313,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 29,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-123",
+        "resolvedEndId": "metro-exits-6",
+        "weightedCost": 17052.962513304956,
+        "constructionBlocked": 0,
+        "optimization": null,
+        "initMs": 2559,
+        "searchMs": 542
+      },
+      "optimized": {
+        "success": true,
+        "distance": 7470,
+        "networkMetres": 7441.198228464314,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 7441.198228464314,
+        "explicitSidewalkMetres": 6584.718128464313,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 29,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-123",
+        "resolvedEndId": "metro-exits-6",
+        "weightedCost": 17052.962513304956,
+        "constructionBlocked": 0,
+        "optimization": {
+          "status": "no-shared-segments",
+          "rolledBack": false,
+          "originalDistanceMetres": 7470.287729002032,
+          "maxDistanceMetres": 7770.287729002032,
+          "originalSharedMetres": 0,
+          "sharedMetres": 0,
+          "originalFootwayMetres": 7441.198228464314,
+          "footwayMetres": 7441.198228464314,
+          "originalExplicitSidewalkMetres": 6584.718128464313,
+          "explicitSidewalkMetres": 6584.718128464313,
+          "radiusMetres": 50,
+          "minimumReductionMetres": 1,
+          "searchLimits": {
+            "maxIterations": 3,
+            "totalMs": 4000,
+            "maxVisited": 40000,
+            "maxComparisons": 100000
+          },
+          "iterations": []
+        },
+        "initMs": 3253,
+        "searchMs": 415
+      },
+      "sameResolved": true
+    },
+    {
+      "bin": "4–8 km",
+      "start": "大橋頭(O12)",
+      "end": "台電大樓(G08)",
+      "startId": "w20-59",
+      "endId": "w20-79",
+      "straightMetres": 4964,
+      "baseline": {
+        "success": true,
+        "distance": 6371,
+        "networkMetres": 6353.4373558231155,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 6353.4373558231155,
+        "explicitSidewalkMetres": 5065.294455823117,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 6,
+        "estimatedApproaches": 1,
+        "resolvedStartId": "metro-exits-135",
+        "resolvedEndId": "metro-exits-106",
+        "weightedCost": 14306.753496286192,
+        "constructionBlocked": 0,
+        "optimization": null,
+        "initMs": 2658,
+        "searchMs": 171
+      },
+      "optimized": {
+        "success": true,
+        "distance": 6371,
+        "networkMetres": 6353.4373558231155,
+        "sharedMetres": 0,
+        "mappedPedestrianMetres": 6353.4373558231155,
+        "explicitSidewalkMetres": 5065.294455823117,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 6,
+        "estimatedApproaches": 1,
+        "resolvedStartId": "metro-exits-135",
+        "resolvedEndId": "metro-exits-106",
+        "weightedCost": 14306.753496286192,
+        "constructionBlocked": 0,
+        "optimization": {
+          "status": "no-shared-segments",
+          "rolledBack": false,
+          "originalDistanceMetres": 6371.373450996205,
+          "maxDistanceMetres": 6671.373450996205,
+          "originalSharedMetres": 0,
+          "sharedMetres": 0,
+          "originalFootwayMetres": 6353.4373558231155,
+          "footwayMetres": 6353.4373558231155,
+          "originalExplicitSidewalkMetres": 5065.294455823117,
+          "explicitSidewalkMetres": 5065.294455823117,
+          "radiusMetres": 50,
+          "minimumReductionMetres": 1,
+          "searchLimits": {
+            "maxIterations": 3,
+            "totalMs": 4000,
+            "maxVisited": 40000,
+            "maxComparisons": 100000
+          },
+          "iterations": []
+        },
+        "initMs": 3077,
+        "searchMs": 138
+      },
+      "sameResolved": true
+    },
+    {
+      "bin": "4–8 km",
+      "start": "木柵(BR02)",
+      "end": "南京復興(G16)",
+      "startId": "w20-103",
+      "endId": "w20-73",
+      "straightMetres": 6650,
+      "baseline": {
+        "success": true,
+        "distance": 11037,
+        "networkMetres": 10976.433300000002,
+        "sharedMetres": 1238.2681999999998,
+        "mappedPedestrianMetres": 9738.165099999997,
+        "explicitSidewalkMetres": 7737.963899999996,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 61,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-2",
+        "resolvedEndId": "metro-exits-117",
+        "weightedCost": 28454.820389702032,
+        "constructionBlocked": 0,
+        "optimization": null,
+        "initMs": 2718,
+        "searchMs": 580
+      },
+      "optimized": {
+        "success": true,
+        "distance": 11037,
+        "networkMetres": 10976.433300000002,
+        "sharedMetres": 1238.2681999999998,
+        "mappedPedestrianMetres": 9738.165099999997,
+        "explicitSidewalkMetres": 7737.963899999996,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 61,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-2",
+        "resolvedEndId": "metro-exits-117",
+        "weightedCost": 28454.820389702032,
+        "constructionBlocked": 0,
+        "optimization": {
+          "status": "no-improvement",
+          "rolledBack": false,
+          "originalDistanceMetres": 11037.860915343435,
+          "maxDistanceMetres": 11337.860915343435,
+          "originalSharedMetres": 1238.2681999999998,
+          "sharedMetres": 1238.2681999999998,
+          "originalFootwayMetres": 8559.827499999998,
+          "footwayMetres": 8559.827499999998,
+          "originalExplicitSidewalkMetres": 7737.963899999996,
+          "explicitSidewalkMetres": 7737.963899999996,
+          "radiusMetres": 50,
+          "minimumReductionMetres": 1,
+          "searchLimits": {
+            "maxIterations": 3,
+            "totalMs": 4000,
+            "maxVisited": 40000,
+            "maxComparisons": 100000
+          },
+          "iterations": [
+            {
+              "round": 1,
+              "result": "no-improvement",
+              "reasons": [
+                "detour-limit"
+              ],
+              "attempts": [
+                {
+                  "penalty": 2,
+                  "pathPenalty": 0,
+                  "distanceMetres": 12463.094422483478,
+                  "sharedMetres": 392.3843999999999,
+                  "footwayMetres": 11644.945727735008,
+                  "explicitSidewalkMetres": 10711.477527735016,
+                  "reason": "detour-limit"
+                },
+                {
+                  "penalty": 2,
+                  "pathPenalty": 1.5,
+                  "distanceMetres": 12463.094422483478,
+                  "sharedMetres": 392.3843999999999,
+                  "footwayMetres": 11644.945727735008,
+                  "explicitSidewalkMetres": 10711.477527735016,
+                  "reason": "detour-limit"
+                },
+                {
+                  "penalty": 6,
+                  "pathPenalty": 0,
+                  "distanceMetres": 12463.094422483478,
+                  "sharedMetres": 392.3843999999999,
+                  "footwayMetres": 11644.945727735008,
+                  "explicitSidewalkMetres": 10711.477527735016,
+                  "reason": "detour-limit"
+                },
+                {
+                  "penalty": 6,
+                  "pathPenalty": 1.5,
+                  "distanceMetres": 12463.094422483478,
+                  "sharedMetres": 392.3843999999999,
+                  "footwayMetres": 11644.945727735008,
+                  "explicitSidewalkMetres": 10711.477527735016,
+                  "reason": "detour-limit"
+                },
+                {
+                  "penalty": 12,
+                  "pathPenalty": 0,
+                  "distanceMetres": 12463.094422483478,
+                  "sharedMetres": 392.3843999999999,
+                  "footwayMetres": 11644.945727735008,
+                  "explicitSidewalkMetres": 10711.477527735016,
+                  "reason": "detour-limit"
+                },
+                {
+                  "penalty": 12,
+                  "pathPenalty": 1.5,
+                  "distanceMetres": 12463.094422483478,
+                  "sharedMetres": 392.3843999999999,
+                  "footwayMetres": 11644.945727735008,
+                  "explicitSidewalkMetres": 10711.477527735016,
+                  "reason": "detour-limit"
+                }
+              ]
+            }
+          ]
+        },
+        "initMs": 3098,
+        "searchMs": 1535
+      },
+      "sameResolved": true
+    },
+    {
+      "bin": "4–8 km",
+      "start": "文德(BR18)",
+      "end": "圓山(R14)",
+      "startId": "w20-15",
+      "endId": "w20-37",
+      "straightMetres": 6584,
+      "baseline": {
+        "success": false,
+        "error": "NO_ROUTE",
+        "initMs": 2461,
+        "searchMs": 532
+      },
+      "optimized": {
+        "success": false,
+        "error": "NO_ROUTE",
+        "initMs": 3063,
+        "searchMs": 502
+      },
+      "sameResolved": null
+    },
+    {
+      "bin": "4–8 km",
+      "start": "中正紀念堂(R08)",
+      "end": "港墘(BR17)",
+      "startId": "w20-43",
+      "endId": "w20-90",
+      "straightMetres": 7777,
+      "baseline": {
+        "success": false,
+        "error": "NO_ROUTE",
+        "initMs": 2562,
+        "searchMs": 2289
+      },
+      "optimized": {
+        "success": false,
+        "error": "NO_ROUTE",
+        "initMs": 2867,
+        "searchMs": 2253
+      },
+      "sameResolved": null
+    },
+    {
+      "bin": "4–8 km",
+      "start": "奇岩(R21)",
+      "end": "大直(BR14)",
+      "startId": "w20-30",
+      "endId": "w20-93",
+      "straightMetres": 6880,
+      "baseline": {
+        "success": false,
+        "error": "NO_ROUTE",
+        "initMs": 2550,
+        "searchMs": 396
+      },
+      "optimized": {
+        "success": false,
+        "error": "NO_ROUTE",
+        "initMs": 3069,
+        "searchMs": 329
+      },
+      "sameResolved": null
+    },
+    {
+      "bin": "4–8 km",
+      "start": "萬芳醫院(BR04)",
+      "end": "南京復興(G16)",
+      "startId": "w20-101",
+      "endId": "w20-73",
+      "straightMetres": 6025,
+      "baseline": {
+        "success": true,
+        "distance": 8605,
+        "networkMetres": 8562.1859,
+        "sharedMetres": 774.7700000000002,
+        "mappedPedestrianMetres": 7787.415899999998,
+        "explicitSidewalkMetres": 6231.422699999997,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 43,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-4",
+        "resolvedEndId": "metro-exits-117",
+        "weightedCost": 21771.872754900567,
+        "constructionBlocked": 0,
+        "optimization": null,
+        "initMs": 2653,
+        "searchMs": 661
+      },
+      "optimized": {
+        "success": true,
+        "distance": 8605,
+        "networkMetres": 8562.1859,
+        "sharedMetres": 774.7700000000002,
+        "mappedPedestrianMetres": 7787.415899999998,
+        "explicitSidewalkMetres": 6231.422699999997,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 43,
+        "estimatedApproaches": 2,
+        "resolvedStartId": "metro-exits-4",
+        "resolvedEndId": "metro-exits-117",
+        "weightedCost": 21771.872754900567,
+        "constructionBlocked": 0,
+        "optimization": {
+          "status": "no-improvement",
+          "rolledBack": false,
+          "originalDistanceMetres": 8605.388639114452,
+          "maxDistanceMetres": 8905.388639114452,
+          "originalSharedMetres": 774.7700000000002,
+          "sharedMetres": 774.7700000000002,
+          "originalFootwayMetres": 6967.700499999997,
+          "footwayMetres": 6967.700499999997,
+          "originalExplicitSidewalkMetres": 6231.422699999997,
+          "explicitSidewalkMetres": 6231.422699999997,
+          "radiusMetres": 50,
+          "minimumReductionMetres": 1,
+          "searchLimits": {
+            "maxIterations": 3,
+            "totalMs": 4000,
+            "maxVisited": 40000,
+            "maxComparisons": 100000
+          },
+          "iterations": [
+            {
+              "round": 1,
+              "result": "no-improvement",
+              "reasons": [
+                "detour-limit"
+              ],
+              "attempts": [
+                {
+                  "penalty": 2,
+                  "pathPenalty": 0,
+                  "distanceMetres": 9993.484566723957,
+                  "sharedMetres": 0,
+                  "footwayMetres": 9956.532527735017,
+                  "explicitSidewalkMetres": 9125.286627735022,
+                  "reason": "detour-limit"
+                },
+                {
+                  "penalty": 2,
+                  "pathPenalty": 1.5,
+                  "distanceMetres": 9993.484566723957,
+                  "sharedMetres": 0,
+                  "footwayMetres": 9956.532527735017,
+                  "explicitSidewalkMetres": 9125.286627735022,
+                  "reason": "detour-limit"
+                },
+                {
+                  "penalty": 6,
+                  "pathPenalty": 0,
+                  "distanceMetres": 9993.484566723957,
+                  "sharedMetres": 0,
+                  "footwayMetres": 9956.532527735017,
+                  "explicitSidewalkMetres": 9125.286627735022,
+                  "reason": "detour-limit"
+                },
+                {
+                  "penalty": 6,
+                  "pathPenalty": 1.5,
+                  "distanceMetres": 9993.484566723957,
+                  "sharedMetres": 0,
+                  "footwayMetres": 9956.532527735017,
+                  "explicitSidewalkMetres": 9125.286627735022,
+                  "reason": "detour-limit"
+                },
+                {
+                  "penalty": 12,
+                  "pathPenalty": 0,
+                  "distanceMetres": 9993.484566723957,
+                  "sharedMetres": 0,
+                  "footwayMetres": 9956.532527735017,
+                  "explicitSidewalkMetres": 9125.286627735022,
+                  "reason": "detour-limit"
+                },
+                {
+                  "penalty": 12,
+                  "pathPenalty": 1.5,
+                  "distanceMetres": 9993.484566723957,
+                  "sharedMetres": 0,
+                  "footwayMetres": 9956.532527735017,
+                  "explicitSidewalkMetres": 9125.286627735022,
+                  "reason": "detour-limit"
+                }
+              ]
+            }
+          ]
+        },
+        "initMs": 2943,
+        "searchMs": 1539
+      },
+      "sameResolved": true
+    },
+    {
+      "bin": "4–8 km",
+      "start": "後山埤(BL20)",
+      "end": "忠孝新生(BL14)",
+      "startId": "w20-108",
+      "endId": "w20-19",
+      "straightMetres": 4989,
+      "baseline": {
+        "success": true,
+        "distance": 5798,
+        "networkMetres": 5797.288369521415,
+        "sharedMetres": 501.61150000000004,
+        "mappedPedestrianMetres": 5295.676869521417,
+        "explicitSidewalkMetres": 4103.087432839485,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 0,
+        "estimatedApproaches": 0,
+        "resolvedStartId": "metro-exits-176",
+        "resolvedEndId": "metro-exits-169",
+        "weightedCost": 13986.481858324496,
+        "constructionBlocked": 0,
+        "optimization": null,
+        "initMs": 2502,
+        "searchMs": 283
+      },
+      "optimized": {
+        "success": true,
+        "distance": 5798,
+        "networkMetres": 5797.288369521415,
+        "sharedMetres": 501.61150000000004,
+        "mappedPedestrianMetres": 5295.676869521417,
+        "explicitSidewalkMetres": 4103.087432839485,
+        "syntheticConnectorMetres": 0,
+        "estimatedApproachMetres": 0,
+        "estimatedApproaches": 0,
+        "resolvedStartId": "metro-exits-176",
+        "resolvedEndId": "metro-exits-169",
+        "weightedCost": 13986.481858324496,
+        "constructionBlocked": 0,
+        "optimization": {
+          "status": "no-improvement",
+          "rolledBack": false,
+          "originalDistanceMetres": 5798.583647586058,
+          "maxDistanceMetres": 6098.583647586058,
+          "originalSharedMetres": 501.61150000000004,
+          "sharedMetres": 501.61150000000004,
+          "originalFootwayMetres": 5202.108569521417,
+          "footwayMetres": 5202.108569521417,
+          "originalExplicitSidewalkMetres": 4103.087432839485,
+          "explicitSidewalkMetres": 4103.087432839485,
+          "radiusMetres": 50,
+          "minimumReductionMetres": 1,
+          "searchLimits": {
+            "maxIterations": 3,
+            "totalMs": 4000,
+            "maxVisited": 40000,
+            "maxComparisons": 100000
+          },
+          "iterations": [
+            {
+              "round": 1,
+              "result": "no-improvement",
+              "reasons": [
+                "insufficient-shared-reduction",
+                "no-connected-pedestrian-within-50m"
+              ],
+              "attempts": [
+                {
+                  "penalty": 2,
+                  "pathPenalty": 0,
+                  "distanceMetres": 5798.583647586058,
+                  "sharedMetres": 501.61150000000004,
+                  "footwayMetres": 5202.108569521417,
+                  "explicitSidewalkMetres": 4103.087432839485,
+                  "reason": "insufficient-shared-reduction"
+                },
+                {
+                  "penalty": 2,
+                  "pathPenalty": 1.5,
+                  "distanceMetres": 5800.127847586059,
+                  "sharedMetres": 511.2124,
+                  "footwayMetres": 5264.244169521417,
+                  "explicitSidewalkMetres": 4140.262132839484,
+                  "reason": "insufficient-shared-reduction"
+                },
+                {
+                  "penalty": 6,
+                  "pathPenalty": 0,
+                  "distanceMetres": 5902.852047586059,
+                  "sharedMetres": 452.1295,
+                  "footwayMetres": 5355.858969521417,
+                  "explicitSidewalkMetres": 4152.169432839484,
+                  "reason": "no-connected-pedestrian-within-50m"
+                },
+                {
+                  "penalty": 6,
+                  "pathPenalty": 1.5,
+                  "distanceMetres": 5903.912047586058,
+                  "sharedMetres": 451.7718,
+                  "footwayMetres": 5380.127769521417,
+                  "explicitSidewalkMetres": 4152.169432839484,
+                  "reason": "no-connected-pedestrian-within-50m"
+                },
+                {
+                  "penalty": 12,
+                  "pathPenalty": 0,
+                  "distanceMetres": 5903.912047586058,
+                  "sharedMetres": 451.7718,
+                  "footwayMetres": 5380.127769521417,
+                  "explicitSidewalkMetres": 4152.169432839484,
+                  "reason": "no-connected-pedestrian-within-50m"
+                },
+                {
+                  "penalty": 12,
+                  "pathPenalty": 1.5,
+                  "distanceMetres": 5903.912047586058,
+                  "sharedMetres": 451.7718,
+                  "footwayMetres": 5380.127769521417,
+                  "explicitSidewalkMetres": 4152.169432839484,
+                  "reason": "no-connected-pedestrian-within-50m"
+                }
+              ]
+            }
+          ]
+        },
+        "initMs": 2952,
+        "searchMs": 759
+      },
+      "sameResolved": true
+    },
+    {
+      "bin": "4–8 km",
+      "start": "東門(R07)",
+      "end": "劍南路(BR15)",
+      "startId": "w20-44",
+      "endId": "w20-92",
+      "straightMetres": 6275,
+      "baseline": {
+        "success": false,
+        "error": "NO_ROUTE",
+        "initMs": 2403,
+        "searchMs": 1171
+      },
+      "optimized": {
+        "success": false,
+        "error": "NO_ROUTE",
+        "initMs": 3033,
+        "searchMs": 1215
+      },
+      "sameResolved": null
+    },
+    {
+      "bin": "4–8 km",
+      "start": "南港展覽館(BL23)",
+      "end": "文德(BR18)",
+      "startId": "w20-105",
+      "endId": "w20-15",
+      "straightMetres": 4150,
+      "baseline": {
+        "success": false,
+        "error": "NO_ROUTE",
+        "initMs": 2368,
+        "searchMs": 3577
+      },
+      "optimized": {
+        "success": false,
+        "error": "NO_ROUTE",
+        "initMs": 2802,
+        "searchMs": 3622
+      },
+      "sameResolved": null
+    }
+  ],
+  "resumedWithIsolatedProcesses": true,
+  "memoryAfterCase": {
+    "rss": 1088307200,
+    "heapTotal": 100315136,
+    "heapUsed": 54217256,
+    "external": 53814469,
+    "arrayBuffers": 31335413
+  },
+  "completedAt": "2026-11-07T15:03:03.724Z",
+  "baseline": {
+    "success": 47,
+    "total": 60,
+    "estimatedRoutes": 45,
+    "distanceMetres": 163573,
+    "networkMetres": 162427.59397665903,
+    "mappedPedestrianMetres": 151143.44397665898,
+    "explicitSidewalkMetres": 118683.36581818697,
+    "sharedMetres": 11284.150000000003,
+    "estimatedApproachMetres": 1009,
+    "searchMsMedian": 209,
+    "searchMsP95": 2033
+  },
+  "optimized": {
+    "success": 47,
+    "total": 60,
+    "estimatedRoutes": 45,
+    "distanceMetres": 163655,
+    "networkMetres": 162510.00977665902,
+    "mappedPedestrianMetres": 151297.94777665898,
+    "explicitSidewalkMetres": 118718.90061818696,
+    "sharedMetres": 11212.062000000004,
+    "estimatedApproachMetres": 1009,
+    "searchMsMedian": 279,
+    "searchMsP95": 2368
+  },
+  "graphChangedDuringRun": false,
+  "codeChangedDuringRun": [],
+  "endpointPairsChanged": 0
+}

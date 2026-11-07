@@ -50,6 +50,9 @@ import {
   Compass,
   HelpCircle,
   Phone,
+  Bus,
+  DoorOpen,
+  TrendingUp,
 } from "lucide-react";
 import MapView from "./MapView";
 import VoiceSearch from "./VoiceSearch";
@@ -59,6 +62,7 @@ import {constructionFresh, CONSTRUCTION_MAX_AGE} from "./construction.mjs";
 import { requestOfficialRoute } from "./official-router.mjs";
 import { ROUTING_POLICY } from "./routing.mjs";
 import { BASEMAPS } from "./basemaps.mjs";
+import { ISSUE_LEVELS, NO_WALK_URLS } from "./issue-icons.mjs";
 // Layer-picker preview: the z15 tile covering Taipei Main Station.
 const layerThumb = (url) =>
   url.replace("{z}", 15).replace("{x}", 27444).replace("{y}", 14027);
@@ -76,10 +80,20 @@ import {
 } from "./data";
 import { getLocation, locationErrorText } from "./location";
 import { installTownPassLinks, postToTownPass, townPassUserKey } from "./townpass-bridge";
-import { activeElevatorStops, nearestStop } from "./trip-extras.mjs";
+import {
+  activeElevatorStops,
+  facilitiesAlongRoute,
+  nearestStop,
+} from "./trip-extras.mjs";
 import { travelProfiles } from "./travel-profiles";
 import { clearLocalData, loadProfile, loadTrips, saveProfile, saveTrips } from "./local-database";
 import { addressSearch } from "./address-search";
+import { nearestSheetSnapIndex } from "./sheet-snap.mjs";
+import {
+  metroStationCodes,
+  metroStationIconUrl,
+} from "./metro-station-icons.mjs";
+import { metroExitIconUrl, metroExitLabel } from "./metro-exits.mjs";
 import {
   maintenanceText,
   sourceCountLabel,
@@ -105,20 +119,15 @@ const icons = {
   road: Route,
 };
 const filters = [
-  ["all", "常用設施", Layers],
-  ["elevator", "電梯出口", ArrowUpFromLine],
   ["toilet", "無障礙廁所", Toilet],
-  ["ramp", "坡道", Accessibility],
   ["rest", "歇歇腳", Armchair],
   ["water", "飲水處", GlassWater],
-  ["park", "公園", TreePine],
-  ["friendly", "友善店家", Store],
-  ["bus", "公車站", BusFront],
-  ["parking", "停車設施", Car],
-  ["health", "醫療與藥局", Hospital],
 ];
-// Shown before 更多: the four a wheelchair or low-vision user reaches for first.
-const MAIN_FILTERS = 4;
+const sidewalkStatusText = {
+  loading: "載入中…",
+  zoom: "請放大地圖",
+  error: "暫時無法載入",
+};
 const routeModes = {
   balanced: "均衡走法",
   gentle: "偏好平緩",
@@ -140,6 +149,26 @@ const basePrefs = {
 function Icon({ kind, ...props }) {
   const C = icons[kind] || MapPin;
   return <C size={20} aria-hidden="true" {...props} />;
+}
+function MetroStationIcon({ codes, value }) {
+  const stationCodes = metroStationCodes(codes, value);
+  if (!stationCodes.length) return <TrainFront size={20} aria-hidden="true" />;
+  return (
+    <span className="metro-station-icons" aria-hidden="true">
+      <TrainFront className="metro-station-icon-fallback" size={20} />
+      {stationCodes.filter((code) => metroStationIconUrl(code)).map((code) => (
+        <img
+          key={code}
+          src={metroStationIconUrl(code)}
+          alt=""
+          loading="lazy"
+          onError={(event) => {
+            event.currentTarget.hidden = true;
+          }}
+        />
+      ))}
+    </span>
+  );
 }
 function Sheet({ title, onClose, children, dismissible = true }) {
   const ref = useRef();
@@ -177,14 +206,32 @@ function Sheet({ title, onClose, children, dismissible = true }) {
     </dialog>
   );
 }
-function FacilityRow({ p, from, onSelect, saved, onSave, note }) {
+// 車站名稱補上「站」，但「台北車站」這類已經以站結尾的不再重複。
+const stationLabel = (name) => (/站$/.test(name) ? name : `${name}站`);
+function FacilityRow({ p, from, onSelect, saved, onSave, note, stationCode }) {
   const k = category(p),
     sub = labels[k] || "設施";
   return (
     <div className="facility-row">
       <button className="facility-main" onClick={() => onSelect(p)}>
         <span className={`facility-icon ${k}`}>
-          <Icon kind={k} />
+          {p.kind === "metro-elevator" ? (
+            metroExitIconUrl(p) ? (
+              <img className="metro-exit-icon" src={metroExitIconUrl(p)} alt="" aria-hidden="true" />
+            ) : (
+              metroExitLabel(p) === "梯" ? (
+                <Icon kind="elevator" />
+              ) : (
+                <span className="metro-exit-label" aria-hidden="true">
+                  {metroExitLabel(p)}
+                </span>
+              )
+            )
+          ) : k === "station" ? (
+            <MetroStationIcon codes={stationCode} value={p.name} />
+          ) : (
+            <Icon kind={k} />
+          )}
         </span>
         <span className="facility-copy">
           <strong>{cleanName(p.name)}</strong>
@@ -214,9 +261,8 @@ export default function App() {
   const [data, setData] = useState(null),
     [loading, setLoading] = useState(false),
     [loadError, setLoadError] = useState(false);
-  const [allFilters, setAllFilters] = useState(false);
   const [tab, setTab] = useState("plan"),
-    [filter, setFilter] = useState("all"),
+    [filter, setFilter] = useState("toilet"),
     [viewport, setViewport] = useState({
       lat: 25.0478,
       lon: 121.517,
@@ -241,12 +287,32 @@ export default function App() {
       avoidSteps: true,
       officialOnly: false,
     }));
+  // 搜尋紀錄：最近選過的地點，只存在這支手機（hhz- 開頭，設定裡的清除資料會一起刪）。
+  const [recents, setRecents] = useState(() => readSaved("hhz-recent-places", []));
+  const rememberPlace = (p) => {
+    if (!p || !Number.isFinite(p.lat) || !Number.isFinite(p.lon) || p.id === "my-location")
+      return;
+    const keep = {
+      id: p.id, name: p.name, lat: p.lat, lon: p.lon, kind: p.kind,
+      address: p.address, station: p.station, exit: p.exit, sourceId: p.sourceId,
+    };
+    setRecents((list) => {
+      const next = [keep, ...list.filter((x) => x.id !== p.id)].slice(0, 10);
+      saveLocal("hhz-recent-places", next);
+      return next;
+    });
+  };
+  const clearRecents = () => {
+    setRecents([]);
+    saveLocal("hhz-recent-places", []);
+  };
   const [saved, setSaved] = useState(() => readSaved("hhz-saved", [])),
     [trips, setTrips] = useState([]);
   const [route, setRoute] = useState(null),
     [routeError, setRouteError] = useState(""),
     [routing, setRouting] = useState(false),
-    [graphRequested, setGraphRequested] = useState(true),
+    // 路網（約 22 MB）不在開啟時下載：選好起點和終點、或按規劃路線時才載入。
+    [graphRequested, setGraphRequested] = useState(false),
     [graphReady, setGraphReady] = useState(false),
     [graphError, setGraphError] = useState(false),
     [status, setStatus] = useState(""),
@@ -263,6 +329,14 @@ export default function App() {
     return Object.prototype.hasOwnProperty.call(BASEMAPS, v) ? v : "street";
   });
   const [basemapStatus, setBasemapStatus] = useState("loading");
+  // 人行道圖層（官方無障礙通行線）預設顯示；使用者關掉後會記住。
+  const [showOfficialSidewalk, setShowOfficialSidewalk] = useState(() =>
+    readSaved("hhz-show-sidewalk", true),
+  );
+  useEffect(() => {
+    saveLocal("hhz-show-sidewalk", showOfficialSidewalk);
+  }, [showOfficialSidewalk]);
+  const [officialSidewalkStatus, setOfficialSidewalkStatus] = useState("idle");
   const [layersOpen, setLayersOpen] = useState(false),
     layersRef = useRef();
   useEffect(() => {
@@ -278,9 +352,7 @@ export default function App() {
       document.removeEventListener("keydown", esc);
     };
   }, [layersOpen]);
-  const [showMapFacilities, setShowMapFacilities] = useState(false);
   const needsData =
-    showMapFacilities ||
     tab !== "saved" ||
     modal === "sources" ||
     Boolean(searchFor);
@@ -290,9 +362,11 @@ export default function App() {
   const tabVersion = useRef(0);
   useEffect(() => {
     tabVersion.current++;
-    setShowMapFacilities(tab === "explore");
-    if (tab === "plan") setGraphRequested(true);
   }, [tab]);
+  // 起點、終點都選好時先在背景載入路網，按下規劃路線時通常已經準備好。
+  useEffect(() => {
+    if (start && end) setGraphRequested(true);
+  }, [start, end]);
   useEffect(() => {
     saveLocal("hhz-basemap", basemap);
   }, [basemap]);
@@ -334,7 +408,7 @@ export default function App() {
   const [sheetSnap, setSheetSnap] = useState(1);
   // 地圖目前旋轉的角度（不是手機朝向）。指南針指針用它轉回正北。
   const [bearing, setBearing] = useState(0);
-  const SHEET_SNAPS = [0.24, 0.56, 0.9];
+  const SHEET_SNAPS = [0.11, 0.56, 0.9];
   useEffect(()=>{if(route || routeError)setSheetSnap(v=>Math.max(v,1));},[route,routeError]);
   // 抽屜最高只拉到內容的高度：內容短時，拉到最上面下面不會留白。
   useLayoutEffect(() => {
@@ -369,6 +443,7 @@ export default function App() {
   function gripDown(e) {
     const el = panelEl.current;
     if (!el || e.button > 0) return;
+    e.currentTarget.setPointerCapture?.(e.pointerId);
     const startY = e.clientY,
       startH = el.getBoundingClientRect().height;
     gripDragged.current = false;
@@ -384,14 +459,19 @@ export default function App() {
       window.removeEventListener("pointerup", up);
       window.removeEventListener("pointercancel", up);
       el.classList.remove("dragging");
-      const f = el.getBoundingClientRect().height / window.innerHeight;
+      const height = el.getBoundingClientRect().height;
+      const max =
+        parseFloat(el.style.getPropertyValue("--sheet-max")) || Infinity;
       el.style.removeProperty("--sheet-h");
       if (!gripDragged.current) return;
-      let best = 0;
-      SHEET_SNAPS.forEach((v, i) => {
-        if (Math.abs(v - f) < Math.abs(SHEET_SNAPS[best] - f)) best = i;
-      });
-      setSheetSnap(best);
+      setSheetSnap(
+        nearestSheetSnapIndex(
+          height,
+          max,
+          window.innerHeight,
+          SHEET_SNAPS,
+        ),
+      );
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
@@ -754,19 +834,8 @@ export default function App() {
   function report1999() {
     if (!postToTownPass("1999agree", true)) window.location.href = "tel:1999";
   }
-  const essential = new Set([
-    "elevator",
-    "toilet",
-    "rest",
-    "water",
-    "park",
-    "friendly",
-  ]);
   const facilities = useMemo(
-    () =>
-      data?.all.filter((p) =>
-        filter === "all" ? essential.has(category(p)) : category(p) === filter,
-      ) || [],
+    () => data?.all.filter((p) => category(p) === filter) || [],
     [data, filter],
   );
   const nearby = useMemo(
@@ -787,14 +856,60 @@ export default function App() {
       ),
     [facilities, viewport],
   );
+  // 商店、餐廳等一般地點（places 裡 kind 為 place）：放大到街區（縮放 17 以上）才顯示，
+  // 避免整張地圖都是點；最多 250 個，由近到遠。
+  const poiItems = useMemo(() => {
+    if (!data || (viewport.zoom ?? 15) < 17) return [];
+    return data.places
+      .filter(
+        (p) =>
+          p.kind === "place" &&
+          p.lat >= viewport.bounds[0] &&
+          p.lat <= viewport.bounds[2] &&
+          p.lon >= viewport.bounds[1] &&
+          p.lon <= viewport.bounds[3],
+      )
+      .sort((a, b) => distance(viewport, a) - distance(viewport, b))
+      .slice(0, 250);
+  }, [data, viewport]);
+  // 地標：公園、捷運站、醫院與診所。縮放 16 以上才顯示，最多 150 個，由近到遠。
+  const LANDMARK_KINDS = new Set(["park", "station", "health"]);
+  const landmarkItems = useMemo(() => {
+    if (!data || (viewport.zoom ?? 15) < 16) return [];
+    return data.places
+      .filter(
+        (p) =>
+          LANDMARK_KINDS.has(p.kind) &&
+          p.lat >= viewport.bounds[0] &&
+          p.lat <= viewport.bounds[2] &&
+          p.lon >= viewport.bounds[1] &&
+          p.lon <= viewport.bounds[3],
+      )
+      .sort((a, b) => distance(viewport, a) - distance(viewport, b))
+      .slice(0, 150)
+      .map((p) => ({ ...p, landmark: true }));
+  }, [data, viewport]);
   const avoidPoints = useMemo(() => activeElevatorStops(data), [data]);
+
+  // 沒有搜尋紀錄時的推薦：附近的捷運站、公園、醫院與無障礙廁所，由近到遠 8 個。
+  const recommendedPlaces = useMemo(() => {
+    if (!data) return [];
+    const from = currentLocation || viewport;
+    const wanted = new Set(["station", "park", "health", "toilet"]);
+    return data.all
+      .filter((p) => wanted.has(category(p)) && Number.isFinite(p.lat))
+      .map((p) => [distance(from, p), p])
+      .filter(([d]) => d < 1500)
+      .sort((a, b) => a[0] - b[0])
+      .slice(0, 8)
+      .map(([, p]) => p);
+  }, [data, currentLocation, viewport.lat, viewport.lon]);
   const searchResults = useMemo(() => {
     if (!searchFor || !data || !profileReady) return [];
     const q = normalize(query);
     const recentPlaces = trips
       .flatMap((trip) => [trip.start, trip.end])
       .filter((place) => Number.isFinite(place?.lat) && Number.isFinite(place?.lon));
-    const recentIds = new Set(recentPlaces.map((place) => place.id));
     const list = q
       ? [
           ...recentPlaces.filter((p) =>
@@ -804,15 +919,17 @@ export default function App() {
             normalize(p.name + " " + (p.address || "")).includes(q),
           ),
         ]
-      : [...recentPlaces, ...saved, ...data.fac.filter((p) => p.kind === "20")];
+      : recents.length || recentPlaces.length
+        ? [...recents, ...recentPlaces]
+        : recommendedPlaces;
     const used = new Set();
     return [...addressResults, ...list]
       .sort(
         (a, b) => {
           const exact = (a.name === query ? -1 : 0) - (b.name === query ? -1 : 0);
           if (exact) return exact;
-          if (!q && recentIds.has(a.id) !== recentIds.has(b.id))
-            return recentIds.has(a.id) ? -1 : 1;
+          // 沒有輸入時保留紀錄原本的順序（最近的在最上面）。
+          if (!q) return 0;
           return distance(viewport, a) - distance(viewport, b);
         },
       )
@@ -833,6 +950,8 @@ export default function App() {
     searchFor,
     saved,
     trips,
+    recents,
+    recommendedPlaces,
     addressResults,
     viewport.lat,
     viewport.lon,
@@ -842,6 +961,35 @@ export default function App() {
     data?.fac.filter(
       (p) => p.kind === "metro-elevator" && stationKey(p.station) === stationKey(name),
     ) || [];
+  const stationCodesFor = (name) =>
+    metroStationCodes(
+      (data?.metro["metro-elevators"] || [])
+        .filter(
+          (record) =>
+            stationKey(record["車站名稱"]) === stationKey(name),
+        )
+        .map((record) => record["車站編號"]),
+    );
+  const selectSearchPlace = (p) => {
+    if (searchFor === "explore") {
+      rememberPlace(p);
+      setSearchFor(null);
+      inspect(p);
+      return;
+    }
+    const exits = ["20", "station"].includes(String(p.kind))
+      ? stationsFor(p.name)
+      : [];
+    if (exits.length) {
+      setQuery(exits[0].station || cleanName(p.name));
+      announce(`請選擇${cleanName(p.name)}的電梯或坡道出口。`, {
+        quiet: true,
+      });
+      return;
+    }
+    rememberPlace(p);
+    changePoint(searchFor, p);
+  };
   const exitUnderMaintenance = (p) =>
     avoidPoints.some(([lat, lon]) => lat === p.lat && lon === p.lon);
   const stationMatches = useMemo(() => {
@@ -862,6 +1010,57 @@ export default function App() {
       .map((s) => ({ s, name: s["車站名稱"], exits: stationsFor(s["車站名稱"]) }));
   }, [searchFor, query, data]);
   const routeWorks = route?.construction?.nearby?.slice(0,6) || [];
+  const routeFacilities = useMemo(
+    () =>
+      ["toilet", "rest", "water", "health"]
+        .flatMap((kind) =>
+          facilitiesAlongRoute(route, data?.all, kind, 100, 4),
+        )
+        .sort((a, b) => a.order - b.order || a.near - b.near)
+        .slice(0, 12),
+    [route, data],
+  );
+  const endpointStationExits = useMemo(() => {
+    const stationKeys = new Set(
+      [start, end]
+        .map((point) =>
+          stationKey(
+            point?.station ||
+              (category(point || {}) === "station" ? point?.name : ""),
+          ),
+        )
+        .filter(Boolean),
+    );
+    return (data?.fac || []).filter(
+      (place) =>
+        place.kind === "metro-elevator" &&
+        stationKeys.has(stationKey(place.station)),
+    );
+  }, [data, start, end]);
+  const routeMapItems = useMemo(() => {
+    const unique = new Map();
+    for (const place of [
+      ...routeFacilities.map(({ place }) => place),
+      ...endpointStationExits,
+    ])
+      unique.set(place.id, place);
+    return [...unique.values()];
+  }, [routeFacilities, endpointStationExits]);
+  // 地圖上的標記：路線模式只顯示路線相關點；否則加上地標與商店（放大才出現），同一地點只畫一次。
+  const mapLayerItems = useMemo(() => {
+    const base = route
+      ? routeMapItems
+      : tab === "explore"
+        ? mapItems
+        : endpointStationExits;
+    const extra = route ? [] : [...landmarkItems, ...poiItems];
+    const seen = new Set();
+    return [...base, ...extra].filter((p) =>
+      seen.has(p.id) ? false : seen.add(p.id),
+    );
+  }, [route, routeMapItems, tab, mapItems, endpointStationExits, landmarkItems, poiItems]);
+  const avoidedWorks = route?.construction?.avoidedWorks || [];
+  const avoidedStairs = route?.avoidedStairs || [];
   useEffect(() => {
     if(!route?.construction)return;
     const until=Date.parse(route.construction.sourceUpdatedAt)+CONSTRUCTION_MAX_AGE-Date.now();
@@ -884,7 +1083,17 @@ export default function App() {
       route.policyVersion !== ROUTING_POLICY
     )
       return;
-    const text = `從${start.name}前往${end.name}，路線長約${formatDistance(route.distance)}。${route.steps.map((s) => `${stepText(s)}約${Math.round(s.distance)}公尺。`).join("")}路況仍需留意現場，這是路線預覽。`;
+    const avoidedText =
+      avoidedStairs.length || avoidedWorks.length
+        ? `已避開${avoidedStairs.length ? `${avoidedStairs.length}處階梯` : ""}${avoidedStairs.length && avoidedWorks.length ? "與" : ""}${avoidedWorks.length ? `${avoidedWorks.length}處施工` : ""}。`
+        : "";
+    const toiletCount = routeFacilities.filter(
+      ({ place }) => category(place) === "toilet",
+    ).length;
+    const facilityText = routeFacilities.length
+      ? `沿途找到${routeFacilities.length}處設施${toiletCount ? `，其中${toiletCount}處為無障礙廁所` : ""}。`
+      : "";
+    const text = `從${start.name}前往${end.name}，路線長約${formatDistance(route.distance)}。${avoidedText}${facilityText}${route.steps.map((s) => `${stepText(s)}約${Math.round(s.distance)}公尺。`).join("")}路況仍需留意現場，這是路線預覽。`;
     speakText(text);
   }
   function speakText(text) {
@@ -1010,8 +1219,14 @@ export default function App() {
           onPointerDown={(e) => {
             if (!matchMedia("(max-width: 700px)").matches || sheetSnap !== 0)
               return;
-            if (e.target.closest("button, a, input, textarea, select")) return;
+            if (e.target.closest(".sheet-grip")) return;
             gripDown(e);
+          }}
+          onClickCapture={(e) => {
+            if (!gripDragged.current) return;
+            e.preventDefault();
+            e.stopPropagation();
+            gripDragged.current = false;
           }}
         >
           <button
@@ -1028,19 +1243,6 @@ export default function App() {
               ["展開面板", "面板放到最大", "收合面板，顯示更多地圖"][sheetSnap]
             }
           />
-          <div className="omnibox-wrap">
-            <button className="omnibox" onClick={() => openSearch("explore")}>
-              <Search size={20} />
-              <span>搜尋地點、捷運站或路名</span>
-            </button>
-            <button
-              className="omnibox-settings"
-              aria-label="設定"
-              onClick={() => setModal("prefs")}
-            >
-              <SlidersHorizontal size={21} />
-            </button>
-          </div>
           <nav className="main-nav" aria-label="主要功能">
             {[
               ["explore", "找設施", Compass],
@@ -1059,9 +1261,16 @@ export default function App() {
                 aria-current={tab === id ? "page" : undefined}
               >
                 <C size={24} aria-hidden="true" />
-                <span className="sr-only">{label}</span>
+                <span>{label}</span>
               </button>
             ))}
+            <button
+              className="nav-utility"
+              aria-label="設定"
+              onClick={() => setModal("prefs")}
+            >
+              <SlidersHorizontal size={22} aria-hidden="true" />
+            </button>
           </nav>
           <div className="panel-scroll" ref={panelScroll}>
             {waitingForData && (
@@ -1083,11 +1292,7 @@ export default function App() {
               <>
                 <h1 className="sr-only">找設施</h1>
                 <div className="filter-grid" aria-label="設施類別">
-                  {(allFilters ||
-                  filters.findIndex(([id]) => id === filter) >= MAIN_FILTERS
-                    ? filters
-                    : filters.slice(0, MAIN_FILTERS)
-                  ).map(([id, label, C]) => (
+                  {filters.map(([id, label, C]) => (
                     <button
                       key={id}
                       className={`icon-action filter-action ${filter === id ? "selected" : ""}`}
@@ -1099,20 +1304,9 @@ export default function App() {
                       }}
                     >
                       <C size={20} aria-hidden="true" />
-                      <span className="sr-only">{label}</span>
+                      <span>{label}</span>
                     </button>
                   ))}
-                  {!allFilters &&
-                    filters.findIndex(([id]) => id === filter) <
-                      MAIN_FILTERS && (
-                      <button
-                        className="icon-action filter-action"
-                        aria-label="顯示更多設施類別"
-                        onClick={() => setAllFilters(true)}
-                      >
-                        <Plus size={20} aria-hidden="true" />
-                      </button>
-                    )}
                 </div>
                 <p className="list-caption icon-caption">
                   <Navigation size={18} aria-hidden="true" />
@@ -1146,77 +1340,64 @@ export default function App() {
               <>
                 <h1 className="sr-only">規劃路線</h1>
                 <div className="endpoints">
-                  <span className="route-dots">
-                    <i />
-                    <span />
-                    <i />
-                  </span>
-                  <div className="point-fields">
+                  <div className="route-rail">
+                    <i className="rail-start" aria-hidden="true" />
                     <button
-                      onClick={() => openSearch("start")}
-                      aria-label="選擇出發地"
+                      className="swap"
+                      aria-label="交換出發地與目的地"
+                      onClick={() => {
+                        setStart(end);
+                        setEnd(start);
+                        clearRoute();
+                        setRouting(false);
+                        request.current++;
+                      }}
                     >
-                      <small>從哪裡出發</small>
-                      <strong>{start?.name || "選擇出發地"}</strong>
+                      <ArrowUpDown size={18} aria-hidden="true" />
                     </button>
-                    <button
-                      onClick={() => openSearch("end")}
-                      aria-label="選擇目的地"
-                    >
-                      <small>想去哪裡</small>
-                      <strong>{end?.name || "選擇目的地"}</strong>
-                    </button>
+                    <i className="rail-end" aria-hidden="true" />
                   </div>
-                  <button
-                    className="icon-button swap"
-                    aria-label="交換起點與終點"
-                    onClick={() => {
-                      setStart(end);
-                      setEnd(start);
-                      clearRoute();
-                      setRouting(false);
-                      request.current++;
-                    }}
-                  >
-                    <ArrowUpDown size={20} />
-                  </button>
-                </div>
-                <div className="point-actions icon-actions">
-                  <button
-                    className="text-button icon-action"
-                    aria-label="從我的位置出發"
-                    onClick={() => locate("start")}
-                    disabled={locating}
-                  >
-                    <LocateFixed size={20} aria-hidden="true" />
-                  </button>
-                  <button
-                    className="text-button icon-action"
-                    aria-label="在地圖選點"
-                    onClick={() => {
-                      setPick(start ? "end" : "start");
-                      announce(
-                        start
-                          ? "請在地圖上點選目的地。"
-                          : "請在地圖上點選出發地。",
-                        { quiet: true },
-                      );
-                    }}
-                  >
-                    <MapPin size={20} aria-hidden="true" />
-                  </button>
-                </div>
-                <div className="preference-bar">
-                  <Accessibility size={20} />
-                  <span>
-                    {online ? "避開階梯與施工" : `避開階梯 · ${prefs.minWidth}m 以上已知寬度`}
-                  </span>
-                  <button
-                    onClick={() => setModal("prefs")}
-                    aria-label="調整通行偏好"
-                  >
-                    <SlidersHorizontal size={18} />
-                  </button>
+                  <div className="point-fields">
+                    {[
+                      ["start", "從哪裡出發", "選擇出發地", "出發地", start],
+                      ["end", "想去哪裡", "選擇目的地", "目的地", end],
+                    ].map(([which, label, placeholder, noun, point]) => (
+                      <div className="point-row" key={which}>
+                        <button
+                          className="point-main"
+                          onClick={() => openSearch(which)}
+                          aria-label={point ? `${noun}：${point.name}，點一下重新選擇` : placeholder}
+                        >
+                          <small>{label}</small>
+                          <strong className={point ? "" : "placeholder"}>
+                            {point?.name || placeholder}
+                          </strong>
+                        </button>
+                        <div className="point-tools">
+                          <button
+                            className="point-tool"
+                            aria-label={`用目前位置當${noun}`}
+                            onClick={() => locate(which)}
+                            disabled={locating}
+                          >
+                            <LocateFixed size={20} aria-hidden="true" />
+                          </button>
+                          <button
+                            className="point-tool"
+                            aria-label={`在地圖上選${noun}`}
+                            aria-pressed={pick === which}
+                            onClick={() => {
+                              setPick(which);
+                              setSheetSnap(0);
+                              announce(`請在地圖上點選${noun}。`, { quiet: true });
+                            }}
+                          >
+                            <MapPin size={20} aria-hidden="true" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
                 {!online && <div className="mode-tabs" aria-label="路線偏好">
                   {[
@@ -1236,7 +1417,7 @@ export default function App() {
                 </div>}
                 <button
                   className="primary full"
-                  onClick={calculate}
+                  onClick={() => calculate()}
                   disabled={routing || waitingForData}
                 >
                   {routing ? (
@@ -1315,23 +1496,127 @@ export default function App() {
                         路程使用一般道路路網，尚未確認是否有連續人行空間。
                       </p>
                     )}
+                    {(avoidedStairs.length > 0 || avoidedWorks.length > 0) && (
+                      <>
+                        <h2 className="section-title">這條路線已避開</h2>
+                        <div className="route-context-list">
+                          {avoidedStairs.map((stair) => (
+                            <button
+                              type="button"
+                              key={`stair-${stair.way}-${stair.lat}-${stair.lon}`}
+                              onClick={() =>
+                                setFocus({
+                                  lat: stair.lat,
+                                  lon: stair.lon,
+                                  zoom: 18,
+                                  token: Date.now(),
+                                })
+                              }
+                            >
+                              <AlertTriangle size={19} aria-hidden="true" />
+                              <span>
+                                <b>階梯 · {cleanName(stair.name)}</b>
+                                <small>點一下查看避開的位置</small>
+                              </span>
+                              <ChevronRight size={18} aria-hidden="true" />
+                            </button>
+                          ))}
+                          {avoidedWorks.map((work) => {
+                            const point = work.geometry?.coordinates?.[0];
+                            return (
+                              <button
+                                type="button"
+                                key={`work-${work.id}`}
+                                onClick={() =>
+                                  point &&
+                                  setFocus({
+                                    lat: point[0],
+                                    lon: point[1],
+                                    zoom: 18,
+                                    token: Date.now(),
+                                  })
+                                }
+                              >
+                                <AlertTriangle size={19} aria-hidden="true" />
+                                <span>
+                                  <b>施工 · {work.address}</b>
+                                  <small>
+                                    {work.match === "vicinity"
+                                      ? "已避開通報位置周邊"
+                                      : "已避開施工範圍"}
+                                  </small>
+                                </span>
+                                <ChevronRight size={18} aria-hidden="true" />
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </>
+                    )}
+                    {routeFacilities.length > 0 && (
+                      <>
+                        <h2 className="section-title">沿途設施</h2>
+                        <div
+                          className="route-context-list"
+                          aria-label="沿途設施"
+                        >
+                          {routeFacilities.map(({ place, near }) => {
+                            const FacilityIcon =
+                              icons[category(place)] || MapPin;
+                            return (
+                              <button
+                                type="button"
+                                key={place.id}
+                                onClick={() => inspect(place)}
+                              >
+                                <FacilityIcon size={19} aria-hidden="true" />
+                                <span>
+                                  <b>{cleanName(place.name)}</b>
+                                  <small>
+                                    {labels[category(place)] || "設施"} ·
+                                    距路線約 {formatDistance(near)}
+                                  </small>
+                                </span>
+                                <ChevronRight size={18} aria-hidden="true" />
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </>
+                    )}
                     {!route.viaName && !route.requiresEntryConfirmation && (
-                      <div className="point-actions icon-actions" aria-label="順路停靠">
+                      <div className="point-actions" aria-label="順路停靠">
                         <button
                           type="button"
-                          className="icon-action"
                           aria-label="順路找無障礙廁所"
                           onClick={() => addStop("toilet")}
                         >
                           <Toilet size={20} aria-hidden="true" />
+                          廁所
                         </button>
                         <button
                           type="button"
-                          className="icon-action"
                           aria-label="順路找歇腳椅"
                           onClick={() => addStop("rest")}
                         >
                           <Armchair size={20} aria-hidden="true" />
+                          歇腳
+                        </button>
+                        <button
+                          type="button"
+                          aria-label="順路找飲水處"
+                          onClick={() => addStop("water")}
+                        >
+                          <GlassWater size={20} aria-hidden="true" />
+                          飲水
+                        </button>
+                        <button
+                          type="button"
+                          aria-label="順路找醫療設施"
+                          onClick={() => addStop("health")}
+                        >
+                          <Hospital size={20} aria-hidden="true" />
+                          醫療
                         </button>
                       </div>
                     )}
@@ -1512,10 +1797,12 @@ export default function App() {
         </aside>
         <main className="map-area" aria-label="地圖與設施">
           <MapView
-            items={showMapFacilities ? mapItems : []}
+            items={mapLayerItems}
             basemap={basemap}
+            showOfficialSidewalk={showOfficialSidewalk}
             colorFriendly={prefs.colorFriendly}
             onBasemapStatus={setBasemapStatus}
+            onOfficialSidewalkStatus={setOfficialSidewalkStatus}
             route={route}
             start={start}
             end={end}
@@ -1535,7 +1822,10 @@ export default function App() {
                 setSheetSnap(0);
             }}
           />
-          <div className="map-dock" ref={layersRef}>
+          <div
+            className={`map-dock ${layersOpen ? "open" : ""}`}
+            ref={layersRef}
+          >
             <button
               className="map-fab"
               aria-label="地圖圖層"
@@ -1589,11 +1879,38 @@ export default function App() {
                   ))}
                 </div>
                 <label className="toggle-row layers-toggle">
-                  <b>在地圖上顯示無障礙設施</b>
+                  <span className="layer-toggle-copy">
+                    <b>
+                      <i className="sidewalk-legend" aria-hidden="true" />
+                      人行道
+                    </b>
+                    <span className="issue-legend">
+                      <span className="issue-legend-title">
+                        不利通行・淨寬不足（依活動區域）
+                      </span>
+                      {ISSUE_LEVELS.map((level, i) => (
+                        <span key={level.label}>
+                          <img className="issue-sign" src={NO_WALK_URLS[i]} alt="" />
+                          {level.label}
+                        </span>
+                      ))}
+                      <span className="issue-legend-title">
+                        <i className="issue-ring" aria-hidden="true" />
+                        行穿線無斜坡
+                      </span>
+                    </span>
+                    {sidewalkStatusText[officialSidewalkStatus] && (
+                      <small>
+                        {sidewalkStatusText[officialSidewalkStatus]}
+                      </small>
+                    )}
+                  </span>
                   <input
                     type="checkbox"
-                    checked={showMapFacilities}
-                    onChange={(e) => setShowMapFacilities(e.target.checked)}
+                    checked={showOfficialSidewalk}
+                    onChange={(e) =>
+                      setShowOfficialSidewalk(e.target.checked)
+                    }
                   />
                 </label>
               </div>
@@ -1641,7 +1958,7 @@ export default function App() {
             </button>
           </div>
           {pick && (
-            <div className="pick-prompt">
+            <div className="pick-prompt" role="status" aria-live="polite">
               <MapPin size={19} />
               <span>
                 點一下地圖，選擇{pick === "start" ? "出發地" : "目的地"}
@@ -1714,19 +2031,20 @@ export default function App() {
           </div>
           {stationMatches.map(({ s, name, exits }) => {
             const pickExit = (p) => {
+              rememberPlace(p);
               if (searchFor === "explore") {
                 setSearchFor(null);
                 inspect(p);
               } else changePoint(searchFor, p);
             };
             return (
-              <section className="station-group" key={name} aria-label={`${name}站的無障礙出口`}>
+              <section className="station-group" key={name} aria-label={`${stationLabel(name)}的無障礙出口`}>
                 <div className="station-group-head">
                   <span className="station-icon">
-                    <TrainFront size={20} />
+                    <MetroStationIcon codes={stationCodesFor(name)} />
                   </span>
                   <span>
-                    <strong>{name}站</strong>
+                    <strong>{stationLabel(name)}</strong>
                     <small>{s["路線別"]} · {exits.length ? `${exits.length} 處電梯／坡道出口` : "沒有出口座標"}</small>
                   </span>
                 </div>
@@ -1748,7 +2066,7 @@ export default function App() {
                     setSearchFor(null);
                     setSelected({
                       id: `station-${name}-${s["路線別"]}`,
-                      name: `${name}站`,
+                      name: stationLabel(name),
                       kind: "station-detail",
                       record: s,
                       exits,
@@ -1764,17 +2082,22 @@ export default function App() {
           {query && searchResults.length > 0 && (
             <p className="list-caption">找到 {searchResults.length} 個地方</p>
           )}
+          {!query && searchResults.length > 0 && (
+            <div className="list-caption recent-caption">
+              <span>{recents.length || trips.length ? "最近" : "推薦"}</span>
+              {recents.length > 0 && (
+                <button type="button" className="text-button" onClick={clearRecents}>
+                  清除
+                </button>
+              )}
+            </div>
+          )}
           {searchResults.map((p) => (
             <FacilityRow
               key={p.id}
               p={p}
               from={viewport}
-              onSelect={(p) => {
-                if (searchFor === "explore") {
-                  setSearchFor(null);
-                  inspect(p);
-                } else changePoint(searchFor, p);
-              }}
+              onSelect={selectSearchPlace}
             />
           ))}
           {query && !searchResults.length && (
@@ -1827,7 +2150,9 @@ export default function App() {
           {selected.kind === "station-detail" ? (
             <>
               <div className="detail-badge">
-                <TrainFront size={17} />
+                <MetroStationIcon
+                  codes={stationCodesFor(selected.record["車站名稱"])}
+                />
                 {selected.record["路線別"]}
               </div>
               <h3>電梯在哪裡</h3>
@@ -1897,70 +2222,23 @@ export default function App() {
             </>
           ) : (
             <>
-              <div className="detail-badge">
-                <Icon kind={category(selected)} />
+              {/* Apple 地圖式地點卡：一行分類與距離、一排操作、資訊清單；不放說明文字 */}
+              <p className="place-subtitle">
                 {labels[category(selected)] || "地點"}
-              </div>
-              {selected.address && (
-                <p className="detail-address">
-                  <MapPin size={18} />
-                  {selected.address}
-                </p>
-              )}
-              {(selected.accessibleCount > 0 ||
-                selected.exit ||
-                selected.slopePct != null) && (
-                <div className="detail-facts">
-                  {selected.accessibleCount > 0 && (
-                    <div>
-                      <small>無障礙廁座</small>
-                      <b>{selected.accessibleCount} 座</b>
-                    </div>
-                  )}
-                  {selected.exit && (
-                    <div>
-                      <small>出入口</small>
-                      <b>{selected.exit}</b>
-                    </div>
-                  )}
-                  {selected.slopePct != null && (
-                    <div>
-                      <small>資料記載坡度</small>
-                      <b>{selected.slopePct}%</b>
-                    </div>
-                  )}
-                </div>
-              )}
-              {selected.careBed && <p>照護床：{selected.careBed}</p>}
-              {selected.routes && (
-                <p>
-                  此站路線：{selected.routes.join("、")}
-                  。低地板車輛與班次請另向營運單位確認。
-                </p>
-              )}
-              {selected.openingHours && (
-                <p>開放時間（來源記載）：{selected.openingHours}</p>
-              )}
-              <div className="notice soft">
-                <Info size={19} />
-                <p>
-                  {category(selected) === "elevator"
-                    ? "查看下方電梯位置與保養時間。"
-                    : category(selected) === "toilet"
-                      ? "資料記載設有無障礙廁所，實際開放時間與內部設備請以現場為準。"
-                      : "這是公開資料記載的位置，實際通行與開放情形請留意現場。"}
-                </p>
-              </div>
-              <button
-                className="primary icon-action detail-primary"
-                aria-label="我要到這裡"
-                onClick={() => navigateTo(selected)}
-              >
-                <Navigation size={22} aria-hidden="true" />
-              </button>
-              <div className="detail-actions icon-actions">
+                {" · "}
+                {formatDistance(distance(currentLocation || viewport, selected))}
+              </p>
+              <div className="place-actions">
                 <button
-                  className="secondary icon-action"
+                  className="primary place-go"
+                  aria-label={`導航到${cleanName(selected.name)}`}
+                  onClick={() => navigateTo(selected)}
+                >
+                  <Navigation size={20} aria-hidden="true" />
+                  導航
+                </button>
+                <button
+                  className="place-icon-btn"
                   aria-label="從這裡出發"
                   onClick={() => {
                     changePoint("start", selected);
@@ -1970,29 +2248,47 @@ export default function App() {
                   <MapPin size={20} aria-hidden="true" />
                 </button>
                 <button
-                  className="secondary icon-action"
-                  aria-label={
-                    saved.some((x) => x.id === selected.id)
-                      ? "取消收藏"
-                      : "收藏"
-                  }
+                  className="place-icon-btn"
+                  aria-label={saved.some((x) => x.id === selected.id) ? "取消收藏" : "收藏"}
+                  aria-pressed={saved.some((x) => x.id === selected.id)}
                   onClick={() => toggleSave(selected)}
                 >
                   <Heart
                     size={20}
                     aria-hidden="true"
-                    fill={
-                      saved.some((x) => x.id === selected.id)
-                        ? "currentColor"
-                        : "none"
-                    }
+                    fill={saved.some((x) => x.id === selected.id) ? "currentColor" : "none"}
                   />
                 </button>
               </div>
+              {(() => {
+                const rows = [];
+                const wheel = { yes: "可以進入", designated: "可以進入", limited: "部分可進入", no: "無法進入" }[selected.wheelchair];
+                if (wheel) rows.push(["wheel", Accessibility, "輪椅", wheel]);
+                if (selected.accessibleCount > 0) rows.push(["acc", Toilet, "無障礙廁座", `${selected.accessibleCount} 座`]);
+                if (selected.exit) rows.push(["exit", DoorOpen, "出入口", selected.exit]);
+                if (selected.slopePct != null) rows.push(["slope", TrendingUp, "坡度", `${selected.slopePct}%`]);
+                if (selected.openingHours) rows.push(["hours", Clock, "開放時間", selected.openingHours]);
+                if (selected.address) rows.push(["addr", MapPin, "地址", selected.address]);
+                if (selected.phone)
+                  rows.push(["phone", Phone, "電話",
+                    <a href={`tel:${String(selected.phone).replace(/[^\d+]/g, "")}`}>{selected.phone}</a>]);
+                if (selected.careBed) rows.push(["bed", Info, "照護床", selected.careBed]);
+                if (selected.routes) rows.push(["bus", Bus, "路線", selected.routes.join("、")]);
+                return rows.length ? (
+                  <dl className="place-info">
+                    {rows.map(([key, RowIcon, label, value]) => (
+                      <div key={key}>
+                        <RowIcon size={18} aria-hidden="true" />
+                        <dt>{label}</dt>
+                        <dd>{value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                ) : null;
+              })()}
               {selected.station && (
                 <button
-                  className="text-button icon-action"
-                  aria-label="查看這個車站的電梯資訊"
+                  className="place-link"
                   onClick={() => {
                     const record = (data?.metro["metro-elevators"] || []).find(
                       (r) => stationKey(r["車站名稱"]) === stationKey(selected.station),
@@ -2003,23 +2299,23 @@ export default function App() {
                     }
                     setSelected({
                       id: `station-${record["車站名稱"]}-${record["路線別"]}`,
-                      name: `${record["車站名稱"]}站`,
+                      name: stationLabel(record["車站名稱"]),
                       kind: "station-detail",
                       record,
                       exits: stationsFor(record["車站名稱"]),
                     });
                   }}
                 >
-                  <ArrowUpFromLine size={20} aria-hidden="true" />
+                  <ArrowUpFromLine size={18} aria-hidden="true" />
+                  <span>車站電梯資訊</span>
+                  <ChevronRight size={18} aria-hidden="true" />
                 </button>
               )}
-              <p className="source-note">
-                資料來源：
+              <p className="place-source">
                 {selected.sourceId === "osm"
-                  ? "OpenStreetMap contributors"
-                  : data?.sources.sources.find(
-                      (s) => s.id === selected.sourceId,
-                    )?.name || "臺北市開放資料"}
+                  ? "OpenStreetMap"
+                  : data?.sources.sources.find((s) => s.id === selected.sourceId)?.name ||
+                    "臺北市開放資料"}
               </p>
             </>
           )}
@@ -2281,6 +2577,18 @@ export default function App() {
               rel="noopener"
             >
               來源與授權
+              <ExternalLink size={14} />
+            </a>
+          </div>
+          <div className="source-card">
+            <b>臺北捷運車站圖標・Wikimedia Commons</b>
+            <span>臺北大眾捷運股份有限公司；公有領域，圖示存放於本站</span>
+            <a
+              href="https://commons.wikimedia.org/wiki/Category:Taipei_Metro_station_icons"
+              target="_blank"
+              rel="noopener"
+            >
+              圖標來源與授權
               <ExternalLink size={14} />
             </a>
           </div>

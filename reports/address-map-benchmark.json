@@ -1,0 +1,5001 @@
+{
+  "checkedAt": "2026-11-07T15:03:52.820Z",
+  "seed": 20261114,
+  "method": "Seeded distance-stratified sample: public address index records and simulated map selections offset 15–80m from distinct public addresses, paired with Taipei metro stations; equally stratified types and directions, not filtered by route connectivity. One fresh worker per case, current local product planner with ordinary walking profile and one fresh construction snapshot. Address points and map points may be inside buildings, private areas, water or other unavailable locations. Nearby alternatives are not selected. Success means only a route result to the selected coordinates and is not physical accessibility, official online routing, live GPS, or citywide success.",
+  "sources": {
+    "graphSha256": "bb211a0e906221556b5eb7621921733dd6586bb3649ba3dbf988907e22552f2d",
+    "facilitiesSha256": "914e019fa1b52f4ed44da95dd265a2568127ec787a566e345a8077fe82bf541c",
+    "placesSha256": "f6d28df1737b45a41beb7e515c2125c38e15e2bef664af79b1999d89dea03d41",
+    "addressIndexSha256": "cb37848fe068495a5a9c832f286a56d50ed1b571117e028df2165aec5439a353",
+    "taipeiAddressShardSetSha256": "901b1fc328521bcd66df104f6a63c7fd419614d1db6e17c46b72becb4851952e",
+    "previousAddressSampleSha256": "9cd435504072ef1ee616bb49531e97ec9e15a6aef64843b3f847bc6af4374450",
+    "constructionSnapshotSha256": "f391a7a05dad940f4d7b3dc5204a1be7882c175a5cd997728c195813c8ebc330",
+    "constructionFetchedAt": "2026-11-07T15:01:12.969Z",
+    "constructionUpdatedAt": "Sat, 07 Nov 2026 15:00:53 GMT"
+  },
+  "sampling": {
+    "stationCount": 73,
+    "taipeiStreetFiles": 1186,
+    "eligibleAddressRecords": 256880,
+    "previousSampleExcluded": 10,
+    "reservoirCount": 2000,
+    "poolCounts": [
+      {
+        "bin": "0.5–1 km",
+        "kind": "address",
+        "pairs": 1383
+      },
+      {
+        "bin": "0.5–1 km",
+        "kind": "map",
+        "pairs": 1402
+      },
+      {
+        "bin": "1–2 km",
+        "kind": "address",
+        "pairs": 4550
+      },
+      {
+        "bin": "1–2 km",
+        "kind": "map",
+        "pairs": 4618
+      },
+      {
+        "bin": "2–4 km",
+        "kind": "address",
+        "pairs": 13933
+      },
+      {
+        "bin": "2–4 km",
+        "kind": "map",
+        "pairs": 14296
+      },
+      {
+        "bin": "4–8 km",
+        "kind": "address",
+        "pairs": 29224
+      },
+      {
+        "bin": "4–8 km",
+        "kind": "map",
+        "pairs": 28910
+      }
+    ]
+  },
+  "total": 48,
+  "tested": 48,
+  "success": 30,
+  "executionErrors": 0,
+  "estimatedRoutes": 30,
+  "sharedMetres": 5936.666316793081,
+  "pedestrianMetres": 91377.79477088319,
+  "footwayMetres": 89910.90817088318,
+  "explicitSidewalkMetres": 72193.92041725008,
+  "routeMetres": 98365,
+  "byBin": [
+    {
+      "bin": "0.5–1 km",
+      "total": 12,
+      "success": 7,
+      "errors": {
+        "NO_ROUTE": 2,
+        "NO_CONNECTION": 3
+      }
+    },
+    {
+      "bin": "1–2 km",
+      "total": 12,
+      "success": 8,
+      "errors": {
+        "NO_CONNECTION": 4
+      }
+    },
+    {
+      "bin": "2–4 km",
+      "total": 12,
+      "success": 9,
+      "errors": {
+        "NO_CONNECTION": 2,
+        "NO_ROUTE": 1
+      }
+    },
+    {
+      "bin": "4–8 km",
+      "total": 12,
+      "success": 6,
+      "errors": {
+        "NO_ROUTE": 2,
+        "NO_CONNECTION": 4
+      }
+    }
+  ],
+  "results": [
+    {
+      "bin": "0.5–1 km",
+      "kind": "address",
+      "selectedSide": "start",
+      "start": {
+        "id": "address-25.0737048-121.6008803-0",
+        "kind": "place",
+        "sourceId": "osm",
+        "selectionKind": "user",
+        "name": "臺北市內湖區金湖路363巷51弄23號",
+        "lat": 25.0737048,
+        "lon": 121.6008803
+      },
+      "end": {
+        "id": "w20-87",
+        "kind": "20",
+        "name": "葫洲(BR21)",
+        "lat": 25.07271,
+        "lon": 121.607146,
+        "slopePct": null,
+        "sourceId": "wheel-20",
+        "widthRaw": null,
+        "widthUnitVerified": false,
+        "address": "114046臺北市內湖區康寧路3段16號"
+      },
+      "straightMetres": 641,
+      "reference": {
+        "name": "臺北市內湖區金湖路363巷51弄23號",
+        "coordinate": [
+          25.0737048,
+          121.6008803
+        ],
+        "streetFile": "1d4e5fdd811529"
+      },
+      "mapOffsetMetres": null,
+      "success": false,
+      "error": "NO_ROUTE",
+      "distance": null,
+      "sharedMetres": 0,
+      "pedestrianMetres": 0,
+      "footwayMetres": null,
+      "explicitSidewalkMetres": null,
+      "estimatedApproaches": [],
+      "pedestrianImprovement": null,
+      "elapsedMs": 2905
+    },
+    {
+      "bin": "0.5–1 km",
+      "kind": "address",
+      "selectedSide": "end",
+      "start": {
+        "id": "w20-111",
+        "kind": "20",
+        "name": "國父紀念館(BL17)",
+        "lat": 25.04137,
+        "lon": 121.557815,
+        "slopePct": null,
+        "sourceId": "wheel-20",
+        "widthRaw": null,
+        "widthUnitVerified": false,
+        "address": "110054臺北市信義區忠孝東路4段400號"
+      },
+      "end": {
+        "id": "address-25.0472901-121.5533607-0",
+        "kind": "place",
+        "sourceId": "osm",
+        "selectionKind": "user",
+        "name": "臺北市松山區延吉街8之3號",
+        "lat": 25.0472901,
+        "lon": 121.5533607
+      },
+      "straightMetres": 797,
+      "reference": {
+        "name": "臺北市松山區延吉街8之3號",
+        "coordinate": [
+          25.0472901,
+          121.5533607
+        ],
+        "streetFile": "f198afe6397fca"
+      },
+      "mapOffsetMetres": null,
+      "success": false,
+      "error": "NO_CONNECTION",
+      "distance": null,
+      "sharedMetres": 0,
+      "pedestrianMetres": 0,
+      "footwayMetres": null,
+      "explicitSidewalkMetres": null,
+      "estimatedApproaches": [],
+      "pedestrianImprovement": null,
+      "elapsedMs": 2844
+    },
+    {
+      "bin": "0.5–1 km",
+      "kind": "address",
+      "selectedSide": "start",
+      "start": {
+        "id": "address-25.02674-121.5555342-0",
+        "kind": "place",
+        "sourceId": "osm",
+        "selectionKind": "user",
+        "name": "臺北市信義區基隆路二段149之16號",
+        "lat": 25.02674,
+        "lon": 121.5555342
+      },
+      "end": {
+        "id": "w20-3",
+        "kind": "20",
+        "name": "信義安和(R04)",
+        "lat": 25.03331,
+        "lon": 121.55265,
+        "slopePct": null,
+        "sourceId": "wheel-20",
+        "widthRaw": null,
+        "widthUnitVerified": false,
+        "address": "106049臺北市大安區信義路4段212之1號B1"
+      },
+      "straightMetres": 786,
+      "reference": {
+        "name": "臺北市信義區基隆路二段149之16號",
+        "coordinate": [
+          25.02674,
+          121.5555342
+        ],
+        "streetFile": "2da560237023ae"
+      },
+      "mapOffsetMetres": null,
+      "success": true,
+      "error": null,
+      "distance": 1133,
+      "sharedMetres": 0,
+      "pedestrianMetres": 1119.3038736742787,
+      "footwayMetres": 624.9762736742786,
+      "explicitSidewalkMetres": 609.3522736742785,
+      "estimatedApproaches": [
+        {
+          "side": "start",
+          "distance": 13,
+          "originKind": "selected",
+          "unconfirmed": true
+        }
+      ],
+      "pedestrianImprovement": {
+        "status": "no-shared-segments",
+        "rolledBack": false,
+        "originalDistanceMetres": 1132.9986030636207,
+        "maxDistanceMetres": 1432.9986030636207,
+        "originalSharedMetres": 0,
+        "sharedMetres": 0,
+        "originalFootwayMetres": 624.9762736742786,
+        "footwayMetres": 624.9762736742786,
+        "originalExplicitSidewalkMetres": 609.3522736742785,
+        "explicitSidewalkMetres": 609.3522736742785,
+        "radiusMetres": 50,
+        "minimumReductionMetres": 1,
+        "searchLimits": {
+          "maxIterations": 3,
+          "totalMs": 4000,
+          "maxVisited": 40000,
+          "maxComparisons": 100000
+        },
+        "iterations": []
+      },
+      "elapsedMs": 2647
+    },
+    {
+      "bin": "0.5–1 km",
+      "kind": "address",
+      "selectedSide": "end",
+      "start": {
+        "id": "w20-11",
+        "kind": "20",
+        "name": "小南門(G11)",
+        "lat": 25.035619,
+        "lon": 121.510798,
+        "slopePct": null,
+        "sourceId": "wheel-20",
+        "widthRaw": null,
+        "widthUnitVerified": false,
+        "address": "100057臺北市中正區愛國西路22號B1"
+      },
+      "end": {
+        "id": "address-25.0359662-121.5012423-0",
+        "kind": "place",
+        "sourceId": "osm",
+        "selectionKind": "user",
+        "name": "臺北市萬華區康定路312號",
+        "lat": 25.0359662,
+        "lon": 121.5012423
+      },
+      "straightMetres": 963,
+      "reference": {
+        "name": "臺北市萬華區康定路312號",
+        "coordinate": [
+          25.0359662,
+          121.5012423
+        ],
+        "streetFile": "62b7c9469645d1"
+      },
+      "mapOffsetMetres": null,
+      "success": true,
+      "error": null,
+      "distance": 1189,
+      "sharedMetres": 43.4056,
+      "pedestrianMetres": 1122.3138000000001,
+      "footwayMetres": 1122.3137999999997,
+      "explicitSidewalkMetres": 772.7342,
+      "estimatedApproaches": [
+        {
+          "side": "end",
+          "distance": 20,
+          "originKind": "selected",
+          "unconfirmed": true
+        }
+      ],
+      "pedestrianImprovement": {
+        "status": "no-improvement",
+        "rolledBack": false,
+        "originalDistanceMetres": 1188.6476310068026,
+        "maxDistanceMetres": 1488.6476310068026,
+        "originalSharedMetres": 43.4056,
+        "sharedMetres": 43.4056,
+        "originalFootwayMetres": 1122.3137999999997,
+        "footwayMetres": 1122.3137999999997,
+        "originalExplicitSidewalkMetres": 772.7342,
+        "explicitSidewalkMetres": 772.7342,
+        "radiusMetres": 50,
+        "minimumReductionMetres": 1,
+        "searchLimits": {
+          "maxIterations": 3,
+          "totalMs": 4000,
+          "maxVisited": 40000,
+          "maxComparisons": 100000
+        },
+        "iterations": [
+          {
+            "round": 1,
+            "result": "no-improvement",
+            "reasons": [
+              "no-connected-pedestrian-within-50m"
+            ],
+            "attempts": [
+              {
+                "penalty": 2,
+                "pathPenalty": 0,
+                "distanceMetres": 1196.7766310068025,
+                "sharedMetres": 0,
+                "footwayMetres": 1173.8483999999994,
+                "explicitSidewalkMetres": 811.9947000000001,
+                "reason": "no-connected-pedestrian-within-50m"
+              },
+              {
+                "penalty": 2,
+                "pathPenalty": 1.5,
+                "distanceMetres": 1196.7766310068025,
+                "sharedMetres": 0,
+                "footwayMetres": 1173.8483999999994,
+                "explicitSidewalkMetres": 811.9947000000001,
+                "reason": "no-connected-pedestrian-within-50m"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 0,
+                "distanceMetres": 1196.7766310068025,
+                "sharedMetres": 0,
+                "footwayMetres": 1173.8483999999994,
+                "explicitSidewalkMetres": 811.9947000000001,
+                "reason": "no-connected-pedestrian-within-50m"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 1.5,
+                "distanceMetres": 1196.7766310068025,
+                "sharedMetres": 0,
+                "footwayMetres": 1173.8483999999994,
+                "explicitSidewalkMetres": 811.9947000000001,
+                "reason": "no-connected-pedestrian-within-50m"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 0,
+                "distanceMetres": 1196.7766310068025,
+                "sharedMetres": 0,
+                "footwayMetres": 1173.8483999999994,
+                "explicitSidewalkMetres": 811.9947000000001,
+                "reason": "no-connected-pedestrian-within-50m"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 1.5,
+                "distanceMetres": 1196.7766310068025,
+                "sharedMetres": 0,
+                "footwayMetres": 1173.8483999999994,
+                "explicitSidewalkMetres": 811.9947000000001,
+                "reason": "no-connected-pedestrian-within-50m"
+              }
+            ]
+          }
+        ]
+      },
+      "elapsedMs": 3159
+    },
+    {
+      "bin": "0.5–1 km",
+      "kind": "address",
+      "selectedSide": "start",
+      "start": {
+        "id": "address-25.1142642-121.5103639-0",
+        "kind": "place",
+        "sourceId": "osm",
+        "selectionKind": "user",
+        "name": "臺北市北投區石牌路一段71巷15弄16號",
+        "lat": 25.1142642,
+        "lon": 121.5103639
+      },
+      "end": {
+        "id": "w20-32",
+        "kind": "20",
+        "name": "石牌(R19)",
+        "lat": 25.114455,
+        "lon": 121.515572,
+        "slopePct": null,
+        "sourceId": "wheel-20",
+        "widthRaw": null,
+        "widthUnitVerified": false,
+        "address": "112052臺北市北投區石牌路1段200號"
+      },
+      "straightMetres": 525,
+      "reference": {
+        "name": "臺北市北投區石牌路一段71巷15弄16號",
+        "coordinate": [
+          25.1142642,
+          121.5103639
+        ],
+        "streetFile": "e93bd9cc1dc930"
+      },
+      "mapOffsetMetres": null,
+      "success": false,
+      "error": "NO_CONNECTION",
+      "distance": null,
+      "sharedMetres": 0,
+      "pedestrianMetres": 0,
+      "footwayMetres": null,
+      "explicitSidewalkMetres": null,
+      "estimatedApproaches": [],
+      "pedestrianImprovement": null,
+      "elapsedMs": 2857
+    },
+    {
+      "bin": "0.5–1 km",
+      "kind": "address",
+      "selectedSide": "end",
+      "start": {
+        "id": "w20-109",
+        "kind": "20",
+        "name": "永春(BL19)",
+        "lat": 25.040855,
+        "lon": 121.5762,
+        "slopePct": null,
+        "sourceId": "wheel-20",
+        "widthRaw": null,
+        "widthUnitVerified": false,
+        "address": "110037臺北市信義區忠孝東路5段455號"
+      },
+      "end": {
+        "id": "address-25.0438727-121.5686561-0",
+        "kind": "place",
+        "sourceId": "osm",
+        "selectionKind": "user",
+        "name": "臺北市信義區永吉路30巷92號",
+        "lat": 25.0438727,
+        "lon": 121.5686561
+      },
+      "straightMetres": 830,
+      "reference": {
+        "name": "臺北市信義區永吉路30巷92號",
+        "coordinate": [
+          25.0438727,
+          121.5686561
+        ],
+        "streetFile": "ee11b1b441b337"
+      },
+      "mapOffsetMetres": null,
+      "success": true,
+      "error": null,
+      "distance": 1282,
+      "sharedMetres": 6.2324,
+      "pedestrianMetres": 1242.368854846187,
+      "footwayMetres": 1242.3688548461873,
+      "explicitSidewalkMetres": 833.6060548461871,
+      "estimatedApproaches": [
+        {
+          "side": "start",
+          "distance": 4,
+          "originKind": null,
+          "unconfirmed": null
+        },
+        {
+          "side": "end",
+          "distance": 29,
+          "originKind": "selected",
+          "unconfirmed": true
+        }
+      ],
+      "pedestrianImprovement": {
+        "status": "improved",
+        "rolledBack": false,
+        "originalDistanceMetres": 1117.5580830547563,
+        "maxDistanceMetres": 1417.5580830547563,
+        "originalSharedMetres": 82.8394,
+        "sharedMetres": 6.2324,
+        "originalFootwayMetres": 1000.7906815782242,
+        "footwayMetres": 1242.3688548461873,
+        "originalExplicitSidewalkMetres": 740.5352815782242,
+        "explicitSidewalkMetres": 833.6060548461871,
+        "radiusMetres": 50,
+        "minimumReductionMetres": 1,
+        "searchLimits": {
+          "maxIterations": 3,
+          "totalMs": 4000,
+          "maxVisited": 40000,
+          "maxComparisons": 100000
+        },
+        "iterations": [
+          {
+            "round": 1,
+            "result": "improved",
+            "previousSharedMetres": 82.8394,
+            "sharedMetres": 6.2324,
+            "distanceMetres": 1281.2651827767143,
+            "penalty": 6,
+            "pathPenalty": 0,
+            "attempts": [
+              {
+                "penalty": 2,
+                "pathPenalty": 0,
+                "distanceMetres": 1127.9910830547565,
+                "sharedMetres": 74.2407,
+                "footwayMetres": 1019.8223815782242,
+                "explicitSidewalkMetres": 740.5352815782242,
+                "reason": "no-connected-pedestrian-within-50m"
+              },
+              {
+                "penalty": 2,
+                "pathPenalty": 1.5,
+                "distanceMetres": 1127.9910830547565,
+                "sharedMetres": 74.2407,
+                "footwayMetres": 1019.8223815782242,
+                "explicitSidewalkMetres": 740.5352815782242,
+                "reason": "no-connected-pedestrian-within-50m"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 0,
+                "distanceMetres": 1281.2651827767143,
+                "sharedMetres": 6.2324,
+                "footwayMetres": 1242.3688548461873,
+                "explicitSidewalkMetres": 833.6060548461871,
+                "reason": "eligible",
+                "selected": true
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 1.5,
+                "distanceMetres": 1281.2651827767143,
+                "sharedMetres": 6.2324,
+                "footwayMetres": 1242.3688548461873,
+                "explicitSidewalkMetres": 833.6060548461871,
+                "reason": "eligible"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 0,
+                "distanceMetres": 1281.2651827767143,
+                "sharedMetres": 6.2324,
+                "footwayMetres": 1242.3688548461873,
+                "explicitSidewalkMetres": 833.6060548461871,
+                "reason": "eligible"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 1.5,
+                "distanceMetres": 1281.2651827767143,
+                "sharedMetres": 6.2324,
+                "footwayMetres": 1242.3688548461873,
+                "explicitSidewalkMetres": 833.6060548461871,
+                "reason": "eligible"
+              }
+            ]
+          },
+          {
+            "round": 2,
+            "result": "no-improvement",
+            "reasons": [
+              "insufficient-shared-reduction"
+            ],
+            "attempts": [
+              {
+                "penalty": 2,
+                "pathPenalty": 0,
+                "distanceMetres": 1127.9910830547565,
+                "sharedMetres": 74.2407,
+                "footwayMetres": 1019.8223815782242,
+                "explicitSidewalkMetres": 740.5352815782242,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 2,
+                "pathPenalty": 1.5,
+                "distanceMetres": 1127.9910830547565,
+                "sharedMetres": 74.2407,
+                "footwayMetres": 1019.8223815782242,
+                "explicitSidewalkMetres": 740.5352815782242,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 0,
+                "distanceMetres": 1281.2651827767143,
+                "sharedMetres": 6.2324,
+                "footwayMetres": 1242.3688548461873,
+                "explicitSidewalkMetres": 833.6060548461871,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 1.5,
+                "distanceMetres": 1281.2651827767143,
+                "sharedMetres": 6.2324,
+                "footwayMetres": 1242.3688548461873,
+                "explicitSidewalkMetres": 833.6060548461871,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 0,
+                "distanceMetres": 1281.2651827767143,
+                "sharedMetres": 6.2324,
+                "footwayMetres": 1242.3688548461873,
+                "explicitSidewalkMetres": 833.6060548461871,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 1.5,
+                "distanceMetres": 1281.2651827767143,
+                "sharedMetres": 6.2324,
+                "footwayMetres": 1242.3688548461873,
+                "explicitSidewalkMetres": 833.6060548461871,
+                "reason": "insufficient-shared-reduction"
+              }
+            ]
+          }
+        ]
+      },
+      "elapsedMs": 2981
+    },
+    {
+      "bin": "0.5–1 km",
+      "kind": "map",
+      "selectedSide": "start",
+      "start": {
+        "id": "point-2026111400279",
+        "originKind": "map",
+        "selectionKind": "user",
+        "name": "地圖上選的位置",
+        "lat": 25.027147225897203,
+        "lon": 121.53389423820914
+      },
+      "end": {
+        "id": "w20-44",
+        "kind": "20",
+        "name": "東門(R07)",
+        "lat": 25.033894,
+        "lon": 121.528766,
+        "slopePct": null,
+        "sourceId": "wheel-20",
+        "widthRaw": null,
+        "widthUnitVerified": false,
+        "address": "106007臺北市大安區信義路2段166號B1"
+      },
+      "straightMetres": 911,
+      "reference": {
+        "name": "臺北市大安區和平東路一段183巷7弄14之2號",
+        "coordinate": [
+          25.0272035,
+          121.5340954
+        ],
+        "streetFile": "8661ba7e0a1329"
+      },
+      "mapOffsetMetres": 21.2,
+      "success": false,
+      "error": "NO_CONNECTION",
+      "distance": null,
+      "sharedMetres": 0,
+      "pedestrianMetres": 0,
+      "footwayMetres": null,
+      "explicitSidewalkMetres": null,
+      "estimatedApproaches": [],
+      "pedestrianImprovement": null,
+      "elapsedMs": 2704
+    },
+    {
+      "bin": "0.5–1 km",
+      "kind": "map",
+      "selectedSide": "end",
+      "start": {
+        "id": "w20-61",
+        "kind": "20",
+        "name": "中山國小(O10)",
+        "lat": 25.062665,
+        "lon": 121.526609,
+        "slopePct": null,
+        "sourceId": "wheel-20",
+        "widthRaw": null,
+        "widthUnitVerified": false,
+        "address": "104028臺北市中山區民權東路1段71號B1"
+      },
+      "end": {
+        "id": "point-2026111400235",
+        "originKind": "map",
+        "selectionKind": "user",
+        "name": "地圖上選的位置",
+        "lat": 25.063892459997216,
+        "lon": 121.5342222401067
+      },
+      "straightMetres": 779,
+      "reference": {
+        "name": "臺北市中山區民權東路二段135巷20弄6號",
+        "coordinate": [
+          25.0637471,
+          121.5347021
+        ],
+        "streetFile": "059084a9094627"
+      },
+      "mapOffsetMetres": 51,
+      "success": true,
+      "error": null,
+      "distance": 1396,
+      "sharedMetres": 93.34724432204051,
+      "pedestrianMetres": 1261.4490177187217,
+      "footwayMetres": 1261.4490177187222,
+      "explicitSidewalkMetres": 1057.7258177187218,
+      "estimatedApproaches": [
+        {
+          "side": "end",
+          "distance": 36,
+          "originKind": "map",
+          "unconfirmed": true
+        }
+      ],
+      "pedestrianImprovement": {
+        "status": "no-improvement",
+        "rolledBack": false,
+        "originalDistanceMetres": 1395.7285360217406,
+        "maxDistanceMetres": 1695.7285360217406,
+        "originalSharedMetres": 93.34724432204051,
+        "sharedMetres": 93.34724432204051,
+        "originalFootwayMetres": 1261.4490177187222,
+        "footwayMetres": 1261.4490177187222,
+        "originalExplicitSidewalkMetres": 1057.7258177187218,
+        "explicitSidewalkMetres": 1057.7258177187218,
+        "radiusMetres": 50,
+        "minimumReductionMetres": 1,
+        "searchLimits": {
+          "maxIterations": 3,
+          "totalMs": 4000,
+          "maxVisited": 40000,
+          "maxComparisons": 100000
+        },
+        "iterations": [
+          {
+            "round": 1,
+            "result": "no-improvement",
+            "reasons": [
+              "insufficient-shared-reduction"
+            ],
+            "attempts": [
+              {
+                "penalty": 2,
+                "pathPenalty": 0,
+                "distanceMetres": 1395.7285360217406,
+                "sharedMetres": 93.34724432204051,
+                "footwayMetres": 1261.4490177187222,
+                "explicitSidewalkMetres": 1057.7258177187218,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 2,
+                "pathPenalty": 1.5,
+                "distanceMetres": 1395.7285360217406,
+                "sharedMetres": 93.34724432204051,
+                "footwayMetres": 1261.4490177187222,
+                "explicitSidewalkMetres": 1057.7258177187218,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 0,
+                "distanceMetres": 1395.7285360217406,
+                "sharedMetres": 93.34724432204051,
+                "footwayMetres": 1261.4490177187222,
+                "explicitSidewalkMetres": 1057.7258177187218,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 1.5,
+                "distanceMetres": 1395.7285360217406,
+                "sharedMetres": 93.34724432204051,
+                "footwayMetres": 1261.4490177187222,
+                "explicitSidewalkMetres": 1057.7258177187218,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 0,
+                "distanceMetres": 1395.7285360217406,
+                "sharedMetres": 93.34724432204051,
+                "footwayMetres": 1261.4490177187222,
+                "explicitSidewalkMetres": 1057.7258177187218,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 1.5,
+                "distanceMetres": 1395.7285360217406,
+                "sharedMetres": 93.34724432204051,
+                "footwayMetres": 1261.4490177187222,
+                "explicitSidewalkMetres": 1057.7258177187218,
+                "reason": "insufficient-shared-reduction"
+              }
+            ]
+          }
+        ]
+      },
+      "elapsedMs": 3043
+    },
+    {
+      "bin": "0.5–1 km",
+      "kind": "map",
+      "selectedSide": "start",
+      "start": {
+        "id": "point-2026111400366",
+        "originKind": "map",
+        "selectionKind": "user",
+        "name": "地圖上選的位置",
+        "lat": 25.08145315376451,
+        "lon": 121.51770394350086
+      },
+      "end": {
+        "id": "w20-36",
+        "kind": "20",
+        "name": "劍潭(R15)",
+        "lat": 25.084201,
+        "lon": 121.524955,
+        "slopePct": null,
+        "sourceId": "wheel-20",
+        "widthRaw": null,
+        "widthUnitVerified": false,
+        "address": "111011臺北市士林區中山北路5段65號"
+      },
+      "straightMetres": 792,
+      "reference": {
+        "name": "臺北市士林區通河街325巷10之3號",
+        "coordinate": [
+          25.0816296,
+          121.517828
+        ],
+        "streetFile": "3412a3f655b0d2"
+      },
+      "mapOffsetMetres": 23.3,
+      "success": true,
+      "error": null,
+      "distance": 1254,
+      "sharedMetres": 692.5982890886257,
+      "pedestrianMetres": 525.5693,
+      "footwayMetres": 525.5693000000001,
+      "explicitSidewalkMetres": 6.4225,
+      "estimatedApproaches": [
+        {
+          "side": "start",
+          "distance": 3,
+          "originKind": "map",
+          "unconfirmed": true
+        },
+        {
+          "side": "end",
+          "distance": 33,
+          "originKind": null,
+          "unconfirmed": null
+        }
+      ],
+      "pedestrianImprovement": {
+        "status": "improved",
+        "rolledBack": false,
+        "originalDistanceMetres": 1158.4598599722533,
+        "maxDistanceMetres": 1458.4598599722533,
+        "originalSharedMetres": 741.5668890886257,
+        "sharedMetres": 692.5982890886257,
+        "originalFootwayMetres": 380.61339999999996,
+        "footwayMetres": 525.5693000000001,
+        "originalExplicitSidewalkMetres": 125.8058,
+        "explicitSidewalkMetres": 6.4225,
+        "radiusMetres": 50,
+        "minimumReductionMetres": 1,
+        "searchLimits": {
+          "maxIterations": 3,
+          "totalMs": 4000,
+          "maxVisited": 40000,
+          "maxComparisons": 100000
+        },
+        "iterations": [
+          {
+            "round": 1,
+            "result": "improved",
+            "previousSharedMetres": 741.5668890886257,
+            "sharedMetres": 692.5982890886257,
+            "distanceMetres": 1254.012148205692,
+            "penalty": 12,
+            "pathPenalty": 0,
+            "attempts": [
+              {
+                "penalty": 2,
+                "pathPenalty": 0,
+                "distanceMetres": 1145.0875482056924,
+                "sharedMetres": 718.6700890886256,
+                "footwayMetres": 390.5729,
+                "explicitSidewalkMetres": 6.4225,
+                "reason": "eligible"
+              },
+              {
+                "penalty": 2,
+                "pathPenalty": 1.5,
+                "distanceMetres": 1145.0875482056924,
+                "sharedMetres": 718.6700890886256,
+                "footwayMetres": 390.5729,
+                "explicitSidewalkMetres": 6.4225,
+                "reason": "eligible"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 0,
+                "distanceMetres": 1145.0875482056924,
+                "sharedMetres": 718.6700890886256,
+                "footwayMetres": 390.5729,
+                "explicitSidewalkMetres": 6.4225,
+                "reason": "eligible"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 1.5,
+                "distanceMetres": 1145.0875482056924,
+                "sharedMetres": 718.6700890886256,
+                "footwayMetres": 390.5729,
+                "explicitSidewalkMetres": 6.4225,
+                "reason": "eligible"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 0,
+                "distanceMetres": 1254.012148205692,
+                "sharedMetres": 692.5982890886257,
+                "footwayMetres": 525.5693000000001,
+                "explicitSidewalkMetres": 6.4225,
+                "reason": "eligible",
+                "selected": true
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 1.5,
+                "distanceMetres": 1254.012148205692,
+                "sharedMetres": 692.5982890886257,
+                "footwayMetres": 525.5693000000001,
+                "explicitSidewalkMetres": 6.4225,
+                "reason": "eligible"
+              }
+            ]
+          },
+          {
+            "round": 2,
+            "result": "no-improvement",
+            "reasons": [
+              "insufficient-shared-reduction"
+            ],
+            "attempts": [
+              {
+                "penalty": 2,
+                "pathPenalty": 0,
+                "distanceMetres": 1145.0875482056924,
+                "sharedMetres": 718.6700890886256,
+                "footwayMetres": 390.5729,
+                "explicitSidewalkMetres": 6.4225,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 2,
+                "pathPenalty": 1.5,
+                "distanceMetres": 1145.0875482056924,
+                "sharedMetres": 718.6700890886256,
+                "footwayMetres": 390.5729,
+                "explicitSidewalkMetres": 6.4225,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 0,
+                "distanceMetres": 1145.0875482056924,
+                "sharedMetres": 718.6700890886256,
+                "footwayMetres": 390.5729,
+                "explicitSidewalkMetres": 6.4225,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 1.5,
+                "distanceMetres": 1145.0875482056924,
+                "sharedMetres": 718.6700890886256,
+                "footwayMetres": 390.5729,
+                "explicitSidewalkMetres": 6.4225,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 0,
+                "distanceMetres": 1254.012148205692,
+                "sharedMetres": 692.5982890886257,
+                "footwayMetres": 525.5693000000001,
+                "explicitSidewalkMetres": 6.4225,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 1.5,
+                "distanceMetres": 1254.012148205692,
+                "sharedMetres": 692.5982890886257,
+                "footwayMetres": 525.5693000000001,
+                "explicitSidewalkMetres": 6.4225,
+                "reason": "insufficient-shared-reduction"
+              }
+            ]
+          }
+        ]
+      },
+      "elapsedMs": 3046
+    },
+    {
+      "bin": "0.5–1 km",
+      "kind": "map",
+      "selectedSide": "end",
+      "start": {
+        "id": "w20-34",
+        "kind": "20",
+        "name": "芝山(R17)",
+        "lat": 25.102718,
+        "lon": 121.522546,
+        "slopePct": null,
+        "sourceId": "wheel-20",
+        "widthRaw": null,
+        "widthUnitVerified": false,
+        "address": "111031臺北市士林區福國路70號"
+      },
+      "end": {
+        "id": "point-2026111400128",
+        "originKind": "map",
+        "selectionKind": "user",
+        "name": "地圖上選的位置",
+        "lat": 25.10674843619552,
+        "lon": 121.52959472310627
+      },
+      "straightMetres": 839,
+      "reference": {
+        "name": "臺北市士林區忠誠路一段135號",
+        "coordinate": [
+          25.1060905,
+          121.5296724
+        ],
+        "streetFile": "1bf9e9420f0e41"
+      },
+      "mapOffsetMetres": 73.6,
+      "success": true,
+      "error": null,
+      "distance": 1776,
+      "sharedMetres": 1196.6452892343318,
+      "pedestrianMetres": 559.8978703568226,
+      "footwayMetres": 559.8978703568225,
+      "explicitSidewalkMetres": 230.7959,
+      "estimatedApproaches": [
+        {
+          "side": "start",
+          "distance": 8,
+          "originKind": null,
+          "unconfirmed": null
+        },
+        {
+          "side": "end",
+          "distance": 12,
+          "originKind": "map",
+          "unconfirmed": true
+        }
+      ],
+      "pedestrianImprovement": {
+        "status": "no-improvement",
+        "rolledBack": false,
+        "originalDistanceMetres": 1775.7483409208444,
+        "maxDistanceMetres": 2075.7483409208444,
+        "originalSharedMetres": 1196.6452892343316,
+        "sharedMetres": 1196.6452892343316,
+        "originalFootwayMetres": 559.8978703568225,
+        "footwayMetres": 559.8978703568225,
+        "originalExplicitSidewalkMetres": 230.7959,
+        "explicitSidewalkMetres": 230.7959,
+        "radiusMetres": 50,
+        "minimumReductionMetres": 1,
+        "searchLimits": {
+          "maxIterations": 3,
+          "totalMs": 4000,
+          "maxVisited": 40000,
+          "maxComparisons": 100000
+        },
+        "iterations": [
+          {
+            "round": 1,
+            "result": "no-improvement",
+            "reasons": [
+              "insufficient-shared-reduction"
+            ],
+            "attempts": [
+              {
+                "penalty": 2,
+                "pathPenalty": 0,
+                "distanceMetres": 1775.7483409208444,
+                "sharedMetres": 1196.6452892343316,
+                "footwayMetres": 559.8978703568225,
+                "explicitSidewalkMetres": 230.7959,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 2,
+                "pathPenalty": 1.5,
+                "distanceMetres": 1775.7483409208444,
+                "sharedMetres": 1196.6452892343316,
+                "footwayMetres": 559.8978703568225,
+                "explicitSidewalkMetres": 230.7959,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 0,
+                "distanceMetres": 1775.7483409208444,
+                "sharedMetres": 1196.6452892343316,
+                "footwayMetres": 559.8978703568225,
+                "explicitSidewalkMetres": 230.7959,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 1.5,
+                "distanceMetres": 1775.7483409208444,
+                "sharedMetres": 1196.6452892343316,
+                "footwayMetres": 559.8978703568225,
+                "explicitSidewalkMetres": 230.7959,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 0,
+                "distanceMetres": 1775.7483409208444,
+                "sharedMetres": 1196.6452892343316,
+                "footwayMetres": 559.8978703568225,
+                "explicitSidewalkMetres": 230.7959,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 1.5,
+                "distanceMetres": 1775.7483409208444,
+                "sharedMetres": 1196.6452892343316,
+                "footwayMetres": 559.8978703568225,
+                "explicitSidewalkMetres": 230.7959,
+                "reason": "insufficient-shared-reduction"
+              }
+            ]
+          }
+        ]
+      },
+      "elapsedMs": 3414
+    },
+    {
+      "bin": "0.5–1 km",
+      "kind": "map",
+      "selectedSide": "start",
+      "start": {
+        "id": "point-2026111400027",
+        "originKind": "map",
+        "selectionKind": "user",
+        "name": "地圖上選的位置",
+        "lat": 25.064611823200508,
+        "lon": 121.54471606172564
+      },
+      "end": {
+        "id": "w20-16",
+        "kind": "20",
+        "name": "松山機場(BR13)",
+        "lat": 25.063111,
+        "lon": 121.55162,
+        "slopePct": null,
+        "sourceId": "wheel-20",
+        "widthRaw": null,
+        "widthUnitVerified": false,
+        "address": "105008臺北市松山區敦化北路338號"
+      },
+      "straightMetres": 715,
+      "reference": {
+        "name": "臺北市松山區五常街275號",
+        "coordinate": [
+          25.064392,
+          121.5452478
+        ],
+        "streetFile": "9782ce383a6099"
+      },
+      "mapOffsetMetres": 58.9,
+      "success": true,
+      "error": null,
+      "distance": 1276,
+      "sharedMetres": 58.20814361655698,
+      "pedestrianMetres": 1181.6741,
+      "footwayMetres": 1181.6741000000006,
+      "explicitSidewalkMetres": 933.7472,
+      "estimatedApproaches": [
+        {
+          "side": "start",
+          "distance": 22,
+          "originKind": "map",
+          "unconfirmed": true
+        },
+        {
+          "side": "end",
+          "distance": 14,
+          "originKind": null,
+          "unconfirmed": null
+        }
+      ],
+      "pedestrianImprovement": {
+        "status": "improved",
+        "rolledBack": false,
+        "originalDistanceMetres": 1212.5801067647433,
+        "maxDistanceMetres": 1512.5801067647433,
+        "originalSharedMetres": 112.96695676875636,
+        "sharedMetres": 58.20814361655698,
+        "originalFootwayMetres": 1077.3074000000008,
+        "footwayMetres": 1181.6741000000006,
+        "originalExplicitSidewalkMetres": 879.8499000000002,
+        "explicitSidewalkMetres": 933.7472,
+        "radiusMetres": 50,
+        "minimumReductionMetres": 1,
+        "searchLimits": {
+          "maxIterations": 3,
+          "totalMs": 4000,
+          "maxVisited": 40000,
+          "maxComparisons": 100000
+        },
+        "iterations": [
+          {
+            "round": 1,
+            "result": "improved",
+            "previousSharedMetres": 112.96695676875636,
+            "sharedMetres": 58.20814361655698,
+            "distanceMetres": 1275.8971750784901,
+            "penalty": 6,
+            "pathPenalty": 0,
+            "attempts": [
+              {
+                "penalty": 2,
+                "pathPenalty": 0,
+                "distanceMetres": 1229.7869067647432,
+                "sharedMetres": 79.70435676875636,
+                "footwayMetres": 1127.7768000000008,
+                "explicitSidewalkMetres": 879.8499000000002,
+                "reason": "eligible"
+              },
+              {
+                "penalty": 2,
+                "pathPenalty": 1.5,
+                "distanceMetres": 1229.7869067647432,
+                "sharedMetres": 79.70435676875636,
+                "footwayMetres": 1127.7768000000008,
+                "explicitSidewalkMetres": 879.8499000000002,
+                "reason": "eligible"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 0,
+                "distanceMetres": 1275.8971750784901,
+                "sharedMetres": 58.20814361655698,
+                "footwayMetres": 1181.6741000000006,
+                "explicitSidewalkMetres": 933.7472,
+                "reason": "eligible",
+                "selected": true
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 1.5,
+                "distanceMetres": 1275.8971750784901,
+                "sharedMetres": 58.20814361655698,
+                "footwayMetres": 1181.6741000000006,
+                "explicitSidewalkMetres": 933.7472,
+                "reason": "eligible"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 0,
+                "distanceMetres": 1275.8971750784901,
+                "sharedMetres": 58.20814361655698,
+                "footwayMetres": 1181.6741000000006,
+                "explicitSidewalkMetres": 933.7472,
+                "reason": "eligible"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 1.5,
+                "distanceMetres": 1275.8971750784901,
+                "sharedMetres": 58.20814361655698,
+                "footwayMetres": 1181.6741000000006,
+                "explicitSidewalkMetres": 933.7472,
+                "reason": "eligible"
+              }
+            ]
+          },
+          {
+            "round": 2,
+            "result": "no-improvement",
+            "reasons": [
+              "insufficient-shared-reduction"
+            ],
+            "attempts": [
+              {
+                "penalty": 2,
+                "pathPenalty": 0,
+                "distanceMetres": 1229.7869067647432,
+                "sharedMetres": 79.70435676875636,
+                "footwayMetres": 1127.7768000000008,
+                "explicitSidewalkMetres": 879.8499000000002,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 2,
+                "pathPenalty": 1.5,
+                "distanceMetres": 1229.7869067647432,
+                "sharedMetres": 79.70435676875636,
+                "footwayMetres": 1127.7768000000008,
+                "explicitSidewalkMetres": 879.8499000000002,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 0,
+                "distanceMetres": 1275.8971750784901,
+                "sharedMetres": 58.20814361655698,
+                "footwayMetres": 1181.6741000000006,
+                "explicitSidewalkMetres": 933.7472,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 1.5,
+                "distanceMetres": 1275.8971750784901,
+                "sharedMetres": 58.20814361655698,
+                "footwayMetres": 1181.6741000000006,
+                "explicitSidewalkMetres": 933.7472,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 0,
+                "distanceMetres": 1275.8971750784901,
+                "sharedMetres": 58.20814361655698,
+                "footwayMetres": 1181.6741000000006,
+                "explicitSidewalkMetres": 933.7472,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 1.5,
+                "distanceMetres": 1275.8971750784901,
+                "sharedMetres": 58.20814361655698,
+                "footwayMetres": 1181.6741000000006,
+                "explicitSidewalkMetres": 933.7472,
+                "reason": "insufficient-shared-reduction"
+              }
+            ]
+          }
+        ]
+      },
+      "elapsedMs": 3417
+    },
+    {
+      "bin": "0.5–1 km",
+      "kind": "map",
+      "selectedSide": "end",
+      "start": {
+        "id": "w20-39",
+        "kind": "20",
+        "name": "雙連(R12)",
+        "lat": 25.057575,
+        "lon": 121.520685,
+        "slopePct": null,
+        "sourceId": "wheel-20",
+        "widthRaw": null,
+        "widthUnitVerified": false,
+        "address": "103018臺北市大同區民生西路47號"
+      },
+      "end": {
+        "id": "point-2026111400509",
+        "originKind": "map",
+        "selectionKind": "user",
+        "name": "地圖上選的位置",
+        "lat": 25.055891515328906,
+        "lon": 121.52985402676313
+      },
+      "straightMetres": 942,
+      "reference": {
+        "name": "臺北市中山區新生北路二段45巷45號",
+        "coordinate": [
+          25.0557192,
+          121.5297995
+        ],
+        "streetFile": "265ddab461a012"
+      },
+      "mapOffsetMetres": 19.9,
+      "success": false,
+      "error": "NO_ROUTE",
+      "distance": null,
+      "sharedMetres": 0,
+      "pedestrianMetres": 0,
+      "footwayMetres": null,
+      "explicitSidewalkMetres": null,
+      "estimatedApproaches": [],
+      "pedestrianImprovement": null,
+      "elapsedMs": 3320
+    },
+    {
+      "bin": "1–2 km",
+      "kind": "address",
+      "selectedSide": "start",
+      "start": {
+        "id": "address-25.0367141-121.4948074-0",
+        "kind": "place",
+        "sourceId": "osm",
+        "selectionKind": "user",
+        "name": "臺北市萬華區環河南路二段130巷4弄18號",
+        "lat": 25.0367141,
+        "lon": 121.4948074
+      },
+      "end": {
+        "id": "w20-11",
+        "kind": "20",
+        "name": "小南門(G11)",
+        "lat": 25.035619,
+        "lon": 121.510798,
+        "slopePct": null,
+        "sourceId": "wheel-20",
+        "widthRaw": null,
+        "widthUnitVerified": false,
+        "address": "100057臺北市中正區愛國西路22號B1"
+      },
+      "straightMetres": 1615,
+      "reference": {
+        "name": "臺北市萬華區環河南路二段130巷4弄18號",
+        "coordinate": [
+          25.0367141,
+          121.4948074
+        ],
+        "streetFile": "e99196119d2339"
+      },
+      "mapOffsetMetres": null,
+      "success": false,
+      "error": "NO_CONNECTION",
+      "distance": null,
+      "sharedMetres": 0,
+      "pedestrianMetres": 0,
+      "footwayMetres": null,
+      "explicitSidewalkMetres": null,
+      "estimatedApproaches": [],
+      "pedestrianImprovement": null,
+      "elapsedMs": 2688
+    },
+    {
+      "bin": "1–2 km",
+      "kind": "address",
+      "selectedSide": "end",
+      "start": {
+        "id": "w20-71",
+        "kind": "20",
+        "name": "南京三民(G18)",
+        "lat": 25.051588,
+        "lon": 121.56471,
+        "slopePct": null,
+        "sourceId": "wheel-20",
+        "widthRaw": null,
+        "widthUnitVerified": false,
+        "address": "105062臺北市松山區南京東路5段237號"
+      },
+      "end": {
+        "id": "address-25.0507591-121.5803378-0",
+        "kind": "place",
+        "sourceId": "osm",
+        "selectionKind": "user",
+        "name": "臺北市南港區八德路四段873號",
+        "lat": 25.0507591,
+        "lon": 121.5803378
+      },
+      "straightMetres": 1576,
+      "reference": {
+        "name": "臺北市南港區八德路四段873號",
+        "coordinate": [
+          25.0507591,
+          121.5803378
+        ],
+        "streetFile": "66faba16c19141"
+      },
+      "mapOffsetMetres": null,
+      "success": true,
+      "error": null,
+      "distance": 2073,
+      "sharedMetres": 203.09041847019856,
+      "pedestrianMetres": 1825.7143,
+      "footwayMetres": 1726.7871999999998,
+      "explicitSidewalkMetres": 1567.5517000000004,
+      "estimatedApproaches": [
+        {
+          "side": "start",
+          "distance": 13,
+          "originKind": null,
+          "unconfirmed": null
+        },
+        {
+          "side": "end",
+          "distance": 32,
+          "originKind": "selected",
+          "unconfirmed": true
+        }
+      ],
+      "pedestrianImprovement": {
+        "status": "no-improvement",
+        "rolledBack": false,
+        "originalDistanceMetres": 2073.1550990672135,
+        "maxDistanceMetres": 2373.1550990672135,
+        "originalSharedMetres": 203.0904184701985,
+        "sharedMetres": 203.0904184701985,
+        "originalFootwayMetres": 1726.7871999999998,
+        "footwayMetres": 1726.7871999999998,
+        "originalExplicitSidewalkMetres": 1567.5517000000004,
+        "explicitSidewalkMetres": 1567.5517000000004,
+        "radiusMetres": 50,
+        "minimumReductionMetres": 1,
+        "searchLimits": {
+          "maxIterations": 3,
+          "totalMs": 4000,
+          "maxVisited": 40000,
+          "maxComparisons": 100000
+        },
+        "iterations": [
+          {
+            "round": 1,
+            "result": "no-improvement",
+            "reasons": [
+              "insufficient-shared-reduction",
+              "no-connected-pedestrian-within-50m"
+            ],
+            "attempts": [
+              {
+                "penalty": 2,
+                "pathPenalty": 0,
+                "distanceMetres": 2073.1550990672135,
+                "sharedMetres": 203.0904184701985,
+                "footwayMetres": 1726.7871999999998,
+                "explicitSidewalkMetres": 1567.5517000000004,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 2,
+                "pathPenalty": 1.5,
+                "distanceMetres": 2053.3923990672142,
+                "sharedMetres": 246.97371847019852,
+                "footwayMetres": 1762.0683000000008,
+                "explicitSidewalkMetres": 1555.5319000000004,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 0,
+                "distanceMetres": 2164.484799067214,
+                "sharedMetres": 163.70701847019856,
+                "footwayMetres": 1956.427400000001,
+                "explicitSidewalkMetres": 1755.8918000000003,
+                "reason": "no-connected-pedestrian-within-50m"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 1.5,
+                "distanceMetres": 2164.484799067214,
+                "sharedMetres": 163.70701847019856,
+                "footwayMetres": 1956.427400000001,
+                "explicitSidewalkMetres": 1755.8918000000003,
+                "reason": "no-connected-pedestrian-within-50m"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 0,
+                "distanceMetres": 2164.484799067214,
+                "sharedMetres": 163.70701847019856,
+                "footwayMetres": 1956.427400000001,
+                "explicitSidewalkMetres": 1755.8918000000003,
+                "reason": "no-connected-pedestrian-within-50m"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 1.5,
+                "distanceMetres": 2164.484799067214,
+                "sharedMetres": 163.70701847019856,
+                "footwayMetres": 1956.427400000001,
+                "explicitSidewalkMetres": 1755.8918000000003,
+                "reason": "no-connected-pedestrian-within-50m"
+              }
+            ]
+          }
+        ]
+      },
+      "elapsedMs": 3159
+    },
+    {
+      "bin": "1–2 km",
+      "kind": "address",
+      "selectedSide": "start",
+      "start": {
+        "id": "address-25.0454017-121.5530743-0",
+        "kind": "place",
+        "sourceId": "osm",
+        "selectionKind": "user",
+        "name": "臺北市松山區延吉街46巷8號",
+        "lat": 25.0454017,
+        "lon": 121.5530743
+      },
+      "end": {
+        "id": "w20-73",
+        "kind": "20",
+        "name": "南京復興(G16)",
+        "lat": 25.052044,
+        "lon": 121.544303,
+        "slopePct": null,
+        "sourceId": "wheel-20",
+        "widthRaw": null,
+        "widthUnitVerified": false,
+        "address": "105020臺北市松山區南京東路3段253號"
+      },
+      "straightMetres": 1151,
+      "reference": {
+        "name": "臺北市松山區延吉街46巷8號",
+        "coordinate": [
+          25.0454017,
+          121.5530743
+        ],
+        "streetFile": "f198afe6397fca"
+      },
+      "mapOffsetMetres": null,
+      "success": false,
+      "error": "NO_CONNECTION",
+      "distance": null,
+      "sharedMetres": 0,
+      "pedestrianMetres": 0,
+      "footwayMetres": null,
+      "explicitSidewalkMetres": null,
+      "estimatedApproaches": [],
+      "pedestrianImprovement": null,
+      "elapsedMs": 2916
+    },
+    {
+      "bin": "1–2 km",
+      "kind": "address",
+      "selectedSide": "end",
+      "start": {
+        "id": "w20-16",
+        "kind": "20",
+        "name": "松山機場(BR13)",
+        "lat": 25.063111,
+        "lon": 121.55162,
+        "slopePct": null,
+        "sourceId": "wheel-20",
+        "widthRaw": null,
+        "widthUnitVerified": false,
+        "address": "105008臺北市松山區敦化北路338號"
+      },
+      "end": {
+        "id": "address-25.0550427-121.5397602-0",
+        "kind": "place",
+        "sourceId": "osm",
+        "selectionKind": "user",
+        "name": "臺北市中山區合江街17巷10號",
+        "lat": 25.0550427,
+        "lon": 121.5397602
+      },
+      "straightMetres": 1494,
+      "reference": {
+        "name": "臺北市中山區合江街17巷10號",
+        "coordinate": [
+          25.0550427,
+          121.5397602
+        ],
+        "streetFile": "7bb94c3df9bb60"
+      },
+      "mapOffsetMetres": null,
+      "success": false,
+      "error": "NO_CONNECTION",
+      "distance": null,
+      "sharedMetres": 0,
+      "pedestrianMetres": 0,
+      "footwayMetres": null,
+      "explicitSidewalkMetres": null,
+      "estimatedApproaches": [],
+      "pedestrianImprovement": null,
+      "elapsedMs": 2921
+    },
+    {
+      "bin": "1–2 km",
+      "kind": "address",
+      "selectedSide": "start",
+      "start": {
+        "id": "address-25.0459835-121.5569005-0",
+        "kind": "place",
+        "sourceId": "osm",
+        "selectionKind": "user",
+        "name": "臺北市松山區光復南路46巷10號",
+        "lat": 25.0459835,
+        "lon": 121.5569005
+      },
+      "end": {
+        "id": "w20-17",
+        "kind": "20",
+        "name": "忠孝復興(BR10)",
+        "lat": 25.041104,
+        "lon": 121.543703,
+        "slopePct": null,
+        "sourceId": "wheel-20",
+        "widthRaw": null,
+        "widthUnitVerified": false,
+        "address": "106084臺北市大安區忠孝東路3段302號"
+      },
+      "straightMetres": 1435,
+      "reference": {
+        "name": "臺北市松山區光復南路46巷10號",
+        "coordinate": [
+          25.0459835,
+          121.5569005
+        ],
+        "streetFile": "722854a41c3ad3"
+      },
+      "mapOffsetMetres": null,
+      "success": true,
+      "error": null,
+      "distance": 1894,
+      "sharedMetres": 143.2800732705752,
+      "pedestrianMetres": 1726.1876999999997,
+      "footwayMetres": 1726.1876999999995,
+      "explicitSidewalkMetres": 1460.8401999999999,
+      "estimatedApproaches": [
+        {
+          "side": "start",
+          "distance": 8,
+          "originKind": "selected",
+          "unconfirmed": true
+        },
+        {
+          "side": "end",
+          "distance": 17,
+          "originKind": null,
+          "unconfirmed": null
+        }
+      ],
+      "pedestrianImprovement": {
+        "status": "no-improvement",
+        "rolledBack": false,
+        "originalDistanceMetres": 1894.2111144711512,
+        "maxDistanceMetres": 2194.211114471151,
+        "originalSharedMetres": 143.2800732705752,
+        "sharedMetres": 143.2800732705752,
+        "originalFootwayMetres": 1726.1876999999995,
+        "footwayMetres": 1726.1876999999995,
+        "originalExplicitSidewalkMetres": 1460.8401999999999,
+        "explicitSidewalkMetres": 1460.8401999999999,
+        "radiusMetres": 50,
+        "minimumReductionMetres": 1,
+        "searchLimits": {
+          "maxIterations": 3,
+          "totalMs": 4000,
+          "maxVisited": 40000,
+          "maxComparisons": 100000
+        },
+        "iterations": [
+          {
+            "round": 1,
+            "result": "no-improvement",
+            "reasons": [
+              "no-connected-pedestrian-within-50m"
+            ],
+            "attempts": [
+              {
+                "penalty": 2,
+                "pathPenalty": 0,
+                "distanceMetres": 2024.7726466003712,
+                "sharedMetres": 75.91620539979534,
+                "footwayMetres": 1924.1130999999993,
+                "explicitSidewalkMetres": 1709.6638999999998,
+                "reason": "no-connected-pedestrian-within-50m"
+              },
+              {
+                "penalty": 2,
+                "pathPenalty": 1.5,
+                "distanceMetres": 2024.7726466003712,
+                "sharedMetres": 75.91620539979534,
+                "footwayMetres": 1924.1130999999993,
+                "explicitSidewalkMetres": 1709.6638999999998,
+                "reason": "no-connected-pedestrian-within-50m"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 0,
+                "distanceMetres": 2024.7726466003712,
+                "sharedMetres": 75.91620539979534,
+                "footwayMetres": 1924.1130999999993,
+                "explicitSidewalkMetres": 1709.6638999999998,
+                "reason": "no-connected-pedestrian-within-50m"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 1.5,
+                "distanceMetres": 2024.7726466003712,
+                "sharedMetres": 75.91620539979534,
+                "footwayMetres": 1924.1130999999993,
+                "explicitSidewalkMetres": 1709.6638999999998,
+                "reason": "no-connected-pedestrian-within-50m"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 0,
+                "distanceMetres": 2024.7726466003712,
+                "sharedMetres": 75.91620539979534,
+                "footwayMetres": 1924.1130999999993,
+                "explicitSidewalkMetres": 1709.6638999999998,
+                "reason": "no-connected-pedestrian-within-50m"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 1.5,
+                "distanceMetres": 2024.7726466003712,
+                "sharedMetres": 75.91620539979534,
+                "footwayMetres": 1924.1130999999993,
+                "explicitSidewalkMetres": 1709.6638999999998,
+                "reason": "no-connected-pedestrian-within-50m"
+              }
+            ]
+          }
+        ]
+      },
+      "elapsedMs": 3029
+    },
+    {
+      "bin": "1–2 km",
+      "kind": "address",
+      "selectedSide": "end",
+      "start": {
+        "id": "w20-113",
+        "kind": "20",
+        "name": "善導寺(BL13)",
+        "lat": 25.04468,
+        "lon": 121.523885,
+        "slopePct": null,
+        "sourceId": "wheel-20",
+        "widthRaw": null,
+        "widthUnitVerified": false,
+        "address": "100024臺北市中正區忠孝東路1段58號B1"
+      },
+      "end": {
+        "id": "address-25.0597153-121.5162163-0",
+        "kind": "place",
+        "sourceId": "osm",
+        "selectionKind": "user",
+        "name": "臺北市大同區歸綏街83巷7之4號",
+        "lat": 25.0597153,
+        "lon": 121.5162163
+      },
+      "straightMetres": 1842,
+      "reference": {
+        "name": "臺北市大同區歸綏街83巷7之4號",
+        "coordinate": [
+          25.0597153,
+          121.5162163
+        ],
+        "streetFile": "9c71fa01c44563"
+      },
+      "mapOffsetMetres": null,
+      "success": true,
+      "error": null,
+      "distance": 2777,
+      "sharedMetres": 238.7727250560318,
+      "pedestrianMetres": 2524.3558,
+      "footwayMetres": 2524.3557999999994,
+      "explicitSidewalkMetres": 2098.5176,
+      "estimatedApproaches": [
+        {
+          "side": "start",
+          "distance": 11,
+          "originKind": null,
+          "unconfirmed": null
+        },
+        {
+          "side": "end",
+          "distance": 4,
+          "originKind": "selected",
+          "unconfirmed": true
+        }
+      ],
+      "pedestrianImprovement": {
+        "status": "no-improvement",
+        "rolledBack": false,
+        "originalDistanceMetres": 2777.268498082963,
+        "maxDistanceMetres": 3077.268498082963,
+        "originalSharedMetres": 238.7727250560318,
+        "sharedMetres": 238.7727250560318,
+        "originalFootwayMetres": 2524.3557999999994,
+        "footwayMetres": 2524.3557999999994,
+        "originalExplicitSidewalkMetres": 2098.5176,
+        "explicitSidewalkMetres": 2098.5176,
+        "radiusMetres": 50,
+        "minimumReductionMetres": 1,
+        "searchLimits": {
+          "maxIterations": 3,
+          "totalMs": 4000,
+          "maxVisited": 40000,
+          "maxComparisons": 100000
+        },
+        "iterations": [
+          {
+            "round": 1,
+            "result": "no-improvement",
+            "reasons": [
+              "no-connected-pedestrian-within-50m"
+            ],
+            "attempts": [
+              {
+                "penalty": 2,
+                "pathPenalty": 0,
+                "distanceMetres": 2849.6631448802727,
+                "sharedMetres": 193.24846304212477,
+                "footwayMetres": 2628.375699999999,
+                "explicitSidewalkMetres": 2110.7008,
+                "reason": "no-connected-pedestrian-within-50m"
+              },
+              {
+                "penalty": 2,
+                "pathPenalty": 1.5,
+                "distanceMetres": 2849.6631448802727,
+                "sharedMetres": 193.24846304212477,
+                "footwayMetres": 2628.375699999999,
+                "explicitSidewalkMetres": 2110.7008,
+                "reason": "no-connected-pedestrian-within-50m"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 0,
+                "distanceMetres": 2849.6631448802727,
+                "sharedMetres": 193.24846304212477,
+                "footwayMetres": 2628.375699999999,
+                "explicitSidewalkMetres": 2110.7008,
+                "reason": "no-connected-pedestrian-within-50m"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 1.5,
+                "distanceMetres": 2849.6631448802727,
+                "sharedMetres": 193.24846304212477,
+                "footwayMetres": 2628.375699999999,
+                "explicitSidewalkMetres": 2110.7008,
+                "reason": "no-connected-pedestrian-within-50m"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 0,
+                "distanceMetres": 2849.6631448802727,
+                "sharedMetres": 193.24846304212477,
+                "footwayMetres": 2628.375699999999,
+                "explicitSidewalkMetres": 2110.7008,
+                "reason": "no-connected-pedestrian-within-50m"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 1.5,
+                "distanceMetres": 2849.6631448802727,
+                "sharedMetres": 193.24846304212477,
+                "footwayMetres": 2628.375699999999,
+                "explicitSidewalkMetres": 2110.7008,
+                "reason": "no-connected-pedestrian-within-50m"
+              }
+            ]
+          }
+        ]
+      },
+      "elapsedMs": 3619
+    },
+    {
+      "bin": "1–2 km",
+      "kind": "map",
+      "selectedSide": "start",
+      "start": {
+        "id": "point-2026111400601",
+        "originKind": "map",
+        "selectionKind": "user",
+        "name": "地圖上選的位置",
+        "lat": 25.046261794422172,
+        "lon": 121.5197859247578
+      },
+      "end": {
+        "id": "w20-38",
+        "kind": "20",
+        "name": "民權西路(R13)",
+        "lat": 25.06235,
+        "lon": 121.519585,
+        "slopePct": null,
+        "sourceId": "wheel-20",
+        "widthRaw": null,
+        "widthUnitVerified": false,
+        "address": "103045臺北市大同區民權西路72號"
+      },
+      "straightMetres": 1789,
+      "reference": {
+        "name": "臺北市中正區中山北路一段26巷9號",
+        "coordinate": [
+          25.0468267,
+          121.5194735
+        ],
+        "streetFile": "ce88dd68c0744c"
+      },
+      "mapOffsetMetres": 70.3,
+      "success": false,
+      "error": "NO_CONNECTION",
+      "distance": null,
+      "sharedMetres": 0,
+      "pedestrianMetres": 0,
+      "footwayMetres": null,
+      "explicitSidewalkMetres": null,
+      "estimatedApproaches": [],
+      "pedestrianImprovement": null,
+      "elapsedMs": 2766
+    },
+    {
+      "bin": "1–2 km",
+      "kind": "map",
+      "selectedSide": "end",
+      "start": {
+        "id": "w20-38",
+        "kind": "20",
+        "name": "民權西路(R13)",
+        "lat": 25.06235,
+        "lon": 121.519585,
+        "slopePct": null,
+        "sourceId": "wheel-20",
+        "widthRaw": null,
+        "widthUnitVerified": false,
+        "address": "103045臺北市大同區民權西路72號"
+      },
+      "end": {
+        "id": "point-2026111400419",
+        "originKind": "map",
+        "selectionKind": "user",
+        "name": "地圖上選的位置",
+        "lat": 25.048620447166314,
+        "lon": 121.52781094450124
+      },
+      "straightMetres": 1737,
+      "reference": {
+        "name": "臺北市中山區長安東路一段79之1號",
+        "coordinate": [
+          25.0483721,
+          121.5282865
+        ],
+        "streetFile": "e27ddfeee31b99"
+      },
+      "mapOffsetMetres": 55.3,
+      "success": true,
+      "error": null,
+      "distance": 2349,
+      "sharedMetres": 0,
+      "pedestrianMetres": 2306.4342929801437,
+      "footwayMetres": 2306.4342929801433,
+      "explicitSidewalkMetres": 1051.2575929801437,
+      "estimatedApproaches": [
+        {
+          "side": "start",
+          "distance": 28,
+          "originKind": null,
+          "unconfirmed": null
+        },
+        {
+          "side": "end",
+          "distance": 15,
+          "originKind": "map",
+          "unconfirmed": true
+        }
+      ],
+      "pedestrianImprovement": {
+        "status": "no-shared-segments",
+        "rolledBack": false,
+        "originalDistanceMetres": 2349.391143202106,
+        "maxDistanceMetres": 2649.391143202106,
+        "originalSharedMetres": 0,
+        "sharedMetres": 0,
+        "originalFootwayMetres": 2306.4342929801433,
+        "footwayMetres": 2306.4342929801433,
+        "originalExplicitSidewalkMetres": 1051.2575929801437,
+        "explicitSidewalkMetres": 1051.2575929801437,
+        "radiusMetres": 50,
+        "minimumReductionMetres": 1,
+        "searchLimits": {
+          "maxIterations": 3,
+          "totalMs": 4000,
+          "maxVisited": 40000,
+          "maxComparisons": 100000
+        },
+        "iterations": []
+      },
+      "elapsedMs": 3008
+    },
+    {
+      "bin": "1–2 km",
+      "kind": "map",
+      "selectedSide": "start",
+      "start": {
+        "id": "point-2026111400004",
+        "originKind": "map",
+        "selectionKind": "user",
+        "name": "地圖上選的位置",
+        "lat": 25.04286658539303,
+        "lon": 121.50772965565767
+      },
+      "end": {
+        "id": "w20-115",
+        "kind": "20",
+        "name": "龍山寺(BL10)",
+        "lat": 25.03528,
+        "lon": 121.500325,
+        "slopePct": null,
+        "sourceId": "wheel-20",
+        "widthRaw": null,
+        "widthUnitVerified": false,
+        "address": "108015臺北市萬華區西園路1段153號"
+      },
+      "straightMetres": 1126,
+      "reference": {
+        "name": "臺北市萬華區中華路一段152號",
+        "coordinate": [
+          25.042694,
+          121.5080235
+        ],
+        "streetFile": "2bf11912dc895b"
+      },
+      "mapOffsetMetres": 35.3,
+      "success": true,
+      "error": null,
+      "distance": 1493,
+      "sharedMetres": 0,
+      "pedestrianMetres": 1429.8008,
+      "footwayMetres": 1429.8007999999998,
+      "explicitSidewalkMetres": 1210.2772000000002,
+      "estimatedApproaches": [
+        {
+          "side": "start",
+          "distance": 47,
+          "originKind": "map",
+          "unconfirmed": true
+        }
+      ],
+      "pedestrianImprovement": {
+        "status": "no-shared-segments",
+        "rolledBack": false,
+        "originalDistanceMetres": 1492.620242339892,
+        "maxDistanceMetres": 1792.620242339892,
+        "originalSharedMetres": 0,
+        "sharedMetres": 0,
+        "originalFootwayMetres": 1429.8007999999998,
+        "footwayMetres": 1429.8007999999998,
+        "originalExplicitSidewalkMetres": 1210.2772000000002,
+        "explicitSidewalkMetres": 1210.2772000000002,
+        "radiusMetres": 50,
+        "minimumReductionMetres": 1,
+        "searchLimits": {
+          "maxIterations": 3,
+          "totalMs": 4000,
+          "maxVisited": 40000,
+          "maxComparisons": 100000
+        },
+        "iterations": []
+      },
+      "elapsedMs": 2548
+    },
+    {
+      "bin": "1–2 km",
+      "kind": "map",
+      "selectedSide": "end",
+      "start": {
+        "id": "w20-40",
+        "kind": "20",
+        "name": "中山(R11)",
+        "lat": 25.052621,
+        "lon": 121.520364,
+        "slopePct": null,
+        "sourceId": "wheel-20",
+        "widthRaw": null,
+        "widthUnitVerified": false,
+        "address": "103014臺北市大同區南京西路16號"
+      },
+      "end": {
+        "id": "point-2026111400753",
+        "originKind": "map",
+        "selectionKind": "user",
+        "name": "地圖上選的位置",
+        "lat": 25.064518649719208,
+        "lon": 121.51447399524413
+      },
+      "straightMetres": 1450,
+      "reference": {
+        "name": "臺北市大同區昌吉街110巷33號",
+        "coordinate": [
+          25.0648824,
+          121.5146243
+        ],
+        "streetFile": "5ea7a57f68ab3b"
+      },
+      "mapOffsetMetres": 43.2,
+      "success": true,
+      "error": null,
+      "distance": 1918,
+      "sharedMetres": 58.43668187159821,
+      "pedestrianMetres": 1825.8564999999999,
+      "footwayMetres": 1825.8564999999994,
+      "explicitSidewalkMetres": 1478.3740999999995,
+      "estimatedApproaches": [
+        {
+          "side": "start",
+          "distance": 7,
+          "originKind": null,
+          "unconfirmed": null
+        },
+        {
+          "side": "end",
+          "distance": 27,
+          "originKind": "map",
+          "unconfirmed": true
+        }
+      ],
+      "pedestrianImprovement": {
+        "status": "no-improvement",
+        "rolledBack": false,
+        "originalDistanceMetres": 1918.5794527705186,
+        "maxDistanceMetres": 2218.5794527705184,
+        "originalSharedMetres": 58.43668187159821,
+        "sharedMetres": 58.43668187159821,
+        "originalFootwayMetres": 1825.8564999999994,
+        "footwayMetres": 1825.8564999999994,
+        "originalExplicitSidewalkMetres": 1478.3740999999995,
+        "explicitSidewalkMetres": 1478.3740999999995,
+        "radiusMetres": 50,
+        "minimumReductionMetres": 1,
+        "searchLimits": {
+          "maxIterations": 3,
+          "totalMs": 4000,
+          "maxVisited": 40000,
+          "maxComparisons": 100000
+        },
+        "iterations": [
+          {
+            "round": 1,
+            "result": "no-improvement",
+            "reasons": [
+              "insufficient-shared-reduction"
+            ],
+            "attempts": [
+              {
+                "penalty": 2,
+                "pathPenalty": 0,
+                "distanceMetres": 1918.5794527705186,
+                "sharedMetres": 58.43668187159821,
+                "footwayMetres": 1825.8564999999994,
+                "explicitSidewalkMetres": 1478.3740999999995,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 2,
+                "pathPenalty": 1.5,
+                "distanceMetres": 1918.5794527705186,
+                "sharedMetres": 58.43668187159821,
+                "footwayMetres": 1825.8564999999994,
+                "explicitSidewalkMetres": 1478.3740999999995,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 0,
+                "distanceMetres": 1918.5794527705186,
+                "sharedMetres": 58.43668187159821,
+                "footwayMetres": 1825.8564999999994,
+                "explicitSidewalkMetres": 1478.3740999999995,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 1.5,
+                "distanceMetres": 1918.5794527705186,
+                "sharedMetres": 58.43668187159821,
+                "footwayMetres": 1825.8564999999994,
+                "explicitSidewalkMetres": 1478.3740999999995,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 0,
+                "distanceMetres": 1918.5794527705186,
+                "sharedMetres": 58.43668187159821,
+                "footwayMetres": 1825.8564999999994,
+                "explicitSidewalkMetres": 1478.3740999999995,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 1.5,
+                "distanceMetres": 1918.5794527705186,
+                "sharedMetres": 58.43668187159821,
+                "footwayMetres": 1825.8564999999994,
+                "explicitSidewalkMetres": 1478.3740999999995,
+                "reason": "insufficient-shared-reduction"
+              }
+            ]
+          }
+        ]
+      },
+      "elapsedMs": 3290
+    },
+    {
+      "bin": "1–2 km",
+      "kind": "map",
+      "selectedSide": "start",
+      "start": {
+        "id": "point-2026111400921",
+        "originKind": "map",
+        "selectionKind": "user",
+        "name": "地圖上選的位置",
+        "lat": 25.028765814177863,
+        "lon": 121.55508258175904
+      },
+      "end": {
+        "id": "w20-46",
+        "kind": "20",
+        "name": "大安(R05)",
+        "lat": 25.033311,
+        "lon": 121.54237,
+        "slopePct": null,
+        "sourceId": "wheel-20",
+        "widthRaw": null,
+        "widthUnitVerified": false,
+        "address": "106028臺北市大安區信義路3段180號B1"
+      },
+      "straightMetres": 1376,
+      "reference": {
+        "name": "臺北市大安區通化街39巷50弄85號",
+        "coordinate": [
+          25.028883,
+          121.5550048
+        ],
+        "streetFile": "75ce0f778bf8bf"
+      },
+      "mapOffsetMetres": 15.2,
+      "success": true,
+      "error": null,
+      "distance": 1616,
+      "sharedMetres": 123.02201603603035,
+      "pedestrianMetres": 1450.573412768561,
+      "footwayMetres": 1168.251012768561,
+      "explicitSidewalkMetres": 1056.662412768561,
+      "estimatedApproaches": [
+        {
+          "side": "start",
+          "distance": 24,
+          "originKind": "map",
+          "unconfirmed": true
+        },
+        {
+          "side": "end",
+          "distance": 18,
+          "originKind": null,
+          "unconfirmed": null
+        }
+      ],
+      "pedestrianImprovement": {
+        "status": "no-improvement",
+        "rolledBack": false,
+        "originalDistanceMetres": 1615.8114087782826,
+        "maxDistanceMetres": 1915.8114087782826,
+        "originalSharedMetres": 123.02201603603035,
+        "sharedMetres": 123.02201603603035,
+        "originalFootwayMetres": 1168.251012768561,
+        "footwayMetres": 1168.251012768561,
+        "originalExplicitSidewalkMetres": 1056.662412768561,
+        "explicitSidewalkMetres": 1056.662412768561,
+        "radiusMetres": 50,
+        "minimumReductionMetres": 1,
+        "searchLimits": {
+          "maxIterations": 3,
+          "totalMs": 4000,
+          "maxVisited": 40000,
+          "maxComparisons": 100000
+        },
+        "iterations": [
+          {
+            "round": 1,
+            "result": "no-improvement",
+            "reasons": [
+              "insufficient-shared-reduction"
+            ],
+            "attempts": [
+              {
+                "penalty": 2,
+                "pathPenalty": 0,
+                "distanceMetres": 1615.8114087782826,
+                "sharedMetres": 123.02201603603035,
+                "footwayMetres": 1168.251012768561,
+                "explicitSidewalkMetres": 1056.662412768561,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 2,
+                "pathPenalty": 1.5,
+                "distanceMetres": 1615.8114087782826,
+                "sharedMetres": 123.02201603603035,
+                "footwayMetres": 1168.251012768561,
+                "explicitSidewalkMetres": 1056.662412768561,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 0,
+                "distanceMetres": 1615.8114087782826,
+                "sharedMetres": 123.02201603603035,
+                "footwayMetres": 1168.251012768561,
+                "explicitSidewalkMetres": 1056.662412768561,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 1.5,
+                "distanceMetres": 1615.8114087782826,
+                "sharedMetres": 123.02201603603035,
+                "footwayMetres": 1168.251012768561,
+                "explicitSidewalkMetres": 1056.662412768561,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 0,
+                "distanceMetres": 1615.8114087782826,
+                "sharedMetres": 123.02201603603035,
+                "footwayMetres": 1168.251012768561,
+                "explicitSidewalkMetres": 1056.662412768561,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 1.5,
+                "distanceMetres": 1615.8114087782826,
+                "sharedMetres": 123.02201603603035,
+                "footwayMetres": 1168.251012768561,
+                "explicitSidewalkMetres": 1056.662412768561,
+                "reason": "insufficient-shared-reduction"
+              }
+            ]
+          }
+        ]
+      },
+      "elapsedMs": 3061
+    },
+    {
+      "bin": "1–2 km",
+      "kind": "map",
+      "selectedSide": "end",
+      "start": {
+        "id": "w20-10",
+        "kind": "20",
+        "name": "西門(G12)",
+        "lat": 25.042274,
+        "lon": 121.508511,
+        "slopePct": null,
+        "sourceId": "wheel-20",
+        "widthRaw": null,
+        "widthUnitVerified": false,
+        "address": "100005臺北市中正區寶慶路32之1號B1"
+      },
+      "end": {
+        "id": "point-2026111400908",
+        "originKind": "map",
+        "selectionKind": "user",
+        "name": "地圖上選的位置",
+        "lat": 25.052007135909367,
+        "lon": 121.51503867360863
+      },
+      "straightMetres": 1266,
+      "reference": {
+        "name": "臺北市大同區長安西路145巷31號",
+        "coordinate": [
+          25.0524273,
+          121.51495
+        ],
+        "streetFile": "023e8f9fdafcbc"
+      },
+      "mapOffsetMetres": 47.6,
+      "success": true,
+      "error": null,
+      "distance": 1755,
+      "sharedMetres": 153.73841894561383,
+      "pedestrianMetres": 1568.4732999999999,
+      "footwayMetres": 1568.4733000000003,
+      "explicitSidewalkMetres": 1166.2824999999998,
+      "estimatedApproaches": [
+        {
+          "side": "end",
+          "distance": 6,
+          "originKind": "map",
+          "unconfirmed": true
+        }
+      ],
+      "pedestrianImprovement": {
+        "status": "no-improvement",
+        "rolledBack": false,
+        "originalDistanceMetres": 1754.7191416064402,
+        "maxDistanceMetres": 2054.71914160644,
+        "originalSharedMetres": 153.73841894561383,
+        "sharedMetres": 153.73841894561383,
+        "originalFootwayMetres": 1568.4733000000003,
+        "footwayMetres": 1568.4733000000003,
+        "originalExplicitSidewalkMetres": 1166.2824999999998,
+        "explicitSidewalkMetres": 1166.2824999999998,
+        "radiusMetres": 50,
+        "minimumReductionMetres": 1,
+        "searchLimits": {
+          "maxIterations": 3,
+          "totalMs": 4000,
+          "maxVisited": 40000,
+          "maxComparisons": 100000
+        },
+        "iterations": [
+          {
+            "round": 1,
+            "result": "no-improvement",
+            "reasons": [
+              "insufficient-shared-reduction"
+            ],
+            "attempts": [
+              {
+                "penalty": 2,
+                "pathPenalty": 0,
+                "distanceMetres": 1754.7191416064402,
+                "sharedMetres": 153.73841894561383,
+                "footwayMetres": 1568.4733000000003,
+                "explicitSidewalkMetres": 1166.2824999999998,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 2,
+                "pathPenalty": 1.5,
+                "distanceMetres": 1754.7191416064402,
+                "sharedMetres": 153.73841894561383,
+                "footwayMetres": 1568.4733000000003,
+                "explicitSidewalkMetres": 1166.2824999999998,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 0,
+                "distanceMetres": 1754.7191416064402,
+                "sharedMetres": 153.73841894561383,
+                "footwayMetres": 1568.4733000000003,
+                "explicitSidewalkMetres": 1166.2824999999998,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 1.5,
+                "distanceMetres": 1754.7191416064402,
+                "sharedMetres": 153.73841894561383,
+                "footwayMetres": 1568.4733000000003,
+                "explicitSidewalkMetres": 1166.2824999999998,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 0,
+                "distanceMetres": 1754.7191416064402,
+                "sharedMetres": 153.73841894561383,
+                "footwayMetres": 1568.4733000000003,
+                "explicitSidewalkMetres": 1166.2824999999998,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 1.5,
+                "distanceMetres": 1754.7191416064402,
+                "sharedMetres": 153.73841894561383,
+                "footwayMetres": 1568.4733000000003,
+                "explicitSidewalkMetres": 1166.2824999999998,
+                "reason": "insufficient-shared-reduction"
+              }
+            ]
+          }
+        ]
+      },
+      "elapsedMs": 3322
+    },
+    {
+      "bin": "2–4 km",
+      "kind": "address",
+      "selectedSide": "start",
+      "start": {
+        "id": "address-25.0475563-121.5529611-0",
+        "kind": "place",
+        "sourceId": "osm",
+        "selectionKind": "user",
+        "name": "臺北市松山區八德路三段74巷3弄18號",
+        "lat": 25.0475563,
+        "lon": 121.5529611
+      },
+      "end": {
+        "id": "w20-5",
+        "kind": "20",
+        "name": "象山(R02)",
+        "lat": 25.032816,
+        "lon": 121.57008,
+        "slopePct": null,
+        "sourceId": "wheel-20",
+        "widthRaw": null,
+        "widthUnitVerified": false,
+        "address": "110022臺北市信義區信義路5段152號B1"
+      },
+      "straightMetres": 2379,
+      "reference": {
+        "name": "臺北市松山區八德路三段74巷3弄18號",
+        "coordinate": [
+          25.0475563,
+          121.5529611
+        ],
+        "streetFile": "8ebd1691774232"
+      },
+      "mapOffsetMetres": null,
+      "success": true,
+      "error": null,
+      "distance": 3576,
+      "sharedMetres": 58.748200423976456,
+      "pedestrianMetres": 3467.3302964629875,
+      "footwayMetres": 3351.2538964629875,
+      "explicitSidewalkMetres": 2316.183396462987,
+      "estimatedApproaches": [
+        {
+          "side": "start",
+          "distance": 41,
+          "originKind": "selected",
+          "unconfirmed": true
+        },
+        {
+          "side": "end",
+          "distance": 9,
+          "originKind": null,
+          "unconfirmed": null
+        }
+      ],
+      "pedestrianImprovement": {
+        "status": "no-improvement",
+        "rolledBack": false,
+        "originalDistanceMetres": 3575.644546764202,
+        "maxDistanceMetres": 3875.644546764202,
+        "originalSharedMetres": 58.748200423976456,
+        "sharedMetres": 58.748200423976456,
+        "originalFootwayMetres": 3351.2538964629875,
+        "footwayMetres": 3351.2538964629875,
+        "originalExplicitSidewalkMetres": 2316.183396462987,
+        "explicitSidewalkMetres": 2316.183396462987,
+        "radiusMetres": 50,
+        "minimumReductionMetres": 1,
+        "searchLimits": {
+          "maxIterations": 3,
+          "totalMs": 4000,
+          "maxVisited": 40000,
+          "maxComparisons": 100000
+        },
+        "iterations": [
+          {
+            "round": 1,
+            "result": "no-improvement",
+            "reasons": [
+              "insufficient-shared-reduction"
+            ],
+            "attempts": [
+              {
+                "penalty": 2,
+                "pathPenalty": 0,
+                "distanceMetres": 3575.644546764202,
+                "sharedMetres": 58.748200423976456,
+                "footwayMetres": 3351.2538964629875,
+                "explicitSidewalkMetres": 2316.183396462987,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 2,
+                "pathPenalty": 1.5,
+                "distanceMetres": 3575.644546764202,
+                "sharedMetres": 58.748200423976456,
+                "footwayMetres": 3351.2538964629875,
+                "explicitSidewalkMetres": 2316.183396462987,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 0,
+                "distanceMetres": 3575.644546764202,
+                "sharedMetres": 58.748200423976456,
+                "footwayMetres": 3351.2538964629875,
+                "explicitSidewalkMetres": 2316.183396462987,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 1.5,
+                "distanceMetres": 3575.644546764202,
+                "sharedMetres": 58.748200423976456,
+                "footwayMetres": 3351.2538964629875,
+                "explicitSidewalkMetres": 2316.183396462987,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 0,
+                "distanceMetres": 3575.644546764202,
+                "sharedMetres": 58.748200423976456,
+                "footwayMetres": 3351.2538964629875,
+                "explicitSidewalkMetres": 2316.183396462987,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 1.5,
+                "distanceMetres": 3575.644546764202,
+                "sharedMetres": 58.748200423976456,
+                "footwayMetres": 3351.2538964629875,
+                "explicitSidewalkMetres": 2316.183396462987,
+                "reason": "insufficient-shared-reduction"
+              }
+            ]
+          }
+        ]
+      },
+      "elapsedMs": 3612
+    },
+    {
+      "bin": "2–4 km",
+      "kind": "address",
+      "selectedSide": "end",
+      "start": {
+        "id": "w20-73",
+        "kind": "20",
+        "name": "南京復興(G16)",
+        "lat": 25.052044,
+        "lon": 121.544303,
+        "slopePct": null,
+        "sourceId": "wheel-20",
+        "widthRaw": null,
+        "widthUnitVerified": false,
+        "address": "105020臺北市松山區南京東路3段253號"
+      },
+      "end": {
+        "id": "address-25.0545562-121.5157697-0",
+        "kind": "place",
+        "sourceId": "osm",
+        "selectionKind": "user",
+        "name": "臺北市大同區南京西路107巷15號",
+        "lat": 25.0545562,
+        "lon": 121.5157697
+      },
+      "straightMetres": 2887,
+      "reference": {
+        "name": "臺北市大同區南京西路107巷15號",
+        "coordinate": [
+          25.0545562,
+          121.5157697
+        ],
+        "streetFile": "6c28ed580f5855"
+      },
+      "mapOffsetMetres": null,
+      "success": true,
+      "error": null,
+      "distance": 3275,
+      "sharedMetres": 51.28018627276893,
+      "pedestrianMetres": 3199.4211277350187,
+      "footwayMetres": 3199.421127735018,
+      "explicitSidewalkMetres": 2777.803827735018,
+      "estimatedApproaches": [
+        {
+          "side": "start",
+          "distance": 19,
+          "originKind": null,
+          "unconfirmed": null
+        },
+        {
+          "side": "end",
+          "distance": 5,
+          "originKind": "selected",
+          "unconfirmed": true
+        }
+      ],
+      "pedestrianImprovement": {
+        "status": "no-improvement",
+        "rolledBack": false,
+        "originalDistanceMetres": 3274.845516184005,
+        "maxDistanceMetres": 3574.845516184005,
+        "originalSharedMetres": 51.28018627276893,
+        "sharedMetres": 51.28018627276893,
+        "originalFootwayMetres": 3199.421127735018,
+        "footwayMetres": 3199.421127735018,
+        "originalExplicitSidewalkMetres": 2777.803827735018,
+        "explicitSidewalkMetres": 2777.803827735018,
+        "radiusMetres": 50,
+        "minimumReductionMetres": 1,
+        "searchLimits": {
+          "maxIterations": 3,
+          "totalMs": 4000,
+          "maxVisited": 40000,
+          "maxComparisons": 100000
+        },
+        "iterations": [
+          {
+            "round": 1,
+            "result": "no-improvement",
+            "reasons": [
+              "insufficient-shared-reduction"
+            ],
+            "attempts": [
+              {
+                "penalty": 2,
+                "pathPenalty": 0,
+                "distanceMetres": 3274.845516184005,
+                "sharedMetres": 51.28018627276893,
+                "footwayMetres": 3199.421127735018,
+                "explicitSidewalkMetres": 2777.803827735018,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 2,
+                "pathPenalty": 1.5,
+                "distanceMetres": 3274.845516184005,
+                "sharedMetres": 51.28018627276893,
+                "footwayMetres": 3199.421127735018,
+                "explicitSidewalkMetres": 2777.803827735018,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 0,
+                "distanceMetres": 3274.845516184005,
+                "sharedMetres": 51.28018627276893,
+                "footwayMetres": 3199.421127735018,
+                "explicitSidewalkMetres": 2777.803827735018,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 1.5,
+                "distanceMetres": 3274.845516184005,
+                "sharedMetres": 51.28018627276893,
+                "footwayMetres": 3199.421127735018,
+                "explicitSidewalkMetres": 2777.803827735018,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 0,
+                "distanceMetres": 3274.845516184005,
+                "sharedMetres": 51.28018627276893,
+                "footwayMetres": 3199.421127735018,
+                "explicitSidewalkMetres": 2777.803827735018,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 1.5,
+                "distanceMetres": 3274.845516184005,
+                "sharedMetres": 51.28018627276893,
+                "footwayMetres": 3199.421127735018,
+                "explicitSidewalkMetres": 2777.803827735018,
+                "reason": "insufficient-shared-reduction"
+              }
+            ]
+          }
+        ]
+      },
+      "elapsedMs": 3597
+    },
+    {
+      "bin": "2–4 km",
+      "kind": "address",
+      "selectedSide": "start",
+      "start": {
+        "id": "address-25.0065551-121.559671-0",
+        "kind": "place",
+        "sourceId": "osm",
+        "selectionKind": "user",
+        "name": "臺北市文山區辛亥路四段101巷85之8號",
+        "lat": 25.0065551,
+        "lon": 121.559671
+      },
+      "end": {
+        "id": "w20-82",
+        "kind": "20",
+        "name": "景美(G05)",
+        "lat": 24.992824,
+        "lon": 121.540697,
+        "slopePct": null,
+        "sourceId": "wheel-20",
+        "widthRaw": null,
+        "widthUnitVerified": false,
+        "address": "116056臺北市文山區羅斯福路6段216號"
+      },
+      "straightMetres": 2446,
+      "reference": {
+        "name": "臺北市文山區辛亥路四段101巷85之8號",
+        "coordinate": [
+          25.0065551,
+          121.559671
+        ],
+        "streetFile": "90b30ecca3ce80"
+      },
+      "mapOffsetMetres": null,
+      "success": false,
+      "error": "NO_CONNECTION",
+      "distance": null,
+      "sharedMetres": 0,
+      "pedestrianMetres": 0,
+      "footwayMetres": null,
+      "explicitSidewalkMetres": null,
+      "estimatedApproaches": [],
+      "pedestrianImprovement": null,
+      "elapsedMs": 2744
+    },
+    {
+      "bin": "2–4 km",
+      "kind": "address",
+      "selectedSide": "end",
+      "start": {
+        "id": "w20-100",
+        "kind": "20",
+        "name": "辛亥(BR05)",
+        "lat": 25.005455,
+        "lon": 121.557046,
+        "slopePct": null,
+        "sourceId": "wheel-20",
+        "widthRaw": null,
+        "widthUnitVerified": false,
+        "address": "116081臺北市文山區辛亥路4段128號"
+      },
+      "end": {
+        "id": "address-25.0153728-121.5262861-0",
+        "kind": "place",
+        "sourceId": "osm",
+        "selectionKind": "user",
+        "name": "臺北市中正區永春街200巷5號",
+        "lat": 25.0153728,
+        "lon": 121.5262861
+      },
+      "straightMetres": 3288,
+      "reference": {
+        "name": "臺北市中正區永春街200巷5號",
+        "coordinate": [
+          25.0153728,
+          121.5262861
+        ],
+        "streetFile": "08fec9e254c96e"
+      },
+      "mapOffsetMetres": null,
+      "success": true,
+      "error": null,
+      "distance": 5033,
+      "sharedMetres": 0,
+      "pedestrianMetres": 4973.906317650903,
+      "footwayMetres": 4973.9063176509035,
+      "explicitSidewalkMetres": 4251.323317650903,
+      "estimatedApproaches": [
+        {
+          "side": "start",
+          "distance": 11,
+          "originKind": null,
+          "unconfirmed": null
+        },
+        {
+          "side": "end",
+          "distance": 48,
+          "originKind": "selected",
+          "unconfirmed": true
+        }
+      ],
+      "pedestrianImprovement": {
+        "status": "no-shared-segments",
+        "rolledBack": false,
+        "originalDistanceMetres": 5033.404904499078,
+        "maxDistanceMetres": 5333.404904499078,
+        "originalSharedMetres": 0,
+        "sharedMetres": 0,
+        "originalFootwayMetres": 4973.9063176509035,
+        "footwayMetres": 4973.9063176509035,
+        "originalExplicitSidewalkMetres": 4251.323317650903,
+        "explicitSidewalkMetres": 4251.323317650903,
+        "radiusMetres": 50,
+        "minimumReductionMetres": 1,
+        "searchLimits": {
+          "maxIterations": 3,
+          "totalMs": 4000,
+          "maxVisited": 40000,
+          "maxComparisons": 100000
+        },
+        "iterations": []
+      },
+      "elapsedMs": 2750
+    },
+    {
+      "bin": "2–4 km",
+      "kind": "address",
+      "selectedSide": "start",
+      "start": {
+        "id": "address-25.046137-121.5098384-0",
+        "kind": "place",
+        "sourceId": "osm",
+        "selectionKind": "user",
+        "name": "臺北市中正區中華路一段25之2號",
+        "lat": 25.046137,
+        "lon": 121.5098384
+      },
+      "end": {
+        "id": "w20-45",
+        "kind": "20",
+        "name": "大安森林公園(R06)",
+        "lat": 25.033225,
+        "lon": 121.536151,
+        "slopePct": null,
+        "sourceId": "wheel-20",
+        "widthRaw": null,
+        "widthUnitVerified": false,
+        "address": "106008臺北市大安區信義路3段100號B1"
+      },
+      "straightMetres": 3014,
+      "reference": {
+        "name": "臺北市中正區中華路一段25之2號",
+        "coordinate": [
+          25.046137,
+          121.5098384
+        ],
+        "streetFile": "7d982537aab69c"
+      },
+      "mapOffsetMetres": null,
+      "success": true,
+      "error": null,
+      "distance": 3577,
+      "sharedMetres": 0,
+      "pedestrianMetres": 3558.3316578103622,
+      "footwayMetres": 3558.3316578103613,
+      "explicitSidewalkMetres": 3206.2758578103626,
+      "estimatedApproaches": [
+        {
+          "side": "start",
+          "distance": 16,
+          "originKind": "selected",
+          "unconfirmed": true
+        }
+      ],
+      "pedestrianImprovement": {
+        "status": "no-shared-segments",
+        "rolledBack": false,
+        "originalDistanceMetres": 3576.9397290595753,
+        "maxDistanceMetres": 3876.9397290595753,
+        "originalSharedMetres": 0,
+        "sharedMetres": 0,
+        "originalFootwayMetres": 3558.3316578103613,
+        "footwayMetres": 3558.3316578103613,
+        "originalExplicitSidewalkMetres": 3206.2758578103626,
+        "explicitSidewalkMetres": 3206.2758578103626,
+        "radiusMetres": 50,
+        "minimumReductionMetres": 1,
+        "searchLimits": {
+          "maxIterations": 3,
+          "totalMs": 4000,
+          "maxVisited": 40000,
+          "maxComparisons": 100000
+        },
+        "iterations": []
+      },
+      "elapsedMs": 3169
+    },
+    {
+      "bin": "2–4 km",
+      "kind": "address",
+      "selectedSide": "end",
+      "start": {
+        "id": "w20-71",
+        "kind": "20",
+        "name": "南京三民(G18)",
+        "lat": 25.051588,
+        "lon": 121.56471,
+        "slopePct": null,
+        "sourceId": "wheel-20",
+        "widthRaw": null,
+        "widthUnitVerified": false,
+        "address": "105062臺北市松山區南京東路5段237號"
+      },
+      "end": {
+        "id": "address-25.0393636-121.5796583-0",
+        "kind": "place",
+        "sourceId": "osm",
+        "selectionKind": "user",
+        "name": "臺北市信義區林口街80巷11號",
+        "lat": 25.0393636,
+        "lon": 121.5796583
+      },
+      "straightMetres": 2028,
+      "reference": {
+        "name": "臺北市信義區林口街80巷11號",
+        "coordinate": [
+          25.0393636,
+          121.5796583
+        ],
+        "streetFile": "d649960cd93c9e"
+      },
+      "mapOffsetMetres": null,
+      "success": true,
+      "error": null,
+      "distance": 3112,
+      "sharedMetres": 294.2247115646585,
+      "pedestrianMetres": 2763.7192000000005,
+      "footwayMetres": 2759.6780999999996,
+      "explicitSidewalkMetres": 2003.1223999999997,
+      "estimatedApproaches": [
+        {
+          "side": "start",
+          "distance": 13,
+          "originKind": null,
+          "unconfirmed": null
+        },
+        {
+          "side": "end",
+          "distance": 42,
+          "originKind": "selected",
+          "unconfirmed": true
+        }
+      ],
+      "pedestrianImprovement": {
+        "status": "improved",
+        "rolledBack": false,
+        "originalDistanceMetres": 3028.5203639725864,
+        "maxDistanceMetres": 3328.5203639725864,
+        "originalSharedMetres": 363.1515115646585,
+        "sharedMetres": 294.2247115646585,
+        "originalFootwayMetres": 2606.8709,
+        "footwayMetres": 2759.6780999999996,
+        "originalExplicitSidewalkMetres": 2003.1223999999997,
+        "explicitSidewalkMetres": 2003.1223999999997,
+        "radiusMetres": 50,
+        "minimumReductionMetres": 1,
+        "searchLimits": {
+          "maxIterations": 3,
+          "totalMs": 4000,
+          "maxVisited": 40000,
+          "maxComparisons": 100000
+        },
+        "iterations": [
+          {
+            "round": 1,
+            "result": "improved",
+            "previousSharedMetres": 363.1515115646585,
+            "sharedMetres": 294.2247115646585,
+            "distanceMetres": 3112.400763972586,
+            "penalty": 2,
+            "pathPenalty": 0,
+            "attempts": [
+              {
+                "penalty": 2,
+                "pathPenalty": 0,
+                "distanceMetres": 3112.400763972586,
+                "sharedMetres": 294.2247115646585,
+                "footwayMetres": 2759.6780999999996,
+                "explicitSidewalkMetres": 2003.1223999999997,
+                "reason": "eligible",
+                "selected": true
+              },
+              {
+                "penalty": 2,
+                "pathPenalty": 1.5,
+                "distanceMetres": 3112.400763972586,
+                "sharedMetres": 294.2247115646585,
+                "footwayMetres": 2759.6780999999996,
+                "explicitSidewalkMetres": 2003.1223999999997,
+                "reason": "eligible"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 0,
+                "distanceMetres": 3112.400763972586,
+                "sharedMetres": 294.2247115646585,
+                "footwayMetres": 2759.6780999999996,
+                "explicitSidewalkMetres": 2003.1223999999997,
+                "reason": "eligible"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 1.5,
+                "distanceMetres": 3112.400763972586,
+                "sharedMetres": 294.2247115646585,
+                "footwayMetres": 2759.6780999999996,
+                "explicitSidewalkMetres": 2003.1223999999997,
+                "reason": "eligible"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 0,
+                "distanceMetres": 3112.400763972586,
+                "sharedMetres": 294.2247115646585,
+                "footwayMetres": 2759.6780999999996,
+                "explicitSidewalkMetres": 2003.1223999999997,
+                "reason": "eligible"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 1.5,
+                "distanceMetres": 3112.400763972586,
+                "sharedMetres": 294.2247115646585,
+                "footwayMetres": 2759.6780999999996,
+                "explicitSidewalkMetres": 2003.1223999999997,
+                "reason": "eligible"
+              }
+            ]
+          },
+          {
+            "round": 2,
+            "result": "no-improvement",
+            "reasons": [
+              "insufficient-shared-reduction"
+            ],
+            "attempts": [
+              {
+                "penalty": 2,
+                "pathPenalty": 0,
+                "distanceMetres": 3112.400763972586,
+                "sharedMetres": 294.2247115646585,
+                "footwayMetres": 2759.6780999999996,
+                "explicitSidewalkMetres": 2003.1223999999997,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 2,
+                "pathPenalty": 1.5,
+                "distanceMetres": 3112.400763972586,
+                "sharedMetres": 294.2247115646585,
+                "footwayMetres": 2759.6780999999996,
+                "explicitSidewalkMetres": 2003.1223999999997,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 0,
+                "distanceMetres": 3112.400763972586,
+                "sharedMetres": 294.2247115646585,
+                "footwayMetres": 2759.6780999999996,
+                "explicitSidewalkMetres": 2003.1223999999997,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 1.5,
+                "distanceMetres": 3112.400763972586,
+                "sharedMetres": 294.2247115646585,
+                "footwayMetres": 2759.6780999999996,
+                "explicitSidewalkMetres": 2003.1223999999997,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 0,
+                "distanceMetres": 3112.400763972586,
+                "sharedMetres": 294.2247115646585,
+                "footwayMetres": 2759.6780999999996,
+                "explicitSidewalkMetres": 2003.1223999999997,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 1.5,
+                "distanceMetres": 3112.400763972586,
+                "sharedMetres": 294.2247115646585,
+                "footwayMetres": 2759.6780999999996,
+                "explicitSidewalkMetres": 2003.1223999999997,
+                "reason": "insufficient-shared-reduction"
+              }
+            ]
+          }
+        ]
+      },
+      "elapsedMs": 4296
+    },
+    {
+      "bin": "2–4 km",
+      "kind": "map",
+      "selectedSide": "start",
+      "start": {
+        "id": "point-2026111400604",
+        "originKind": "map",
+        "selectionKind": "user",
+        "name": "地圖上選的位置",
+        "lat": 25.11925105832379,
+        "lon": 121.53576615893517
+      },
+      "end": {
+        "id": "w20-31",
+        "kind": "20",
+        "name": "唭哩岸(R20)",
+        "lat": 25.120852,
+        "lon": 121.506234,
+        "slopePct": null,
+        "sourceId": "wheel-20",
+        "widthRaw": null,
+        "widthUnitVerified": false,
+        "address": "112025臺北市北投區東華街2段301號"
+      },
+      "straightMetres": 2979,
+      "reference": {
+        "name": "臺北市士林區天母東路81巷20弄30號",
+        "coordinate": [
+          25.1194117,
+          121.5353407
+        ],
+        "streetFile": "b17a6202e8eac7"
+      },
+      "mapOffsetMetres": 46.4,
+      "success": false,
+      "error": "NO_CONNECTION",
+      "distance": null,
+      "sharedMetres": 0,
+      "pedestrianMetres": 0,
+      "footwayMetres": null,
+      "explicitSidewalkMetres": null,
+      "estimatedApproaches": [],
+      "pedestrianImprovement": null,
+      "elapsedMs": 2810
+    },
+    {
+      "bin": "2–4 km",
+      "kind": "map",
+      "selectedSide": "end",
+      "start": {
+        "id": "w20-15",
+        "kind": "20",
+        "name": "文德(BR18)",
+        "lat": 25.078567,
+        "lon": 121.584973,
+        "slopePct": null,
+        "sourceId": "wheel-20",
+        "widthRaw": null,
+        "widthUnitVerified": false,
+        "address": "114053臺北市內湖區文德路214號"
+      },
+      "end": {
+        "id": "point-2026111400198",
+        "originKind": "map",
+        "selectionKind": "user",
+        "name": "地圖上選的位置",
+        "lat": 25.047965946770553,
+        "lon": 121.57066949304824
+      },
+      "straightMetres": 3695,
+      "reference": {
+        "name": "臺北市信義區基隆路一段35巷7弄9號",
+        "coordinate": [
+          25.0480541,
+          121.5708001
+        ],
+        "streetFile": "0193fea78cc5b3"
+      },
+      "mapOffsetMetres": 16.4,
+      "success": false,
+      "error": "NO_ROUTE",
+      "distance": null,
+      "sharedMetres": 0,
+      "pedestrianMetres": 0,
+      "footwayMetres": null,
+      "explicitSidewalkMetres": null,
+      "estimatedApproaches": [],
+      "pedestrianImprovement": null,
+      "elapsedMs": 3211
+    },
+    {
+      "bin": "2–4 km",
+      "kind": "map",
+      "selectedSide": "start",
+      "start": {
+        "id": "point-2026111400580",
+        "originKind": "map",
+        "selectionKind": "user",
+        "name": "地圖上選的位置",
+        "lat": 25.043524309444734,
+        "lon": 121.55030738476009
+      },
+      "end": {
+        "id": "w20-94",
+        "kind": "20",
+        "name": "中山國中(BR12)",
+        "lat": 25.06085,
+        "lon": 121.544215,
+        "slopePct": null,
+        "sourceId": "wheel-20",
+        "widthRaw": null,
+        "widthUnitVerified": false,
+        "address": "104079臺北市中山區復興北路376號"
+      },
+      "straightMetres": 2022,
+      "reference": {
+        "name": "臺北市大安區敦化南路一段161巷9號",
+        "coordinate": [
+          25.0435914,
+          121.5498623
+        ],
+        "streetFile": "9e7e7916394384"
+      },
+      "mapOffsetMetres": 45.4,
+      "success": true,
+      "error": null,
+      "distance": 2808,
+      "sharedMetres": 94.7771,
+      "pedestrianMetres": 2672.1244683271766,
+      "footwayMetres": 2672.1244683271775,
+      "explicitSidewalkMetres": 2243.3814139663605,
+      "estimatedApproaches": [
+        {
+          "side": "start",
+          "distance": 23,
+          "originKind": "map",
+          "unconfirmed": true
+        },
+        {
+          "side": "end",
+          "distance": 18,
+          "originKind": null,
+          "unconfirmed": null
+        }
+      ],
+      "pedestrianImprovement": {
+        "status": "no-improvement",
+        "rolledBack": false,
+        "originalDistanceMetres": 2807.5336015740695,
+        "maxDistanceMetres": 3107.5336015740695,
+        "originalSharedMetres": 94.7771,
+        "sharedMetres": 94.7771,
+        "originalFootwayMetres": 2672.1244683271775,
+        "footwayMetres": 2672.1244683271775,
+        "originalExplicitSidewalkMetres": 2243.3814139663605,
+        "explicitSidewalkMetres": 2243.3814139663605,
+        "radiusMetres": 50,
+        "minimumReductionMetres": 1,
+        "searchLimits": {
+          "maxIterations": 3,
+          "totalMs": 4000,
+          "maxVisited": 40000,
+          "maxComparisons": 100000
+        },
+        "iterations": [
+          {
+            "round": 1,
+            "result": "no-improvement",
+            "reasons": [
+              "no-connected-pedestrian-within-50m"
+            ],
+            "attempts": [
+              {
+                "penalty": 2,
+                "pathPenalty": 0,
+                "distanceMetres": 2861.1594015740693,
+                "sharedMetres": 72.03500000000001,
+                "footwayMetres": 2748.4923683271777,
+                "explicitSidewalkMetres": 2319.74931396636,
+                "reason": "no-connected-pedestrian-within-50m"
+              },
+              {
+                "penalty": 2,
+                "pathPenalty": 1.5,
+                "distanceMetres": 2861.1594015740693,
+                "sharedMetres": 72.03500000000001,
+                "footwayMetres": 2748.4923683271777,
+                "explicitSidewalkMetres": 2319.74931396636,
+                "reason": "no-connected-pedestrian-within-50m"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 0,
+                "distanceMetres": 2966.2648469033466,
+                "sharedMetres": 27.822001234842137,
+                "footwayMetres": 2871.029413966361,
+                "explicitSidewalkMetres": 2347.0255139663604,
+                "reason": "no-connected-pedestrian-within-50m"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 1.5,
+                "distanceMetres": 2966.2648469033466,
+                "sharedMetres": 27.822001234842137,
+                "footwayMetres": 2871.029413966361,
+                "explicitSidewalkMetres": 2347.0255139663604,
+                "reason": "no-connected-pedestrian-within-50m"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 0,
+                "distanceMetres": 2966.2648469033466,
+                "sharedMetres": 27.822001234842137,
+                "footwayMetres": 2871.029413966361,
+                "explicitSidewalkMetres": 2347.0255139663604,
+                "reason": "no-connected-pedestrian-within-50m"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 1.5,
+                "distanceMetres": 2966.2648469033466,
+                "sharedMetres": 27.822001234842137,
+                "footwayMetres": 2871.029413966361,
+                "explicitSidewalkMetres": 2347.0255139663604,
+                "reason": "no-connected-pedestrian-within-50m"
+              }
+            ]
+          }
+        ]
+      },
+      "elapsedMs": 3212
+    },
+    {
+      "bin": "2–4 km",
+      "kind": "map",
+      "selectedSide": "end",
+      "start": {
+        "id": "w20-115",
+        "kind": "20",
+        "name": "龍山寺(BL10)",
+        "lat": 25.03528,
+        "lon": 121.500325,
+        "slopePct": null,
+        "sourceId": "wheel-20",
+        "widthRaw": null,
+        "widthUnitVerified": false,
+        "address": "108015臺北市萬華區西園路1段153號"
+      },
+      "end": {
+        "id": "point-2026111400325",
+        "originKind": "map",
+        "selectionKind": "user",
+        "name": "地圖上選的位置",
+        "lat": 25.037249169907682,
+        "lon": 121.52933976747308
+      },
+      "straightMetres": 2930,
+      "reference": {
+        "name": "臺北市中正區金山南路一段67巷9號",
+        "coordinate": [
+          25.0377825,
+          121.5289151
+        ],
+        "streetFile": "1f00bec2adbd4d"
+      },
+      "mapOffsetMetres": 73.1,
+      "success": true,
+      "error": null,
+      "distance": 3743,
+      "sharedMetres": 84.54238508418074,
+      "pedestrianMetres": 3614.672099999999,
+      "footwayMetres": 3614.6721,
+      "explicitSidewalkMetres": 3174.0916000000016,
+      "estimatedApproaches": [
+        {
+          "side": "end",
+          "distance": 29,
+          "originKind": "map",
+          "unconfirmed": true
+        }
+      ],
+      "pedestrianImprovement": {
+        "status": "no-improvement",
+        "rolledBack": false,
+        "originalDistanceMetres": 3743.6588011577705,
+        "maxDistanceMetres": 4043.6588011577705,
+        "originalSharedMetres": 84.54238508418074,
+        "sharedMetres": 84.54238508418074,
+        "originalFootwayMetres": 3614.6721,
+        "footwayMetres": 3614.6721,
+        "originalExplicitSidewalkMetres": 3174.0916000000016,
+        "explicitSidewalkMetres": 3174.0916000000016,
+        "radiusMetres": 50,
+        "minimumReductionMetres": 1,
+        "searchLimits": {
+          "maxIterations": 3,
+          "totalMs": 4000,
+          "maxVisited": 40000,
+          "maxComparisons": 100000
+        },
+        "iterations": [
+          {
+            "round": 1,
+            "result": "no-improvement",
+            "reasons": [
+              "insufficient-shared-reduction"
+            ],
+            "attempts": [
+              {
+                "penalty": 2,
+                "pathPenalty": 0,
+                "distanceMetres": 3743.6588011577705,
+                "sharedMetres": 84.54238508418074,
+                "footwayMetres": 3614.6721,
+                "explicitSidewalkMetres": 3174.0916000000016,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 2,
+                "pathPenalty": 1.5,
+                "distanceMetres": 3743.6588011577705,
+                "sharedMetres": 84.54238508418074,
+                "footwayMetres": 3614.6721,
+                "explicitSidewalkMetres": 3174.0916000000016,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 0,
+                "distanceMetres": 3743.6588011577705,
+                "sharedMetres": 84.54238508418074,
+                "footwayMetres": 3614.6721,
+                "explicitSidewalkMetres": 3174.0916000000016,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 1.5,
+                "distanceMetres": 3743.6588011577705,
+                "sharedMetres": 84.54238508418074,
+                "footwayMetres": 3614.6721,
+                "explicitSidewalkMetres": 3174.0916000000016,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 0,
+                "distanceMetres": 3743.6588011577705,
+                "sharedMetres": 84.54238508418074,
+                "footwayMetres": 3614.6721,
+                "explicitSidewalkMetres": 3174.0916000000016,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 1.5,
+                "distanceMetres": 3743.6588011577705,
+                "sharedMetres": 84.54238508418074,
+                "footwayMetres": 3614.6721,
+                "explicitSidewalkMetres": 3174.0916000000016,
+                "reason": "insufficient-shared-reduction"
+              }
+            ]
+          }
+        ]
+      },
+      "elapsedMs": 3330
+    },
+    {
+      "bin": "2–4 km",
+      "kind": "map",
+      "selectedSide": "start",
+      "start": {
+        "id": "point-2026111400836",
+        "originKind": "map",
+        "selectionKind": "user",
+        "name": "地圖上選的位置",
+        "lat": 25.047006824619924,
+        "lon": 121.53052502928196
+      },
+      "end": {
+        "id": "w20-98",
+        "kind": "20",
+        "name": "六張犁(BR07)",
+        "lat": 25.02381,
+        "lon": 121.55302,
+        "slopePct": null,
+        "sourceId": "wheel-20",
+        "widthRaw": null,
+        "widthUnitVerified": false,
+        "address": "106039臺北市大安區和平東路3段168號"
+      },
+      "straightMetres": 3433,
+      "reference": {
+        "name": "臺北市中山區長安東路一段56巷7弄40號",
+        "coordinate": [
+          25.0466458,
+          121.5299487
+        ],
+        "streetFile": "e27ddfeee31b99"
+      },
+      "mapOffsetMetres": 70.6,
+      "success": true,
+      "error": null,
+      "distance": 5098,
+      "sharedMetres": 251.27552698962518,
+      "pedestrianMetres": 4778.2646784696435,
+      "footwayMetres": 4778.264678469642,
+      "explicitSidewalkMetres": 4097.2583784696435,
+      "estimatedApproaches": [
+        {
+          "side": "start",
+          "distance": 43,
+          "originKind": "map",
+          "unconfirmed": true
+        },
+        {
+          "side": "end",
+          "distance": 25,
+          "originKind": null,
+          "unconfirmed": null
+        }
+      ],
+      "pedestrianImprovement": {
+        "status": "no-improvement",
+        "rolledBack": false,
+        "originalDistanceMetres": 5097.679256819836,
+        "maxDistanceMetres": 5397.679256819836,
+        "originalSharedMetres": 251.27552698962518,
+        "sharedMetres": 251.27552698962518,
+        "originalFootwayMetres": 4778.264678469642,
+        "footwayMetres": 4778.264678469642,
+        "originalExplicitSidewalkMetres": 4097.2583784696435,
+        "explicitSidewalkMetres": 4097.2583784696435,
+        "radiusMetres": 50,
+        "minimumReductionMetres": 1,
+        "searchLimits": {
+          "maxIterations": 3,
+          "totalMs": 4000,
+          "maxVisited": 40000,
+          "maxComparisons": 100000
+        },
+        "iterations": [
+          {
+            "round": 1,
+            "result": "no-improvement",
+            "reasons": [
+              "insufficient-shared-reduction",
+              "detour-limit"
+            ],
+            "attempts": [
+              {
+                "penalty": 2,
+                "pathPenalty": 0,
+                "distanceMetres": 5097.679256819836,
+                "sharedMetres": 251.27552698962518,
+                "footwayMetres": 4778.264678469642,
+                "explicitSidewalkMetres": 4097.2583784696435,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 2,
+                "pathPenalty": 1.5,
+                "distanceMetres": 5097.679256819836,
+                "sharedMetres": 251.27552698962518,
+                "footwayMetres": 4778.264678469642,
+                "explicitSidewalkMetres": 4097.2583784696435,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 0,
+                "distanceMetres": 5960.237456819834,
+                "sharedMetres": 2.4125269896251718,
+                "footwayMetres": 5889.685878469639,
+                "explicitSidewalkMetres": 4893.1588784696405,
+                "reason": "detour-limit"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 1.5,
+                "distanceMetres": 5960.237456819834,
+                "sharedMetres": 2.4125269896251718,
+                "footwayMetres": 5889.685878469639,
+                "explicitSidewalkMetres": 4893.1588784696405,
+                "reason": "detour-limit"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 0,
+                "distanceMetres": 5960.237456819834,
+                "sharedMetres": 2.4125269896251718,
+                "footwayMetres": 5889.685878469639,
+                "explicitSidewalkMetres": 4893.1588784696405,
+                "reason": "detour-limit"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 1.5,
+                "distanceMetres": 5960.237456819834,
+                "sharedMetres": 2.4125269896251718,
+                "footwayMetres": 5889.685878469639,
+                "explicitSidewalkMetres": 4893.1588784696405,
+                "reason": "detour-limit"
+              }
+            ]
+          }
+        ]
+      },
+      "elapsedMs": 3551
+    },
+    {
+      "bin": "2–4 km",
+      "kind": "map",
+      "selectedSide": "end",
+      "start": {
+        "id": "w20-43",
+        "kind": "20",
+        "name": "中正紀念堂(R08)",
+        "lat": 25.032767,
+        "lon": 121.518273,
+        "slopePct": null,
+        "sourceId": "wheel-20",
+        "widthRaw": null,
+        "widthUnitVerified": false,
+        "address": "100207臺北市中正區羅斯福路1段8之1號B1?"
+      },
+      "end": {
+        "id": "point-2026111400034",
+        "originKind": "map",
+        "selectionKind": "user",
+        "name": "地圖上選的位置",
+        "lat": 25.041078951970043,
+        "lon": 121.54407470466288
+      },
+      "straightMetres": 2758,
+      "reference": {
+        "name": "臺北市大安區忠孝東路四段22號",
+        "coordinate": [
+          25.0413867,
+          121.5443551
+        ],
+        "streetFile": "0ce8db2ef152b6"
+      },
+      "mapOffsetMetres": 44.4,
+      "success": true,
+      "error": null,
+      "distance": 3528,
+      "sharedMetres": 0,
+      "pedestrianMetres": 3502.2985284868532,
+      "footwayMetres": 3502.2985284868555,
+      "explicitSidewalkMetres": 3124.7781284868543,
+      "estimatedApproaches": [
+        {
+          "side": "end",
+          "distance": 14,
+          "originKind": "map",
+          "unconfirmed": true
+        }
+      ],
+      "pedestrianImprovement": {
+        "status": "no-shared-segments",
+        "rolledBack": false,
+        "originalDistanceMetres": 3528.530997947624,
+        "maxDistanceMetres": 3828.530997947624,
+        "originalSharedMetres": 0,
+        "sharedMetres": 0,
+        "originalFootwayMetres": 3502.2985284868555,
+        "footwayMetres": 3502.2985284868555,
+        "originalExplicitSidewalkMetres": 3124.7781284868543,
+        "explicitSidewalkMetres": 3124.7781284868543,
+        "radiusMetres": 50,
+        "minimumReductionMetres": 1,
+        "searchLimits": {
+          "maxIterations": 3,
+          "totalMs": 4000,
+          "maxVisited": 40000,
+          "maxComparisons": 100000
+        },
+        "iterations": []
+      },
+      "elapsedMs": 2870
+    },
+    {
+      "bin": "4–8 km",
+      "kind": "address",
+      "selectedSide": "start",
+      "start": {
+        "id": "address-25.0386783-121.5740322-0",
+        "kind": "place",
+        "sourceId": "osm",
+        "selectionKind": "user",
+        "name": "臺北市信義區虎林街164巷60弄28號",
+        "lat": 25.0386783,
+        "lon": 121.5740322
+      },
+      "end": {
+        "id": "w20-63",
+        "kind": "20",
+        "name": "松江南京(O08)",
+        "lat": 25.052693,
+        "lon": 121.53285,
+        "slopePct": null,
+        "sourceId": "wheel-20",
+        "widthRaw": null,
+        "widthUnitVerified": false,
+        "address": "104092臺北市中山區松江路126號B1"
+      },
+      "straightMetres": 4430,
+      "reference": {
+        "name": "臺北市信義區虎林街164巷60弄28號",
+        "coordinate": [
+          25.0386783,
+          121.5740322
+        ],
+        "streetFile": "dceb78c98f5585"
+      },
+      "mapOffsetMetres": null,
+      "success": true,
+      "error": null,
+      "distance": 5478,
+      "sharedMetres": 204.7311,
+      "pedestrianMetres": 5213.5366,
+      "footwayMetres": 4980.743399999999,
+      "explicitSidewalkMetres": 3829.7054,
+      "estimatedApproaches": [
+        {
+          "side": "start",
+          "distance": 24,
+          "originKind": "selected",
+          "unconfirmed": true
+        },
+        {
+          "side": "end",
+          "distance": 36,
+          "originKind": null,
+          "unconfirmed": null
+        }
+      ],
+      "pedestrianImprovement": {
+        "status": "no-improvement",
+        "rolledBack": false,
+        "originalDistanceMetres": 5478.2837751349625,
+        "maxDistanceMetres": 5778.2837751349625,
+        "originalSharedMetres": 204.7311,
+        "sharedMetres": 204.7311,
+        "originalFootwayMetres": 4980.743399999999,
+        "footwayMetres": 4980.743399999999,
+        "originalExplicitSidewalkMetres": 3829.7054,
+        "explicitSidewalkMetres": 3829.7054,
+        "radiusMetres": 50,
+        "minimumReductionMetres": 1,
+        "searchLimits": {
+          "maxIterations": 3,
+          "totalMs": 4000,
+          "maxVisited": 40000,
+          "maxComparisons": 100000
+        },
+        "iterations": [
+          {
+            "round": 1,
+            "result": "no-improvement",
+            "reasons": [
+              "insufficient-shared-reduction"
+            ],
+            "attempts": [
+              {
+                "penalty": 2,
+                "pathPenalty": 0,
+                "distanceMetres": 5478.2837751349625,
+                "sharedMetres": 204.7311,
+                "footwayMetres": 4980.743399999999,
+                "explicitSidewalkMetres": 3829.7054,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 2,
+                "pathPenalty": 1.5,
+                "distanceMetres": 5478.2837751349625,
+                "sharedMetres": 204.7311,
+                "footwayMetres": 4980.743399999999,
+                "explicitSidewalkMetres": 3829.7054,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 0,
+                "distanceMetres": 5478.2837751349625,
+                "sharedMetres": 204.7311,
+                "footwayMetres": 4980.743399999999,
+                "explicitSidewalkMetres": 3829.7054,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 1.5,
+                "distanceMetres": 5478.2837751349625,
+                "sharedMetres": 204.7311,
+                "footwayMetres": 4980.743399999999,
+                "explicitSidewalkMetres": 3829.7054,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 0,
+                "distanceMetres": 5478.2837751349625,
+                "sharedMetres": 204.7311,
+                "footwayMetres": 4980.743399999999,
+                "explicitSidewalkMetres": 3829.7054,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 1.5,
+                "distanceMetres": 5478.2837751349625,
+                "sharedMetres": 204.7311,
+                "footwayMetres": 4980.743399999999,
+                "explicitSidewalkMetres": 3829.7054,
+                "reason": "insufficient-shared-reduction"
+              }
+            ]
+          }
+        ]
+      },
+      "elapsedMs": 4199
+    },
+    {
+      "bin": "4–8 km",
+      "kind": "address",
+      "selectedSide": "end",
+      "start": {
+        "id": "w20-37",
+        "kind": "20",
+        "name": "圓山(R14)",
+        "lat": 25.071409,
+        "lon": 121.520074,
+        "slopePct": null,
+        "sourceId": "wheel-20",
+        "widthRaw": null,
+        "widthUnitVerified": false,
+        "address": "103032臺北市大同區酒泉街9之1號"
+      },
+      "end": {
+        "id": "address-25.031561-121.4894579-0",
+        "kind": "place",
+        "sourceId": "osm",
+        "selectionKind": "user",
+        "name": "臺北市萬華區長順街14巷1弄29號",
+        "lat": 25.031561,
+        "lon": 121.4894579
+      },
+      "straightMetres": 5398,
+      "reference": {
+        "name": "臺北市萬華區長順街14巷1弄29號",
+        "coordinate": [
+          25.031561,
+          121.4894579
+        ],
+        "streetFile": "bdee6ad14024ab"
+      },
+      "mapOffsetMetres": null,
+      "success": true,
+      "error": null,
+      "distance": 7033,
+      "sharedMetres": 117.1306,
+      "pedestrianMetres": 6880.970755551629,
+      "footwayMetres": 6829.708555551628,
+      "explicitSidewalkMetres": 5665.758600000003,
+      "estimatedApproaches": [
+        {
+          "side": "start",
+          "distance": 28,
+          "originKind": null,
+          "unconfirmed": null
+        },
+        {
+          "side": "end",
+          "distance": 7,
+          "originKind": "selected",
+          "unconfirmed": true
+        }
+      ],
+      "pedestrianImprovement": {
+        "status": "no-improvement",
+        "rolledBack": false,
+        "originalDistanceMetres": 7032.833280608997,
+        "maxDistanceMetres": 7332.833280608997,
+        "originalSharedMetres": 117.1306,
+        "sharedMetres": 117.1306,
+        "originalFootwayMetres": 6829.708555551628,
+        "footwayMetres": 6829.708555551628,
+        "originalExplicitSidewalkMetres": 5665.758600000003,
+        "explicitSidewalkMetres": 5665.758600000003,
+        "radiusMetres": 50,
+        "minimumReductionMetres": 1,
+        "searchLimits": {
+          "maxIterations": 3,
+          "totalMs": 4000,
+          "maxVisited": 40000,
+          "maxComparisons": 100000
+        },
+        "iterations": [
+          {
+            "round": 1,
+            "result": "no-improvement",
+            "reasons": [
+              "insufficient-shared-reduction"
+            ],
+            "attempts": [
+              {
+                "penalty": 2,
+                "pathPenalty": 0,
+                "distanceMetres": 7032.833280608997,
+                "sharedMetres": 117.1306,
+                "footwayMetres": 6829.708555551628,
+                "explicitSidewalkMetres": 5665.758600000003,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 2,
+                "pathPenalty": 1.5,
+                "distanceMetres": 7032.833280608997,
+                "sharedMetres": 117.1306,
+                "footwayMetres": 6829.708555551628,
+                "explicitSidewalkMetres": 5665.758600000003,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 0,
+                "distanceMetres": 7032.833280608997,
+                "sharedMetres": 117.1306,
+                "footwayMetres": 6829.708555551628,
+                "explicitSidewalkMetres": 5665.758600000003,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 1.5,
+                "distanceMetres": 7032.833280608997,
+                "sharedMetres": 117.1306,
+                "footwayMetres": 6829.708555551628,
+                "explicitSidewalkMetres": 5665.758600000003,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 0,
+                "distanceMetres": 7032.833280608997,
+                "sharedMetres": 117.1306,
+                "footwayMetres": 6829.708555551628,
+                "explicitSidewalkMetres": 5665.758600000003,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 1.5,
+                "distanceMetres": 7032.833280608997,
+                "sharedMetres": 117.1306,
+                "footwayMetres": 6829.708555551628,
+                "explicitSidewalkMetres": 5665.758600000003,
+                "reason": "insufficient-shared-reduction"
+              }
+            ]
+          }
+        ]
+      },
+      "elapsedMs": 3469
+    },
+    {
+      "bin": "4–8 km",
+      "kind": "address",
+      "selectedSide": "start",
+      "start": {
+        "id": "address-25.043351-121.5422474-0",
+        "kind": "place",
+        "sourceId": "osm",
+        "selectionKind": "user",
+        "name": "臺北市大安區忠孝東路三段251巷9弄15號",
+        "lat": 25.043351,
+        "lon": 121.5422474
+      },
+      "end": {
+        "id": "w20-108",
+        "kind": "20",
+        "name": "後山埤(BL20)",
+        "lat": 25.044715,
+        "lon": 121.58227,
+        "slopePct": null,
+        "sourceId": "wheel-20",
+        "widthRaw": null,
+        "widthUnitVerified": false,
+        "address": "115025臺北市南港區忠孝東路6段2號"
+      },
+      "straightMetres": 4033,
+      "reference": {
+        "name": "臺北市大安區忠孝東路三段251巷9弄15號",
+        "coordinate": [
+          25.043351,
+          121.5422474
+        ],
+        "streetFile": "a6a1f0fe46159c"
+      },
+      "mapOffsetMetres": null,
+      "success": true,
+      "error": null,
+      "distance": 5039,
+      "sharedMetres": 535.8256340316984,
+      "pedestrianMetres": 4492.5680366819315,
+      "footwayMetres": 4398.9997366819325,
+      "explicitSidewalkMetres": 3250.1918999999975,
+      "estimatedApproaches": [
+        {
+          "side": "start",
+          "distance": 11,
+          "originKind": "selected",
+          "unconfirmed": true
+        }
+      ],
+      "pedestrianImprovement": {
+        "status": "no-improvement",
+        "rolledBack": false,
+        "originalDistanceMetres": 5039.086512761185,
+        "maxDistanceMetres": 5339.086512761185,
+        "originalSharedMetres": 535.8256340316984,
+        "sharedMetres": 535.8256340316984,
+        "originalFootwayMetres": 4398.9997366819325,
+        "footwayMetres": 4398.9997366819325,
+        "originalExplicitSidewalkMetres": 3250.1918999999975,
+        "explicitSidewalkMetres": 3250.1918999999975,
+        "radiusMetres": 50,
+        "minimumReductionMetres": 1,
+        "searchLimits": {
+          "maxIterations": 3,
+          "totalMs": 4000,
+          "maxVisited": 40000,
+          "maxComparisons": 100000
+        },
+        "iterations": [
+          {
+            "round": 1,
+            "result": "no-improvement",
+            "reasons": [
+              "insufficient-shared-reduction",
+              "no-connected-pedestrian-within-50m"
+            ],
+            "attempts": [
+              {
+                "penalty": 2,
+                "pathPenalty": 0,
+                "distanceMetres": 5039.086512761185,
+                "sharedMetres": 535.8256340316984,
+                "footwayMetres": 4398.9997366819325,
+                "explicitSidewalkMetres": 3250.1918999999975,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 2,
+                "pathPenalty": 1.5,
+                "distanceMetres": 5040.630712761186,
+                "sharedMetres": 545.4265340316985,
+                "footwayMetres": 4461.135336681932,
+                "explicitSidewalkMetres": 3287.3665999999976,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 0,
+                "distanceMetres": 5143.354912761184,
+                "sharedMetres": 486.3436340316984,
+                "footwayMetres": 4552.7501366819315,
+                "explicitSidewalkMetres": 3299.2738999999974,
+                "reason": "no-connected-pedestrian-within-50m"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 1.5,
+                "distanceMetres": 5144.4149127611845,
+                "sharedMetres": 485.9859340316984,
+                "footwayMetres": 4577.018936681931,
+                "explicitSidewalkMetres": 3299.2738999999974,
+                "reason": "no-connected-pedestrian-within-50m"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 0,
+                "distanceMetres": 5144.4149127611845,
+                "sharedMetres": 485.9859340316984,
+                "footwayMetres": 4577.018936681931,
+                "explicitSidewalkMetres": 3299.2738999999974,
+                "reason": "no-connected-pedestrian-within-50m"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 1.5,
+                "distanceMetres": 5144.4149127611845,
+                "sharedMetres": 485.9859340316984,
+                "footwayMetres": 4577.018936681931,
+                "explicitSidewalkMetres": 3299.2738999999974,
+                "reason": "no-connected-pedestrian-within-50m"
+              }
+            ]
+          }
+        ]
+      },
+      "elapsedMs": 4039
+    },
+    {
+      "bin": "4–8 km",
+      "kind": "address",
+      "selectedSide": "end",
+      "start": {
+        "id": "w20-94",
+        "kind": "20",
+        "name": "中山國中(BR12)",
+        "lat": 25.06085,
+        "lon": 121.544215,
+        "slopePct": null,
+        "sourceId": "wheel-20",
+        "widthRaw": null,
+        "widthUnitVerified": false,
+        "address": "104079臺北市中山區復興北路376號"
+      },
+      "end": {
+        "id": "address-25.1159473-121.5168577-0",
+        "kind": "place",
+        "sourceId": "osm",
+        "selectionKind": "user",
+        "name": "臺北市北投區裕民三路29號",
+        "lat": 25.1159473,
+        "lon": 121.5168577
+      },
+      "straightMetres": 6717,
+      "reference": {
+        "name": "臺北市北投區裕民三路29號",
+        "coordinate": [
+          25.1159473,
+          121.5168577
+        ],
+        "streetFile": "f48e0f88cea3ea"
+      },
+      "mapOffsetMetres": null,
+      "success": false,
+      "error": "NO_ROUTE",
+      "distance": null,
+      "sharedMetres": 0,
+      "pedestrianMetres": 0,
+      "footwayMetres": null,
+      "explicitSidewalkMetres": null,
+      "estimatedApproaches": [],
+      "pedestrianImprovement": null,
+      "elapsedMs": 3496
+    },
+    {
+      "bin": "4–8 km",
+      "kind": "address",
+      "selectedSide": "start",
+      "start": {
+        "id": "address-25.0559899-121.511564-0",
+        "kind": "place",
+        "sourceId": "osm",
+        "selectionKind": "user",
+        "name": "臺北市大同區延平北路二段82號",
+        "lat": 25.0559899,
+        "lon": 121.511564
+      },
+      "end": {
+        "id": "w20-70",
+        "kind": "20",
+        "name": "松山(G19)",
+        "lat": 25.050118,
+        "lon": 121.577706,
+        "slopePct": null,
+        "sourceId": "wheel-20",
+        "widthRaw": null,
+        "widthUnitVerified": false,
+        "address": "105057臺北市松山區八德路4段742號"
+      },
+      "straightMetres": 6692,
+      "reference": {
+        "name": "臺北市大同區延平北路二段82號",
+        "coordinate": [
+          25.0559899,
+          121.511564
+        ],
+        "streetFile": "cded7487e3323a"
+      },
+      "mapOffsetMetres": null,
+      "success": false,
+      "error": "NO_CONNECTION",
+      "distance": null,
+      "sharedMetres": 0,
+      "pedestrianMetres": 0,
+      "footwayMetres": null,
+      "explicitSidewalkMetres": null,
+      "estimatedApproaches": [],
+      "pedestrianImprovement": null,
+      "elapsedMs": 2663
+    },
+    {
+      "bin": "4–8 km",
+      "kind": "address",
+      "selectedSide": "end",
+      "start": {
+        "id": "w20-106",
+        "kind": "20",
+        "name": "南港(BL22)",
+        "lat": 25.052035,
+        "lon": 121.60697,
+        "slopePct": null,
+        "sourceId": "wheel-20",
+        "widthRaw": null,
+        "widthUnitVerified": false,
+        "address": "115011臺北市南港區忠孝東路7段380號"
+      },
+      "end": {
+        "id": "address-25.0535381-121.5342186-0",
+        "kind": "place",
+        "sourceId": "osm",
+        "selectionKind": "user",
+        "name": "臺北市中山區四平街76號",
+        "lat": 25.0535381,
+        "lon": 121.5342186
+      },
+      "straightMetres": 7328,
+      "reference": {
+        "name": "臺北市中山區四平街76號",
+        "coordinate": [
+          25.0535381,
+          121.5342186
+        ],
+        "streetFile": "bc26a136f23088"
+      },
+      "mapOffsetMetres": null,
+      "success": false,
+      "error": "NO_ROUTE",
+      "distance": null,
+      "sharedMetres": 0,
+      "pedestrianMetres": 0,
+      "footwayMetres": null,
+      "explicitSidewalkMetres": null,
+      "estimatedApproaches": [],
+      "pedestrianImprovement": null,
+      "elapsedMs": 2729
+    },
+    {
+      "bin": "4–8 km",
+      "kind": "map",
+      "selectedSide": "start",
+      "start": {
+        "id": "point-2026111400021",
+        "originKind": "map",
+        "selectionKind": "user",
+        "name": "地圖上選的位置",
+        "lat": 25.048148969381845,
+        "lon": 121.50564519008522
+      },
+      "end": {
+        "id": "w20-35",
+        "kind": "20",
+        "name": "士林(R16)",
+        "lat": 25.093492,
+        "lon": 121.52623,
+        "slopePct": null,
+        "sourceId": "wheel-20",
+        "widthRaw": null,
+        "widthUnitVerified": false,
+        "address": "111012臺北市士林區福德路1號"
+      },
+      "straightMetres": 5451,
+      "reference": {
+        "name": "臺北市萬華區環河南路一段62號",
+        "coordinate": [
+          25.0478871,
+          121.5050529
+        ],
+        "streetFile": "dd7db17d620685"
+      },
+      "mapOffsetMetres": 66.4,
+      "success": false,
+      "error": "NO_CONNECTION",
+      "distance": null,
+      "sharedMetres": 0,
+      "pedestrianMetres": 0,
+      "footwayMetres": null,
+      "explicitSidewalkMetres": null,
+      "estimatedApproaches": [],
+      "pedestrianImprovement": null,
+      "elapsedMs": 2640
+    },
+    {
+      "bin": "4–8 km",
+      "kind": "map",
+      "selectedSide": "end",
+      "start": {
+        "id": "w20-103",
+        "kind": "20",
+        "name": "木柵(BR02)",
+        "lat": 24.99824,
+        "lon": 121.573127,
+        "slopePct": null,
+        "sourceId": "wheel-20",
+        "widthRaw": null,
+        "widthUnitVerified": false,
+        "address": "116027臺北市文山區木柵路4段135號"
+      },
+      "end": {
+        "id": "point-2026111400688",
+        "originKind": "map",
+        "selectionKind": "user",
+        "name": "地圖上選的位置",
+        "lat": 25.06894423379209,
+        "lon": 121.58688783842048
+      },
+      "straightMetres": 7983,
+      "reference": {
+        "name": "臺北市內湖區民權東路六段108號",
+        "coordinate": [
+          25.0688229,
+          121.5867672
+        ],
+        "streetFile": "240ac9728228ce"
+      },
+      "mapOffsetMetres": 18.2,
+      "success": false,
+      "error": "NO_CONNECTION",
+      "distance": null,
+      "sharedMetres": 0,
+      "pedestrianMetres": 0,
+      "footwayMetres": null,
+      "explicitSidewalkMetres": null,
+      "estimatedApproaches": [],
+      "pedestrianImprovement": null,
+      "elapsedMs": 2557
+    },
+    {
+      "bin": "4–8 km",
+      "kind": "map",
+      "selectedSide": "start",
+      "start": {
+        "id": "point-2026111400221",
+        "originKind": "map",
+        "selectionKind": "user",
+        "name": "地圖上選的位置",
+        "lat": 25.00006848827479,
+        "lon": 121.5377194429455
+      },
+      "end": {
+        "id": "w20-108",
+        "kind": "20",
+        "name": "後山埤(BL20)",
+        "lat": 25.044715,
+        "lon": 121.58227,
+        "slopePct": null,
+        "sourceId": "wheel-20",
+        "widthRaw": null,
+        "widthUnitVerified": false,
+        "address": "115025臺北市南港區忠孝東路6段2號"
+      },
+      "straightMetres": 6691,
+      "reference": {
+        "name": "臺北市文山區萬隆街29巷3號",
+        "coordinate": [
+          25.000226,
+          121.5377823
+        ],
+        "streetFile": "06debdf9a5b67a"
+      },
+      "mapOffsetMetres": 18.6,
+      "success": true,
+      "error": null,
+      "distance": 9569,
+      "sharedMetres": 849.6967410582654,
+      "pedestrianMetres": 8676.440136681937,
+      "footwayMetres": 8582.871836681943,
+      "explicitSidewalkMetres": 7259.309300000008,
+      "estimatedApproaches": [
+        {
+          "side": "start",
+          "distance": 43,
+          "originKind": "map",
+          "unconfirmed": true
+        }
+      ],
+      "pedestrianImprovement": {
+        "status": "search-limit",
+        "rolledBack": false,
+        "originalDistanceMetres": 9568.842509375292,
+        "maxDistanceMetres": 9868.842509375292,
+        "originalSharedMetres": 849.6967410582653,
+        "sharedMetres": 849.6967410582653,
+        "originalFootwayMetres": 8582.871836681943,
+        "footwayMetres": 8582.871836681943,
+        "originalExplicitSidewalkMetres": 7259.309300000008,
+        "explicitSidewalkMetres": 7259.309300000008,
+        "radiusMetres": 50,
+        "minimumReductionMetres": 1,
+        "searchLimits": {
+          "maxIterations": 3,
+          "totalMs": 4000,
+          "maxVisited": 40000,
+          "maxComparisons": 100000
+        },
+        "iterations": [
+          {
+            "round": 1,
+            "result": "search-limit",
+            "reasons": [
+              "search-limit"
+            ],
+            "attempts": [
+              {
+                "penalty": 2,
+                "pathPenalty": 0,
+                "reason": "search-limit"
+              },
+              {
+                "penalty": 2,
+                "pathPenalty": 1.5,
+                "reason": "search-limit"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 0,
+                "reason": "search-limit"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 1.5,
+                "reason": "search-limit"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 0,
+                "reason": "search-limit"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 1.5,
+                "reason": "search-limit"
+              }
+            ]
+          }
+        ]
+      },
+      "elapsedMs": 3993
+    },
+    {
+      "bin": "4–8 km",
+      "kind": "map",
+      "selectedSide": "end",
+      "start": {
+        "id": "w20-100",
+        "kind": "20",
+        "name": "辛亥(BR05)",
+        "lat": 25.005455,
+        "lon": 121.557046,
+        "slopePct": null,
+        "sourceId": "wheel-20",
+        "widthRaw": null,
+        "widthUnitVerified": false,
+        "address": "116081臺北市文山區辛亥路4段128號"
+      },
+      "end": {
+        "id": "point-2026111400497",
+        "originKind": "map",
+        "selectionKind": "user",
+        "name": "地圖上選的位置",
+        "lat": 25.067515818317673,
+        "lon": 121.5862828412703
+      },
+      "straightMetres": 7503,
+      "reference": {
+        "name": "臺北市內湖區民權東路六段90巷27號",
+        "coordinate": [
+          25.0673839,
+          121.5861352
+        ],
+        "streetFile": "240ac9728228ce"
+      },
+      "mapOffsetMetres": 20.9,
+      "success": false,
+      "error": "NO_CONNECTION",
+      "distance": null,
+      "sharedMetres": 0,
+      "pedestrianMetres": 0,
+      "footwayMetres": null,
+      "explicitSidewalkMetres": null,
+      "estimatedApproaches": [],
+      "pedestrianImprovement": null,
+      "elapsedMs": 2545
+    },
+    {
+      "bin": "4–8 km",
+      "kind": "map",
+      "selectedSide": "start",
+      "start": {
+        "id": "point-2026111400782",
+        "originKind": "map",
+        "selectionKind": "user",
+        "name": "地圖上選的位置",
+        "lat": 25.02699697707087,
+        "lon": 121.51023053235429
+      },
+      "end": {
+        "id": "w20-59",
+        "kind": "20",
+        "name": "大橋頭(O12)",
+        "lat": 25.06322,
+        "lon": 121.513003,
+        "slopePct": null,
+        "sourceId": "wheel-20",
+        "widthRaw": null,
+        "widthUnitVerified": false,
+        "address": "103041臺北市大同區民權西路223號B1"
+      },
+      "straightMetres": 4037,
+      "reference": {
+        "name": "臺北市中正區寧波西街163號",
+        "coordinate": [
+          25.0272912,
+          121.5109139
+        ],
+        "streetFile": "b7de2922d8c252"
+      },
+      "mapOffsetMetres": 76.2,
+      "success": true,
+      "error": null,
+      "distance": 6126,
+      "sharedMetres": 156.1699167346344,
+      "pedestrianMetres": 5956.581155823123,
+      "footwayMetres": 5956.581155823123,
+      "explicitSidewalkMetres": 4874.31585582312,
+      "estimatedApproaches": [
+        {
+          "side": "start",
+          "distance": 7,
+          "originKind": "map",
+          "unconfirmed": true
+        },
+        {
+          "side": "end",
+          "distance": 6,
+          "originKind": null,
+          "unconfirmed": null
+        }
+      ],
+      "pedestrianImprovement": {
+        "status": "no-improvement",
+        "rolledBack": false,
+        "originalDistanceMetres": 6126.165556502764,
+        "maxDistanceMetres": 6426.165556502764,
+        "originalSharedMetres": 156.1699167346344,
+        "sharedMetres": 156.1699167346344,
+        "originalFootwayMetres": 5956.581155823123,
+        "footwayMetres": 5956.581155823123,
+        "originalExplicitSidewalkMetres": 4874.31585582312,
+        "explicitSidewalkMetres": 4874.31585582312,
+        "radiusMetres": 50,
+        "minimumReductionMetres": 1,
+        "searchLimits": {
+          "maxIterations": 3,
+          "totalMs": 4000,
+          "maxVisited": 40000,
+          "maxComparisons": 100000
+        },
+        "iterations": [
+          {
+            "round": 1,
+            "result": "no-improvement",
+            "reasons": [
+              "insufficient-shared-reduction"
+            ],
+            "attempts": [
+              {
+                "penalty": 2,
+                "pathPenalty": 0,
+                "distanceMetres": 6126.165556502764,
+                "sharedMetres": 156.1699167346344,
+                "footwayMetres": 5956.581155823123,
+                "explicitSidewalkMetres": 4874.31585582312,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 2,
+                "pathPenalty": 1.5,
+                "distanceMetres": 6126.165556502764,
+                "sharedMetres": 156.1699167346344,
+                "footwayMetres": 5956.581155823123,
+                "explicitSidewalkMetres": 4874.31585582312,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 0,
+                "distanceMetres": 6128.218856502764,
+                "sharedMetres": 155.36301673463439,
+                "footwayMetres": 5959.441355823123,
+                "explicitSidewalkMetres": 4877.176055823119,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 1.5,
+                "distanceMetres": 6128.218856502764,
+                "sharedMetres": 155.36301673463439,
+                "footwayMetres": 5959.441355823123,
+                "explicitSidewalkMetres": 4877.176055823119,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 0,
+                "distanceMetres": 6128.218856502764,
+                "sharedMetres": 155.36301673463439,
+                "footwayMetres": 5959.441355823123,
+                "explicitSidewalkMetres": 4877.176055823119,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 1.5,
+                "distanceMetres": 6128.218856502764,
+                "sharedMetres": 155.36301673463439,
+                "footwayMetres": 5959.441355823123,
+                "explicitSidewalkMetres": 4877.176055823119,
+                "reason": "insufficient-shared-reduction"
+              }
+            ]
+          }
+        ]
+      },
+      "elapsedMs": 3531
+    },
+    {
+      "bin": "4–8 km",
+      "kind": "map",
+      "selectedSide": "end",
+      "start": {
+        "id": "w20-3",
+        "kind": "20",
+        "name": "信義安和(R04)",
+        "lat": 25.03331,
+        "lon": 121.55265,
+        "slopePct": null,
+        "sourceId": "wheel-20",
+        "widthRaw": null,
+        "widthUnitVerified": false,
+        "address": "106049臺北市大安區信義路4段212之1號B1"
+      },
+      "end": {
+        "id": "point-2026111400918",
+        "originKind": "map",
+        "selectionKind": "user",
+        "name": "地圖上選的位置",
+        "lat": 25.06391508896017,
+        "lon": 121.52308939564851
+      },
+      "straightMetres": 4521,
+      "reference": {
+        "name": "臺北市中山區民權東路一段7巷11之29號",
+        "coordinate": [
+          25.0634151,
+          121.5233583
+        ],
+        "streetFile": "984400cc434428"
+      },
+      "mapOffsetMetres": 61.8,
+      "success": true,
+      "error": null,
+      "distance": 6189,
+      "sharedMetres": 227.48691472167062,
+      "pedestrianMetres": 5957.656788856917,
+      "footwayMetres": 5957.656788856916,
+      "explicitSidewalkMetres": 4586.273788856919,
+      "estimatedApproaches": [
+        {
+          "side": "end",
+          "distance": 3,
+          "originKind": "map",
+          "unconfirmed": true
+        }
+      ],
+      "pedestrianImprovement": {
+        "status": "no-improvement",
+        "rolledBack": false,
+        "originalDistanceMetres": 6189.126726226518,
+        "maxDistanceMetres": 6489.126726226518,
+        "originalSharedMetres": 227.48691472167062,
+        "sharedMetres": 227.48691472167062,
+        "originalFootwayMetres": 5957.656788856916,
+        "footwayMetres": 5957.656788856916,
+        "originalExplicitSidewalkMetres": 4586.273788856919,
+        "explicitSidewalkMetres": 4586.273788856919,
+        "radiusMetres": 50,
+        "minimumReductionMetres": 1,
+        "searchLimits": {
+          "maxIterations": 3,
+          "totalMs": 4000,
+          "maxVisited": 40000,
+          "maxComparisons": 100000
+        },
+        "iterations": [
+          {
+            "round": 1,
+            "result": "no-improvement",
+            "reasons": [
+              "insufficient-shared-reduction"
+            ],
+            "attempts": [
+              {
+                "penalty": 2,
+                "pathPenalty": 0,
+                "distanceMetres": 6189.126726226518,
+                "sharedMetres": 227.48691472167062,
+                "footwayMetres": 5957.656788856916,
+                "explicitSidewalkMetres": 4586.273788856919,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 2,
+                "pathPenalty": 1.5,
+                "distanceMetres": 6189.126726226518,
+                "sharedMetres": 227.48691472167062,
+                "footwayMetres": 5957.656788856916,
+                "explicitSidewalkMetres": 4586.273788856919,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 0,
+                "distanceMetres": 6189.126726226518,
+                "sharedMetres": 227.48691472167062,
+                "footwayMetres": 5957.656788856916,
+                "explicitSidewalkMetres": 4586.273788856919,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 6,
+                "pathPenalty": 1.5,
+                "distanceMetres": 6189.126726226518,
+                "sharedMetres": 227.48691472167062,
+                "footwayMetres": 5957.656788856916,
+                "explicitSidewalkMetres": 4586.273788856919,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 0,
+                "distanceMetres": 6189.126726226518,
+                "sharedMetres": 227.48691472167062,
+                "footwayMetres": 5957.656788856916,
+                "explicitSidewalkMetres": 4586.273788856919,
+                "reason": "insufficient-shared-reduction"
+              },
+              {
+                "penalty": 12,
+                "pathPenalty": 1.5,
+                "distanceMetres": 6189.126726226518,
+                "sharedMetres": 227.48691472167062,
+                "footwayMetres": 5957.656788856916,
+                "explicitSidewalkMetres": 4586.273788856919,
+                "reason": "insufficient-shared-reduction"
+              }
+            ]
+          }
+        ]
+      },
+      "elapsedMs": 4330
+    }
+  ]
+}

@@ -21,7 +21,7 @@ export function routeAroundConstruction(candidate,start,end,options,snapshot,{ro
   const checked=verifyLocal ? verifyLocal(alternate,start,end,options) : verifyOfficial({...alternate,provider:'taipei-official',segmentPaths:[alternate.coordinates],crossingSegments:[]},start,end);
   if(!checked.error){
    const check=checker.inspect(checked.coordinates);
-   if(!check.blocked.length)return {...checked,provider:'local-detour',construction:{...check,avoided:work.blocked.length}};
+   if(!check.blocked.length)return {...checked,provider:'local-detour',construction:{...check,avoided:work.blocked.length,avoidedWorks:work.blocked}};
   }
  }
  return {error:'CONSTRUCTION_BLOCKED',construction:work};

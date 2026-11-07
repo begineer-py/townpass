@@ -1,6 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createRouter, edgeAllowed, MinHeap } from "../src/routing.mjs";
+import {
+  createRouter,
+  edgeAllowed,
+  MinHeap,
+  STEP_DIAGNOSTIC,
+} from "../src/routing.mjs";
 
 const proof = {
   schemaVersion: 2,
@@ -67,6 +72,14 @@ test("avoids a shorter staircase instead of trading safety for distance", () => 
 test("old preference cannot re-enable stairs", () => {
   const r = createRouter(g)(g.nodes[0], g.nodes[1], { avoidSteps: false });
   assert.equal(r.distance, 64);
+});
+test("internal diagnostic can identify the staircase without exposing it by preference", () => {
+  const r = createRouter(g)(g.nodes[0], g.nodes[1], {
+    avoidSteps: false,
+    stepDiagnostic: STEP_DIAGNOSTIC,
+  });
+  assert.equal(r.distance, 20);
+  assert.equal(r.steps[0].highway, "steps");
 });
 test("known dimensions enforce width and uphill/downhill limits", () => {
   assert.equal(
