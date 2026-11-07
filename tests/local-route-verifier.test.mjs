@@ -173,28 +173,19 @@ test('an exact network endpoint needs no invented road crossing, while a nearby 
  assert.equal(verify(r,a,b).error,undefined);
  assert.equal(verify(r,[25,121.499999],b).error,'OFFICIAL_ENTRY_UNVERIFIED');
 });
-test('a verified shared street remains marked through local verification and fails if its access evidence changes',()=>{
- const g=base();
- g.ways[0]={name:'共道路段',highway:'living_street',source:'osm-shared-street',width:null,slope:null};
+test('local verifier rejects forged shared street geometry even with full topology evidence',()=>{
+ const g=base();g.ways[0]={name:'道路',highway:'living_street',source:'osm-shared-street',width:null,slope:null};
  g.edges[0][5]={...proof,sharedRoad:true,sourceTopologyVerified:true,junctionsVerified:true,roadIntersectionsVerified:true,barriersVerified:true};
- g.roadGeometries=[[[a[1],a[0]],[b[1],b[0]]]];
- const candidate=createRouter(g)(a,b),verify=createLocalRouteVerifier(g);
- assert.equal(candidate.error,undefined);
- const result=verify(candidate,a,b);
- assert.equal(result.error,undefined);assert.equal(result.tierSegments[0].sharedRoad,true);
- assert.equal(result.steps[0].sharedRoad,true);assert.equal(result.tierSegments[0].unknownWidth,true);
- const now=Date.parse('2026-11-07T08:00:00Z'),stamp=new Date(now).toISOString();
- const construction={schemaVersion:1,fetchedAt:stamp,sourceUpdatedAt:stamp,works:[{id:'closure',start:'115/11/07',end:'115/11/07',hours:'24小時施工',impact:'blocked',geometries:[{type:'Point',coordinates:[[25,121.5005]]}]}]};
- assert.equal(routeAroundConstruction(result,a,b,{},construction,{router:createRouter(g),verifyLocal:verify},now).error,'CONSTRUCTION_BLOCKED');
- g.ways[0].foot='no';assert.equal(verify(candidate,a,b).error,'UNVERIFIED_NETWORK');
+ const candidate={coordinates:[a,b],nodeIds:[0,1],edgeIds:[0],steps:[],distance:100};
+ assert.equal(createLocalRouteVerifier(g)(candidate,a,b).error,'UNVERIFIED_NETWORK');
+ assert.ok(createRouter(g)(a,b).error);
 });
-test('residential, service and unclassified roads retain shared-road warnings after verification',()=>{
+test('local verifier rejects residential, service and unclassified road centrelines',()=>{
  for(const highway of ['residential','service','unclassified']){
   const g=base();g.ways[0]={name:'道路',highway,source:'osm-shared-street',width:null,slope:null};
   g.edges[0][5]={...proof,sharedRoad:true,sourceTopologyVerified:true,junctionsVerified:true,roadIntersectionsVerified:true,barriersVerified:true};
-  const candidate=createRouter(g)(a,b),result=createLocalRouteVerifier(g)(candidate,a,b);
-  assert.equal(result.error,undefined,highway);assert.equal(result.tierSegments[0].sharedRoad,true,highway);
-  assert.equal(result.tierSegments[0].unknownWidth,true,highway);assert.equal(result.steps[0].sharedRoad,true,highway);
+  const candidate={coordinates:[a,b],nodeIds:[0,1],edgeIds:[0],steps:[],distance:100};
+  assert.equal(createLocalRouteVerifier(g)(candidate,a,b).error,'UNVERIFIED_NETWORK',highway);
  }
 });
 test('place planning reports a closure when it is the only way, without returning the diagnostic route',()=>{

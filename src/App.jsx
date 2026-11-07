@@ -1776,6 +1776,15 @@ export default function App() {
                     {route.officialConditions?.points?.length > 0 && <p className="quiet-note" role="note">沿途附近有通行問題紀錄，請查看路線詳情。</p>}
                     {route.officialConditions?.status === "unavailable" && <p className="quiet-note" role="note">目前查不到沿途通行問題紀錄。</p>}
                     {routeWorks.length > 0 && <p className="quiet-note" role="note">附近有施工，請留意現場指引。</p>}
+                    <div className="route-key" role="group" aria-label="路線線條說明">
+                      <strong>路線線條說明</strong>
+                      {[...new Set([...(route.tierSegments?.length ? route.tierSegments.map(conditionForSegment) : ['unknown']), ...(route.approaches?.length ? ['approach'] : [])])].map(key => {
+                        const condition = ROUTE_CONDITIONS[key];
+                        return <span key={key}><svg width="52" height="16" aria-hidden="true"><line x1="2" y1="8" x2="50" y2="8" stroke={prefs.colorFriendly ? TPColors.primary900 : condition.color} strokeWidth="6" strokeDasharray={condition.dash}/></svg>{condition.label}</span>;
+                      })}
+                      {route.crossingUncertainties?.length > 0 && <span><svg width="52" height="16" aria-hidden="true"><line x1="2" y1="8" x2="50" y2="8" stroke={TPColors.primary900} strokeWidth="3" strokeDasharray="2 5"/></svg>過街位置來自 OSM，官方資料未完整確認</span>}
+                      <small>線條表示資料狀況，並不代表已確認安全。</small>
+                    </div>
                     {(followState.active || !route.viaName) && <button type="button" className="primary full" disabled={routing && !followState.active} onClick={followState.active ? stopFollowing : startFollowing}>
                       <LocateFixed size={20} aria-hidden="true" />{followState.active ? "停止跟隨" : "開始跟隨"}
                     </button>}
@@ -1826,12 +1835,6 @@ export default function App() {
                       <p className="quiet-note">順路停靠：{route.viaName}</p>
                     )}
                     {route.approaches?.some(p=>p.estimated) && <p className="quiet-note" role="note">位置估算，實際通行狀況未確認；虛線約 {route.approaches.filter(p=>p.estimated).map(p=>p.distance).join('／')} 公尺。</p>}
-                    <div className="route-key" aria-label="路段狀況圖例">
-                      {[...new Set([...(route.tierSegments?.length ? route.tierSegments.map(conditionForSegment) : ['unknown']), ...(route.approaches?.length ? ['approach'] : [])])].map(key => {
-                        const condition = ROUTE_CONDITIONS[key];
-                        return <span key={key}><svg width="32" height="12" aria-hidden="true"><line x1="1" y1="6" x2="31" y2="6" stroke={prefs.colorFriendly ? TPColors.primary900 : condition.color} strokeWidth="3" strokeDasharray={condition.dash}/></svg>{condition.label}</span>;
-                      })}
-                    </div>
                     <p className="quiet-note">線條反映已知資料，實際路況請留意現場。</p>
                     <OfficialConditions conditions={route.officialConditions} onAvoid={avoidOfficialCondition} avoiding={conditionDetourState.status==='loading'}/>
                     {conditionDetourState.status==='loading'&&<p role="status">正在尋找繞路… <button type="button" onClick={()=>conditionDetourSearch.current.cancel()}>取消</button></p>}

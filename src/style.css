@@ -2587,8 +2587,9 @@ small {
 
 .panel[hidden] { display:none; }
 @media(max-width:700px){ .map-search-button ~ .map-dock { top:76px; } .map-search-button ~ .map-compass { top:130px; } }
-.route-key { display:flex; flex-wrap:wrap; gap:6px 14px; margin:12px 0; font-size:var(--tp-text-caption-size); color:var(--tp-grayscale700); }
-.route-key span { display:inline-flex; align-items:center; gap:5px; }
+.route-key { display:flex; flex-direction:column; gap:8px; margin:12px 0; padding:12px; border:1px solid var(--line); border-radius:10px; font-size:14px; color:var(--tp-grayscale700); }
+.route-key span { display:flex; align-items:center; gap:10px; }
+.route-key svg { flex:none; }
 
 .route-alternatives { margin-top: 20px; }
 .route-alternatives h3 { margin-bottom: 6px; }
