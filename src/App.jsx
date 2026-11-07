@@ -1728,6 +1728,7 @@ export default function App() {
                               <b>{c.address}</b>
                               <br />
                               {c.start}—{c.end}
+                              {c.hours && <><br />施工時間：{c.hours}</>}
                               <br />
                               {c.plan || "通行影響請依現場指引確認。"}
                               {c.count > 1 && `（同一工程 ${c.count} 筆通報）`}
