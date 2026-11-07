@@ -19,5 +19,6 @@ test('reference worker independently screens every candidate from the source ass
   const result=replies.at(-1);assert.equal(result.type,'reference-route');assert.equal(result.id,12);assert.equal(result.result.error,undefined);
   assert.equal(result.result.kind,'official-passageway-comparison');const route=result.result.candidates[0].route;assert.equal(route.navigationAllowed,true);assert.equal(route.geometryVerification,undefined);
   assert.ok(route.segments.some(s=>s.kind==='official-line'&&s.qgsFid==='1'));assert.equal(result.result.constructionSourceUpdatedAt,stamp);
+  const candidate=result.result.candidates[0];assert.ok(Math.abs(candidate.coverage.generalSidewalkMetres-route.distanceMetres)<.01);assert.ok(Math.abs(candidate.scoreBreakdown.sidewalk-40)<.01);assert.equal(candidate.scoreBreakdown.officialArea,undefined);
  }finally{globalThis.fetch=oldFetch;globalThis.self=oldSelf;globalThis.postMessage=oldPost;}
 });

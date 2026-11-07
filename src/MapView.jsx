@@ -500,6 +500,10 @@ export default function MapView({
         L.polyline(coords, {color: TPColors.primary900, weight: 3, dashArray: '2 5', opacity: 0.9})
           .bindTooltip('OSM 過街位置，官方資料未完整確認').addTo(path.current);
       }
+      for (const coords of route.crossingSegments || []) {
+        if (!Array.isArray(coords) || coords.length < 2 || !coords.every(p=>Array.isArray(p) && p.length >= 2 && Number.isFinite(p[0]) && Number.isFinite(p[1]))) continue;
+        L.polyline(coords, {color: TPColors.primary900, weight: 3, dashArray: '2 5', opacity: 0.9}).bindTooltip('過街').addTo(path.current);
+      }
       for(const approach of route.approaches || []) {const style=ROUTE_CONDITIONS.approach;L.polyline(approach.coordinates,{color:TPColors.white,weight:8,opacity:1}).addTo(path.current);const line=L.polyline(approach.coordinates,{color:colorFriendly?TPColors.primary900:style.color,weight:4,dashArray:style.dash}).addTo(path.current);if(approach.estimated)line.bindTooltip('入口及實際通行狀況未確認，虛線僅為位置估算');}
       if (!hideMapIcons) drawOfficialConditions(path.current,route.officialConditions);
       const m=map.current;

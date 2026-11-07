@@ -165,7 +165,7 @@ test('official routes obey the same endpoint restriction and mark a GPS approach
   await self.onmessage({data:{type:'init',url:'https://example.test/graph.json'}});
   await self.onmessage({data:{type:'verify-official',id:81,start:p,end:b,route:candidate,options:{startPlace:gps},construction}});
   const result=replies.find(m=>m.id===81)?.result;assert.equal(result.error,undefined);assert.equal(result.approaches[0].estimated,true);assert.equal(result.approaches[0].unconfirmed,true);assert.equal(result.approaches[0].originKind,'gps');
-  const officialChoice=result.routeCandidates?.candidates?.find(c=>c.id==='official');assert.ok(officialChoice);assert.equal(officialChoice.metrics.explicitSidewalkMetres,null);assert.equal(officialChoice.metrics.sharedMetres,null);assert.ok(Number.isFinite(officialChoice.score));
+  const officialChoice=result.routeCandidates?.candidates?.find(c=>c.id==='official');assert.ok(officialChoice);assert.ok(Math.abs(officialChoice.metrics.explicitSidewalkMetres-100.7)<.1);assert.equal(officialChoice.metrics.sharedMetres,null);assert.ok(Number.isFinite(officialChoice.score));
   assert.ok(officialChoice.route.tierSegments.some(s=>s.nearbyOfficialCondition===true));
   assert.deepEqual(result.approaches[0].coordinates,[p,a]);assert.deepEqual(result.networkCoordinates,[a,b]);assert.equal(result.pedestrianImprovement.status,'unsupported-official-provenance');
   const q=[25+3/111195,121.501],selectedStart={id:'address-start',kind:'place',sourceId:'osm',selectionKind:'user',lat:p[0],lon:p[1]},selectedEnd={id:'address-end',kind:'place',sourceId:'osm',selectionKind:'user',lat:q[0],lon:q[1]};

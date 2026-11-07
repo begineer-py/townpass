@@ -174,7 +174,7 @@ function RouteLegend({ segments, colorFriendly }) {
     ...(route.tierSegments?.length ? route.tierSegments.map(conditionForSegment) : [fallbackRouteCondition(route)]),
     ...(route.approaches?.length ? ['approach'] : []),
   ]))];
-  const labelFor = key => key.startsWith('sidewalk') ? '人行道' : key.startsWith('official') ? '官方人行區域' : key.startsWith('shared') ? '人車共行' : key === 'approach' ? '起終點銜接' : '其他人行路段';
+  const labelFor = key => key.startsWith('sidewalk') || key.startsWith('official') ? '一般人行道' : key.startsWith('shared') ? '人車共行' : key === 'crossing' ? '過街' : key === 'approach' ? '起終點銜接' : '其他人行路段';
   const groups = new Map();
   for (const key of keys) {
     const label = labelFor(key);
@@ -187,7 +187,7 @@ function RouteLegend({ segments, colorFriendly }) {
       return <svg key={key} width="52" height="16" aria-hidden="true"><line x1="2" y1="8" x2="50" y2="8" stroke={colorFriendly ? TPColors.primary900 : condition.color} strokeWidth="6" strokeDasharray={condition.dash}/></svg>;
     })}{label}</span>)}
     {segments.some(route => route.tierSegments?.some(segment => segment.nearbyOfficialCondition === true)) && <span><svg width="52" height="16" aria-hidden="true"><line x1="2" y1="8" x2="50" y2="8" stroke="#7036a3" strokeWidth="4" strokeDasharray="3 4"/></svg>不利通行</span>}
-    {segments.some(route => route.crossingUncertainties?.length > 0) && <span><svg width="52" height="16" aria-hidden="true"><line x1="2" y1="8" x2="50" y2="8" stroke={TPColors.primary900} strokeWidth="3" strokeDasharray="2 5"/></svg>過街</span>}
+    {!groups.has('過街') && segments.some(route => route.crossingUncertainties?.length > 0 || route.crossingSegments?.length > 0) && <span><svg width="52" height="16" aria-hidden="true"><line x1="2" y1="8" x2="50" y2="8" stroke={TPColors.primary900} strokeWidth="3" strokeDasharray="2 5"/></svg>過街</span>}
   </div>;
 }
 
@@ -1800,7 +1800,7 @@ export default function App() {
                     </div>
                   </div>
                 )}
-                {(route || routeError) && start && end && referenceState.status==='idle' && <button type="button" onClick={findReferenceRoute}>找官方人行路線</button>}
+                {(route || routeError) && start && end && referenceState.status==='idle' && <button type="button" onClick={findReferenceRoute}>尋找更多人行路線</button>}
                 <ReferenceRouteResult status={referenceState.status} route={referenceRoute} candidates={referenceState.candidates||[]} selected={selectedRouteCandidate} onSelect={selectOfficialCandidate} comparisonStatus={referenceState.comparisonStatus} start={start} end={end} message={referenceState.message} onClose={()=>{if(route?.kind==='official-passageway')clearRoute();else {referenceSearch.current.cancel();referenceSnapshot.current=null;}}} />
                 {route && (
                   <>
@@ -1820,8 +1820,8 @@ export default function App() {
                         <button type="button" aria-pressed={candidateSort==='distance'} onClick={()=>setCandidateSort('distance')}>依距離</button>
                       </div>}
                       {sortedRouteCandidates.map((candidate,index)=>{const m=candidate.metrics; const length=v=>Number.isFinite(v)?formatDistance(v):"資料不足"; return <button type="button" className="route-alternative" key={candidate.id ?? index} aria-pressed={selectedRouteCandidate===candidate.id} onClick={()=>selectRouteCandidate(candidate)}>
-                        <strong>路線 {index+1} · {candidate.route.provider==='taipei-official' ? '官方路線' : '本機路線'} · {length(m.distanceMetres)} · 分數 {candidate.score.toFixed(1)}</strong>
-                        <span>明示人行道 {length(m.explicitSidewalkMetres)} · 其他人行路網 {length(m.otherPedestrianMetres)} · 人車共行 {length(m.sharedMetres)}</span>
+                        <strong>路線 {index+1} · {length(m.distanceMetres)} · 分數 {candidate.score.toFixed(1)}</strong>
+                        <span>一般人行道 {length(m.explicitSidewalkMetres)} · 其他人行路網 {length(m.otherPedestrianMetres)} · 人車共行 {length(m.sharedMetres)}</span>
                         <span>路寬、坡度、路面或過街資料未知 {length(m.unknownMetres)} · 估算銜接 {length(m.estimatedMetres)}</span>
                         <span>較顛簸路面 {length(m.roughMetres)} · 較短候選多走 {length(m.detourMetres)}</span>
                         <span>官方不利通行紀錄（2 公尺內）：{m.officialConditionCount == null ? '資料不足' : `${m.officialConditionCount} 筆`}</span>

@@ -28,7 +28,7 @@ test('rejects stale construction, missing source, known road crossing and known 
 
 test('rebuilds presentation from screened segments instead of trusting forged output',()=>{
  const f=fixture(),route=findProvisionalRoute(f);const checked=verifyOfficialReferenceRoute({...f,route:{...route,coordinates:[f.start,[25.2,121.7],f.end],steps:[{name:'FORGED'}],score:100,unknownGrade:false,endpointAccess:'confirmed'}});
- assert.equal(checked.error,undefined);assert.ok(!checked.coordinates.some(p=>p[0]===25.2));assert.ok(checked.steps.every(s=>s.name!=='FORGED'));assert.equal(checked.unknownGrade,true);assert.equal(checked.endpointAccess,'unconfirmed');assert.equal(checked.score,undefined);assert.ok(checked.steps.some(s=>s.name==='官方通行線'));
+ assert.equal(checked.error,undefined);assert.ok(!checked.coordinates.some(p=>p[0]===25.2));assert.ok(checked.steps.every(s=>s.name!=='FORGED'));assert.equal(checked.unknownGrade,true);assert.equal(checked.endpointAccess,'unconfirmed');assert.equal(checked.score,undefined);assert.ok(checked.steps.some(s=>s.name==='一般人行道'));
 });
 
 test('straight pieces and tiny joins combine without reporting zero metres or fake U-turns',()=>{

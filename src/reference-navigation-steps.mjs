@@ -14,7 +14,7 @@ export function referenceNavigationSteps(segments){
    const join=segment.kind==='source-join'||segment.kind==='osm-join',approach=segment.kind==='endpoint-approach';
    if(join||length<.5||amount<.5){if(!pendingStart)pendingStart=a;pendingDistance+=amount;if(join||approach)pendingUnconfirmed=true;continue;}
    const heading=(Math.atan2((b[1]-a[1])*100700,(b[0]-a[0])*111195)*180/Math.PI+360)%360;
-   const turn=approach?'直行':turnFor(heading),name=segment.kind==='official-line'?'官方通行線':segment.kind==='osm'?(segment.roadName||'人行路段'):'起終點估算銜接';
+   const turn=approach?'直行':turnFor(heading),name=segment.kind==='official-line'?'一般人行道':segment.kind==='osm'?(segment.roadName||'人行路段'):'起終點估算銜接';
    const previous=steps.at(-1),sameRoad=!approach&&previous?.kind===segment.kind&&previous.name===name&&previous.sharedRoad===(segment.sharedRoad===true);
    if(sameRoad&&turn==='直行'){
     previous.distance+=pendingDistance+amount;

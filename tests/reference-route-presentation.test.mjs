@@ -8,8 +8,8 @@ import proj4 from 'proj4';
 const A=[25,121.5],B=[25.0001,121.5],C=[25.000105,121.500002],D=[25.0003,121.5001];
 const route={kind:'official-passageway',verification:'official-source-screened-v1',navigationAllowed:true,distanceMetres:123,segments:[{kind:'endpoint-approach',side:'start',coordinates:[A,A]},{kind:'official-line',coordinates:[A,B]},{kind:'osm-join',coordinates:[B,C]},{kind:'osm',coordinates:[C,D]},{kind:'endpoint-approach',side:'end',coordinates:[D,D]}]};
 test('draws screened source lines, estimated connectors, and OSM bends distinctly',()=>{
- assert.deepEqual(referenceRouteLines(route,{start:A,end:D}).map(x=>x.kind),['join','official','join','pedestrian','join']);
- assert.equal(referenceRouteDistance(route),'123 公尺');assert.match(REFERENCE_NOTICE,/路側、銜接與樓層未確認/);assert.notEqual(REFERENCE_STYLES.official.dashArray,REFERENCE_STYLES.join.dashArray);
+ assert.deepEqual(referenceRouteLines(route,{start:A,end:D}).map(x=>x.kind),['join','sidewalk','join','pedestrian','join']);
+ assert.equal(referenceRouteDistance(route),'123 公尺');assert.match(REFERENCE_NOTICE,/路側、銜接與樓層未確認/);assert.notEqual(REFERENCE_STYLES.sidewalk.dashArray,REFERENCE_STYLES.join.dashArray);
  assert.equal(referenceMetric(null),'未提供');assert.equal(referenceMetric(0),'0 公尺');
 });
 test('refuses unscreened, disconnected, malformed or wrong-endpoint geometry',()=>{
@@ -22,7 +22,7 @@ test('refuses unscreened, disconnected, malformed or wrong-endpoint geometry',()
 });
 test('reverse direction keeps OSM bends and the short connector separate',()=>{
  const reverse={...route,segments:[{kind:'endpoint-approach',side:'start',coordinates:[D,D]},{kind:'osm',coordinates:[D,C]},{kind:'osm-join',coordinates:[C,B]},{kind:'official-line',coordinates:[B,A]},{kind:'endpoint-approach',side:'end',coordinates:[A,A]}]};
- assert.deepEqual(referenceRouteLines(reverse,{start:D,end:A}),[{kind:'join',coordinates:[D,D]},{kind:'pedestrian',coordinates:[D,C]},{kind:'join',coordinates:[C,B]},{kind:'official',coordinates:[B,A]},{kind:'join',coordinates:[A,A]}]);
+ assert.deepEqual(referenceRouteLines(reverse,{start:D,end:A}),[{kind:'join',coordinates:[D,D]},{kind:'pedestrian',coordinates:[D,C]},{kind:'join',coordinates:[C,B]},{kind:'sidewalk',coordinates:[B,A]},{kind:'join',coordinates:[A,A]}]);
 });
 test('screened core output displays the same source geometry in both directions',()=>{
  const twd='+proj=tmerc +lat_0=0 +lon_0=121 +k=0.9999 +x_0=250000 +y_0=0 +ellps=GRS80 +units=m +no_defs';

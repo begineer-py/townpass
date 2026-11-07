@@ -1,3 +1,4 @@
+import {generalSidewalkSegment} from './general-sidewalk.mjs';
 import proj4 from 'proj4';
 import {constructionFresh,createConstructionChecker} from './construction.mjs';
 import {polygonConnectorChecker,roadConnectorChecker} from './geometry.mjs';
@@ -59,7 +60,7 @@ function createProvisionalNetworkInner({parts,sourceHash,graph,osmEdgeIds,snapsh
   if(!e||id>=staticEdgeCount||e[5]?.derivedFrom!=null||!a||!b||a[2]||b[2]||!edgeAllowed(w,routingOptions,e[5])||w.gradeSeparatedPedestrian||(w.bridge&&w.bridge!=='no')||(w.tunnel&&w.tunnel!=='no')||(w.layer!=null&&String(w.layer)!=='0')||(w.level!=null&&String(w.level)!=='0'))continue;
   const line=[a.slice(0,2),...(e[4]||[]),b.slice(0,2)];let usable=true;for(let j=0;j<line.length;j++){budget.check();if(!valid(line[j])||(j>0&&(!checker.allowed([line[j-1],line[j]])||blocked(line[j-1],line[j])||avoided(line[j-1],line[j])))){usable=false;break;}}if(!usable)continue;
   const offsets=[0];for(let j=1;j<line.length;j++){budget.check();offsets.push(offsets.at(-1)+metres(line[j-1],line[j]));}
-  const aa=osmNode(e[0]),bb=osmNode(e[1]),meta={kind:'osm',edgeId:id,grade:'source-dependent',explicitSidewalk:w.highway==='footway'&&w.footway==='sidewalk',sharedRoad:w.source==='osm-shared-street',unknownDimensions:w.width==null||w.slope==null,officialAreaCovered:e[5].coverage>=.9999&&e[5].maxUncoveredMetres<=.05,officialConditionFactor:conditionFactor(line,w.source!=='osm-shared-street'),startOffsetMetres:0,endOffsetMetres:offsets.at(-1)};edge(aa,bb,e[2],line,meta);
+  const aa=osmNode(e[0]),bb=osmNode(e[1]),meta={kind:'osm',edgeId:id,grade:'source-dependent',crossing:w.crossing===true||w.footway==='crossing',explicitSidewalk:w.highway==='footway'&&w.footway==='sidewalk',sharedRoad:w.source==='osm-shared-street',unknownDimensions:w.width==null||w.slope==null,officialAreaCovered:e[5].coverage>=.9999&&e[5].maxUncoveredMetres<=.05,officialConditionFactor:conditionFactor(line,w.source!=='osm-shared-street'),startOffsetMetres:0,endOffsetMetres:offsets.at(-1)};edge(aa,bb,e[2],line,meta);
   const record={id,e,line,aa,bb,meta,offsets,total:offsets.at(-1)};for(let j=1;j<line.length;j++)if(!gridInsert(osmGrid,line[j-1],line[j],{...record,j},budget))return error('PROVISIONAL_SEARCH_LIMIT');
  }
  const seen=new Set();
@@ -109,9 +110,9 @@ function createProvisionalNetworkInner({parts,sourceHash,graph,osmEdgeIds,snapsh
  const expired=()=>timedOut()||Date.now()>deadline;
  const cost=(meta,distance)=>{let extra=0;if(meta.kind==='official-line'||meta.kind==='osm'||meta.kind==='osm-join'){
    const roadDistance=meta.kind==='osm-join'?meta.osmPartDistanceMetres:distance;
-   if(meta.officialAreaCovered!==true)extra+=(profile.area??0)*roadDistance;
+   if(!generalSidewalkSegment(meta) && meta.kind!=='osm-join')extra+=((profile.area??0)+(profile.sidewalk??0))*roadDistance;
    if(Number.isFinite(meta.officialConditionFactor))extra+=(profile.official??0)*meta.officialConditionFactor*roadDistance;
-   if(meta.kind==='osm'||meta.kind==='osm-join'){if(!meta.explicitSidewalk)extra+=(profile.sidewalk??0)*roadDistance;if(meta.sharedRoad)extra+=(profile.shared??0)*roadDistance;}
+   if(meta.kind==='osm'||meta.kind==='osm-join'){if(meta.kind==='osm-join' && !meta.sharedRoad && !meta.explicitSidewalk && !meta.officialAreaCovered)extra+=((profile.area??0)+(profile.sidewalk??0))*roadDistance;if(meta.sharedRoad)extra+=(profile.shared??0)*roadDistance;}
   }
   if(meta.kind==='source-join'||meta.kind==='osm-join')extra+=(profile.join??0)*(1+(meta.gapMetres||0));
   return distance+extra;};
@@ -155,14 +156,14 @@ function createProvisionalNetworkInner({parts,sourceHash,graph,osmEdgeIds,snapsh
  // Unknown dimensions/levels and estimated connectors must never count as a
  // known-clear segment. Each search remains on the same bounded graph.
  function metrics(route,shortest){
-  let areaMetres=0,sidewalkMetres=0,unknownMetres=0,approachMetres=0,joinCount=0;
-  for(const s of route.segments){const d=s.distanceMetres||0;if(s.officialAreaCovered===true)areaMetres+=d;if(s.explicitSidewalk===true)sidewalkMetres+=d;
+  let sidewalkMetres=0,sharedMetres=0,unknownMetres=0,approachMetres=0,joinCount=0;
+  for(const s of route.segments){const d=s.distanceMetres||0;if(generalSidewalkSegment(s))sidewalkMetres+=d;if(s.sharedRoad===true&&s.kind==='osm')sharedMetres+=d;
    if(s.kind==='official-line'||s.kind==='source-join'||s.kind==='osm-join'||s.kind==='endpoint-approach'||s.unknownDimensions!==false)unknownMetres+=d;
    if(s.kind==='endpoint-approach')approachMetres+=d;if(s.kind==='source-join'||s.kind==='osm-join')joinCount++;
   }
- const total=route.distanceMetres||1,detour=Math.max(0,route.distanceMetres-shortest),condition=officialConditionMetrics(route.officialConditions),coverage={officialAreaMetres:areaMetres,explicitSidewalkMetres:sidewalkMetres,unknownMetres,estimatedApproachMetres:approachMetres,unconfirmedJoinCount:joinCount,...condition};
-  const scoreBreakdown={officialArea:10*areaMetres/total,sidewalk:20*sidewalkMetres/total,unknown:-12*unknownMetres/total,estimatedApproach:-15*approachMetres/total,joins:-Math.min(10,joinCount*2),detour:-20*detour/(shortest||1),officialConditions:officialConditionScore(condition.officialConditionWeight)};
-  return {coverage,scoreBreakdown,score:Math.max(0,Math.min(100,50+Object.values(scoreBreakdown).reduce((a,b)=>a+b,0)))};
+ const total=route.distanceMetres||1,detour=Math.max(0,route.distanceMetres-shortest),condition=officialConditionMetrics(route.officialConditions),coverage={generalSidewalkMetres:sidewalkMetres,sharedMetres,unknownMetres,estimatedApproachMetres:approachMetres,unconfirmedJoinCount:joinCount,...condition};
+  const scoreBreakdown={sidewalk:40*sidewalkMetres/total,shared:-25*sharedMetres/total,unknown:-12*unknownMetres/total,estimatedApproach:-15*approachMetres/total,joins:-Math.min(10,joinCount*2),detour:-20*detour/(shortest||1),officialConditions:officialConditionScore(condition.officialConditionWeight)};
+  return {coverage,scoreBreakdown,score:100/(1+Math.exp(-Object.values(scoreBreakdown).reduce((a,b)=>a+b,0)/20))};
  }
  function findCandidates(start,end,{startPlace,endPlace,maxRounds=4,totalMs=2000,maxVisitedTotal=80000}={}){
   if(!Number.isInteger(maxRounds)||maxRounds<1||maxRounds>4||!Number.isFinite(totalMs)||totalMs<=0||totalMs>10000||!Number.isInteger(maxVisitedTotal)||maxVisitedTotal<1||maxVisitedTotal>400000)return error('INVALID_PROVISIONAL_INPUT');

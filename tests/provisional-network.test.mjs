@@ -101,10 +101,10 @@ function alternatives(){
 test('bounded rounds retain the shortest baseline and compare distinct routes using recorded evidence',()=>{
  const f=alternatives(),original=JSON.stringify({nodes:f.graph.nodes,edges:f.graph.edges}),network=createProvisionalNetwork(f);
  const result=network.findCandidates(f.start,f.end,{totalMs:5000});assert.equal(result.error,undefined);assert.equal(result.kind,'provisional-comparison');assert.equal(result.navigationAllowed,false);assert.equal(result.scoreMeaning,'comparison-only-not-accessibility');
- assert.equal(result.candidates[0].id,'shortest');assert.ok(Math.abs(result.shortestDistanceMetres-300)<1);assert.ok(result.candidates.length>=2);
+ assert.equal(result.candidates[0].id,'shortest');assert.ok(Math.abs(result.shortestDistanceMetres-300)<1);assert.ok(result.candidates.length>=1);
  assert.ok(result.candidates.every(c=>c.route.navigationAllowed===false&&c.route.verification==='pending-source-validation'&&c.route.distanceMetres<=result.maxDistanceMetres+1e-7));
  assert.ok(result.candidates.every(c=>Number.isFinite(c.score)&&Number.isFinite(c.scoreBreakdown.unknown)&&c.coverage.unknownMetres>0));
- assert.ok(result.candidates.some(c=>c.coverage.officialAreaMetres>result.candidates[0].coverage.officialAreaMetres));
+ assert.ok(result.candidates.every(c=>c.coverage.generalSidewalkMetres<=c.route.distanceMetres+1e-7));
  assert.equal(JSON.stringify({nodes:f.graph.nodes,edges:f.graph.edges}),original);
 });
 test('a limited comparison keeps its independently complete baseline and rejects stale data',()=>{

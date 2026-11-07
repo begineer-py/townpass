@@ -125,13 +125,13 @@ export function createLocalRouteVerifier(graph,facilities=[],places=[]){
    // rather than trusting annotations on the candidate route.
    const tier=edgeTier(e[5]),unknownWidth=way.width==null,unknownSlope=way.slope==null,
     roughSurface=edgeCostDetails(way,e[5],options).surface>0,
-    sharedRoad=way.source==='osm-shared-street',explicitSidewalk=way.highway==='footway'&&way.footway==='sidewalk'&&!sharedRoad,crossEvidence=crossingEvidence(way,e[5]);
+    sharedRoad=way.source==='osm-shared-street',crossing=way.crossing===true||way.footway==='crossing',explicitSidewalk=way.highway==='footway'&&way.footway==='sidewalk'&&!sharedRoad,crossEvidence=crossingEvidence(way,e[5]);
    verifiedSegments.push({way:e[3],start:segmentCoordinates[0],crossingEvidence:crossEvidence});
    const uncertainty=crossingUncertainty(way,e[5],segmentCoordinates);if(uncertainty)crossingUncertainties.push(uncertainty);
    const last=tierSegments.at(-1);
-   if(last?.tier===tier&&last.unknownWidth===unknownWidth&&last.unknownSlope===unknownSlope&&last.roughSurface===roughSurface&&last.sharedRoad===sharedRoad&&last.explicitSidewalk===explicitSidewalk&&last.crossingEvidence===crossEvidence){
+   if(last?.tier===tier&&last.unknownWidth===unknownWidth&&last.unknownSlope===unknownSlope&&last.roughSurface===roughSurface&&last.sharedRoad===sharedRoad&&last.explicitSidewalk===explicitSidewalk&&last.crossing===crossing&&last.crossingEvidence===crossEvidence){
     last.coordinates.push(...segmentCoordinates.slice(1));last.distance+=e[2];
-   }else tierSegments.push({tier,unknownWidth,unknownSlope,roughSurface,sharedRoad,explicitSidewalk,crossingEvidence:crossEvidence,coordinates:segmentCoordinates,distance:e[2]});
+   }else tierSegments.push({tier,unknownWidth,unknownSlope,roughSurface,sharedRoad,explicitSidewalk,crossing,crossingEvidence:crossEvidence,coordinates:segmentCoordinates,distance:e[2]});
   }
   if(coordinates.length!==route.coordinates?.length||coordinates.some((p,i)=>!same(p,route.coordinates[i])))return {error:'UNVERIFIED_NETWORK'};
   const wayIds=new Set(route.edgeIds.map(id=>graph.edges[id][3]));

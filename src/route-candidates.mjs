@@ -1,3 +1,4 @@
+import {generalSidewalkEdge} from './general-sidewalk.mjs';
 import {crossingEvidence} from './crossing-evidence.mjs';
 import {officialConditionMetrics,officialConditionScore} from './official-conditions.mjs';
 import {constructionFresh} from './construction.mjs';
@@ -36,10 +37,10 @@ function measure(g,route,start,end){
  for(let i=0;i<route.edgeIds.length;i++){
   const e=g.edges[route.edgeIds[i]],a=route.nodeIds[i],b=route.nodeIds[i+1];if(!e||!((e[0]===a&&e[1]===b)||(e[0]===b&&e[1]===a))||!Number.isFinite(e[2])||e[2]<=0)return null;
   const w=g.ways[e[3]],length=e[2];if(!w)return null;network+=length;
-  if(w.source==='osm-shared-street')shared+=length;
-  else if(w.highway==='footway'&&w.footway==='sidewalk')sidewalk+=length;
-  else if(walking.has(w.highway))pedestrian+=length;
   const crossing=w.crossing===true||w.footway==='crossing',sourceProof=e[5]?.derivedFrom!=null?g.edges[e[5].derivedFrom]?.[5]:e[5];
+  if(w.source==='osm-shared-street')shared+=length;
+  else if(generalSidewalkEdge(w,sourceProof))sidewalk+=length;
+  else if(walking.has(w.highway))pedestrian+=length;
   const evidence=crossingEvidence({...w,crossing},sourceProof);
   const crossingUnknown=crossing&&evidence!=='full';
   if(w.width==null||w.slope==null||w.surface==null||crossingUnknown)unknown+=length;
