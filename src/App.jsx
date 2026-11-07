@@ -193,7 +193,7 @@ export default function App() {
   const [data, setData] = useState(null),
     [loading, setLoading] = useState(false),
     [loadError, setLoadError] = useState(false);
-  const [tab, setTab] = useState(null),
+  const [tab, setTab] = useState("plan"),
     [filter, setFilter] = useState("all"),
     [viewport, setViewport] = useState({
       lat: 25.0478,
@@ -220,7 +220,7 @@ export default function App() {
   const [route, setRoute] = useState(null),
     [routeError, setRouteError] = useState(""),
     [routing, setRouting] = useState(false),
-    [graphRequested, setGraphRequested] = useState(false),
+    [graphRequested, setGraphRequested] = useState(true),
     [graphReady, setGraphReady] = useState(false),
     [graphError, setGraphError] = useState(false),
     [status, setStatus] = useState(""),

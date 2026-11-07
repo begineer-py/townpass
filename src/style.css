@@ -1751,7 +1751,7 @@ small {
   .workspace { padding-bottom: env(safe-area-inset-bottom); }
   .panel-handle { display:flex; align-items:center; justify-content:center; gap:8px; flex:0 0 44px; width:100%; min-height:44px; padding:6px 12px; color:var(--tp-grayscale700); background:var(--tp-white); border:0; border-bottom:1px solid var(--tp-grayscale100); font-size:var(--tp-text-bodyRegular-size); touch-action:none; }
   .panel-grip { width:28px; height:4px; border-radius:2px; background:var(--tp-grayscale400); }
-  .workspace .panel { flex:1 1 0; min-height:44px; }
+  .workspace .panel { flex:1 1 0; min-height:44px; width:100%; min-width:0; max-width:100%; border-right:0; }
   .workspace .map-area { flex:1 1 0; min-height:0; }
   .workspace.with-panel .map-area { flex:0 0 47%; min-height:0; transition:flex-basis 320ms cubic-bezier(.22,.61,.36,1); }
   .large-text .workspace.with-panel .map-area { flex-basis:38%; }
