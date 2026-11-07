@@ -322,6 +322,8 @@ export function createRouter(graph) {
         last &&
         last.name === w.name &&
         last.crossing === w.crossing &&
+        last.unknown === (w.width == null || w.slope == null) &&
+        last.roughSurface === (detail.surface > 0) &&
         turn === "直行"
       )
         last.distance += e[2];
@@ -335,6 +337,7 @@ export function createRouter(graph) {
           lon: a[1],
           crossing: w.crossing,
           unknown: w.width == null || w.slope == null,
+          roughSurface: detail.surface > 0,
           highway: w.highway,
         });
       previousBearing = bearing(middle.at(-1) || a, b);
@@ -351,8 +354,9 @@ export function createRouter(graph) {
     const tierSegments=[];
     es.forEach((ei,k)=>{
       const e=graph.edges[ei],tier=edgeTier(e[5]),middle=e[0]===path[k] ? e[4]||[] : [...(e[4]||[])].reverse();
+      const way=graph.ways[e[3]],unknownWidth=way.width==null,unknownSlope=way.slope==null,roughSurface=edgeCostDetails(way,e[5],options).surface>0;
       const coords=[graph.nodes[path[k]].slice(0,2),...middle,graph.nodes[path[k+1]].slice(0,2)],last=tierSegments.at(-1);
-      if(last?.tier===tier){last.coordinates.push(...coords.slice(1));last.distance+=e[2];}else tierSegments.push({tier,coordinates:coords,distance:e[2]});
+      if(last?.tier===tier && last.unknownWidth===unknownWidth && last.unknownSlope===unknownSlope && last.roughSurface===roughSurface){last.coordinates.push(...coords.slice(1));last.distance+=e[2];}else tierSegments.push({tier,unknownWidth,unknownSlope,roughSurface,coordinates:coords,distance:e[2]});
     });
     return {
       policyVersion: ROUTING_POLICY,

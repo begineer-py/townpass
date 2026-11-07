@@ -52,7 +52,8 @@ import {
   Phone,
 } from "lucide-react";
 import MapView from "./MapView";
-import {ROUTE_TIERS} from "./route-tiers.mjs";
+import {ROUTE_CONDITIONS, conditionForSegment} from "./route-conditions.mjs";
+import {TPColors} from "./tp-colors.mjs";
 import VoiceSearch from "./VoiceSearch";
 import {searchVerifiedAlternatives} from "./alternative-routes.mjs";
 import {fetchConstruction} from "./construction-client.mjs";
@@ -95,7 +96,7 @@ import {
 } from "./trip-extras.mjs";
 import { addressSearch, landmarkSearch } from "./address-search";
 import { matchStationLandmark } from "./search-station.mjs";
-import { maintenanceText, sourceCountLabel, stationKey, stepText } from "./format.mjs";
+import { maintenanceText, sourceCountLabel, stationKey, stepText, stepConditions } from "./format.mjs";
 const icons = {
   elevator: ArrowUpFromLine,
   toilet: Toilet,
@@ -959,7 +960,7 @@ export default function App() {
       route.policyVersion !== ROUTING_POLICY
     )
       return;
-    const text = `從${start.name}前往${end.name}，路線長約${formatDistance(route.distance)}。${route.approaches?.some(p=>p.estimated) ? "電梯出口連接為位置估算，請先確認現場入口。" : ""}${route.steps.map((s) => `${stepText(s)}約${Math.round(s.distance)}公尺。`).join("")}路況仍需留意現場，這是路線預覽。`;
+    const text = `從${start.name}前往${end.name}，路線長約${formatDistance(route.distance)}。${route.approaches?.some(p=>p.estimated) ? "電梯出口連接為位置估算，請先確認現場入口。" : ""}${route.steps.map((s) => `${stepText(s)}約${Math.round(s.distance)}公尺。${stepConditions(s) ? stepConditions(s)+'。' : ''}`).join("")}路況仍需留意現場，這是路線預覽。`;
     speakText(text);
   }
   function speakText(text) {
@@ -1422,7 +1423,13 @@ export default function App() {
                       <p className="quiet-note">順路停靠：{route.viaName}</p>
                     )}
                     {route.approaches?.some(p=>p.estimated) && <p className="quiet-note">電梯出口與人行路網銜接約 {route.approaches.filter(p=>p.estimated).map(p=>p.distance).join('／')} 公尺（位置估算，請確認現場入口）。</p>}
-                    {route.tierSegments?.length>0 && <div className="route-key" aria-label="路段圖例">{Object.entries(ROUTE_TIERS).map(([key,tier])=><span key={key}><svg width="25" height="12" aria-hidden="true"><line x1="1" y1="6" x2="24" y2="6" stroke={tier.color} strokeWidth="3" strokeDasharray={tier.dash}/></svg>{tier.label}</span>)}</div>}
+                    <div className="route-key" aria-label="路段狀況圖例">
+                      {[...new Set([...(route.tierSegments?.length ? route.tierSegments.map(conditionForSegment) : ['unknown']), ...(route.approaches?.length ? ['approach'] : [])])].map(key => {
+                        const condition = ROUTE_CONDITIONS[key];
+                        return <span key={key}><svg width="32" height="12" aria-hidden="true"><line x1="1" y1="6" x2="31" y2="6" stroke={prefs.colorFriendly ? TPColors.primary900 : condition.color} strokeWidth="3" strokeDasharray={condition.dash}/></svg>{condition.label}</span>;
+                      })}
+                    </div>
+                    <p className="quiet-note">線條反映已知資料，實際路況請留意現場。</p>
                     <div className="route-summary">
                       <div>
                         <span className="eyebrow">路線預覽</span>
@@ -1524,10 +1531,7 @@ export default function App() {
                               <b>{stepText(s)}</b>
                               <small>
                                 約 {formatDistance(s.distance)}
-                                {s.unknown &&
-                                !route.geometryVerification
-                                  ? " · 通行條件待確認"
-                                  : ""}
+                                {stepConditions(s) ? ` · ${stepConditions(s)}` : ''}
                               </small>
                             </span>
                           </button>

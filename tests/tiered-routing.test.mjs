@@ -4,6 +4,20 @@ import{edgeCostFactor}from'../src/route-tiers.mjs';
 const n=(x,y)=>[25+y/111195,121.5+x/100700,0];
 const proof=(coverage=1)=>({schemaVersion:2,coverage,maxUncoveredMetres:coverage?0:100,crossingCoverage:0,roadCrossingVerified:true,crossingVerified:true});
 const w={highway:'footway',width:2,slope:0};
+test('map segments split at changes in width, slope and recorded rough surface',()=>{
+ const ways=[{...w,name:'同一條路'}, {...w,name:'同一條路',width:null}, {...w,name:'同一條路',slope:null}, {...w,name:'同一條路',surface:'gravel'}];
+ const nodes=[0,10,20,30,40,50].map(x=>n(x,0));
+ const edges=[[0,1,10,0,[],proof()],[1,2,10,1,[],proof()],[2,3,10,2,[],proof()],[3,4,10,3,[],proof()],[4,5,10,3,[],proof()]];
+ const route=createRouter({officialPathEvidence:{schemaVersion:2},nodes,ways,edges})(nodes[0],nodes[5]);
+ assert.equal(route.error,undefined);
+ assert.deepEqual(route.tierSegments.map(s=>[s.tier,s.unknownWidth,s.unknownSlope,s.roughSurface,s.distance]),[
+  ['official',false,false,false,10], ['official',true,false,false,10],
+  ['official',false,true,false,10], ['official',false,false,true,20],
+ ]);
+ assert.ok(route.steps.some(s=>s.unknown));
+ assert.ok(route.steps.some(s=>s.roughSurface));
+ assert.equal(route.tierSegments.reduce((sum,s)=>sum+s.distance,0),50);
+});
 test('weighted route explains penalties without claiming a safety score',()=>{
  const way={highway:'footway',width:null,slope:6,surface:'gravel'};
  const graph={officialPathEvidence:{schemaVersion:2},nodes:[n(0,0),n(100,0)],ways:[way],edges:[[0,1,100,0,[],proof(0)]]};
