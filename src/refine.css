@@ -17,6 +17,7 @@
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --t-fast: 120ms;
   --t-mid: 240ms;
+  --t-slow: 360ms;
 
   /* 半透明材質：地圖上的浮動元件。沒有 backdrop-filter 時退回實色白。 */
   --material: color-mix(in srgb, var(--tp-white) 82%, transparent);
@@ -59,6 +60,30 @@ button:active:not(:disabled),
   transform: scale(0.92);
 }
 
+/* 分頁與清單內容：短距離淡入，避免切換時畫面硬跳。 */
+.panel-scroll > :not(.sr-only),
+.sheet-body > :not(.sheet-head) {
+  animation: content-in var(--t-mid) var(--ease-out) both;
+}
+.facility-row,
+.trip-card,
+.station-group,
+.route-summary,
+.notice,
+.empty-card {
+  animation: content-in var(--t-mid) var(--ease-out) both;
+}
+@keyframes content-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* --- 主要、次要按鈕 ------------------------------------------------------ */
 .primary {
   background: var(--action);
@@ -98,6 +123,23 @@ button:active:not(:disabled),
 .map-fab:hover,
 .dock-group button:hover {
   background: var(--tp-white);
+}
+
+/* 地圖標記只在加入地圖時回彈一次，不持續漂浮。 */
+.fac-pin span,
+.cluster-pin span {
+  animation: pin-in var(--t-slow) var(--ease-spring) both;
+  transform-origin: 50% 100%;
+}
+@keyframes pin-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.72);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 /* 圖資標示：小字、半透明，不搶視線（OpenStreetMap 授權仍保留文字）。 */
@@ -188,6 +230,12 @@ button:active:not(:disabled),
     font-weight: 600;
     background: transparent;
   }
+  .main-nav button svg {
+    transition: transform var(--t-mid) var(--ease-spring);
+  }
+  .main-nav button.active svg {
+    transform: translateY(-1px) scale(1.08);
+  }
   .main-nav button.active:after {
     display: none;
   }
@@ -254,6 +302,22 @@ button:active:not(:disabled),
     0 3px 8px color-mix(in srgb, var(--tp-grayscale950) 12%, transparent);
 }
 
+/* 選項切換時讓選中狀態自然浮起。 */
+.filter-grid button,
+.mode-tabs button,
+.segmented button {
+  transition:
+    transform var(--t-fast) var(--ease-out),
+    background-color var(--t-mid) var(--ease-out),
+    color var(--t-mid) linear,
+    box-shadow var(--t-mid) var(--ease-out);
+}
+.filter-grid button.selected,
+.mode-tabs button.active,
+.segmented button.active {
+  transform: translateY(-1px);
+}
+
 /* --- 提示訊息：從上方滑入的橫幅，不再蓋住抽屜與分頁列 ------------------ */
 .toast {
   top: calc(env(safe-area-inset-top) + 10px);
@@ -300,6 +364,30 @@ button:active:not(:disabled),
 .sheet-dialog {
   border-radius: 16px;
 }
+.sheet-dialog[open] {
+  animation: dialog-in var(--t-slow) var(--ease-spring) both;
+}
+.sheet-dialog[open]::backdrop {
+  animation: backdrop-in var(--t-mid) ease-out both;
+}
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
 
 /* 沒有半透明支援時，材質改成實色，維持文字對比。 */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
@@ -316,6 +404,20 @@ button:active:not(:disabled),
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .panel-scroll > :not(.sr-only),
+  .sheet-body > :not(.sheet-head),
+  .facility-row,
+  .trip-card,
+  .station-group,
+  .route-summary,
+  .notice,
+  .empty-card,
+  .fac-pin span,
+  .cluster-pin span,
+  .sheet-dialog[open],
+  .sheet-dialog[open]::backdrop {
+    animation: none;
+  }
   button:active:not(:disabled),
   .omnibox:active,
   .map-fab:active:not(:disabled),
@@ -324,6 +426,18 @@ button:active:not(:disabled),
   }
   .toast.visible {
     animation: none;
+  }
+  .main-nav button svg,
+  .filter-grid button,
+  .mode-tabs button,
+  .segmented button {
+    transition: none;
+  }
+  .main-nav button.active svg,
+  .filter-grid button.selected,
+  .mode-tabs button.active,
+  .segmented button.active {
+    transform: none;
   }
 }
 
