@@ -857,3 +857,45 @@ button.icon-action {
   background: var(--tp-red700);
   color: var(--tp-white);
 }
+
+/* 需要辨識的功能保留文字，但讓圖示與文字並排，避免圖示下方像註解。 */
+.filter-grid .filter-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+}
+
+.point-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.point-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 46px;
+  padding: 8px 10px;
+  border-radius: var(--r-pill);
+  background: var(--surface-sunken);
+  color: var(--tp-grayscale800);
+}
+
+@media (max-width: 700px) {
+  .main-nav {
+    gap: 6px;
+    padding: 6px 10px calc(6px + env(safe-area-inset-bottom));
+  }
+  .main-nav button {
+    flex-direction: row;
+    gap: 6px;
+    min-height: 44px;
+    padding: 6px 8px;
+    border-radius: var(--r-pill);
+  }
+  .main-nav button.active {
+    background: var(--tp-primary50);
+  }
+}
