@@ -61,6 +61,7 @@ import VoiceSearch from "./VoiceSearch";
 import {searchVerifiedAlternatives} from "./alternative-routes.mjs";
 import {fetchConstruction} from "./construction-client.mjs";
 import {constructionFresh, CONSTRUCTION_MAX_AGE} from "./construction.mjs";
+import { groupConstructionNotices } from "./construction-display.mjs";
 import { requestOfficialRoute } from "./official-router.mjs";
 import { ROUTING_POLICY } from "./routing.mjs";
 import { BASEMAPS } from "./basemaps.mjs";
@@ -417,7 +418,7 @@ export default function App() {
   // Phone bottom sheet: 0 = peek, 1 = half, 2 = full (heights in style.css).
   const panelEl = useRef(),
     gripDragged = useRef(false);
-  const [sheetSnap, setSheetSnap] = useState(1);
+  const [sheetSnap, setSheetSnap] = useState(0);
   // 地圖目前旋轉的角度（不是手機朝向）。指南針指針用它轉回正北。
   const [bearing, setBearing] = useState(0);
   const SHEET_SNAPS = [0.11, 0.56, 0.9];
@@ -1056,7 +1057,7 @@ export default function App() {
       .slice(0, 2)
       .map((s) => ({ s, name: s["車站名稱"], exits: stationsFor(s["車站名稱"]) }));
   }, [searchFor, query, data]);
-  const routeWorks = route?.construction?.nearby?.slice(0,6) || [];
+  const routeWorks = groupConstructionNotices(route?.construction?.nearby);
   const routeFacilities = useMemo(
     () =>
       ["toilet", "rest", "water", "health"]
@@ -1290,6 +1291,16 @@ export default function App() {
               ["展開面板", "面板放到最大", "收合面板，顯示更多地圖"][sheetSnap]
             }
           />
+          <div className="omnibox-wrap">
+            <button
+              className="omnibox"
+              onClick={() => openSearch("explore")}
+              aria-label="搜尋地點、捷運站或路名"
+            >
+              <Search size={20} aria-hidden="true" />
+              <span>搜尋地點、捷運站或路名</span>
+            </button>
+          </div>
           <nav className="main-nav" aria-label="主要功能">
             {[
               ["explore", "找設施", Compass],
@@ -1775,6 +1786,7 @@ export default function App() {
                               {c.start}—{c.end}
                               <br />
                               {c.plan || "通行影響請依現場指引確認。"}
+                              {c.count > 1 && `（同一工程 ${c.count} 筆通報）`}
                             </p>
                           </div>
                         ))}
