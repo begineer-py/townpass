@@ -59,6 +59,7 @@ import OfficialConditions from "./OfficialConditions";
 import {createConditionDetourSearch} from "./condition-detour-search.mjs";
 import {presentRouteCandidates, sortRouteCandidates} from "./route-candidates-presentation.mjs";
 import {ROUTE_CONDITIONS, conditionForSegment, fallbackRouteCondition} from "./route-conditions.mjs";
+import {NO_WALK_URLS, UNKNOWN_NO_WALK_URL} from "./issue-icons.mjs";
 import {TPColors} from "./tp-colors.mjs";
 import VoiceSearch from "./VoiceSearch";
 import {searchVerifiedAlternatives} from "./alternative-routes.mjs";
@@ -1810,6 +1811,7 @@ export default function App() {
                     {routeCandidates.length > 0 && <section className="route-alternatives" aria-label="選擇路線">
                       <h3>選擇路線</h3>
                       <p className="quiet-note">依已知的人行道、路面、坡度、通行紀錄及距離比較。地圖顯示目前選擇的路線，資料不足不代表好走。</p>
+                      <p className="quiet-note">官方紀錄依活動區域分類計分，高的權重較高；分類不代表障礙嚴重度。</p>
                       {routeCandidates.length===1 && <p className="quiet-note">本次搜尋找到一條可比較的路線。</p>}
                       {routeCandidates.length>1 && <div className="candidate-sort" role="group" aria-label="路線排序">
                         <button type="button" aria-pressed={candidateSort==='score'} onClick={()=>setCandidateSort('score')}>較好走優先</button>
@@ -1821,6 +1823,7 @@ export default function App() {
                         <span>路寬、坡度、路面或過街資料未知 {length(m.unknownMetres)} · 估算銜接 {length(m.estimatedMetres)}</span>
                         <span>較顛簸路面 {length(m.roughMetres)} · 較短候選多走 {length(m.detourMetres)}</span>
                         <span>官方不利通行紀錄（2 公尺內）：{m.officialConditionCount == null ? '資料不足' : `${m.officialConditionCount} 筆`}</span>
+                        {m.officialConditionClasses && <span>活動區域分類：高 {m.officialConditionClasses.high} · 中 {m.officialConditionClasses.medium} · 低 {m.officialConditionClasses.low} · 未分類 {m.officialConditionClasses.unknown}</span>}
                         {candidate.assumptions?.includes('official-attributes-missing-whole-route-penalty') && <span>官方資料不足，部分路段特徵未計入；評分包含資料缺失扣分。</span>}
                       </button>;})}
                     </section>}
@@ -2236,6 +2239,7 @@ export default function App() {
                   <span><b>人行道</b>{sidewalkStatus === "loading" && <small>載入中…</small>}{sidewalkStatus === "zoom" && <small>請放大地圖</small>}{sidewalkStatus === "error" && <small>暫時無法載入</small>}</span>
                   <input type="checkbox" checked={showOfficialSidewalk} onChange={(e) => setShowOfficialSidewalk(e.target.checked)} />
                 </label>
+                {showOfficialSidewalk && <div className="issue-legend" aria-label="不利通行圖例"><span className="issue-legend-title">淨寬不足：活動區域分類</span>{[...NO_WALK_URLS,UNKNOWN_NO_WALK_URL].map((url,i)=><span key={url}><img src={url} width="18" height="18" alt="" />{['高','中','低','未提供'][i]}</span>)}<span><i className="issue-ring" aria-hidden="true" />行穿線未設路緣斜坡</span></div>}
                 <label className="toggle-row layers-toggle">
                   <b>在地圖上顯示無障礙設施</b>
                   <input

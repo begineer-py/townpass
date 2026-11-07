@@ -9,7 +9,8 @@ import { focusOffsetForInset, groupMarkers, isMetroStation, metroExitLabelForAcc
 import { useSidewalkLayer } from "./use-sidewalk-layer.js";
 import { isNumberedStationExit, metroExitIconUrl, metroExitLabel } from "./metro-exits.mjs";
 import { loadSidewalkIssues, visibleSidewalkIssues } from "./official-sidewalks.mjs";
-import { NO_WALK_URLS } from "./issue-icons.mjs";
+import { NO_WALK_URLS, UNKNOWN_NO_WALK_URL } from "./issue-icons.mjs";
+import { groupVisibleIssues, hitIssueGroup, issueGroupLabel, routeIssueLabel } from "./issue-presentation.mjs";
 import { metroStationCodes, metroStationIconUrl } from "./metro-station-icons.mjs";
 import { mapIconElement } from "./map-icons.mjs";
 import { mapPickPoint } from "./location.js";
@@ -34,7 +35,7 @@ const isExitSymbol = (p) => p.kind === "metro-exit" || isNumberedStationExit(p);
 const markerKindLabel = (p) => isExitSymbol(p)
   ? metroExitLabelForAccessibility(p)
   : labels[category(p)] || "地點";
-const noWalkImages = NO_WALK_URLS.map((src) => Object.assign(new Image(), { src }));
+const noWalkImages = [...NO_WALK_URLS, UNKNOWN_NO_WALK_URL].map((src) => Object.assign(new Image(), { src }));
 const ImageMark = L.CircleMarker.extend({
   _updatePath() {
     const renderer = this._renderer, img = this.options.image;
@@ -49,8 +50,8 @@ const labelWidth = (name) => Math.min(99, [...name].reduce((w, ch) => w + (ch.ch
 function drawOfficialConditions(group,conditions){
   for(const point of conditions?.points||[]){
     if(!Number.isFinite(point.lat)||!Number.isFinite(point.lon))continue;
-    const label=document.createElement('span');label.textContent=`${point.label}；與路線的實際關係未確認`;
-    L.circleMarker([point.lat,point.lon],{radius:6,color:TPColors.white,weight:2,fillColor:TPColors.orange700,fillOpacity:1}).bindTooltip(label).addTo(group);
+    const text=routeIssueLabel(point), label=document.createElement('span'), popup=document.createElement('span');label.textContent=text;popup.textContent=text;
+    L.circleMarker([point.lat,point.lon],{radius:6,color:TPColors.white,weight:2,fillColor:TPColors.orange700,fillOpacity:1}).bindTooltip(label).bindPopup(popup).addTo(group);
   }
 }
 export default function MapView({
@@ -165,30 +166,58 @@ export default function MapView({
     if (!m || !showOfficialSidewalk) return;
     const pane = m.getPane("sidewalk-issues") || m.createPane("sidewalk-issues", m.getPane("rotatePane") || undefined);
     pane.style.zIndex = "351";
+    // The issue canvas covers the map. Leave it transparent to pointer events
+    // and hit-test only rendered issue symbols at the map container instead.
     pane.style.pointerEvents = "none";
     const renderer = L.canvas({pane: "sidewalk-issues", padding: 0.25});
     const layer = L.layerGroup().addTo(m);
-    let active = true, issues, timer;
+    let active = true, issues, timer, hitGroups = [], hitRadius = 0, hoverFrame = 0;
+    const container = m.getContainer(), tooltip = L.tooltip({direction:'top', offset:[0,-10]}), popup = L.popup({offset:[0,-10]});
+    const hit = (event) => {
+      if (cb.current.pick || event.target.closest?.('.leaflet-control, .leaflet-marker-icon, .leaflet-popup, .leaflet-tooltip')) return null;
+      return hitIssueGroup(hitGroups, m.mouseEventToContainerPoint(event), hitRadius);
+    };
+    const hover = (event) => {
+      cancelAnimationFrame(hoverFrame);
+      hoverFrame=requestAnimationFrame(() => {
+        const group=hit(event);
+        if (!group || m.dragging?.moving()) { tooltip.remove(); return; }
+        const content=document.createElement('span');content.textContent=issueGroupLabel(group.points);
+        tooltip.setLatLng([group.points[0].lat,group.points[0].lon]).setContent(content).addTo(m);
+      });
+    };
+    const click = (event) => {
+      const group=hit(event);if(!group)return;
+      event.preventDefault();event.stopPropagation();
+      const content=document.createElement('span');content.textContent=issueGroupLabel(group.points);
+      popup.setLatLng([group.points[0].lat,group.points[0].lon]).setContent(content).openOn(m);
+    };
+    const leave=()=>tooltip.remove();
+    container.addEventListener('mousemove',hover,true);
+    container.addEventListener('click',click,true);
+    container.addEventListener('mouseleave',leave);
     const draw = () => {
       if (!active) return;
       layer.clearLayers();
+      hitGroups = []; tooltip.remove();
       if (!issues || m.getZoom() < 16) return;
       const z = m.getZoom(), size = z >= 19 ? 28 : z >= 18 ? 24 : z >= 17 ? 20 : 16;
       const cell = z >= 19 ? 38 : z >= 18 ? 46 : z >= 17 ? 54 : 64;
-      const taken = new Set();
-      for (const {lat, lon, kind} of visibleSidewalkIssues(issues, m.getBounds()).sort((a,b) => a.kind-b.kind)) {
-        const point = m.latLngToContainerPoint([lat, lon]), key = `${Math.floor(point.x/cell)}:${Math.floor(point.y/cell)}`;
-        if (taken.has(key)) continue;
-        taken.add(key);
-        if (kind === 3) L.circleMarker([lat, lon], {renderer, pane:"sidewalk-issues", radius:size*0.32, color:TPColors.red600, weight:z>=18?3:2.5, fillColor:TPColors.white, fillOpacity:1, interactive:false}).addTo(layer);
-        else new ImageMark([lat, lon], {renderer, pane:"sidewalk-issues", radius:size/2, image:noWalkImages[kind], interactive:false}).addTo(layer);
+      const groups = groupVisibleIssues(visibleSidewalkIssues(issues, m.getBounds()), p => m.latLngToContainerPoint([p.lat,p.lon]), cell);
+      hitRadius = Math.max(12, size/2);
+      for (const group of groups) {
+        const {lat, lon, kind} = group[0], text=issueGroupLabel(group);
+        const {x,y}=m.latLngToContainerPoint([lat,lon]);hitGroups.push({x,y,points:group});
+        const mark = kind === 3 ? L.circleMarker([lat, lon], {renderer, pane:"sidewalk-issues", radius:size*0.32, color:TPColors.red600, weight:z>=18?3:2.5, fillColor:TPColors.white, fillOpacity:1})
+          : new ImageMark([lat, lon], {renderer, pane:"sidewalk-issues", radius:size/2, image:noWalkImages[kind===4?3:kind]});
+        mark.addTo(layer);
       }
     };
     const schedule = () => {clearTimeout(timer); timer=setTimeout(draw,120);};
     loadSidewalkIssues().then((data) => {if (!active) return; issues=data; draw();}).catch(() => {});
     for (const img of noWalkImages) if (!img.complete) img.addEventListener("load", draw, {once:true});
     m.on("moveend", schedule);
-    return () => {active=false; clearTimeout(timer); m.off("moveend", schedule); layer.remove(); renderer.remove();};
+    return () => {active=false; clearTimeout(timer); cancelAnimationFrame(hoverFrame); container.removeEventListener('mousemove',hover,true);container.removeEventListener('click',click,true);container.removeEventListener('mouseleave',leave);tooltip.remove();popup.remove();m.off("moveend", schedule);layer.remove();renderer.remove();};
   }, [showOfficialSidewalk]);
   useEffect(() => {
     if (!map.current) return;

@@ -1,5 +1,6 @@
 import {useEffect,useMemo,useState} from 'react';
 import {AlertTriangle} from 'lucide-react';
+import {officialConditionClass} from './official-conditions.mjs';
 
 // Request individual public record IDs only; do not send the route coordinates.
 export default function OfficialConditions({conditions,onAvoid,avoiding}){
@@ -25,8 +26,8 @@ export default function OfficialConditions({conditions,onAvoid,avoiding}){
  return <section className="notice" aria-label="附近不利通行紀錄">
   <AlertTriangle aria-hidden="true"/><div><p>路線 10 公尺內有 {points.length} 筆官方紀錄，地圖已標示。點位可能在道路另一側，與路線的關係及現況未確認。</p>
    <p>資料擷取：{new Date(conditions.fetchedAt).toLocaleString('zh-TW',{timeZone:'Asia/Taipei'})}；官方未提供紀錄更新時間。</p>
-   <ul>{visible.map(p=>{const detail=details[p.id];return <li key={`${p.type}:${p.id}`}>
-    <span>{p.type==='missing_noCurbSlope'?'淨寬不足':'行穿線未設路緣斜坡'}，距路線約 {Math.round(p.distanceMetres)} 公尺{p.type==='missing_noCurbSlope'?`；原因：${detail?(detail.error?'暫時無法取得':detail.cause||'未提供'):ids.includes(p.id)?'查詢中':'未查詢'}`:''}{detail?.activity?`；活動區域分類：${detail.activity}`:''}。</span>{' '}
+   <ul>{visible.map(p=>{const detail=details[p.id],level={high:'高',medium:'中',low:'低',unknown:'未提供'}[officialConditionClass(p)];return <li key={`${p.type}:${p.id}`}>
+    <span>{p.type==='missing_noCurbSlope'?'淨寬不足':'行穿線未設路緣斜坡'}，距路線約 {Math.round(p.distanceMetres)} 公尺；活動區域分類：{level}{p.type==='missing_noCurbSlope'?`；原因：${detail?(detail.error?'暫時無法取得':detail.cause||'未提供'):ids.includes(p.id)?'查詢中':'未查詢'}`:''}。</span>{' '}
     {p.type==='missing_noCurbSlope'&&!ids.includes(p.id)&&<><button type="button" onClick={()=>setRequested(old=>[...old,p.id])}>查詢原因</button>{' '}</>}
     <button type="button" disabled={avoiding} onClick={()=>onAvoid(p)}>嘗試繞過</button>
    </li>;})}</ul>

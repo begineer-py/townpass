@@ -1,4 +1,5 @@
 import { eligibleSharedRoad } from "./shared-road-policy.mjs";
+import { officialConditionWeight } from "./official-conditions.mjs";
 import { diagnoseRouteGap } from "./route-gap.mjs";
 import { roadConnectorChecker } from "./geometry.mjs";
 import { officialGeometryEvidence } from "./supplemental-evidence.mjs";
@@ -132,8 +133,8 @@ export function createRouter(graph) {
       // geometry; never turn a nearby observation into a hard road closure.
       const pedestrian=['footway','path','pedestrian','corridor'].includes(way.highway);
       const line=[graph.nodes[edge[0]],...(edge[4]||[]),graph.nodes[edge[1]]];
-      const count=pedestrian?graph.officialConditionIndex.find(line,2).length:0;
-      conditionCosts.set(index,Math.min(2,count*0.35));
+      const weight=pedestrian?graph.officialConditionIndex.find(line,2).reduce((sum,p)=>sum+officialConditionWeight(p),0):0;
+      conditionCosts.set(index,Math.min(2,weight*0.175));
     }
     return conditionCosts.get(index);
   }

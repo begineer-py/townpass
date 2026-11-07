@@ -32,3 +32,4 @@ export const noWalkSvg = (color) => `<svg xmlns="http://www.w3.org/2000/svg" wid
 export const NO_WALK_URLS = ISSUE_LEVELS.map(
   ({ color }) => `data:image/svg+xml;charset=utf-8,${encodeURIComponent(noWalkSvg(color))}`,
 );
+export const UNKNOWN_NO_WALK_URL = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(noWalkSvg(TPColors.grayscale600))}`;

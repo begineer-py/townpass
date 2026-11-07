@@ -92,12 +92,13 @@ export async function loadOfficialSidewalks() {
 // （API 欄位名稱是 missing_noCurbSlope，但平臺圖例標示為「不利通行-淨寬不足」。）
 export const SIDEWALK_ISSUES_URL =
   "https://tppano.gov.taipei/tp_roadsidewalkplatform_be/api/C00/C10/C11_mapStreetView/missing_v2";
-// 種類代碼：0 不利通行（高）、1 不利通行（中）、2 不利通行（低）、3 行穿線未設置路緣斜坡。
+// 種類代碼：0 高、1 中、2 低、3 行穿線未設斜坡、4 分類未知。
 export const SIDEWALK_ISSUE_KINDS = [
   "不利通行－淨寬不足（活動區域高）",
   "不利通行－淨寬不足（活動區域中）",
   "不利通行－淨寬不足（活動區域低）",
   "行穿線未設置路緣斜坡",
+  "不利通行－淨寬不足（活動區域分類未知）",
 ];
 const LEVEL = { 高: 0, 中: 1, 低: 2 };
 
@@ -123,7 +124,7 @@ export function parseSidewalkIssues(payload) {
   for (const row of noSlope) {
     const point = parsePoint(row?.STAsText),
       level = /-(高|中|低)$/.exec(String(row?.type || ""))?.[1];
-    if (point) points.push({ x: point[0], y: point[1], kind: LEVEL[level] ?? 1 });
+    if (point) points.push({ x: point[0], y: point[1], kind: LEVEL[level] ?? 4 });
   }
   for (const row of crosswalk) {
     const point = parsePoint(row?.STAsText);
