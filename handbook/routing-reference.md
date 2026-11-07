@@ -67,12 +67,9 @@ python -m venv .venv
 
 ```sh
 curl -L --fail --retry 3 -C - -o data/raw/taiwan.osm.pbf https://download.geofabrik.de/asia/taiwan-latest.osm.pbf
-.venv/Scripts/python scripts/build_graph.py
-.venv/Scripts/python scripts/pack_data.py
-.venv/Scripts/python scripts/integrate_official_paths.py
-npm test
-npm run build
 ```
+
+舊的 `scripts/pack_data.py` 已停用：它會覆蓋增補設施並刪除路網的安全證據。現行路網更新與驗證步驟見[分級權重與接點搜尋](apis/tiered-routing.md)；在完成全流程及檢查前不要替換已驗證的正式資料。
 
 維修預排 resource ID 隨月份變更，更新前應核對資料集最新資源。不要把 manifest 的取得時間稱作現場調查時間。更新來源後重新 build，Service Worker 的版本會跟著資料變更。
 
@@ -158,3 +155,29 @@ npm run build
 `audit_coverage_expansion.py` 比較相同公開路線加入前後的完整多邊形覆蓋；`audit-official-geometry.mjs` 繼續檢查完整路線及入口。萬華樣本缺圖長度119.789→42.692公尺、北投279.509→190.271公尺。原9組仍未全程通過，因此本輪沒有證據能宣稱拒絕率下降，更不能宣稱0拒絕。
 
 目前graph gzip約17.38MB，較舊版增加約7MB，首次載入較重；Worker背景處理，沒有把它轉成主執行緒的全市繪圖圖層。現地施工、圖資偏移及缺漏仍需後續補齊。
+
+
+## 車站入口與本機人行路網規則更新
+
+車站名稱先依官方metro-elevator資料比對同一車站出口，逐對計算後選較短的結果，畫面顯示實際選用的出口。地面路線不包含車站內部月台至出口的動線。
+
+本機結果改以實際edgeIds/nodeIds重建幾何驗證，檢查獨立人行道路型態、過街證據、階梯／障礙／樓層及使用者條件，車道不能因圖資缺漏被放行。OSM明確人行線不再因另一份官方面未完整覆蓋而整段拒絕；官方API候選仍走原有面驗證。
+
+一般選點到路網的銜接仍需人行面及完整車道交會檢查；只有對得上已收錄捷運出口 ID 與座標的入口，允許 50 公尺內、未跨未驗證車道的位置估算銜接。這是直線估算，通行狀況未確認，不代表有鋪面、坡道或無障礙條件；畫成虛線，摘要及朗讀明示。限制已知條件模式不接受未覆蓋的估算銜接，施工檢查仍涵蓋整段入口線。
+
+目前台北車站R10至善導寺BL13測得M4電梯至3號出口電梯約1156公尺；無一般車道邊，施工通報比對未命中。入口估算約5／11公尺，完整坡度與淨寬仍缺值，不能稱為全程輪椅認證。其他臺北地點仍需逐例驗證，不宣稱任意室內／封閉場所皆可連接。
+
+## 人車共道路網重建
+
+人車共道只使用 OSM 標為 `living_street` 的地面道路；資料未證實實際路寬、坡度、即時障礙或輪椅可通行性。路由會優先既有人行路段，共道路段需顯示提醒；禁止通行、私人通道、明確障礙及無法確認的車道交會仍排除。
+
+若重新建立或更新 `public/data/graph.json.gz`，需使用相同的 OSM PBF 更新候選並再次整合：
+
+```powershell
+.\.venv\Scripts\python.exe scripts\extract_shared_candidates.py
+.\.venv\Scripts\python.exe scripts\integrate_shared_roads.py
+npm test
+npm run build
+```
+
+整合腳本只依原始 OSM 節點編號建立連接，不因座標相近自行連接；與其他車道的交會須在官方行穿區內，或是與另一條 `living_street` 共用原始端點。候選資料及路網都不是現場安全保證；施工封閉仍由現有檢查排除。OSM 的共道標籤可能不足，未標記的道路不會因缺乏禁止資料而自動納入。

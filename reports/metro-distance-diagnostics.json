@@ -1,0 +1,700 @@
+{
+  "checkedAt": "2026-11-07T13:07:47.558Z",
+  "method": "For each station in NO_CONNECTION pairs, probe up to four selected entrances with and without only the entrance polygon/elevator condition; road-intersection and blocked-node rules remain. No construction in this isolated probe. SAME_POINT means an eligible snap was found, not that the route is safe or connected.",
+  "stations": [
+    {
+      "id": "w20-97",
+      "name": "科技大樓(BR08)",
+      "strictReachable": true,
+      "relaxedReachable": true,
+      "probes": [
+        {
+          "name": "科技大樓站出口電梯1",
+          "id": "metro-exits-8",
+          "strict": "SAME_POINT",
+          "relaxedApproach": "SAME_POINT",
+          "nearestGraphNodeMetres": null
+        },
+        {
+          "name": "科技大樓站出口電梯4",
+          "id": "metro-exits-9",
+          "strict": "SAME_POINT",
+          "relaxedApproach": "SAME_POINT",
+          "nearestGraphNodeMetres": null
+        }
+      ]
+    },
+    {
+      "id": "w20-98",
+      "name": "六張犁(BR07)",
+      "strictReachable": false,
+      "relaxedReachable": true,
+      "probes": [
+        {
+          "name": "六張犁站出口電梯",
+          "id": "metro-exits-7",
+          "strict": "NO_CONNECTION",
+          "relaxedApproach": "SAME_POINT",
+          "nearestGraphNodeMetres": 26
+        }
+      ]
+    },
+    {
+      "id": "w20-86",
+      "name": "東湖(BR22)",
+      "strictReachable": false,
+      "relaxedReachable": true,
+      "probes": [
+        {
+          "name": "東湖站出口電梯1",
+          "id": "metro-exits-30",
+          "strict": "NO_CONNECTION",
+          "relaxedApproach": "SAME_POINT",
+          "nearestGraphNodeMetres": 28
+        },
+        {
+          "name": "東湖站出口電梯2",
+          "id": "metro-exits-31",
+          "strict": "NO_CONNECTION",
+          "relaxedApproach": "SAME_POINT",
+          "nearestGraphNodeMetres": 28
+        },
+        {
+          "name": "東湖站出口電梯3",
+          "id": "metro-exits-32",
+          "strict": "NO_CONNECTION",
+          "relaxedApproach": "SAME_POINT",
+          "nearestGraphNodeMetres": 16
+        }
+      ]
+    },
+    {
+      "id": "w20-87",
+      "name": "葫洲(BR21)",
+      "strictReachable": true,
+      "relaxedReachable": true,
+      "probes": [
+        {
+          "name": "葫洲站出口電梯1",
+          "id": "metro-exits-28",
+          "strict": "SAME_POINT",
+          "relaxedApproach": "SAME_POINT",
+          "nearestGraphNodeMetres": null
+        },
+        {
+          "name": "葫洲站出口電梯2",
+          "id": "metro-exits-29",
+          "strict": "NO_CONNECTION",
+          "relaxedApproach": "NO_CONNECTION",
+          "nearestGraphNodeMetres": 90
+        }
+      ]
+    },
+    {
+      "id": "w20-10",
+      "name": "西門(G12)",
+      "strictReachable": true,
+      "relaxedReachable": true,
+      "probes": [
+        {
+          "name": "西門站出口電梯1",
+          "id": "metro-exits-165",
+          "strict": "SAME_POINT",
+          "relaxedApproach": "SAME_POINT",
+          "nearestGraphNodeMetres": null
+        },
+        {
+          "name": "西門站出口電梯2",
+          "id": "metro-exits-166",
+          "strict": "SAME_POINT",
+          "relaxedApproach": "SAME_POINT",
+          "nearestGraphNodeMetres": null
+        }
+      ]
+    },
+    {
+      "id": "w20-76",
+      "name": "北門(G13)",
+      "strictReachable": false,
+      "relaxedReachable": true,
+      "probes": [
+        {
+          "name": "北門站出口電梯1",
+          "id": "metro-exits-122",
+          "strict": "NO_CONNECTION",
+          "relaxedApproach": "SAME_POINT",
+          "nearestGraphNodeMetres": 55
+        },
+        {
+          "name": "北門站出口電梯2",
+          "id": "metro-exits-123",
+          "strict": "NO_CONNECTION",
+          "relaxedApproach": "SAME_POINT",
+          "nearestGraphNodeMetres": 29
+        }
+      ]
+    },
+    {
+      "id": "w20-100",
+      "name": "辛亥(BR05)",
+      "strictReachable": true,
+      "relaxedReachable": true,
+      "probes": [
+        {
+          "name": "辛亥站出口無障礙坡道",
+          "id": "metro-exits-5",
+          "strict": "SAME_POINT",
+          "relaxedApproach": "SAME_POINT",
+          "nearestGraphNodeMetres": null
+        }
+      ]
+    },
+    {
+      "id": "w20-101",
+      "name": "萬芳醫院(BR04)",
+      "strictReachable": false,
+      "relaxedReachable": true,
+      "probes": [
+        {
+          "name": "萬芳醫院站出口電梯",
+          "id": "metro-exits-4",
+          "strict": "NO_CONNECTION",
+          "relaxedApproach": "SAME_POINT",
+          "nearestGraphNodeMetres": 12
+        }
+      ]
+    },
+    {
+      "id": "w20-73",
+      "name": "南京復興(G16)",
+      "strictReachable": false,
+      "relaxedReachable": true,
+      "probes": [
+        {
+          "name": "南京復興站出口電梯1",
+          "id": "metro-exits-116",
+          "strict": "NO_CONNECTION",
+          "relaxedApproach": "SAME_POINT",
+          "nearestGraphNodeMetres": 17
+        },
+        {
+          "name": "南京復興站出口電梯2",
+          "id": "metro-exits-117",
+          "strict": "NO_CONNECTION",
+          "relaxedApproach": "SAME_POINT",
+          "nearestGraphNodeMetres": 20
+        },
+        {
+          "name": "南京復興站出口電梯3",
+          "id": "metro-exits-118",
+          "strict": "NO_CONNECTION",
+          "relaxedApproach": "SAME_POINT",
+          "nearestGraphNodeMetres": 10
+        }
+      ]
+    },
+    {
+      "id": "w20-94",
+      "name": "中山國中(BR12)",
+      "strictReachable": false,
+      "relaxedReachable": true,
+      "probes": [
+        {
+          "name": "中山國中站出口電梯",
+          "id": "metro-exits-10",
+          "strict": "NO_CONNECTION",
+          "relaxedApproach": "SAME_POINT",
+          "nearestGraphNodeMetres": 31
+        }
+      ]
+    },
+    {
+      "id": "w20-99",
+      "name": "麟光(BR06)",
+      "strictReachable": true,
+      "relaxedReachable": true,
+      "probes": [
+        {
+          "name": "麟光站出口無障礙坡道",
+          "id": "metro-exits-6",
+          "strict": "SAME_POINT",
+          "relaxedApproach": "SAME_POINT",
+          "nearestGraphNodeMetres": null
+        }
+      ]
+    },
+    {
+      "id": "w20-102",
+      "name": "萬芳社區(BR03)",
+      "strictReachable": false,
+      "relaxedReachable": true,
+      "probes": [
+        {
+          "name": "萬芳社區站出口無障礙坡道",
+          "id": "metro-exits-3",
+          "strict": "NO_CONNECTION",
+          "relaxedApproach": "SAME_POINT",
+          "nearestGraphNodeMetres": 37
+        }
+      ]
+    },
+    {
+      "id": "w20-103",
+      "name": "木柵(BR02)",
+      "strictReachable": false,
+      "relaxedReachable": true,
+      "probes": [
+        {
+          "name": "木柵站出口無障礙坡道",
+          "id": "metro-exits-2",
+          "strict": "NO_CONNECTION",
+          "relaxedApproach": "SAME_POINT",
+          "nearestGraphNodeMetres": 47
+        }
+      ]
+    },
+    {
+      "id": "w20-104",
+      "name": "動物園(BR01)",
+      "strictReachable": false,
+      "relaxedReachable": true,
+      "probes": [
+        {
+          "name": "動物園站出口電梯1",
+          "id": "metro-exits-0",
+          "strict": "NO_CONNECTION",
+          "relaxedApproach": "SAME_POINT",
+          "nearestGraphNodeMetres": 27
+        },
+        {
+          "name": "動物園站出口電梯2",
+          "id": "metro-exits-1",
+          "strict": "NO_CONNECTION",
+          "relaxedApproach": "SAME_POINT",
+          "nearestGraphNodeMetres": 32
+        }
+      ]
+    },
+    {
+      "id": "w20-62",
+      "name": "行天宮(O09)",
+      "strictReachable": true,
+      "relaxedReachable": true,
+      "probes": [
+        {
+          "name": "行天宮站出口電梯",
+          "id": "metro-exits-138",
+          "strict": "SAME_POINT",
+          "relaxedApproach": "SAME_POINT",
+          "nearestGraphNodeMetres": null
+        }
+      ]
+    },
+    {
+      "id": "w20-105",
+      "name": "南港展覽館(BL23)",
+      "strictReachable": true,
+      "relaxedReachable": true,
+      "probes": [
+        {
+          "name": "南港展覽館站出口電梯1",
+          "id": "metro-exits-180",
+          "strict": "NO_CONNECTION",
+          "relaxedApproach": "SAME_POINT",
+          "nearestGraphNodeMetres": 16
+        },
+        {
+          "name": "南港展覽館站出口電梯2",
+          "id": "metro-exits-181",
+          "strict": "SAME_POINT",
+          "relaxedApproach": "SAME_POINT",
+          "nearestGraphNodeMetres": null
+        },
+        {
+          "name": "南港展覽館站出口電梯3",
+          "id": "metro-exits-182",
+          "strict": "SAME_POINT",
+          "relaxedApproach": "SAME_POINT",
+          "nearestGraphNodeMetres": null
+        }
+      ]
+    },
+    {
+      "id": "w20-2",
+      "name": "復興崗(R23)",
+      "strictReachable": true,
+      "relaxedReachable": true,
+      "probes": [
+        {
+          "name": "復興崗站出口無障礙坡道",
+          "id": "metro-exits-68",
+          "strict": "SAME_POINT",
+          "relaxedApproach": "SAME_POINT",
+          "nearestGraphNodeMetres": null
+        },
+        {
+          "name": "復興崗站出口二北投會館電梯",
+          "id": "metro-exits-69",
+          "strict": "NO_CONNECTION",
+          "relaxedApproach": "NO_CONNECTION",
+          "nearestGraphNodeMetres": 35
+        }
+      ]
+    },
+    {
+      "id": "w20-29",
+      "name": "北投(R22)",
+      "strictReachable": true,
+      "relaxedReachable": true,
+      "probes": [
+        {
+          "name": "北投站出口無障礙坡道1",
+          "id": "metro-exits-65",
+          "strict": "SAME_POINT",
+          "relaxedApproach": "SAME_POINT",
+          "nearestGraphNodeMetres": null
+        },
+        {
+          "name": "北投站出口無障礙坡道2",
+          "id": "metro-exits-66",
+          "strict": "SAME_POINT",
+          "relaxedApproach": "SAME_POINT",
+          "nearestGraphNodeMetres": null
+        }
+      ]
+    },
+    {
+      "id": "w20-45",
+      "name": "大安森林公園(R06)",
+      "strictReachable": true,
+      "relaxedReachable": true,
+      "probes": [
+        {
+          "name": "大安森林公園站出口電梯1",
+          "id": "metro-exits-80",
+          "strict": "SAME_POINT",
+          "relaxedApproach": "SAME_POINT",
+          "nearestGraphNodeMetres": null
+        },
+        {
+          "name": "大安森林公園站出口電梯2",
+          "id": "metro-exits-81",
+          "strict": "SAME_POINT",
+          "relaxedApproach": "SAME_POINT",
+          "nearestGraphNodeMetres": null
+        },
+        {
+          "name": "大安森林公園站出口電梯3",
+          "id": "metro-exits-82",
+          "strict": "SAME_POINT",
+          "relaxedApproach": "SAME_POINT",
+          "nearestGraphNodeMetres": null
+        }
+      ]
+    },
+    {
+      "id": "w20-80",
+      "name": "公館(G07)",
+      "strictReachable": true,
+      "relaxedReachable": true,
+      "probes": [
+        {
+          "name": "公館站出口電梯1",
+          "id": "metro-exits-104",
+          "strict": "SAME_POINT",
+          "relaxedApproach": "SAME_POINT",
+          "nearestGraphNodeMetres": null
+        },
+        {
+          "name": "公館站出口電梯2",
+          "id": "metro-exits-105",
+          "strict": "SAME_POINT",
+          "relaxedApproach": "SAME_POINT",
+          "nearestGraphNodeMetres": null
+        }
+      ]
+    },
+    {
+      "id": "w20-71",
+      "name": "南京三民(G18)",
+      "strictReachable": true,
+      "relaxedReachable": true,
+      "probes": [
+        {
+          "name": "南京三民站出口電梯1",
+          "id": "metro-exits-111",
+          "strict": "SAME_POINT",
+          "relaxedApproach": "SAME_POINT",
+          "nearestGraphNodeMetres": null
+        },
+        {
+          "name": "南京三民站出口電梯2",
+          "id": "metro-exits-112",
+          "strict": "SAME_POINT",
+          "relaxedApproach": "SAME_POINT",
+          "nearestGraphNodeMetres": null
+        }
+      ]
+    },
+    {
+      "id": "w20-36",
+      "name": "劍潭(R15)",
+      "strictReachable": true,
+      "relaxedReachable": true,
+      "probes": [
+        {
+          "name": "劍潭站出口無障礙坡道1",
+          "id": "metro-exits-50",
+          "strict": "SAME_POINT",
+          "relaxedApproach": "SAME_POINT",
+          "nearestGraphNodeMetres": null
+        },
+        {
+          "name": "劍潭站出口無障礙坡道2",
+          "id": "metro-exits-51",
+          "strict": "SAME_POINT",
+          "relaxedApproach": "SAME_POINT",
+          "nearestGraphNodeMetres": null
+        },
+        {
+          "name": "劍潭站出口無障礙坡道3",
+          "id": "metro-exits-52",
+          "strict": "SAME_POINT",
+          "relaxedApproach": "SAME_POINT",
+          "nearestGraphNodeMetres": null
+        }
+      ]
+    },
+    {
+      "id": "w20-15",
+      "name": "文德(BR18)",
+      "strictReachable": true,
+      "relaxedReachable": true,
+      "probes": [
+        {
+          "name": "文德站出口電梯1",
+          "id": "metro-exits-22",
+          "strict": "SAME_POINT",
+          "relaxedApproach": "SAME_POINT",
+          "nearestGraphNodeMetres": null
+        },
+        {
+          "name": "文德站出口電梯2",
+          "id": "metro-exits-23",
+          "strict": "NO_CONNECTION",
+          "relaxedApproach": "NO_CONNECTION",
+          "nearestGraphNodeMetres": 28
+        }
+      ]
+    },
+    {
+      "id": "w20-37",
+      "name": "圓山(R14)",
+      "strictReachable": true,
+      "relaxedReachable": true,
+      "probes": [
+        {
+          "name": "圓山站出口無障礙坡道1",
+          "id": "metro-exits-48",
+          "strict": "SAME_POINT",
+          "relaxedApproach": "SAME_POINT",
+          "nearestGraphNodeMetres": null
+        }
+      ]
+    }
+  ],
+  "pairs": [
+    {
+      "start": "科技大樓(BR08)",
+      "end": "六張犁(BR07)",
+      "startReachable": true,
+      "endReachable": false,
+      "startRelaxed": true,
+      "endRelaxed": true
+    },
+    {
+      "start": "東湖(BR22)",
+      "end": "葫洲(BR21)",
+      "startReachable": false,
+      "endReachable": true,
+      "startRelaxed": true,
+      "endRelaxed": true
+    },
+    {
+      "start": "西門(G12)",
+      "end": "北門(G13)",
+      "startReachable": true,
+      "endReachable": false,
+      "startRelaxed": true,
+      "endRelaxed": true
+    },
+    {
+      "start": "辛亥(BR05)",
+      "end": "萬芳醫院(BR04)",
+      "startReachable": true,
+      "endReachable": false,
+      "startRelaxed": true,
+      "endRelaxed": true
+    },
+    {
+      "start": "南京復興(G16)",
+      "end": "中山國中(BR12)",
+      "startReachable": false,
+      "endReachable": false,
+      "startRelaxed": true,
+      "endRelaxed": true
+    },
+    {
+      "start": "六張犁(BR07)",
+      "end": "麟光(BR06)",
+      "startReachable": false,
+      "endReachable": true,
+      "startRelaxed": true,
+      "endRelaxed": true
+    },
+    {
+      "start": "萬芳社區(BR03)",
+      "end": "木柵(BR02)",
+      "startReachable": false,
+      "endReachable": false,
+      "startRelaxed": true,
+      "endRelaxed": true
+    },
+    {
+      "start": "木柵(BR02)",
+      "end": "動物園(BR01)",
+      "startReachable": false,
+      "endReachable": false,
+      "startRelaxed": true,
+      "endRelaxed": true
+    },
+    {
+      "start": "行天宮(O09)",
+      "end": "南京復興(G16)",
+      "startReachable": true,
+      "endReachable": false,
+      "startRelaxed": true,
+      "endRelaxed": true
+    },
+    {
+      "start": "南港展覽館(BL23)",
+      "end": "東湖(BR22)",
+      "startReachable": true,
+      "endReachable": false,
+      "startRelaxed": true,
+      "endRelaxed": true
+    },
+    {
+      "start": "復興崗(R23)",
+      "end": "北投(R22)",
+      "startReachable": true,
+      "endReachable": true,
+      "startRelaxed": true,
+      "endRelaxed": true
+    },
+    {
+      "start": "木柵(BR02)",
+      "end": "麟光(BR06)",
+      "startReachable": false,
+      "endReachable": true,
+      "startRelaxed": true,
+      "endRelaxed": true
+    },
+    {
+      "start": "大安森林公園(R06)",
+      "end": "南京復興(G16)",
+      "startReachable": true,
+      "endReachable": false,
+      "startRelaxed": true,
+      "endRelaxed": true
+    },
+    {
+      "start": "萬芳醫院(BR04)",
+      "end": "動物園(BR01)",
+      "startReachable": false,
+      "endReachable": false,
+      "startRelaxed": true,
+      "endRelaxed": true
+    },
+    {
+      "start": "萬芳醫院(BR04)",
+      "end": "公館(G07)",
+      "startReachable": false,
+      "endReachable": true,
+      "startRelaxed": true,
+      "endRelaxed": true
+    },
+    {
+      "start": "中山國中(BR12)",
+      "end": "科技大樓(BR08)",
+      "startReachable": false,
+      "endReachable": true,
+      "startRelaxed": true,
+      "endRelaxed": true
+    },
+    {
+      "start": "木柵(BR02)",
+      "end": "南京三民(G18)",
+      "startReachable": false,
+      "endReachable": true,
+      "startRelaxed": true,
+      "endRelaxed": true
+    },
+    {
+      "start": "劍潭(R15)",
+      "end": "南京復興(G16)",
+      "startReachable": true,
+      "endReachable": false,
+      "startRelaxed": true,
+      "endRelaxed": true
+    },
+    {
+      "start": "木柵(BR02)",
+      "end": "中山國中(BR12)",
+      "startReachable": false,
+      "endReachable": false,
+      "startRelaxed": true,
+      "endRelaxed": true
+    },
+    {
+      "start": "北門(G13)",
+      "end": "麟光(BR06)",
+      "startReachable": false,
+      "endReachable": true,
+      "startRelaxed": true,
+      "endRelaxed": true
+    },
+    {
+      "start": "木柵(BR02)",
+      "end": "南京復興(G16)",
+      "startReachable": false,
+      "endReachable": false,
+      "startRelaxed": true,
+      "endRelaxed": true
+    },
+    {
+      "start": "文德(BR18)",
+      "end": "圓山(R14)",
+      "startReachable": true,
+      "endReachable": true,
+      "startRelaxed": true,
+      "endRelaxed": true
+    },
+    {
+      "start": "萬芳醫院(BR04)",
+      "end": "南京復興(G16)",
+      "startReachable": false,
+      "endReachable": false,
+      "startRelaxed": true,
+      "endRelaxed": true
+    },
+    {
+      "start": "南港展覽館(BL23)",
+      "end": "文德(BR18)",
+      "startReachable": true,
+      "endReachable": true,
+      "startRelaxed": true,
+      "endRelaxed": true
+    }
+  ]
+}

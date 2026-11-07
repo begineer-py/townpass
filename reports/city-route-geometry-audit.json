@@ -1,0 +1,1464 @@
+{
+  "checkedAt": "2026-11-07T12:13:59.472800+00:00",
+  "source": "Cached city-platform sidewalk_accessiblePassageway response; TWD97 geometry and IDs",
+  "case": "Previously cached Zhishan station exit to Taipei Children’s Amusement Park via candidate",
+  "sourceSha256": "141f05563007a71bb9247065d38eea831b03f8f8992a4f137e7d21b8ec975581",
+  "candidateSha256": "76d05a213adb563a19b4c7f7d5927ab3eac42f7a05360d9ccccc342a12d051d4",
+  "sourceFeatures": 60180,
+  "duplicateSourceIds": 0,
+  "routeSegments": 240,
+  "matchedUniqueIds": 240,
+  "routeLengthMetres": 3620.74,
+  "diagnosticToleranceMetres": 0.05,
+  "segmentsOutsideTolerance": 0,
+  "totalOutsideToleranceMetres": 0,
+  "limitations": [
+    "This is one previously cached candidate, not a citywide coverage sample.",
+    "IDs and geometry agreement do not certify accessible or safe crossings.",
+    "A tolerance is used only to compare geometry, never to authorize a connector.",
+    "The source response does not provide detailed surface, elevation or accessibility attributes.",
+    "City service availability, currency, licensing and third-party reuse terms require confirmation."
+  ],
+  "segments": [
+    {
+      "id": "201178",
+      "matchedUniqueId": true,
+      "lengthMetres": 0.0,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "201178",
+      "matchedUniqueId": true,
+      "lengthMetres": 9.6678,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "201178",
+      "matchedUniqueId": true,
+      "lengthMetres": 6.3136,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "201135",
+      "matchedUniqueId": true,
+      "lengthMetres": 1.3982,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "152778",
+      "matchedUniqueId": true,
+      "lengthMetres": 40.2628,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "152702",
+      "matchedUniqueId": true,
+      "lengthMetres": 9.7593,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "152777",
+      "matchedUniqueId": true,
+      "lengthMetres": 2.4157,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "152771",
+      "matchedUniqueId": true,
+      "lengthMetres": 59.4053,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "152768",
+      "matchedUniqueId": true,
+      "lengthMetres": 0.9023,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "152694",
+      "matchedUniqueId": true,
+      "lengthMetres": 6.2234,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "152694",
+      "matchedUniqueId": true,
+      "lengthMetres": 2.7143,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "152789",
+      "matchedUniqueId": true,
+      "lengthMetres": 20.0868,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "152789",
+      "matchedUniqueId": true,
+      "lengthMetres": 12.8715,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "152789",
+      "matchedUniqueId": true,
+      "lengthMetres": 10.0127,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "152789",
+      "matchedUniqueId": true,
+      "lengthMetres": 12.5343,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "152789",
+      "matchedUniqueId": true,
+      "lengthMetres": 6.8701,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "152789",
+      "matchedUniqueId": true,
+      "lengthMetres": 8.8014,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "152789",
+      "matchedUniqueId": true,
+      "lengthMetres": 13.4482,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "152789",
+      "matchedUniqueId": true,
+      "lengthMetres": 7.8067,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "141940",
+      "matchedUniqueId": true,
+      "lengthMetres": 0.0261,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "141940",
+      "matchedUniqueId": true,
+      "lengthMetres": 8.455,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "142066",
+      "matchedUniqueId": true,
+      "lengthMetres": 65.9739,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "142066",
+      "matchedUniqueId": true,
+      "lengthMetres": 8.401,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "141941",
+      "matchedUniqueId": true,
+      "lengthMetres": 9.3254,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "142072",
+      "matchedUniqueId": true,
+      "lengthMetres": 34.5867,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "142072",
+      "matchedUniqueId": true,
+      "lengthMetres": 19.9338,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "142072",
+      "matchedUniqueId": true,
+      "lengthMetres": 4.2384,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "142073",
+      "matchedUniqueId": true,
+      "lengthMetres": 1.3196,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "141944",
+      "matchedUniqueId": true,
+      "lengthMetres": 1.7419,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "141944",
+      "matchedUniqueId": true,
+      "lengthMetres": 14.6988,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "142075",
+      "matchedUniqueId": true,
+      "lengthMetres": 0.6909,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "142074",
+      "matchedUniqueId": true,
+      "lengthMetres": 1.2128,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "141945",
+      "matchedUniqueId": true,
+      "lengthMetres": 34.8811,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "142070",
+      "matchedUniqueId": true,
+      "lengthMetres": 2.2423,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "141812",
+      "matchedUniqueId": true,
+      "lengthMetres": 0.0,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "141812",
+      "matchedUniqueId": true,
+      "lengthMetres": 39.5738,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "141779",
+      "matchedUniqueId": true,
+      "lengthMetres": 6.5563,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "141813",
+      "matchedUniqueId": true,
+      "lengthMetres": 30.7976,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "141780",
+      "matchedUniqueId": true,
+      "lengthMetres": 9.2962,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "141814",
+      "matchedUniqueId": true,
+      "lengthMetres": 0.2552,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "141814",
+      "matchedUniqueId": true,
+      "lengthMetres": 22.529,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "141814",
+      "matchedUniqueId": true,
+      "lengthMetres": 17.6073,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "141814",
+      "matchedUniqueId": true,
+      "lengthMetres": 19.7392,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "141782",
+      "matchedUniqueId": true,
+      "lengthMetres": 19.3446,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "141783",
+      "matchedUniqueId": true,
+      "lengthMetres": 3.6964,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "141816",
+      "matchedUniqueId": true,
+      "lengthMetres": 3.8882,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "141816",
+      "matchedUniqueId": true,
+      "lengthMetres": 38.0267,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "141816",
+      "matchedUniqueId": true,
+      "lengthMetres": 57.1754,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "141816",
+      "matchedUniqueId": true,
+      "lengthMetres": 18.5706,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "141822",
+      "matchedUniqueId": true,
+      "lengthMetres": 5.302,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "141787",
+      "matchedUniqueId": true,
+      "lengthMetres": 8.513,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "141823",
+      "matchedUniqueId": true,
+      "lengthMetres": 1.4708,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "141824",
+      "matchedUniqueId": true,
+      "lengthMetres": 7.0608,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "141824",
+      "matchedUniqueId": true,
+      "lengthMetres": 47.4459,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "141824",
+      "matchedUniqueId": true,
+      "lengthMetres": 55.5139,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "141832",
+      "matchedUniqueId": true,
+      "lengthMetres": 1.3602,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "141832",
+      "matchedUniqueId": true,
+      "lengthMetres": 1.4253,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "141791",
+      "matchedUniqueId": true,
+      "lengthMetres": 7.0139,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "141791",
+      "matchedUniqueId": true,
+      "lengthMetres": 9.5232,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "141791",
+      "matchedUniqueId": true,
+      "lengthMetres": 1.4104,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "141791",
+      "matchedUniqueId": true,
+      "lengthMetres": 3.5669,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "141791",
+      "matchedUniqueId": true,
+      "lengthMetres": 0.1015,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "141791",
+      "matchedUniqueId": true,
+      "lengthMetres": 0.1149,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "141834",
+      "matchedUniqueId": true,
+      "lengthMetres": 1.0699,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "141834",
+      "matchedUniqueId": true,
+      "lengthMetres": 16.9003,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "141834",
+      "matchedUniqueId": true,
+      "lengthMetres": 89.0039,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "198265",
+      "matchedUniqueId": true,
+      "lengthMetres": 1.5037,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "198265",
+      "matchedUniqueId": true,
+      "lengthMetres": 12.3933,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "198265",
+      "matchedUniqueId": true,
+      "lengthMetres": 14.348,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "198265",
+      "matchedUniqueId": true,
+      "lengthMetres": 10.9293,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "198265",
+      "matchedUniqueId": true,
+      "lengthMetres": 10.6671,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "198265",
+      "matchedUniqueId": true,
+      "lengthMetres": 10.4278,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "198265",
+      "matchedUniqueId": true,
+      "lengthMetres": 9.2687,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "198265",
+      "matchedUniqueId": true,
+      "lengthMetres": 11.3013,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "198265",
+      "matchedUniqueId": true,
+      "lengthMetres": 9.4289,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "198265",
+      "matchedUniqueId": true,
+      "lengthMetres": 4.1935,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "198265",
+      "matchedUniqueId": true,
+      "lengthMetres": 2.4022,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "198265",
+      "matchedUniqueId": true,
+      "lengthMetres": 3.1406,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "198263",
+      "matchedUniqueId": true,
+      "lengthMetres": 0.6371,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "158562",
+      "matchedUniqueId": true,
+      "lengthMetres": 0.6551,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "158525",
+      "matchedUniqueId": true,
+      "lengthMetres": 1.255,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "158525",
+      "matchedUniqueId": true,
+      "lengthMetres": 10.2277,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "158525",
+      "matchedUniqueId": true,
+      "lengthMetres": 0.8374,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "158560",
+      "matchedUniqueId": true,
+      "lengthMetres": 1.2503,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "158559",
+      "matchedUniqueId": true,
+      "lengthMetres": 1.919,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "158559",
+      "matchedUniqueId": true,
+      "lengthMetres": 16.6566,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "158559",
+      "matchedUniqueId": true,
+      "lengthMetres": 26.0352,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "158559",
+      "matchedUniqueId": true,
+      "lengthMetres": 17.8869,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "158559",
+      "matchedUniqueId": true,
+      "lengthMetres": 33.3078,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "158554",
+      "matchedUniqueId": true,
+      "lengthMetres": 5.3406,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "156901",
+      "matchedUniqueId": true,
+      "lengthMetres": 10.1071,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "156901",
+      "matchedUniqueId": true,
+      "lengthMetres": 4.1868,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "156901",
+      "matchedUniqueId": true,
+      "lengthMetres": 18.7239,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "156901",
+      "matchedUniqueId": true,
+      "lengthMetres": 10.3722,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "156901",
+      "matchedUniqueId": true,
+      "lengthMetres": 3.948,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "156901",
+      "matchedUniqueId": true,
+      "lengthMetres": 4.445,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "156901",
+      "matchedUniqueId": true,
+      "lengthMetres": 6.298,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "156901",
+      "matchedUniqueId": true,
+      "lengthMetres": 5.7172,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "156901",
+      "matchedUniqueId": true,
+      "lengthMetres": 7.2347,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "156901",
+      "matchedUniqueId": true,
+      "lengthMetres": 12.038,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "156901",
+      "matchedUniqueId": true,
+      "lengthMetres": 9.0556,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "156901",
+      "matchedUniqueId": true,
+      "lengthMetres": 10.5448,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "156901",
+      "matchedUniqueId": true,
+      "lengthMetres": 13.3767,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "156901",
+      "matchedUniqueId": true,
+      "lengthMetres": 11.2238,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "156897",
+      "matchedUniqueId": true,
+      "lengthMetres": 15.178,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "156897",
+      "matchedUniqueId": true,
+      "lengthMetres": 13.7701,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "156895",
+      "matchedUniqueId": true,
+      "lengthMetres": 6.8072,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "156895",
+      "matchedUniqueId": true,
+      "lengthMetres": 34.1213,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "156895",
+      "matchedUniqueId": true,
+      "lengthMetres": 18.5981,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "156895",
+      "matchedUniqueId": true,
+      "lengthMetres": 23.4022,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "156895",
+      "matchedUniqueId": true,
+      "lengthMetres": 23.328,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "156895",
+      "matchedUniqueId": true,
+      "lengthMetres": 18.9594,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "156894",
+      "matchedUniqueId": true,
+      "lengthMetres": 2.074,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "156879",
+      "matchedUniqueId": true,
+      "lengthMetres": 1.1911,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "156879",
+      "matchedUniqueId": true,
+      "lengthMetres": 11.6169,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "156879",
+      "matchedUniqueId": true,
+      "lengthMetres": 0.9978,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "156885",
+      "matchedUniqueId": true,
+      "lengthMetres": 2.1512,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "164109",
+      "matchedUniqueId": true,
+      "lengthMetres": 3.8846,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "164109",
+      "matchedUniqueId": true,
+      "lengthMetres": 1.3326,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "164107",
+      "matchedUniqueId": true,
+      "lengthMetres": 1.5393,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "164107",
+      "matchedUniqueId": true,
+      "lengthMetres": 1.0097,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "164107",
+      "matchedUniqueId": true,
+      "lengthMetres": 0.3474,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "164059",
+      "matchedUniqueId": true,
+      "lengthMetres": 1.3762,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "164059",
+      "matchedUniqueId": true,
+      "lengthMetres": 10.0124,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "164059",
+      "matchedUniqueId": true,
+      "lengthMetres": 1.7213,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "164106",
+      "matchedUniqueId": true,
+      "lengthMetres": 0.8655,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "164105",
+      "matchedUniqueId": true,
+      "lengthMetres": 2.1908,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "164105",
+      "matchedUniqueId": true,
+      "lengthMetres": 3.5281,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "164105",
+      "matchedUniqueId": true,
+      "lengthMetres": 2.2252,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "164105",
+      "matchedUniqueId": true,
+      "lengthMetres": 1.5441,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "164105",
+      "matchedUniqueId": true,
+      "lengthMetres": 7.2943,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "164105",
+      "matchedUniqueId": true,
+      "lengthMetres": 36.6279,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "147568",
+      "matchedUniqueId": true,
+      "lengthMetres": 5.2995,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "147567",
+      "matchedUniqueId": true,
+      "lengthMetres": 57.7795,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "147567",
+      "matchedUniqueId": true,
+      "lengthMetres": 70.3837,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "147531",
+      "matchedUniqueId": true,
+      "lengthMetres": 2.6763,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "147531",
+      "matchedUniqueId": true,
+      "lengthMetres": 12.5951,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "152796",
+      "matchedUniqueId": true,
+      "lengthMetres": 0.0201,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "152796",
+      "matchedUniqueId": true,
+      "lengthMetres": 28.5131,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "152796",
+      "matchedUniqueId": true,
+      "lengthMetres": 103.4817,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "152796",
+      "matchedUniqueId": true,
+      "lengthMetres": 47.4727,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "152743",
+      "matchedUniqueId": true,
+      "lengthMetres": 5.506,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "152685",
+      "matchedUniqueId": true,
+      "lengthMetres": 1.5055,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "152685",
+      "matchedUniqueId": true,
+      "lengthMetres": 29.1312,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "152685",
+      "matchedUniqueId": true,
+      "lengthMetres": 1.8576,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "147563",
+      "matchedUniqueId": true,
+      "lengthMetres": 0.0076,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "147563",
+      "matchedUniqueId": true,
+      "lengthMetres": 5.1994,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "147559",
+      "matchedUniqueId": true,
+      "lengthMetres": 4.429,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "147529",
+      "matchedUniqueId": true,
+      "lengthMetres": 40.7293,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "147558",
+      "matchedUniqueId": true,
+      "lengthMetres": 3.4852,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "147557",
+      "matchedUniqueId": true,
+      "lengthMetres": 4.8973,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "147557",
+      "matchedUniqueId": true,
+      "lengthMetres": 46.9883,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "147557",
+      "matchedUniqueId": true,
+      "lengthMetres": 39.6781,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "147557",
+      "matchedUniqueId": true,
+      "lengthMetres": 26.5098,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "147557",
+      "matchedUniqueId": true,
+      "lengthMetres": 20.2733,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "147557",
+      "matchedUniqueId": true,
+      "lengthMetres": 8.9735,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "147557",
+      "matchedUniqueId": true,
+      "lengthMetres": 10.1489,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "147557",
+      "matchedUniqueId": true,
+      "lengthMetres": 11.5327,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "147557",
+      "matchedUniqueId": true,
+      "lengthMetres": 18.5001,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "147557",
+      "matchedUniqueId": true,
+      "lengthMetres": 16.5119,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "147557",
+      "matchedUniqueId": true,
+      "lengthMetres": 19.7603,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "147557",
+      "matchedUniqueId": true,
+      "lengthMetres": 20.8694,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "147557",
+      "matchedUniqueId": true,
+      "lengthMetres": 12.0073,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "147551",
+      "matchedUniqueId": true,
+      "lengthMetres": 4.3077,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "147551",
+      "matchedUniqueId": true,
+      "lengthMetres": 0.6621,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "147526",
+      "matchedUniqueId": true,
+      "lengthMetres": 8.248,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "147526",
+      "matchedUniqueId": true,
+      "lengthMetres": 1.6615,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "147547",
+      "matchedUniqueId": true,
+      "lengthMetres": 9.9618,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "147524",
+      "matchedUniqueId": true,
+      "lengthMetres": 10.4705,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "147546",
+      "matchedUniqueId": true,
+      "lengthMetres": 1.7848,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "147544",
+      "matchedUniqueId": true,
+      "lengthMetres": 18.921,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "147544",
+      "matchedUniqueId": true,
+      "lengthMetres": 23.2472,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "147544",
+      "matchedUniqueId": true,
+      "lengthMetres": 12.2495,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "147544",
+      "matchedUniqueId": true,
+      "lengthMetres": 17.232,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "147544",
+      "matchedUniqueId": true,
+      "lengthMetres": 39.321,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "147541",
+      "matchedUniqueId": true,
+      "lengthMetres": 0.7791,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "147523",
+      "matchedUniqueId": true,
+      "lengthMetres": 40.106,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "147542",
+      "matchedUniqueId": true,
+      "lengthMetres": 1.8205,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "147543",
+      "matchedUniqueId": true,
+      "lengthMetres": 0.9803,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "147522",
+      "matchedUniqueId": true,
+      "lengthMetres": 3.1621,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "182634",
+      "matchedUniqueId": true,
+      "lengthMetres": 1.4499,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "182634",
+      "matchedUniqueId": true,
+      "lengthMetres": 0.1728,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "182642",
+      "matchedUniqueId": true,
+      "lengthMetres": 16.8924,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "182642",
+      "matchedUniqueId": true,
+      "lengthMetres": 25.7621,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "182642",
+      "matchedUniqueId": true,
+      "lengthMetres": 29.764,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "182642",
+      "matchedUniqueId": true,
+      "lengthMetres": 6.8189,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "182642",
+      "matchedUniqueId": true,
+      "lengthMetres": 16.8386,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "182642",
+      "matchedUniqueId": true,
+      "lengthMetres": 9.2463,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "182642",
+      "matchedUniqueId": true,
+      "lengthMetres": 21.4144,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "182642",
+      "matchedUniqueId": true,
+      "lengthMetres": 28.6158,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "182642",
+      "matchedUniqueId": true,
+      "lengthMetres": 19.1418,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "182642",
+      "matchedUniqueId": true,
+      "lengthMetres": 7.8447,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "182642",
+      "matchedUniqueId": true,
+      "lengthMetres": 14.546,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "182642",
+      "matchedUniqueId": true,
+      "lengthMetres": 13.507,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "182650",
+      "matchedUniqueId": true,
+      "lengthMetres": 0.4884,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "182638",
+      "matchedUniqueId": true,
+      "lengthMetres": 0.3259,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "182638",
+      "matchedUniqueId": true,
+      "lengthMetres": 8.8402,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "182638",
+      "matchedUniqueId": true,
+      "lengthMetres": 1.1227,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "182648",
+      "matchedUniqueId": true,
+      "lengthMetres": 1.5968,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "182647",
+      "matchedUniqueId": true,
+      "lengthMetres": 21.9618,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "182647",
+      "matchedUniqueId": true,
+      "lengthMetres": 70.8484,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "182647",
+      "matchedUniqueId": true,
+      "lengthMetres": 64.0623,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "182647",
+      "matchedUniqueId": true,
+      "lengthMetres": 0.0,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "182647",
+      "matchedUniqueId": true,
+      "lengthMetres": 0.0,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "182647",
+      "matchedUniqueId": true,
+      "lengthMetres": 64.0623,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "182647",
+      "matchedUniqueId": true,
+      "lengthMetres": 70.8484,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "182647",
+      "matchedUniqueId": true,
+      "lengthMetres": 21.9618,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "182641",
+      "matchedUniqueId": true,
+      "lengthMetres": 32.6162,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "182641",
+      "matchedUniqueId": true,
+      "lengthMetres": 6.256,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "182641",
+      "matchedUniqueId": true,
+      "lengthMetres": 13.2445,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "182641",
+      "matchedUniqueId": true,
+      "lengthMetres": 155.6269,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "182641",
+      "matchedUniqueId": true,
+      "lengthMetres": 5.7046,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "147512",
+      "matchedUniqueId": true,
+      "lengthMetres": 145.3132,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "147512",
+      "matchedUniqueId": true,
+      "lengthMetres": 28.0247,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "147510",
+      "matchedUniqueId": true,
+      "lengthMetres": 7.2106,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "147492",
+      "matchedUniqueId": true,
+      "lengthMetres": 18.8699,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "147507",
+      "matchedUniqueId": true,
+      "lengthMetres": 1.7574,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "154184",
+      "matchedUniqueId": true,
+      "lengthMetres": 19.2899,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "154184",
+      "matchedUniqueId": true,
+      "lengthMetres": 13.3275,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "154184",
+      "matchedUniqueId": true,
+      "lengthMetres": 14.6535,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "154184",
+      "matchedUniqueId": true,
+      "lengthMetres": 11.2097,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "154184",
+      "matchedUniqueId": true,
+      "lengthMetres": 18.45,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "154184",
+      "matchedUniqueId": true,
+      "lengthMetres": 16.6425,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "154184",
+      "matchedUniqueId": true,
+      "lengthMetres": 13.2784,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "154184",
+      "matchedUniqueId": true,
+      "lengthMetres": 3.0729,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "154184",
+      "matchedUniqueId": true,
+      "lengthMetres": 1.7442,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "154184",
+      "matchedUniqueId": true,
+      "lengthMetres": 1.1112,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "154185",
+      "matchedUniqueId": true,
+      "lengthMetres": 2.4906,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "154146",
+      "matchedUniqueId": true,
+      "lengthMetres": 1.0982,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "154146",
+      "matchedUniqueId": true,
+      "lengthMetres": 16.9073,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "154146",
+      "matchedUniqueId": true,
+      "lengthMetres": 0.9587,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "154186",
+      "matchedUniqueId": true,
+      "lengthMetres": 2.9393,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "154183",
+      "matchedUniqueId": true,
+      "lengthMetres": 2.1972,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "154183",
+      "matchedUniqueId": true,
+      "lengthMetres": 12.4142,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "154183",
+      "matchedUniqueId": true,
+      "lengthMetres": 14.4811,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "154183",
+      "matchedUniqueId": true,
+      "lengthMetres": 9.0867,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "154183",
+      "matchedUniqueId": true,
+      "lengthMetres": 10.2282,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "154183",
+      "matchedUniqueId": true,
+      "lengthMetres": 13.3625,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "154183",
+      "matchedUniqueId": true,
+      "lengthMetres": 18.6396,
+      "outsideToleranceMetres": 0.0
+    },
+    {
+      "id": "154183",
+      "matchedUniqueId": true,
+      "lengthMetres": 4.7028,
+      "outsideToleranceMetres": 0.0
+    }
+  ]
+}

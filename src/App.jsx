@@ -52,9 +52,12 @@ import {
   Phone,
 } from "lucide-react";
 import MapView from "./MapView";
+import {ROUTE_CONDITIONS, conditionForSegment} from "./route-conditions.mjs";
+import {TPColors} from "./tp-colors.mjs";
 import VoiceSearch from "./VoiceSearch";
 import {searchVerifiedAlternatives} from "./alternative-routes.mjs";
 import {fetchConstruction} from "./construction-client.mjs";
+import {startLocalFallback} from "./local-fallback.mjs";
 import {constructionFresh, CONSTRUCTION_MAX_AGE} from "./construction.mjs";
 import { requestOfficialRoute } from "./official-router.mjs";
 import { ROUTING_POLICY } from "./routing.mjs";
@@ -68,20 +71,31 @@ import {
   distance,
   formatDistance,
   category,
+  isLandmark,
   labels,
   cleanName,
   normalize,
   readSaved,
   saveLocal,
-  isLandmark,
 } from "./data";
-import { getLocation } from "./location";
-import { hasTownPass, sendToTownPass, townPassUserKey } from "./townpass-bridge";
-import { activeElevatorStops, nearestStop } from "./trip-extras.mjs";
+import { getLocation, locationError } from "./location";
+import { townPassUserKey, hasTownPass, sendToTownPass } from "./townpass-bridge";
 import { travelProfiles } from "./travel-profiles";
 import { loadProfile, loadTrips, saveProfile, saveTrips } from "./local-database";
-import { addressSearch } from "./address-search";
-import { maintenanceText, stationKey, stepText } from "./format.mjs";
+import {
+  IDENTITIES,
+  DEMOS,
+  PHONES,
+  mapLink,
+  identityFromUser,
+  parseTripSentence,
+  matchPlace,
+  nearestStop,
+  activeElevatorStops,
+} from "./trip-extras.mjs";
+import { addressSearch, landmarkSearch } from "./address-search";
+import { matchStationLandmark } from "./search-station.mjs";
+import { maintenanceText, sourceCountLabel, stationKey, stepText, stepConditions } from "./format.mjs";
 const icons = {
   elevator: ArrowUpFromLine,
   toilet: Toilet,
@@ -244,6 +258,7 @@ export default function App() {
     [listLimit, setListLimit] = useState(12),
     [stationQuery, setStationQuery] = useState(""),
     [speaking, setSpeaking] = useState(false),
+    [sentence, setSentence] = useState(""),
     [stepIndex, setStepIndex] = useState(0),
     [online, setOnline] = useState(navigator.onLine);
   const [currentLocation, setCurrentLocation] = useState(null);
@@ -290,31 +305,35 @@ export default function App() {
     const ctl = new AbortController();
     setAddressResults([]);
     const t = setTimeout(() => {
-      addressSearch(query, ctl.signal)
-        .then((r) => {
-          if (!ctl.signal.aborted) setAddressResults(r);
-        })
-        .catch(() => {});
+      if (!searchFor) return;
+      for (const request of [addressSearch(query, ctl.signal), landmarkSearch(query, ctl.signal)]) {
+        request.then(results => {
+          if (!ctl.signal.aborted) setAddressResults(previous => [...previous, ...results]);
+        }).catch(() => {});
+      }
     }, 350);
     return () => {
       clearTimeout(t);
       ctl.abort();
     };
-  }, [query]);
+  }, [query, searchFor]);
   const officialRequest = useRef();
+  const locationRequest=useRef(0);
   const pendingVerifications = useRef(new Map());
   const lastConstruction = useRef(null);
   const [constructionConflict,setConstructionConflict] = useState(null);
   const [routeAttempt,setRouteAttempt]=useState(0);
-  function verifyOnlineRoute(route, start, end, id, construction) {
+  function verifyOnlineRoute(route, start, end, id, construction, options=prefs) {
     return new Promise(resolve => {
       const timer=setTimeout(()=>{pendingVerifications.current.delete(id);resolve({error:'UNVERIFIED_NETWORK'});},30000);
       pendingVerifications.current.set(id,result=>{clearTimeout(timer);resolve(result);});
       if (!worker.current) { clearTimeout(timer); pendingVerifications.current.delete(id); resolve({error:'UNVERIFIED_NETWORK'}); return; }
-      worker.current.postMessage({type:'verify-official',id,route,start,end,construction,options:prefs});
+      worker.current.postMessage({type:'verify-official',id,route,start,end,construction,options});
     });
   }
   const panelScroll = useRef();
+  const panel = useRef();
+  const menuButton = useRef();
   const autoLocated = useRef(false);
   const routeFeedback = useRef();
   // Phone bottom sheet: 0 = peek, 1 = half, 2 = full (heights in style.css).
@@ -405,7 +424,7 @@ export default function App() {
         ...basePrefs,
         ...(savedPrefs || travelProfiles[stored]?.preferences || {}),
         avoidSteps: true,
-        officialOnly: true,
+        officialOnly: false,
       });
       setProfileReady(true);
       if (!travelProfiles[stored]) setModal("profile");
@@ -414,6 +433,8 @@ export default function App() {
       active = false;
     };
   }, []);
+  const wantedStop = useRef(null);
+  const pendingRoute = useRef(null);
   const worker = useRef(),
     request = useRef(0),
     map = useRef(),
@@ -484,10 +505,13 @@ export default function App() {
         setRouting(false);
         if (d.result.error || d.result.policyVersion !== ROUTING_POLICY) {
           clearRoute();
+          setConstructionConflict(d.result.construction || null);
           setRouteError(d.result.error || "UNVERIFIED_NETWORK");
         } else {
           window.speechSynthesis?.cancel();
           setSpeaking(false);
+          if(d.result.resolvedStart)setStart(d.result.resolvedStart);
+          if(d.result.resolvedEnd)setEnd(d.result.resolvedEnd);
           setRoute(d.result);
           setRouteError("");
           setStepIndex(0);
@@ -513,6 +537,7 @@ export default function App() {
     return () => { w.terminate(); for(const resolve of pendingVerifications.current.values()) resolve({error:'UNVERIFIED_NETWORK'}); pendingVerifications.current.clear(); };
   }, [graphRequested]);
   const changePoint = (which, p) => {
+    locationRequest.current++;
     request.current++;
     setRouting(false);
     clearRoute();
@@ -557,11 +582,14 @@ export default function App() {
     setSearchFor(which);
     setQuery("");
   }
+  const locationMessages={LOCATION_DENIED:'定位權限尚未開啟。請在瀏覽器網站設定或手機定位設定允許此網站，再點一次定位。',LOCATION_TIMEOUT:'定位等候較久，請移到訊號較好的地方再試一次。',LOCATION_INSECURE:'請使用HTTPS網址開啟此服務，才能使用定位。',LOCATION_UNSUPPORTED:'這個瀏覽器不支援定位，可以搜尋出發地。',LOCATION_UNAVAILABLE:'裝置目前無法提供位置，請確認手機定位服務已開啟，再試一次。'};
   async function locate(which, useAsStart = false) {
+    const locationId=++locationRequest.current;
     const version = tabVersion.current;
     setLocating(true);
     try {
       const p = await getLocation();
+      if(locationId!==locationRequest.current)return;
       if (which && version !== tabVersion.current) return;
       if (p.lat < 24.94 || p.lat > 25.24 || p.lon < 121.42 || p.lon > 121.69) {
         announce(
@@ -571,12 +599,13 @@ export default function App() {
       }
       setCurrentLocation(p);
       setFocus({ ...p, token: Date.now() });
+      if(p.needsConfirmation){announce(p.accuracy == null ? "已取得大致位置，精度暫時不明；請在地圖確認出發地。" : `已取得大致位置，誤差約 ${Math.round(p.accuracy)} 公尺；請在地圖確認出發地。`);return;}
       if (useAsStart) setStart(p);
       if (which) changePoint(which, p);
       else if (!useAsStart) announce("已找到你的位置，可以看看附近有哪些設施。");
-    } catch {
-      if (!which || version === tabVersion.current)
-        announce("目前無法取得位置。你仍可以搜尋地點，或在地圖上選擇。");
+    } catch (error) {
+      autoLocated.current=false;
+      if (locationId===locationRequest.current && (!which || version === tabVersion.current)) announce(locationMessages[locationError(error)]);
     } finally {
       setLocating(false);
     }
@@ -594,8 +623,59 @@ export default function App() {
     autoLocated.current = true;
     locate(null, true);
   }, [profileReady, travelProfile]);
-  async function calculate(via = null) {
-    if (start && end && navigator.onLine) {
+  async function navigateTo(place) {
+    const locationId=++locationRequest.current;
+    setSelected(null);
+    setSearchFor(null);
+    setQuery("");
+    setPick(null);
+    setTab("plan");
+    setGraphRequested(true);
+    setFocus({ ...place, token: Date.now() });
+    if (matchMedia("(max-width: 700px)").matches) setSheetSnap(1);
+    let from = start;
+    if (!from) {
+      setLocating(true);
+      try {
+        from = await getLocation();
+        if(locationId!==locationRequest.current)return;
+        if (
+          from.lat < 24.94 ||
+          from.lat > 25.24 ||
+          from.lon < 121.42 ||
+          from.lon > 121.69
+        ) {
+          setEnd(place);
+          announce("你目前的位置在服務範圍外。可以先選一個臺北的出發地。");
+          return;
+        }
+      } catch (error) {
+        setEnd(place);
+        announce(locationMessages[locationError(error)]);
+        return;
+      } finally {
+        setLocating(false);
+      }
+    }
+    if(from.needsConfirmation){setCurrentLocation(from);setEnd(place);announce('目前位置精度較低，請先確認出發地。');return;}
+    setStart(from);
+    setEnd(place);
+    wantedStop.current = null;
+    announce(`正在規劃前往${cleanName(place.name)}的路線。`);
+    calculate({ start: from, end: place });
+  }
+  const avoidPoints = useMemo(
+    () => activeElevatorStops(data),
+    [data],
+  );
+  async function calculate(points) {
+    const from=points?.start||start,to=points?.end||end;
+    const requestPrefs={...(points?.prefs||prefs),avoidPoints,startPlace:from,endPlace:to};
+    if(!from||!to){announce('請先選擇出發地和目的地。');return;}
+    setGraphRequested(true);
+    if(!graphReady){pendingRoute.current={...points,start:from,end:to};announce('正在準備路線，完成後會繼續規劃。');return;}
+    pendingRoute.current=null;
+    if (from && to && navigator.onLine && !points?.via && ![from,to].some(p=>['20','station'].includes(String(p.kind)))) {
       setGraphRequested(true);
       clearRoute();
       setRouteError("");
@@ -605,50 +685,56 @@ export default function App() {
         controller = new AbortController();
       officialRequest.current = controller;
       const timer = setTimeout(() => controller.abort(), 90000);
+      let localStarted = false;
       try {
         const [result, construction] = await Promise.all([requestOfficialRoute(
-          [start.lat, start.lon],
-          [end.lat, end.lon],
-          via ? { ...prefs, via: [via.lat, via.lon] } : prefs,
+          [from.lat, from.lon],
+          [to.lat, to.lon],
+          requestPrefs,
           controller.signal,
         ), fetchConstruction(controller.signal)]);
         if (!construction.error) lastConstruction.current=construction;
         if (id !== request.current) return;
-        if (result.error) setRouteError(result.error);
-        else if(construction.error) setRouteError(construction.error);
+        if (construction.error) setRouteError(construction.error);
+        else if (result.error) {
+          localStarted=startLocalFallback(worker.current,id,from,to,requestPrefs,construction);
+          if(!localStarted) setRouteError(result.error);
+        }
         else {
-          let verified=await verifyOnlineRoute(result,[start.lat,start.lon],[end.lat,end.lon],id,construction);
+          let verified=await verifyOnlineRoute(result,[from.lat,from.lon],[to.lat,to.lon],id,construction,requestPrefs);
           if(id!==request.current)return;
-          if(!via && verified.error && verified.detourWaypoints?.length){
-            const alternatives=await searchVerifiedAlternatives({start:[start.lat,start.lon],end:[end.lat,end.lon],waypoints:verified.detourWaypoints,signal:controller.signal,
+          if(verified.error && verified.detourWaypoints?.length){
+            const alternatives=await searchVerifiedAlternatives({start:[from.lat,from.lon],end:[to.lat,to.lon],waypoints:verified.detourWaypoints,signal:controller.signal,
               onProgress:n=>{if(id===request.current)setRouteAttempt(n);},
-              query:(a,b,via,signal)=>requestOfficialRoute(a,b,{...prefs,via},signal),
-              verify:candidate=>verifyOnlineRoute(candidate,[start.lat,start.lon],[end.lat,end.lon],id,construction)});
+              query:(a,b,via,signal)=>requestOfficialRoute(a,b,{...requestPrefs,via},signal),
+              verify:candidate=>verifyOnlineRoute(candidate,[from.lat,from.lon],[to.lat,to.lon],id,construction,requestPrefs)});
             if(id!==request.current)return;
             if(alternatives.route)verified={...alternatives.route,alternativeAttempts:alternatives.attempts};
             else if(alternatives.error==='CONSTRUCTION_UNAVAILABLE')verified=alternatives;
           }
           setConstructionConflict(verified.construction || null);
-          if(verified.error || verified.geometryVerification !== 'official-polygons-and-crossings-v1' || verified.policyVersion !== ROUTING_POLICY) setRouteError(verified.error || 'UNVERIFIED_NETWORK');
-          else { setRoute(via ? { ...verified, viaName: via.name } : verified); setStepIndex(0); }
+          if(verified.error || !['official-polygons-and-crossings-v1','pedestrian-network-v1'].includes(verified.geometryVerification) || verified.policyVersion !== ROUTING_POLICY) setRouteError(verified.error || 'UNVERIFIED_NETWORK');
+          else { setRoute(verified); setStepIndex(0); }
         }
       } catch (error) {
         if (id === request.current) setRouteError(error.name === "AbortError" ? "OFFICIAL_TIMEOUT" : "OFFICIAL_UNAVAILABLE");
       } finally {
         clearTimeout(timer);
-        if (id === request.current) setRouting(false);
+        if (id === request.current && !localStarted) setRouting(false);
       }
       return;
     }
-    if (!start || !end) {
+    if (!from || !to) {
       announce("選好出發地和目的地，就能一起看看適合的走法。");
       return;
     }
-    if (via) {
-      announce("順路停靠需要網路連線，目前先維持原本的路線。");
-      return;
-    }
-    if(!constructionFresh(lastConstruction.current)){setRouteError('CONSTRUCTION_UNAVAILABLE');return;}
+    clearRoute();
+    const localId=request.current;
+    setRouting(true);
+    let localConstruction=navigator.onLine ? await fetchConstruction() : lastConstruction.current;
+    if(localId!==request.current)return;
+    if(!constructionFresh(localConstruction)){setRouting(false);setRouteError('CONSTRUCTION_UNAVAILABLE');return;}
+    lastConstruction.current=localConstruction;
     if (!graphReady) {
       announce(
         graphError
@@ -662,41 +748,48 @@ export default function App() {
     setRouteError("");
     if (!worker.current) return;
     worker.current.postMessage({
-      type: "route",
+      type: points?.via ? 'route' : 'plan-places',
+      startPlace:from,endPlace:to,
       id: ++request.current,
-      start: [start.lat, start.lon],
-      end: [end.lat, end.lon],
-      options: { ...prefs, avoidPoints },
-      construction:lastConstruction.current,
+      start: [from.lat, from.lon],
+      end: [to.lat, to.lon],
+      options: requestPrefs,
+      construction:localConstruction,
+      via:points?.via ? [points.via.lat,points.via.lon] : null,
+      viaName:points?.via?.name,
     });
   }
-  // 從詳細卡直接導航：沒有出發地時先取得目前位置，再規劃路線。
-  const [routeRequest, setRouteRequest] = useState(0);
-  useEffect(() => {
-    if (routeRequest) calculate();
-  }, [routeRequest]);
-  async function navigateTo(place) {
-    setSelected(null);
-    changePoint("end", place);
-    if (!start) {
-      setLocating(true);
-      try {
-        const here = await getLocation();
-        if (here.lat < 24.94 || here.lat > 25.24 || here.lon < 121.42 || here.lon > 121.69) {
-          announce("你目前的位置在服務範圍外。可以先選一個臺北的出發地。");
-          return;
+  function runDemo(demo) {
+    setStart(demo.start);
+    setEnd(demo.end);
+    setTab("plan");
+    wantedStop.current = null;
+    calculate({ start: demo.start, end: demo.end });
+  }
+  function applySentence(event) {
+    event.preventDefault();
+    const parsed = parseTripSentence(sentence);
+    const preset = IDENTITIES.find((row) => row[0] === parsed.identity);
+    const nextPrefs = preset
+      ? {
+          ...prefs,
+          ...preset[2],
+          identity: parsed.identity,
+          avoidSteps: true,
+          officialOnly: false,
         }
-        setStart(here);
-        setCurrentLocation(here);
-      } catch {
-        announce("目前無法取得位置。請先選出發地，或在地圖上選點。");
-        return;
-      } finally {
-        setLocating(false);
-      }
+      : prefs;
+    if (preset) setPrefs(nextPrefs);
+    const from = matchPlace(parsed.startName, data?.all);
+    const to = matchPlace(parsed.endName, data?.all);
+    if (!from || !to) {
+      announce("這句話裡還沒對到出發地和目的地。");
+      return;
     }
-    announce(`正在規劃前往${cleanName(place.name)}的路線。`);
-    setRouteRequest((n) => n + 1);
+    setStart(from);
+    setEnd(to);
+    wantedStop.current = parsed.stop;
+    calculate({ start: from, end: to, prefs: nextPrefs });
   }
   function addStop(kind) {
     const hit = nearestStop(route, data?.all, kind);
@@ -704,14 +797,27 @@ export default function App() {
       announce("這條路線 150 公尺內沒有這類設施。");
       return;
     }
-    calculate({ lat: hit.place.lat, lon: hit.place.lon, name: cleanName(hit.place.name) });
+    wantedStop.current = null;
+    calculate({
+      via: {
+        lat: hit.place.lat,
+        lon: hit.place.lon,
+        name: cleanName(hit.place.name),
+      },
+    });
   }
-  async function call1999() {
-    if (!hasTownPass()) window.location.href = "tel:1999";
-    else await sendToTownPass("phone_call", "1999");
+  async function openPhoneMap() {
+    if (!start || !end) return;
+    const url = mapLink(start, end);
+    window.open(url, "_blank", "noopener");
+  }
+  async function callNumber(number) {
+    if (!hasTownPass()) window.location.href = `tel:${number}`;
+    else await sendToTownPass("phone_call", number);
   }
   async function reportBlockage() {
-    if (!hasTownPass()) announce("路障回報要在台北通裡同意後送出。你也可以撥 1999。");
+    if (!hasTownPass())
+      announce("路障回報要在台北通裡同意後送出。你也可以撥 1999。");
     else await sendToTownPass("1999agree", true);
   }
   const essential = new Set([
@@ -747,7 +853,6 @@ export default function App() {
       ),
     [facilities, viewport],
   );
-  const avoidPoints = useMemo(() => activeElevatorStops(data), [data]);
   const landmarks = useMemo(() => {
     if (!data) return [];
     return data.all
@@ -765,7 +870,10 @@ export default function App() {
   const mapPins = useMemo(() => {
     const seen = new Set();
     const pins = [];
-    for (const p of [...(showMapFacilities ? mapItems : []), ...landmarks]) {
+    for (const p of [
+      ...(showMapFacilities ? mapItems : []),
+      ...landmarks,
+    ]) {
       if (seen.has(p.id)) continue;
       seen.add(p.id);
       pins.push(p);
@@ -790,7 +898,7 @@ export default function App() {
         ]
       : [...recentPlaces, ...saved, ...data.fac.filter((p) => p.kind === "20")];
     const used = new Set();
-    return [...addressResults, ...list]
+    return [...addressResults.map(p => matchStationLandmark(p, data.fac)), ...list]
       .sort(
         (a, b) => {
           const exact = (a.name === query ? -1 : 0) - (b.name === query ? -1 : 0);
@@ -851,7 +959,7 @@ export default function App() {
       route.policyVersion !== ROUTING_POLICY
     )
       return;
-    const text = `從${start.name}前往${end.name}，路線長約${formatDistance(route.distance)}。${route.steps.map((s) => `${stepText(s)}約${Math.round(s.distance)}公尺。`).join("")}路況仍需留意現場，這是路線預覽。`;
+    const text = `從${start.name}前往${end.name}，路線長約${formatDistance(route.distance)}。${route.approaches?.some(p=>p.estimated) ? "捷運出口銜接為直線位置估算，通行狀況未確認，請先確認現場。" : ""}${route.steps.map((s) => `${stepText(s)}約${Math.round(s.distance)}公尺。${stepConditions(s) ? stepConditions(s)+'。' : ''}`).join("")}路況仍需留意現場，這是路線預覽。`;
     speakText(text);
   }
   function speakText(text) {
@@ -896,7 +1004,7 @@ export default function App() {
       return;
     const text = `好好走｜${start.name} → ${end.name}\n約 ${formatDistance(route.distance)}\n${route.steps
       .slice(0, 20)
-      .map((s) => `${s.name} ${Math.round(s.distance)}公尺`)
+      .map((s) => `${s.name} ${Math.round(s.distance)}公尺${stepConditions(s) ? `（${stepConditions(s)}）` : ''}`)
       .join("\n")}\n路線依公開路網規劃，部分通行條件尚未確認，請留意現場。`;
     try {
       if (navigator.share)
@@ -909,6 +1017,29 @@ export default function App() {
       announce("這次沒有分享行程，你可以稍後再試。");
     }
   }
+  useEffect(() => {
+    if (!graphReady || !pendingRoute.current) return;
+    const job = pendingRoute.current;
+    pendingRoute.current = null;
+    calculate(job);
+  }, [graphReady]);
+  useEffect(() => {
+    if (!route || route.viaName || !wantedStop.current) return;
+    const kind = wantedStop.current;
+    wantedStop.current = null;
+    const hit = nearestStop(route, data?.all, kind);
+    if (!hit) {
+      announce("這條路線 150 公尺內沒有這類設施。");
+      return;
+    }
+    calculate({
+      via: {
+        lat: hit.place.lat,
+        lon: hit.place.lon,
+        name: cleanName(hit.place.name),
+      },
+    });
+  }, [route]);
   const inspect = (p) => {
     setSelected(p);
     setFocus({ ...p, token: Date.now() });
@@ -971,6 +1102,7 @@ export default function App() {
       <div className="workspace" data-sheet={sheetSnap}>
         <aside
           className="panel"
+          hidden={!tab}
           id="main-content"
           ref={panelEl}
           data-snap={sheetSnap}
@@ -1165,6 +1297,43 @@ export default function App() {
                     在地圖選點
                   </button>
                 </div>
+                <form className="sentence" onSubmit={applySentence}>
+                  <label className="search-launch input">
+                    <Search size={20} />
+                    <input
+                      value={sentence}
+                      onChange={(e) => setSentence(e.target.value)}
+                      placeholder="例如：推嬰兒車從台北車站到大安森林公園，順便找無障礙廁所"
+                      aria-label="用一句話規劃路線"
+                    />
+                  </label>
+                </form>
+                <div className="mode-tabs" aria-label="出行身分">
+                  {IDENTITIES.map(([id, name, preset]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      aria-pressed={prefs.identity === id}
+                      className={prefs.identity === id ? "active" : ""}
+                      onClick={() => updatePrefs({ ...preset, identity: id })}
+                    >
+                      {name}
+                    </button>
+                  ))}
+                </div>
+                <div className="point-actions" aria-label="示範路線">
+                  {DEMOS.map((demo) => (
+                    <button
+                      key={demo.name}
+                      className="text-button"
+                      type="button"
+                      onClick={() => runDemo(demo)}
+                      disabled={routing || !graphReady}
+                    >
+                      {demo.name}
+                    </button>
+                  ))}
+                </div>
                 <div className="preference-bar">
                   <Accessibility size={20} />
                   <span>
@@ -1226,6 +1395,7 @@ export default function App() {
                         <ArrowUpFromLine size={18} aria-hidden="true"/><span>{which==='start'?'出發地改為':'目的地改為'} {cleanName(p.name)}<small>距原選點約 {formatDistance(p.gap)}</small></span><ChevronRight size={18} aria-hidden="true"/>
                       </button>)}
                     </div>}
+                    {constructionConflict?.blocked?.length > 0 && <p>地圖已標出影響路線的施工位置；點線位置的周邊範圍是估計，並非精確封閉邊界。</p>}
                     {constructionConflict?.blocked?.slice(0,3).map(w => <p key={w.id}>{w.address}：{w.match === 'vicinity' ? '鄰近影響通行的施工位置' : '與影響通行的施工範圍交會'}。{w.plan}</p>)}
                     {(retryWithEntrance || ["OFFICIAL_OUTSIDE_COVERAGE", "OFFICIAL_INVALID_POINTS", "OFFICIAL_ENTRY_UNVERIFIED", "OFFICIAL_PATH_UNVERIFIED", "OFFICIAL_ROAD_CONFLICT", "OFFICIAL_CROSSING_UNVERIFIED", "CONSTRUCTION_BLOCKED"].includes(routeError)) && (
                       <div className="route-tools">
@@ -1239,20 +1409,36 @@ export default function App() {
                 {route && (
                   <>
                     {route.construction && <p className="quiet-note">施工資料更新：{new Date(route.construction.sourceUpdatedAt).toLocaleString('zh-TW', {timeZone:'Asia/Taipei'})}{route.construction.unmapped > 0 ? ` · ${route.construction.unmapped} 處施工位置待確認` : ''}</p>}
-                    {route.viaName && (
-                      <p className="quiet-note">順路停靠：{route.viaName}</p>
+                    {route.construction?.avoided > 0 && (
+                      <p className="quiet-note">
+                        已避開 {route.construction.avoided} 處今日施工。
+                      </p>
                     )}
                     {avoidPoints.length > 0 && (
                       <p className="quiet-note">
-                        今天有捷運電梯保養，離線規劃會盡量不從那些出口經過。
+                        今天有電梯保養，路線會盡量不從那些出口經過。
                       </p>
+                    )}
+                    {route.viaName && (
+                      <p className="quiet-note">順路停靠：{route.viaName}</p>
+                    )}
+                    {route.approaches?.some(p=>p.estimated) && <p className="quiet-note">捷運出口與人行路網銜接約 {route.approaches.filter(p=>p.estimated).map(p=>p.distance).join('／')} 公尺；虛線為直線位置估算，通行狀況未確認，請確認現場。</p>}
+                    <div className="route-key" aria-label="路段狀況圖例">
+                      {[...new Set([...(route.tierSegments?.length ? route.tierSegments.map(conditionForSegment) : ['unknown']), ...(route.approaches?.length ? ['approach'] : [])])].map(key => {
+                        const condition = ROUTE_CONDITIONS[key];
+                        return <span key={key}><svg width="32" height="12" aria-hidden="true"><line x1="1" y1="6" x2="31" y2="6" stroke={prefs.colorFriendly ? TPColors.primary900 : condition.color} strokeWidth="3" strokeDasharray={condition.dash}/></svg>{condition.label}</span>;
+                      })}
+                    </div>
+                    <p className="quiet-note">線條反映已知資料，實際路況請留意現場。</p>
+                    {route.tierSegments?.some(segment => segment.sharedRoad === true) && (
+                      <div className="notice" role="note"><AlertTriangle aria-hidden="true"/><p>路線包含人車共道，可能與車輛共用道路；請留意車輛，並依現場狀況判斷是否通行。圖資標示不代表已確認無障礙。</p></div>
                     )}
                     <div className="route-summary">
                       <div>
                         <span className="eyebrow">路線預覽</span>
                         <h2>{formatDistance(route.distance)}</h2>
                         <p>
-                          {route.provider === "local-verified" ? "另一條人行路線" : route.provider === "local-detour" ? "已改走避開施工的人行路線" : route.provider === "taipei-official"
+                          {route.provider === "mapped-pedestrian" ? "電梯出口之間的人行路線" : route.provider === "local-verified" ? "另一條人行路線" : route.provider === "local-detour" ? "已改走避開施工的人行路線" : route.provider === "taipei-official"
                             ? "臺北市無障礙通行路線圖台回傳"
                             : "離線人行路網參考"}
                         </p>
@@ -1261,8 +1447,9 @@ export default function App() {
                         <Footprints size={32} />
                       </span>
                     </div>
-                    {route.unknownPct > 0 && <p className="quiet-note">路寬／坡度：尚無完整資料</p>}
-                    {!route.requiresEntryConfirmation && (route.startGap > 10 || route.endGap > 10) && (
+                    {route.costBreakdown && <p className="quiet-note">這條路依距離、路況資料、坡度與寬度等條件綜合比較；資料未知不代表無障礙。</p>}
+                    {route.unknownPct > 0 && <p className="quiet-note">路寬／坡度：尚無完整資料{Number.isFinite(route.unknownWidthMetres) && Number.isFinite(route.unknownSlopeMetres) ? `（路網中約 ${Math.round(route.unknownWidthMetres)} 公尺寬度未知、${Math.round(route.unknownSlopeMetres)} 公尺坡度未知）` : ''}。</p>}
+                    {!route.approaches && !route.requiresEntryConfirmation && (route.startGap > 10 || route.endGap > 10) && (
                       <p className="quiet-note">
                         起點距路網約 {route.startGap} 公尺，終點距路網約{" "}
                         {route.endGap} 公尺；這兩段銜接尚未確認。
@@ -1274,31 +1461,34 @@ export default function App() {
                         路程使用一般道路路網，尚未確認是否有連續人行空間。
                       </p>
                     )}
-                    {!route.viaName && !route.requiresEntryConfirmation && (
-                      <div className="point-actions" aria-label="順路停靠">
-                        <button type="button" onClick={() => addStop("toilet")}>
-                          <Toilet size={16} />
-                          順路找無障礙廁所
-                        </button>
-                        <button type="button" onClick={() => addStop("rest")}>
-                          <Armchair size={16} />
-                          順路找歇腳椅
-                        </button>
-                      </div>
-                    )}
+                    <div className="point-actions">
+                      <button type="button" onClick={() => addStop("toilet")}>
+                        <Toilet size={16} />
+                        順路找無障礙廁所
+                      </button>
+                      <button type="button" onClick={() => addStop("rest")}>
+                        <Armchair size={16} />
+                        順路找歇腳椅
+                      </button>
+                    </div>
                     <div className="route-tools">
-                      <button type="button" onClick={call1999}>
+                      <button type="button" onClick={openPhoneMap}>
+                        <Navigation size={17} />
+                        手機地圖
+                      </button>
+                      <button type="button" onClick={() => callNumber(PHONES.metro)}>
                         <Phone size={17} />
-                        撥打 1999
+                        捷運專線
+                      </button>
+                      <button type="button" onClick={() => callNumber(PHONES.city)}>
+                        <Phone size={17} />
+                        1999
                       </button>
                       <button type="button" onClick={reportBlockage}>
                         <AlertTriangle size={17} />
                         回報路障
                       </button>
-                      <button
-                        onClick={saveTrip}
-                        disabled={route.requiresEntryConfirmation}
-                      >
+                      <button onClick={saveTrip} disabled={route.requiresEntryConfirmation}>
                         <Bookmark size={17} />
                         存下行程
                       </button>
@@ -1344,10 +1534,7 @@ export default function App() {
                               <b>{stepText(s)}</b>
                               <small>
                                 約 {formatDistance(s.distance)}
-                                {s.unknown &&
-                                route.provider !== "taipei-official"
-                                  ? " · 通行條件待確認"
-                                  : ""}
+                                {stepConditions(s) ? ` · ${stepConditions(s)}` : ''}
                               </small>
                             </span>
                           </button>
@@ -1535,16 +1722,19 @@ export default function App() {
             basemap={basemap}
             colorFriendly={prefs.colorFriendly}
             onBasemapStatus={setBasemapStatus}
-            route={route}
-            start={start}
-            end={end}
+            route={tab ? route : null}
+            constructionConflict={tab ? constructionConflict : null}
+            start={tab ? start : null}
+            end={tab ? end : null}
             location={currentLocation}
             focus={{ ...viewport, ...focus }}
             pick={pick}
             onPick={selectPoint}
-            onSelect={inspect}
+            onSelect={(p) => (isLandmark(p) ? navigateTo(p) : inspect(p))}
             onViewport={setViewport}
             onMapReady={(m) => (map.current = m)}
+            sheetSnap={sheetSnap}
+            getBottomInset={()=>matchMedia('(max-width:700px)').matches && tab && panelEl.current ? window.innerHeight-panelEl.current.getBoundingClientRect().top : 0}
             onGesture={() => {
               if (
                 matchMedia("(max-width: 700px)").matches &&
@@ -1553,6 +1743,7 @@ export default function App() {
                 setSheetSnap(0);
             }}
           />
+          {!tab && <button className="map-search-button" onClick={()=>openSearch("explore")} aria-label="搜尋地點、地址或路名"><Search size={20}/><span>搜尋地點、地址或路名</span></button>}
           <div className="map-dock" ref={layersRef}>
             <button
               className="map-fab"
@@ -2026,14 +2217,13 @@ export default function App() {
               value={prefs.mode}
               onChange={(e) => updatePrefs({ mode: e.target.value })}
             >
-              {Object.entries(routeModes).map(([id, name]) => (
+              {Object.entries({balanced:"均衡走法",gentle:"偏好平緩",crossings:"減少過街"}).map(([id, name]) => (
                 <option key={id} value={id}>
                   {name}
                 </option>
               ))}
             </select>
           </label>
-          <h3>閱讀</h3>
           <label className="toggle-row">
             <b>放大文字</b>
             <input
@@ -2159,9 +2349,7 @@ export default function App() {
             <div className="source-card" key={s.id}>
               <b>{s.name}</b>
               <span>
-                {s.status === "ok"
-                  ? `${s.count.toLocaleString()} 筆來源紀錄`
-                  : "目前未取得資料"}{" "}
+                {sourceCountLabel(s)}{" "}
                 · {s.updateFrequency || "依來源更新"}
               </span>
               <a href={s.url} target="_blank" rel="noopener">
