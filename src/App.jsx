@@ -1318,18 +1318,6 @@ export default function App() {
                     ))}
                   </div>
                 </div>
-                <div className="preference-bar">
-                  <Accessibility size={20} />
-                  <span>
-                    {online ? "避開階梯與施工" : `避開階梯 · ${prefs.minWidth}m 以上已知寬度`}
-                  </span>
-                  <button
-                    onClick={() => setModal("prefs")}
-                    aria-label="調整通行偏好"
-                  >
-                    <SlidersHorizontal size={18} />
-                  </button>
-                </div>
                 {!online && <div className="mode-tabs" aria-label="路線偏好">
                   {[
                     ["balanced", "均衡走法"],
