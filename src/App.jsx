@@ -835,6 +835,24 @@ export default function App() {
     data?.fac.filter(
       (p) => p.kind === "metro-elevator" && stationKey(p.station) === stationKey(name),
     ) || [];
+  const selectSearchPlace = (p) => {
+    if (searchFor === "explore") {
+      setSearchFor(null);
+      inspect(p);
+      return;
+    }
+    const exits = ["20", "station"].includes(String(p.kind))
+      ? stationsFor(p.name)
+      : [];
+    if (exits.length) {
+      setQuery(exits[0].station || cleanName(p.name));
+      announce(`請選擇${cleanName(p.name)}的電梯或坡道出口。`, {
+        quiet: true,
+      });
+      return;
+    }
+    changePoint(searchFor, p);
+  };
   const exitUnderMaintenance = (p) =>
     avoidPoints.some(([lat, lon]) => lat === p.lat && lon === p.lon);
   const stationMatches = useMemo(() => {
@@ -1241,7 +1259,7 @@ export default function App() {
                 </div>}
                 <button
                   className="primary full"
-                  onClick={calculate}
+                  onClick={() => calculate()}
                   disabled={routing || waitingForData}
                 >
                   {routing ? (
@@ -1901,12 +1919,7 @@ export default function App() {
               key={p.id}
               p={p}
               from={viewport}
-              onSelect={(p) => {
-                if (searchFor === "explore") {
-                  setSearchFor(null);
-                  inspect(p);
-                } else changePoint(searchFor, p);
-              }}
+              onSelect={selectSearchPlace}
             />
           ))}
           {query && !searchResults.length && (
