@@ -5,6 +5,7 @@ import { roadConnectorChecker } from "./geometry.mjs";
 import { officialGeometryEvidence } from "./supplemental-evidence.mjs";
 import { crossingEvidence, crossingUncertainty } from "./crossing-evidence.mjs";
 import {edgeTier,edgeCostFactor,edgeCostDetails,ROUTE_TIERS} from "./route-tiers.mjs";
+import {generalSidewalkEdge} from './general-sidewalk.mjs';
 export const ROUTING_POLICY = "pedestrian-evidence-v4";
 // A Symbol cannot arrive through stored preferences or postMessage. It permits
 // a diagnostic comparison route to identify stairs without ever enabling them
@@ -332,7 +333,8 @@ export function createRouter(graph) {
         if (graph.nodes[v][2] || !canTraverse(ei)) continue;
         let factor = edgeCostFactor(w,e[5],options) + officialConditionPenalty(ei,options);
         if(w.source==='osm-shared-street'&&Number.isFinite(options._optimizeSharedPenalty))factor+=Math.max(0,Math.min(20,options._optimizeSharedPenalty));
-        if(w.source!=='osm-shared-street'&&!(w.highway==='footway'&&w.footway==='sidewalk')&&Number.isFinite(options._optimizeNonSidewalkPenalty))factor+=Math.max(0,Math.min(10,options._optimizeNonSidewalkPenalty));
+        const sourceProof=e[5]?.derivedFrom!=null?graph.edges[e[5].derivedFrom]?.[5]:e[5];
+        if(w.source!=='osm-shared-street'&&!generalSidewalkEdge(w,sourceProof)&&Number.isFinite(options._optimizeNonSidewalkPenalty))factor+=Math.max(0,Math.min(10,options._optimizeNonSidewalkPenalty));
         const mid = [
           (graph.nodes[u][0] + graph.nodes[v][0]) / 2,
           (graph.nodes[u][1] + graph.nodes[v][1]) / 2,

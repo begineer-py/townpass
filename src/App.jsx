@@ -73,6 +73,7 @@ import {constructionFresh, CONSTRUCTION_MAX_AGE} from "./construction.mjs";
 import {groupConstructionNotices} from "./construction-display.mjs";
 import {nearbyReplacement,nearbyWarnings,verifiedNearbyChoice,preservesGpsOrigin} from "./nearby-presentation.mjs";
 import {isVerifiedNavigationRoute} from "./route-trust.mjs";
+import {chooseSidewalkImprovement,compareSidewalkRouteScores} from "./sidewalk-route-choice.mjs";
 import {createNearbySearch,shouldAutoSearchNearby} from "./nearby-search.mjs";
 import {createRouteWorkerLifecycle} from "./route-worker-lifecycle.mjs";
 import {createLiveFollow,displayedRouteCoordinates} from "./live-follow.mjs";
@@ -363,7 +364,6 @@ export default function App() {
   const [routeCandidates, setRouteCandidates] = useState([]);
   const [selectedRouteCandidate, setSelectedRouteCandidate] = useState(null);
   const [candidateSort, setCandidateSort] = useState("score");
-  const sortedRouteCandidates = useMemo(() => sortRouteCandidates(routeCandidates, candidateSort), [routeCandidates, candidateSort]);
   const [currentLocation, setCurrentLocation] = useState(null);
   const [followState,setFollowState] = useState({active:false,status:'idle',message:''});
   const followSession = useRef(null);
@@ -442,7 +442,8 @@ export default function App() {
   const nearbySearch=useRef(null);
   if(!nearbySearch.current)nearbySearch.current=createNearbySearch({fetchSnapshot:fetchConstruction,createWorker:()=>new Worker(new URL('./route-worker.js',import.meta.url),{type:'module'}),onState:setNearbyState,onSnapshot:s=>{lastConstruction.current=s;}});
   const [referenceState,setReferenceState]=useState({status:'idle'});
-  const referenceSnapshot=useRef(null),referenceAutoAttempt=useRef(null),referenceSearch=useRef(null);
+  const [referenceCollapsed,setReferenceCollapsed]=useState(false);
+  const referenceSnapshot=useRef(null),referenceAutoAttempt=useRef(null),referenceSearch=useRef(null),referenceBaseline=useRef(null),manualRouteSelection=useRef(false);
   if(!referenceSearch.current)referenceSearch.current=createReferenceSearch({fetchSnapshot:fetchConstruction,getLifecycle:()=>worker.current,onState:setReferenceState,onSnapshot:s=>{referenceSnapshot.current=s;}});
   useEffect(()=>()=>referenceSearch.current?.cancel(false),[]);
   const [conditionDetourState,setConditionDetourState]=useState({status:'idle'});
@@ -590,6 +591,35 @@ export default function App() {
     request = useRef(0),
     map = useRef(),
     announceTimer = useRef();
+  const sidewalkComparison = useMemo(()=>{
+    const baseline=referenceBaseline.current;
+    if(referenceState.status!=='ready'||!baseline||baseline.requestId!==request.current)return null;
+    return compareSidewalkRouteScores({currentRoute:baseline.route,localCandidates:routeCandidates,referenceCandidates:referenceState.candidates,start,end,snapshot:lastConstruction.current,referenceSnapshot:referenceSnapshot.current,referenceSourceHash:referenceState.sourceHash});
+  },[referenceState,routeCandidates,start,end,route,lastConstruction.current?.fetchedAt,lastConstruction.current?.sourceUpdatedAt,referenceSnapshot.current?.fetchedAt,referenceSnapshot.current?.sourceUpdatedAt]);
+  const displayedReferenceCandidates = useMemo(()=>{
+    const candidates=referenceState.candidates||[];
+    if(!sidewalkComparison)return candidates;
+    return candidates.map(candidate=>({...candidate,score:sidewalkComparison.referenceCandidates?.find(item=>item.candidate.id===candidate.id)?.score.value??null})).sort((a,b)=>(b.score??-Infinity)-(a.score??-Infinity));
+  },[referenceState,sidewalkComparison]);
+  const sortedRouteCandidates = useMemo(()=>{
+    let candidates=routeCandidates;
+    const baseline=referenceBaseline.current;
+    const sameRoute=(a,b)=>Array.isArray(a?.coordinates)&&Array.isArray(b?.coordinates)&&a.coordinates.length===b.coordinates.length&&a.coordinates.every((p,i)=>p[0]===b.coordinates[i]?.[0]&&p[1]===b.coordinates[i]?.[1]);
+    const originalMissing=baseline && !candidates.some(candidate=>candidate.id===baseline.selectedId || sameRoute(candidate.route,baseline.route));
+    if(referenceState.status==='ready' && originalMissing && isVerifiedNavigationRoute(baseline.route) && constructionFresh(lastConstruction.current) && baseline.route.construction?.sourceUpdatedAt===lastConstruction.current?.sourceUpdatedAt){
+      const m=sidewalkComparison?.status==='ready'?sidewalkComparison.current.metrics:null;
+      candidates=[...candidates,{id:'original-route',route:baseline.route,score:sidewalkComparison?.current?.score.value??null,metrics:{distanceMetres:m?.distance??baseline.route.distance,explicitSidewalkMetres:m?.sidewalk??null,otherPedestrianMetres:null,sharedMetres:m?.shared??null,unknownMetres:null,estimatedMetres:m?.estimated??null,roughMetres:null,detourMetres:m?Math.max(0,m.distance-sidewalkComparison.shortestDistanceMetres):null,officialConditionCount:null}}];
+    }
+    if(sidewalkComparison){
+      candidates=candidates.map(candidate=>({...candidate,score:sidewalkComparison.localCandidates?.find(item=>item.candidate.id===candidate.id)?.score.value ?? (candidate.id==='original-route'&&sidewalkComparison.status==='ready'?sidewalkComparison.current.score.value:null)}));
+    }
+    return sortRouteCandidates(candidates,candidateSort);
+  },[routeCandidates,candidateSort,sidewalkComparison,referenceState,route]);
+  const unifiedRouteChoices = useMemo(()=>{
+    if(!sidewalkComparison)return null;
+    const items=[...sortedRouteCandidates.map(candidate=>({source:'local',candidate,distance:candidate.metrics.distanceMetres,score:candidate.score})),...displayedReferenceCandidates.map(candidate=>({source:'reference',candidate,distance:candidate.route.distanceMetres,score:candidate.score}))];
+    return items.sort((a,b)=>{const distance=a.distance-b.distance,score=(Number.isFinite(b.score)?b.score:-1)-(Number.isFinite(a.score)?a.score:-1);return candidateSort==='distance'?distance||score:score||distance;});
+  },[sidewalkComparison,sortedRouteCandidates,displayedReferenceCandidates,candidateSort]);
   const announce = (text, { quiet = false } = {}) => {
     setSrStatus("");
     setTimeout(() => setSrStatus(text), 50);
@@ -725,6 +755,7 @@ export default function App() {
     setFocus({ ...p, token: Date.now() });
   };
   function clearRoute() {
+    referenceBaseline.current=null;manualRouteSelection.current=false;setReferenceCollapsed(false);
     stopFollowing();
     dataGate.current.cancel();
     conditionDetourSearch.current.cancel();
@@ -748,18 +779,22 @@ export default function App() {
     setSelectedRouteCandidate(null);
   }
   function isCurrentOfficialRoute(candidate) {
-    return !!candidate && referenceState.status==='ready' && referenceState.startPlace===start && referenceState.endPlace===end && constructionFresh(referenceSnapshot.current) && candidate.kind==='official-passageway' && candidate.verification==='official-source-screened-v1' && candidate.navigationAllowed===true && candidate.constructionSourceUpdatedAt===referenceSnapshot.current?.sourceUpdatedAt && referenceState.candidates?.some(item=>item.route===candidate);
+    return !!candidate && referenceState.status==='ready' && referenceState.startPlace===start && referenceState.endPlace===end && constructionFresh(referenceSnapshot.current) && candidate.kind==='official-passageway' && candidate.verification==='official-source-screened-v1' && candidate.navigationAllowed===true && candidate.constructionSourceUpdatedAt===referenceSnapshot.current?.sourceUpdatedAt && (!constructionFresh(lastConstruction.current) || Date.parse(lastConstruction.current.sourceUpdatedAt)<=Date.parse(referenceSnapshot.current.sourceUpdatedAt)) && referenceState.candidates?.some(item=>item.route===candidate);
   }
-  function selectOfficialCandidate(candidate) {
+  function selectOfficialCandidate(candidate,automatic=false) {
     if(!isCurrentOfficialRoute(candidate?.route)) { announce('路線資料已過期，請重新規劃。'); return; }
+    if(!automatic)manualRouteSelection.current=true;
     stopFollowing(); conditionDetourSearch.current.cancel();
     lastConstruction.current=referenceSnapshot.current;
-    setRoute(candidate.route); setRouteCandidates([]); setSelectedRouteCandidate(candidate.id);
+    setRoute(candidate.route);
+    setRouteCandidates(existing=>existing.filter(item=>item.route?.construction?.sourceUpdatedAt===referenceSnapshot.current?.sourceUpdatedAt));
+    setSelectedRouteCandidate(candidate.id);
     setConstructionConflict(null); setRouteGap(null); setPartialRoute(null); setRouteError(''); setStepIndex(0);
   }
   function selectRouteCandidate(candidate) {
+    manualRouteSelection.current=true;
     if (!isVerifiedNavigationRoute(candidate?.route) || !constructionFresh(lastConstruction.current) || candidate.route.construction?.sourceUpdatedAt !== lastConstruction.current?.sourceUpdatedAt) {
-      clearRoute(); setRouteError("CONSTRUCTION_UNAVAILABLE"); return;
+      announce('路線資料已更新，請重新規劃。'); return;
     }
     conditionDetourSearch.current.cancel();stopFollowing();
     window.speechSynthesis?.cancel(); setSpeaking(false);
@@ -787,8 +822,10 @@ export default function App() {
     if(!start||!end||!graphReady)return;
     void nearbySearch.current.start({startPlace:start,endPlace:end,options:{...prefs,avoidPoints},url:new URL(dataUrl('graph')+'?policy='+ROUTING_POLICY,location.href).href,online:navigator.onLine,offlineSnapshot:lastConstruction.current});
   }
-  function findReferenceRoute(){
+  function findReferenceRoute(baseline=null,automatic=false){
     if(!start||!end)return;
+    referenceBaseline.current=baseline?{route:baseline,requestId:request.current,automatic,selectedId:selectedRouteCandidate}:null;
+    setReferenceCollapsed(false);
     referenceAutoAttempt.current=request.current;
     referenceSnapshot.current=null;
     void referenceSearch.current.start({startPlace:start,endPlace:end,options:{...prefs,avoidPoints},url:new URL(dataUrl('graph')+'?policy='+ROUTING_POLICY,location.href).href,online:navigator.onLine,offlineSnapshot:lastConstruction.current});
@@ -826,6 +863,8 @@ export default function App() {
       announce(route?.viaName?'順路停靠的行程暫不支援位置跟隨。':'請先規劃路線，再開始位置跟隨。');
       return;
     }
+    manualRouteSelection.current=true;
+    if(referenceState.status==='loading'&&referenceBaseline.current?.automatic){referenceSearch.current.cancel();referenceSnapshot.current=null;referenceBaseline.current=null;}
     stopFollowing();
     // Discard any earlier one-shot positioning response before subscribing.
     cancelLocation();
@@ -1440,10 +1479,27 @@ export default function App() {
     findReferenceRoute();
   },[tab,start,end,graphReady,routeError]);
   useEffect(()=>{
-    if(referenceState.status!=='ready'||!['NO_ROUTE','NO_CONNECTION'].includes(routeError))return;
+    if(tab!=='plan'||!start||!end||!graphReady||routing||routeError||!isVerifiedNavigationRoute(route)||route.viaName||followSession.current||manualRouteSelection.current||referenceState.status!=='idle'||referenceAutoAttempt.current===request.current)return;
+    if(!route.tierSegments?.some(segment=>segment.sharedRoad===true&&segment.distance>0))return;
+    findReferenceRoute(route,true);
+  },[tab,start,end,graphReady,routing,routeError,route,referenceState.status]);
+  useEffect(()=>{
+    const original=referenceBaseline.current;
+    if(tab==='plan'||!original?.automatic||route!==original.route)return;
+    manualRouteSelection.current=true;
+    if(referenceState.status==='loading'){referenceSearch.current.cancel();referenceSnapshot.current=null;referenceBaseline.current=null;}
+  },[tab,route,referenceState.status]);
+  useEffect(()=>{
+    const original=referenceBaseline.current;
+    if(tab!=='plan'||referenceState.status!=='ready'||!original?.automatic||original.requestId!==request.current||route!==original.route)return;
+    const improvement=chooseSidewalkImprovement({currentRoute:route,localCandidates:routeCandidates,referenceCandidates:referenceState.candidates,start,end,snapshot:lastConstruction.current,referenceSnapshot:referenceSnapshot.current,referenceSourceHash:referenceState.sourceHash,userSelected:manualRouteSelection.current,following:!!followSession.current});
+    if(improvement)selectOfficialCandidate(improvement.candidate,true);
+  },[referenceState,route,start,end,tab,routeCandidates]);
+  useEffect(()=>{
+    if(tab!=='plan'||referenceState.status!=='ready'||!['NO_ROUTE','NO_CONNECTION'].includes(routeError))return;
     const recommended=referenceState.candidates?.find(candidate=>candidate.route===referenceState.route);
     if(recommended)selectOfficialCandidate(recommended);
-  },[referenceState,routeError]);
+  },[referenceState,routeError,tab]);
   const referenceRoute=referenceState.status==='ready'&&referenceState.startPlace===start&&referenceState.endPlace===end&&constructionFresh(referenceSnapshot.current)&&referenceState.constructionSourceUpdatedAt===referenceSnapshot.current?.sourceUpdatedAt?referenceState.route:null;
   useEffect(()=>{
     if(referenceState.status!=='ready'||!referenceSnapshot.current)return;
@@ -1782,8 +1838,22 @@ export default function App() {
                     </div>
                   </div>
                 )}
-                {(route || routeError) && start && end && referenceState.status==='idle' && <button type="button" onClick={findReferenceRoute}>尋找更多人行路線</button>}
-                <ReferenceRouteResult status={referenceState.status} route={referenceRoute} candidates={referenceState.candidates||[]} selected={selectedRouteCandidate} onSelect={selectOfficialCandidate} comparisonStatus={referenceState.comparisonStatus} start={start} end={end} message={referenceState.message} onClose={()=>{if(route?.kind==='official-passageway')clearRoute();else {referenceSearch.current.cancel();referenceSnapshot.current=null;}}} />
+                {(route || routeError) && start && end && ['idle','error'].includes(referenceState.status) && <button type="button" onClick={()=>findReferenceRoute(isVerifiedNavigationRoute(route)?route:null)}>尋找更多人行路線</button>}
+                {referenceCollapsed && referenceState.status==='ready' && <button type="button" onClick={()=>setReferenceCollapsed(false)}>查看線條說明</button>}
+                <ReferenceRouteResult status={referenceCollapsed?'idle':referenceState.status} route={referenceRoute} candidates={displayedReferenceCandidates} selected={selectedRouteCandidate} onSelect={selectOfficialCandidate} comparisonStatus={referenceState.comparisonStatus} showCandidates={!unifiedRouteChoices} showLegend={route?.kind==='official-passageway'||!route} showSelectedNotice={route?.kind==='official-passageway'||!route} start={start} end={end} message={referenceState.message} onClose={()=>{if(route?.kind==='official-passageway')setReferenceCollapsed(true);else {referenceSearch.current.cancel();referenceSnapshot.current=null;referenceBaseline.current=null;}}} />
+                {unifiedRouteChoices?.length>0 && <section className="route-alternatives" aria-label="選擇路線">
+                  <h3>選擇路線</h3>
+                  {unifiedRouteChoices.length>1 && <div className="candidate-sort" role="group" aria-label="路線排序">
+                    <button type="button" aria-pressed={candidateSort==='score'} onClick={()=>{manualRouteSelection.current=true;setCandidateSort('score');}}>較好走優先</button>
+                    <button type="button" aria-pressed={candidateSort==='distance'} onClick={()=>{manualRouteSelection.current=true;setCandidateSort('distance');}}>依距離</button>
+                  </div>}
+                  {unifiedRouteChoices.map((item,index)=>{const candidate=item.candidate,source=item.source==='reference',m=source?null:candidate.metrics,c=source?candidate.coverage:null,fmt=v=>Number.isFinite(v)?formatDistance(v):'資料不足';return <button type="button" className="route-alternative" key={`${item.source}:${candidate.id}`} aria-pressed={route===candidate.route || (!source&&selectedRouteCandidate===candidate.id)} disabled={source?!isCurrentOfficialRoute(candidate.route):!constructionFresh(lastConstruction.current)||candidate.route?.construction?.sourceUpdatedAt!==lastConstruction.current?.sourceUpdatedAt} onClick={()=>source?selectOfficialCandidate(candidate):selectRouteCandidate(candidate)}>
+                    <strong>路線 {index+1} · {fmt(item.distance)} · {Number.isFinite(item.score)?`分數 ${item.score.toFixed(1)}`:'分數未提供'}</strong>
+                    <span>一般人行道 {fmt(source?c?.generalSidewalkMetres:m?.explicitSidewalkMetres)} · 人車共行 {fmt(source?c?.sharedMetres:m?.sharedMetres)}</span>
+                    <span>資料未知 {fmt(source?c?.unknownMetres:m?.unknownMetres)} · 起終點銜接 {fmt(source?c?.estimatedApproachMetres:m?.estimatedMetres)}</span>
+                    <span>官方不利通行紀錄（2 公尺內）：{(source?c?.officialConditionCount:m?.officialConditionCount)==null?'資料不足':`${source?c.officialConditionCount:m.officialConditionCount} 筆`}</span>
+                  </button>;})}
+                </section>}
                 {route && (
                   <>
                     <div className="route-summary"><h2>{start?.nearbyOriginal||end?.nearbyOriginal?'路網路線':'全程'} {formatDistance(route.distance)}</h2></div>
@@ -1795,14 +1865,14 @@ export default function App() {
                     {conditionDetourState.status==='loading'&&<p role="status">正在尋找繞路… <button type="button" onClick={()=>conditionDetourSearch.current.cancel()}>取消</button></p>}
                     {conditionDetourState.status==='error'&&<p role="status">{conditionDetourState.message}</p>}
                     {route.conditionDetour&&<p className="quiet-note" role="note">已規劃避開 {route.conditionDetour.targets.length} 筆所選官方紀錄點 10 公尺內的路線；點位與實際路況仍需現場確認。</p>}
-                    {routeCandidates.length > 0 && <section className="route-alternatives" aria-label="選擇路線">
+                    {!unifiedRouteChoices && sortedRouteCandidates.length > 0 && <section className="route-alternatives" aria-label="選擇路線">
                       <h3>選擇路線</h3>
-                      {routeCandidates.length>1 && <div className="candidate-sort" role="group" aria-label="路線排序">
-                        <button type="button" aria-pressed={candidateSort==='score'} onClick={()=>setCandidateSort('score')}>較好走優先</button>
-                        <button type="button" aria-pressed={candidateSort==='distance'} onClick={()=>setCandidateSort('distance')}>依距離</button>
+                      {sortedRouteCandidates.length>1 && <div className="candidate-sort" role="group" aria-label="路線排序">
+                        <button type="button" aria-pressed={candidateSort==='score'} onClick={()=>{manualRouteSelection.current=true;setCandidateSort('score');}}>較好走優先</button>
+                        <button type="button" aria-pressed={candidateSort==='distance'} onClick={()=>{manualRouteSelection.current=true;setCandidateSort('distance');}}>依距離</button>
                       </div>}
-                      {sortedRouteCandidates.map((candidate,index)=>{const m=candidate.metrics; const length=v=>Number.isFinite(v)?formatDistance(v):"資料不足"; return <button type="button" className="route-alternative" key={candidate.id ?? index} aria-pressed={selectedRouteCandidate===candidate.id} onClick={()=>selectRouteCandidate(candidate)}>
-                        <strong>路線 {index+1} · {length(m.distanceMetres)} · 分數 {candidate.score.toFixed(1)}</strong>
+                      {sortedRouteCandidates.map((candidate,index)=>{const m=candidate.metrics; const length=v=>Number.isFinite(v)?formatDistance(v):"資料不足"; return <button type="button" className="route-alternative" key={candidate.id ?? index} aria-pressed={selectedRouteCandidate===candidate.id || (candidate.id==='original-route' && route===candidate.route)} onClick={()=>selectRouteCandidate(candidate)}>
+                        <strong>路線 {index+1} · {length(m.distanceMetres)} · {Number.isFinite(candidate.score)?`分數 ${candidate.score.toFixed(1)}`:'分數未提供'}</strong>
                         <span>一般人行道 {length(m.explicitSidewalkMetres)} · 其他人行路網 {length(m.otherPedestrianMetres)} · 人車共行 {length(m.sharedMetres)}</span>
                         <span>路寬、坡度、路面或過街資料未知 {length(m.unknownMetres)} · 估算銜接 {length(m.estimatedMetres)}</span>
                         <span>較顛簸路面 {length(m.roughMetres)} · 較短候選多走 {length(m.detourMetres)}</span>
@@ -2126,7 +2196,7 @@ export default function App() {
             colorFriendly={prefs.colorFriendly}
             onBasemapStatus={setBasemapStatus}
             route={tab ? route : null}
-            referenceRoute={tab==='plan' ? referenceRoute : null}
+            referenceRoute={tab==='plan' && (!route || route.kind==='official-passageway') ? referenceRoute : null}
             partialRoute={tab==='plan' ? partialRoute : null}
             constructionConflict={tab && !hideMapIcons ? constructionConflict : null}
             routeGap={tab ? routeGapView : null}

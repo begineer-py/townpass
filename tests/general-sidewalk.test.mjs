@@ -13,6 +13,7 @@ test('official and OSM sidewalk evidence use the same segment and routing weight
 test('crossings, connectors and shared roads remain separate',()=>{
  for(const segment of [{kind:'osm',crossing:true,officialAreaCovered:true},{kind:'osm',sharedRoad:true,officialAreaCovered:true},{kind:'osm-join',explicitSidewalk:true},{kind:'endpoint-approach'}])assert.equal(generalSidewalkSegment(segment),false);
  assert.equal(generalSidewalkEdge({highway:'footway',footway:'crossing'},official),false);
+ assert.equal(generalSidewalkEdge({highway:'footway',footway:'sidewalk'},{...official,crossingCoverage:.2}),false);
  assert.equal(generalSidewalkEdge({highway:'footway',footway:'sidewalk'},{...official,connectorVerified:true}),false);
 });
 

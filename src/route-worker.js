@@ -167,10 +167,19 @@ self.onmessage = async ({ data }) => {
         if(!response.ok||!metadata.ok)throw Error('REFERENCE_DATA_UNAVAILABLE');
         referenceAsset=await decodeReferenceAsset(new Uint8Array(await response.arrayBuffer()),await metadata.json());
       }
-      const region=selectReferenceRegion(referenceAsset,routeGraph,data.start,data.end);
-      if(region.parts.length>10000||region.osmEdgeIds.length>50000){postMessage({type:'reference-route',id:data.id,result:{error:'PROVISIONAL_SEARCH_LIMIT'}});return;}
-      const network=createProvisionalNetwork({...region,graph:routeGraph,facilities,places:routePlaces,snapshot:data.construction,routingOptions:data.options||{}});
-      const comparison=network.error?network:network.findCandidates(data.start,data.end,{startPlace:data.startPlace,endPlace:data.endPlace});
+      // A dense 1 km corridor can exceed the graph budget. Retry smaller
+      // corridors only after a limit; they cannot establish a global no-route.
+      let region,comparison,limited=false;
+      for(const margin of [1000,500,250]){
+        if(!constructionFresh(data.construction)){comparison={error:'CONSTRUCTION_UNAVAILABLE'};break;}
+        region=selectReferenceRegion(referenceAsset,routeGraph,data.start,data.end,margin);
+        if(region.parts.length>10000||region.osmEdgeIds.length>50000){limited=true;comparison={error:'PROVISIONAL_SEARCH_LIMIT'};continue;}
+        const network=createProvisionalNetwork({...region,graph:routeGraph,facilities,places:routePlaces,snapshot:data.construction,routingOptions:data.options||{}});
+        comparison=network.error?network:network.findCandidates(data.start,data.end,{startPlace:data.startPlace,endPlace:data.endPlace});
+        if(comparison.error==='PROVISIONAL_SEARCH_LIMIT'){limited=true;continue;}
+        if(limited && ['NO_PROVISIONAL_CONNECTION','NO_PROVISIONAL_ROUTE'].includes(comparison.error))comparison={error:'PROVISIONAL_SEARCH_LIMIT',narrowResult:comparison.error};
+        break;
+      }
       let result=comparison;
       if(!comparison.error){
         const checked=[];
@@ -186,7 +195,7 @@ self.onmessage = async ({ data }) => {
             const conditionMetrics=officialConditionMetrics(route.officialConditions);const total=route.distanceMetres||1,scoreBreakdown={officialConditions:officialConditionScore(conditionMetrics.officialConditionWeight),sidewalk:40*sidewalk/total,shared:-25*shared/total,unknown:-12*unknown/total,estimatedApproach:-15*approach/total,joins:-Math.min(10,joins*2),detour:-20*Math.max(0,route.distanceMetres-shortest)/(shortest||1)};
             return {id:`official-${i}`,route,coverage:{generalSidewalkMetres:sidewalk,sharedMetres:shared,unknownMetres:unknown,estimatedApproachMetres:approach,unconfirmedJoinCount:joins,...conditionMetrics},scoreBreakdown,score:100/(1+Math.exp(-Object.values(scoreBreakdown).reduce((a,b)=>a+b,0)/20))};
           }).sort((a,b)=>b.score-a.score||a.route.distanceMetres-b.route.distanceMetres);
-          result={kind:'official-passageway-comparison',sourceHash:region.sourceHash,constructionSourceUpdatedAt:data.construction.sourceUpdatedAt,status:comparison.status,candidates,recommendedCandidateId:candidates[0].id};
+          result={kind:'official-passageway-comparison',sourceHash:region.sourceHash,constructionSourceUpdatedAt:data.construction.sourceUpdatedAt,status:limited?'incomplete':comparison.status,marginMetres:region.marginMetres,candidates,recommendedCandidateId:candidates[0].id};
         }
       }
       postMessage({type:'reference-route',id:data.id,result});

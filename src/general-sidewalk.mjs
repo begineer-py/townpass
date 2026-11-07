@@ -5,6 +5,6 @@ export function generalSidewalkSegment(segment) {
  return segment.kind === 'osm' && (segment.explicitSidewalk === true || segment.officialAreaCovered === true);
 }
 export function generalSidewalkEdge(way, proof) {
- if (!way || way.source === 'osm-shared-street' || proof?.sharedRoad || proof?.connectorVerified || way.crossing === true || way.footway === 'crossing') return false;
+ if (!way || way.source === 'osm-shared-street' || proof?.sharedRoad || proof?.connectorVerified || (proof?.crossingCoverage ?? 0) > 0 || way.crossing === true || way.footway === 'crossing') return false;
  return (way.highway === 'footway' && way.footway === 'sidewalk') || (!proof?.gradeSeparatedPedestrian && proof?.coverage >= .9999 && proof?.maxUncoveredMetres <= .05);
 }

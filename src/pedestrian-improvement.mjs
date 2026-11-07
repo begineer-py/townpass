@@ -1,5 +1,6 @@
 import {constructionFresh} from './construction.mjs';
 import {metres,ROUTING_POLICY} from './routing.mjs';
+import {generalSidewalkEdge} from './general-sidewalk.mjs';
 
 const pedestrian=new Set(['footway','path','pedestrian','corridor']);
 const xy=p=>[p[1]*100700,p[0]*111195];
@@ -17,6 +18,7 @@ function parallelOverlap(a,b,c,d){
  return Math.max(0,Math.min(length,Math.max(t1,t2))-Math.max(0,Math.min(t1,t2)));
 }
 const originalEdge=(graph,id)=>graph.edges[id]?.[5]?.derivedFrom??id;
+const sourceProof=(graph,e)=>e?.[5]?.derivedFrom!=null?graph.edges[e[5].derivedFrom]?.[5]:e?.[5];
 function edgeLine(graph,id){const e=graph.edges[id];return [graph.nodes[e[0]],...(e[4]||[]),graph.nodes[e[1]]].map(xy);}
 // Keep only the portions of current shared geometry absent from the candidate.
 // Source IDs alone are insufficient: projection can retain just part of an edge.
@@ -54,7 +56,7 @@ function portions(graph,route){
   const e=graph.edges[route.edgeIds[i]],a=route.nodeIds[i],b=route.nodeIds[i+1];
   if(!e||!((e[0]===a&&e[1]===b)||(e[0]===b&&e[1]===a))||!Number.isFinite(e[2])||e[2]<=0)return null;
   const way=graph.ways[e[3]];total+=e[2];if(way?.source==='osm-shared-street')shared+=e[2];
-  else if(way?.highway==='footway'){footway+=e[2];if(way.footway==='sidewalk')sidewalk+=e[2];}
+  else {if(way?.highway==='footway')footway+=e[2];if(generalSidewalkEdge(way,sourceProof(graph,e)))sidewalk+=e[2];}
  }
  return {total,shared,footway,sidewalk};
 }
@@ -98,8 +100,8 @@ export function compareUnconfirmedApproaches(baseline,candidate){
 // Search the full segment geometries, not just vertices. This only identifies
 // nearby existing edges; graph connectivity is checked by the normal router.
 const sharedEdge=w=>w?.source==='osm-shared-street';
-const groundPedestrian=(w,e)=>pedestrian.has(w?.highway)&&w.source!=='osm-shared-street'&&!w.isConnector&&!w.crossing&&(e[5]?.crossingCoverage??0)===0&&!w.gradeSeparatedPedestrian&&(!w.bridge||w.bridge==='no')&&(!w.tunnel||w.tunnel==='no')&&(w.layer==null||String(w.layer)==='0')&&(w.level==null||String(w.level)==='0');
-const explicitSidewalk=(w,e)=>groundPedestrian(w,e)&&w.highway==='footway'&&w.footway==='sidewalk';
+const groundPedestrian=(w,e,proof=e[5])=>pedestrian.has(w?.highway)&&w.source!=='osm-shared-street'&&!w.isConnector&&!w.crossing&&w.footway!=='crossing'&&(proof?.crossingCoverage??0)===0&&!w.gradeSeparatedPedestrian&&(!w.bridge||w.bridge==='no')&&(!w.tunnel||w.tunnel==='no')&&(w.layer==null||String(w.layer)==='0')&&(w.level==null||String(w.level)==='0');
+const generalSidewalk=(graph,w,e)=>groundPedestrian(w,e,sourceProof(graph,e))&&generalSidewalkEdge(w,sourceProof(graph,e));
 function nearReplaced(graph,current,candidate,removedEdge,addedEdge,{radius=50,deadline=Infinity,maxComparisons=100000}={}){
  if(Date.now()>deadline)return {near:false,limited:true};
  const removed=differenceSegments(graph,current,candidate,removedEdge,{deadline,maxComparisons});
@@ -118,9 +120,9 @@ function nearReplaced(graph,current,candidate,removedEdge,addedEdge,{radius=50,d
  }
  return Date.now()>deadline?{near:false,limited:true}:{near:false};
 }
-export function hasNewPedestrianNearShared(graph,current,candidate,options){return nearReplaced(graph,current,candidate,sharedEdge,groundPedestrian,options);}
+export function hasNewPedestrianNearShared(graph,current,candidate,options){return nearReplaced(graph,current,candidate,sharedEdge,(w,e)=>groundPedestrian(w,e,sourceProof(graph,e)),options);}
 export function hasNewSidewalkNearReplaced(graph,current,candidate,options){
- return nearReplaced(graph,current,candidate,(w,e)=>sharedEdge(w)||(groundPedestrian(w,e)&&!explicitSidewalk(w,e)),explicitSidewalk,options);
+ return nearReplaced(graph,current,candidate,(w,e)=>sharedEdge(w)||(groundPedestrian(w,e,sourceProof(graph,e))&&!generalSidewalk(graph,w,e)),(w,e)=>generalSidewalk(graph,w,e),options);
 }
 
 function improvePedestrianRouteInner(base,start,end,options,snapshot,{graph,router,verifyLocal,checker},config={}){

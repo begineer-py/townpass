@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {createRouter} from '../src/routing.mjs';
 import {createLocalRouteVerifier} from '../src/local-route-verifier.mjs';
 import {createConstructionChecker} from '../src/construction.mjs';
-import {improvePedestrianRoute,hasNewPedestrianNearShared,hasNewSidewalkNearReplaced,measureUnconfirmedApproaches,compareUnconfirmedApproaches} from '../src/pedestrian-improvement.mjs';
+import {improvePedestrianRoute,hasNewPedestrianNearShared,hasNewSidewalkNearReplaced,measurePedestrianRoute,measureUnconfirmedApproaches,compareUnconfirmedApproaches} from '../src/pedestrian-improvement.mjs';
 import {planImprovedPlaces,improvePlannedRoute} from '../src/pedestrian-planning.mjs';
 const n=(x,y)=>[25+y/111195,121.5+x/100700,0];
 const proof={schemaVersion:2,coverage:0,maxUncoveredMetres:100,crossingCoverage:0,roadCrossingVerified:true,crossingVerified:true};
@@ -217,4 +217,24 @@ test('official route without matched graph provenance is retained with an explic
  const x=setup(),official={...x.base,provider:'taipei-official'};
  const result=improvePedestrianRoute(official,x.start,x.end,x.options,x.snap,{graph:x.g,router:x.router,verifyLocal:x.verifyLocal,checker:x.checker});
  assert.equal(result.provider,'taipei-official');assert.equal(result.pedestrianImprovement.status,'unsupported-official-provenance');
+});
+
+
+test('replaces shared road with nearby official-covered sidewalk without losing existing sidewalk credit',()=>{
+ const x=setup();x.g.ways[1].footway='sidewalk';
+ x.g.ways.push({...x.g.ways[1],footway:undefined});
+ for(const edge of x.g.edges.slice(2)){edge[3]=2;edge[5]={...proof,coverage:1,maxUncoveredMetres:0};}
+ const result=improvePedestrianRoute(x.base,x.start,x.end,x.options,x.snap,{graph:x.g,router:x.router,verifyLocal:x.verifyLocal,checker:x.checker});
+ assert.equal(result.error,undefined);assert.equal(result.pedestrianImprovement.originalSharedMetres,10);assert.equal(result.pedestrianImprovement.sharedMetres,0);
+ assert.equal(result.pedestrianImprovement.originalExplicitSidewalkMetres,100);assert.equal(result.pedestrianImprovement.explicitSidewalkMetres,140);
+ assert.ok(result.pedestrianImprovement.sidewalkShare>result.pedestrianImprovement.originalSidewalkShare);
+});
+
+test('a projected sidewalk uses the original edge evidence, not forged coverage',()=>{
+ const x=setup();x.g.ways[1].footway=undefined;
+ const original=x.g.edges[1],derived=[...original.slice(0,5),{...proof,coverage:1,maxUncoveredMetres:0,derivedFrom:1}];
+ x.g.edges.push(derived);const candidate={...x.base,edgeIds:[0,x.g.edges.length-1]};
+ assert.equal(measurePedestrianRoute(x.g,candidate,x.start,x.end).sidewalk,0);
+ x.g.edges[1][5]={...proof,coverage:1,maxUncoveredMetres:0};
+ assert.equal(measurePedestrianRoute(x.g,candidate,x.start,x.end).sidewalk,100);
 });
