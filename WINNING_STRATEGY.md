@@ -12,12 +12,12 @@
 
 ### 2. 台北通 WebView 串接方式（不修改 Flutter 代碼）
 - 網頁透過 Vercel HTTPS 網址掛載至台北通 `WebView`，**不直接修改台北通的 Flutter 程式碼**。
-- 在前端新增 `src/bridge.js` 封裝 `window.flutterObject.postMessage`，串接台北通內建的 `TPWebMessageHandler` Hook：
+- 前端以 `src/townpass-bridge.js` 封裝 `window.flutterObject.postMessage`，串接台北通內建的 `TPWebMessageHandler` Hook：
   - `userinfo` (`UserinfoWebMessageHandler`)：取得使用者身分資訊，自動切換預設無障礙通行偏好。
   - `location` (`LocationMessageHandler`)：取得精確定位座標（一般瀏覽器 fallback 至 `navigator.geolocation`）。
   - `launch_map` (`LaunchMapWebMessageHandler`)：一鍵喚起系統地圖導航。
   - `phone_call` (`PhoneCallMessageHandler`)：一鍵撥打北捷無障礙引導專線或 1999 專線。
-  - `agree1999` (`Agree1999MessageHandler`)：串接 1999 障礙回報同意流程。
+  - `1999agree` (`Agree1999MessageHandler`)：串接 1999 障礙回報同意流程。
 
 ### 3. 目錄結構、人類協作與部署規範
 - **部署文件統一至 `/deployment`**：
@@ -66,10 +66,9 @@
 - 將 `construction.json.gz`（今日施工）與 `metro.json.gz`（電梯異常/保養）座標傳入路由 Worker。
 - 當路段距離施工點 `< 25m` 時提高 A* 成本權重（`factor *= 8`），自動繞開施工區，並在路線摘要直接顯示**「已避開 N 處今日施工」**。
 
-### 3. 出行身分一鍵切換與「順路加停」（`src/App.jsx`）
-- **出行身分膠囊**：在路線規劃頂部提供 `輪椅`、`嬰兒推車`、`樂齡` 三種預設鍵（可由 `userinfo` 自動帶入），一鍵連動坡度、路寬、少過街與大字模式。
+### 3. 出行方式與「順路加停」（`src/App.jsx`）
+- **出行方式**：第一次使用時詢問一種主要方式並存進本機資料庫。進站畫面不放身分膠囊。
 - **順路加停中繼點**：路線算出後提供 `[+ 順路找無障礙廁所]`、`[+ 順路找歇腳椅]`，自動插入沿線 150m 內繞行最短的點位（`起點 → 停靠點 → 終點`）。
-- **一鍵範例路線**：提供 3 組預設起終點按鈕，供 2 分鐘無簡報初審秒開展示。
 
 ---
 
@@ -79,7 +78,7 @@
 
 ### 方案 A（推薦首選）：本機端「路況障礙 / 斜坡影像辨識 + 自動重算繞行」（約 8 MB）
 - **流程**：使用者於頁面拍攝或選取路況照片 → Web Worker 內運行量化後 `YOLOv8n.onnx` / `MobileNetV3` → **0.3 秒內離線辨識**為 `無障礙斜坡`、`階梯阻擋`、`施工圍籬` 或 `人行道違停`。
-- **聯動**：若辨識為障礙物，自動將該座標加入臨時避障點並立即觸發 `src/routing.mjs` 重算繞行路線，亦可一鍵觸發 `agree1999` / `phone_call` 通報。
+- **聯動**：若辨識為障礙物，自動將該座標加入臨時避障點並立即觸發 `src/routing.mjs` 重算繞行路線，亦可一鍵觸發 `1999agree` / `phone_call` 通報。
 
 ### 方案 B：本機端「自然語言無障礙意圖解析」（約 15 MB）
 - **流程**：使用者輸入或語音說出*「推嬰兒車從台北車站到大安森林公園，順便找無障礙廁所」* → 本地端輕量 Intent + NER 模型離線解析出 `{ mode: "gentle", start: "台北車站", end: "大安森林公園", waypoint: "toilet" }` → 直接驅動 A* 引擎算出路線，兼具 AI 互動與 0 幻覺安全性。
@@ -89,6 +88,6 @@
 ## 四、修改執行順序
 
 1. **P0（路網與架構）**：調整 `src/routing.mjs` 連通權重與吸附半徑；建立 `/handbook`、`/deployment`、`.vscode/settings.json` 並精簡 `Readme.md`。
-2. **P1（KISS 介面與台北通 Hook）**：精簡 `src/App.jsx` 標語，實作 `src/bridge.js` 串接 `flutterObject` Hook。
-3. **P2（動態避障與順路停靠）**：將施工與電梯異常接入 A* 權重，新增身分膠囊、順路找廁所與一鍵 Demo 路線。
+2. **P1（KISS 介面與台北通 Hook）**：進站只留一個搜尋框，以 `src/townpass-bridge.js` 串接 `flutterObject` Hook。
+3. **P2（動態避障與順路停靠）**：將施工與電梯異常接入 A* 權重，並在算出路線後提供順路找廁所。
 4. **P3（離線本地 AI）**：接入 `onnxruntime-web` 離線路況障礙辨識並聯動路線重算。

@@ -25,11 +25,18 @@ test("1999 uses the Town Pass handler name 1999agree", async () => {
   assert.equal(bridge.listeners.size, 0);
 });
 
+test("launch_map uses the Town Pass handler name", async () => {
+  const bridge = fakeBridge((m) => ({ name: m.name, data: m.data }));
+  globalThis.window = { flutterObject: bridge };
+  assert.equal(await sendToTownPass("launch_map", "https://maps.example"), "https://maps.example");
+  assert.deepEqual(bridge.sent, [{ name: "launch_map", data: "https://maps.example" }]);
+});
+
 test("unknown hooks and the old agree1999 name are not sent", async () => {
   const bridge = fakeBridge((m) => ({ name: m.name, data: true }));
   globalThis.window = { flutterObject: bridge };
   assert.equal(await sendToTownPass("agree1999", true), null);
-  assert.equal(await sendToTownPass("launch_map", "https://example.com"), null);
+  assert.equal(await sendToTownPass("not_a_hook", true), null);
   assert.equal(bridge.sent.length, 0);
 });
 

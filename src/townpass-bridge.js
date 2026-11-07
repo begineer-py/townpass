@@ -1,5 +1,5 @@
 // 台北通 WebView bridge。訊息名稱須與台北通 TPWebMessageHandler.name 一致。
-const HOOKS = new Set(["userinfo", "location", "phone_call", "1999agree"]);
+const HOOKS = new Set(["userinfo", "location", "phone_call", "launch_map", "1999agree"]);
 
 export function sendToTownPass(name, data = null, timeoutMs = 4000) {
   const bridge = typeof window === "undefined" ? null : window.flutterObject;
@@ -8,11 +8,18 @@ export function sendToTownPass(name, data = null, timeoutMs = 4000) {
   return new Promise((resolve) => {
     let settled = false;
     let timer;
+    let usingProperty = false;
+    let previous;
     const finish = (value) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
-      bridge.removeEventListener?.("message", onMessage);
+      try {
+        if (usingProperty && bridge.onmessage === onMessage) bridge.onmessage = previous;
+        else bridge.removeEventListener?.("message", onMessage);
+      } catch {
+        // Listener cleanup is best-effort.
+      }
       resolve(value);
     };
     const onMessage = (event) => {
@@ -24,8 +31,13 @@ export function sendToTownPass(name, data = null, timeoutMs = 4000) {
       }
     };
     timer = setTimeout(() => finish(null), timeoutMs);
-    bridge.addEventListener?.("message", onMessage);
     try {
+      if (typeof bridge.addEventListener === "function") bridge.addEventListener("message", onMessage);
+      else {
+        previous = bridge.onmessage;
+        usingProperty = true;
+        bridge.onmessage = onMessage;
+      }
       bridge.postMessage(JSON.stringify({ name, data }));
     } catch {
       finish(null);

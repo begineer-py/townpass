@@ -2,7 +2,7 @@
 
 以main的地圖介面與 `.agents/skills/townpass-web-design/SKILL.md` 為準。
 
-- 地圖為背景，手機底部常駐搜尋面板；peek／half／full三段高度，可拖曳或點把手切換。
+- 地圖為背景。進站只有一個搜尋框；開始找路或看設施後，底部面板以 peek／half／full 三段高度切換。
 - 主要功能使用底部分頁：找設施、規劃路線、捷運出口、收藏。圖層與定位用右上浮動工具。
 - 主按鈕primary500底、白字、10px圓角、16px字級；按下primary600。次按鈕白底、primary500文字及邊框。
 - 字體只用400／600字重，文字及色票取自TPTextStyles／TPColors；手機內容邊距16px。

@@ -15,4 +15,4 @@
 
 參考： https://wiki.openstreetmap.org/wiki/Guidelines_for_pedestrian_navigation
 
-驗收見reports/tiered-routing-audit.json。固定11個公開案例目前1個完整通過；此樣本不是全臺北成功率，98%尚未達成。芝山至兒童新樂園仍缺連續的可用連接，不因倍率調整就自動放行。
+芝山至兒童新樂園仍缺連續的可用連接。倍率調整不會因此放行。

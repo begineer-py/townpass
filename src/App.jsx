@@ -78,18 +78,12 @@ import {
   saveLocal,
 } from "./data";
 import { getLocation, locationError } from "./location";
-import { townPassUserKey } from "./townpass-bridge";
+import { sendToTownPass, townPassUserKey } from "./townpass-bridge";
 import { travelProfiles } from "./travel-profiles";
 import { loadProfile, loadTrips, saveProfile, saveTrips } from "./local-database";
-import { sendToTownPass } from "./bridge";
 import {
-  IDENTITIES,
-  DEMOS,
   PHONES,
   mapLink,
-  identityFromUser,
-  parseTripSentence,
-  matchPlace,
   nearestStop,
   activeElevatorStops,
 } from "./trip-extras.mjs";
@@ -219,7 +213,7 @@ export default function App() {
     [loading, setLoading] = useState(false),
     [loadError, setLoadError] = useState(false);
   const [allFilters, setAllFilters] = useState(false);
-  const [tab, setTab] = useState("plan"),
+  const [tab, setTab] = useState(null),
     [filter, setFilter] = useState("all"),
     [viewport, setViewport] = useState({
       lat: 25.0478,
@@ -250,7 +244,7 @@ export default function App() {
   const [route, setRoute] = useState(null),
     [routeError, setRouteError] = useState(""),
     [routing, setRouting] = useState(false),
-    [graphRequested, setGraphRequested] = useState(true),
+    [graphRequested, setGraphRequested] = useState(false),
     [graphReady, setGraphReady] = useState(false),
     [graphError, setGraphError] = useState(false),
     [status, setStatus] = useState(""),
@@ -258,7 +252,6 @@ export default function App() {
     [listLimit, setListLimit] = useState(12),
     [stationQuery, setStationQuery] = useState(""),
     [speaking, setSpeaking] = useState(false),
-    [sentence, setSentence] = useState(""),
     [stepIndex, setStepIndex] = useState(0),
     [online, setOnline] = useState(navigator.onLine);
   const [currentLocation, setCurrentLocation] = useState(null);
@@ -758,38 +751,6 @@ export default function App() {
       viaName:points?.via?.name,
     });
   }
-  function runDemo(demo) {
-    setStart(demo.start);
-    setEnd(demo.end);
-    setTab("plan");
-    wantedStop.current = null;
-    calculate({ start: demo.start, end: demo.end });
-  }
-  function applySentence(event) {
-    event.preventDefault();
-    const parsed = parseTripSentence(sentence);
-    const preset = IDENTITIES.find((row) => row[0] === parsed.identity);
-    const nextPrefs = preset
-      ? {
-          ...prefs,
-          ...preset[2],
-          identity: parsed.identity,
-          avoidSteps: true,
-          officialOnly: false,
-        }
-      : prefs;
-    if (preset) setPrefs(nextPrefs);
-    const from = matchPlace(parsed.startName, data?.all);
-    const to = matchPlace(parsed.endName, data?.all);
-    if (!from || !to) {
-      announce("這句話裡還沒對到出發地和目的地。");
-      return;
-    }
-    setStart(from);
-    setEnd(to);
-    wantedStop.current = parsed.stop;
-    calculate({ start: from, end: to, prefs: nextPrefs });
-  }
   function addStop(kind) {
     const hit = nearestStop(route, data?.all, kind);
     if (!hit) {
@@ -818,7 +779,7 @@ export default function App() {
   async function reportBlockage() {
     if (!window.flutterObject)
       announce("路障回報要在台北通裡同意後送出。你也可以撥 1999。");
-    else await sendToTownPass("agree1999", true);
+    else await sendToTownPass("1999agree", true);
   }
   const essential = new Set([
     "elevator",
@@ -1296,43 +1257,6 @@ export default function App() {
                     <MapPin size={16} />
                     在地圖選點
                   </button>
-                </div>
-                <form className="sentence" onSubmit={applySentence}>
-                  <label className="search-launch input">
-                    <Search size={20} />
-                    <input
-                      value={sentence}
-                      onChange={(e) => setSentence(e.target.value)}
-                      placeholder="例如：推嬰兒車從台北車站到大安森林公園，順便找無障礙廁所"
-                      aria-label="用一句話規劃路線"
-                    />
-                  </label>
-                </form>
-                <div className="mode-tabs" aria-label="出行身分">
-                  {IDENTITIES.map(([id, name, preset]) => (
-                    <button
-                      key={id}
-                      type="button"
-                      aria-pressed={prefs.identity === id}
-                      className={prefs.identity === id ? "active" : ""}
-                      onClick={() => updatePrefs({ ...preset, identity: id })}
-                    >
-                      {name}
-                    </button>
-                  ))}
-                </div>
-                <div className="point-actions" aria-label="示範路線">
-                  {DEMOS.map((demo) => (
-                    <button
-                      key={demo.name}
-                      className="text-button"
-                      type="button"
-                      onClick={() => runDemo(demo)}
-                      disabled={routing || !graphReady}
-                    >
-                      {demo.name}
-                    </button>
-                  ))}
                 </div>
                 <div className="preference-bar">
                   <Accessibility size={20} />

@@ -6,6 +6,4 @@
 - [前端設計](fronted.md)
 - [路線API](apis/accessible-route.md)
 - [Vercel部署](../deployment/README.md)
-- [驗證紀錄](../VALIDATION.md)
-
-後續方向由團隊放在 `/plan`；開發流程不自動修改此目錄。
+- [驗證紀錄](validation.md)
