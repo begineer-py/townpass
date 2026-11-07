@@ -60,6 +60,59 @@ button:active:not(:disabled),
   transform: scale(0.92);
 }
 
+/* 能由常見圖示辨識的操作不顯示文字，名稱仍由 aria-label 提供。 */
+button.icon-action {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 48px;
+  width: 48px;
+  min-width: 48px;
+  height: 48px;
+  min-height: 48px;
+  padding: 0;
+  border-radius: 50%;
+}
+.filter-grid .filter-action {
+  flex: 0 0 48px;
+  padding: 0;
+  justify-content: center;
+  border-radius: 50%;
+}
+.icon-actions {
+  justify-content: flex-start;
+  gap: 10px;
+}
+.route-tools.icon-actions .icon-action {
+  flex: 0 0 48px;
+}
+.route-tools.icon-actions .emergency-action {
+  display: inline-flex;
+  width: auto;
+  flex-basis: auto;
+  gap: 6px;
+  padding: 0 14px;
+  border-radius: var(--r-pill);
+}
+.detail-primary {
+  margin: 0 0 10px;
+}
+.detail-actions.icon-actions {
+  justify-content: flex-start;
+}
+.panel-footer .icon-action {
+  margin: 0;
+  color: var(--tp-grayscale700);
+  text-decoration: none;
+}
+.load-more.icon-action {
+  margin: 12px auto;
+}
+.icon-caption {
+  min-height: 24px;
+  align-items: center;
+  color: var(--tp-grayscale600);
+}
+
 /* 分頁與清單內容：短距離淡入，避免切換時畫面硬跳。 */
 .panel-scroll > :not(.sr-only),
 .sheet-body > :not(.sheet-head) {

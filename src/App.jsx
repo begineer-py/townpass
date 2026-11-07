@@ -1050,6 +1050,7 @@ export default function App() {
               <button
                 key={id}
                 className={tab === id ? "active" : ""}
+                aria-label={label}
                 onClick={() => {
                   setTab(id);
                   setPick(null);
@@ -1057,8 +1058,8 @@ export default function App() {
                 }}
                 aria-current={tab === id ? "page" : undefined}
               >
-                <C size={20} />
-                <span>{label}</span>
+                <C size={24} aria-hidden="true" />
+                <span className="sr-only">{label}</span>
               </button>
             ))}
           </nav>
@@ -1089,27 +1090,34 @@ export default function App() {
                   ).map(([id, label, C]) => (
                     <button
                       key={id}
-                      className={filter === id ? "selected" : ""}
+                      className={`icon-action filter-action ${filter === id ? "selected" : ""}`}
+                      aria-label={label}
                       aria-pressed={filter === id}
                       onClick={() => {
                         setFilter(id);
                         setListLimit(12);
                       }}
                     >
-                      <C size={17} />
-                      {label}
+                      <C size={20} aria-hidden="true" />
+                      <span className="sr-only">{label}</span>
                     </button>
                   ))}
                   {!allFilters &&
                     filters.findIndex(([id]) => id === filter) <
                       MAIN_FILTERS && (
-                      <button onClick={() => setAllFilters(true)}>
-                        更多
-                        <ChevronDown size={16} />
+                      <button
+                        className="icon-action filter-action"
+                        aria-label="顯示更多設施類別"
+                        onClick={() => setAllFilters(true)}
+                      >
+                        <Plus size={20} aria-hidden="true" />
                       </button>
                     )}
                 </div>
-                <p className="list-caption">離地圖中心由近到遠</p>
+                <p className="list-caption icon-caption">
+                  <Navigation size={18} aria-hidden="true" />
+                  <span className="sr-only">離地圖中心由近到遠</span>
+                </p>
                 {nearby.slice(0, listLimit).map((p) => (
                   <FacilityRow
                     key={p.id}
@@ -1125,11 +1133,11 @@ export default function App() {
                 )}
                 {nearby.length > listLimit && (
                   <button
-                    className="load-more"
+                    className="load-more icon-action"
+                    aria-label="顯示更多設施"
                     onClick={() => setListLimit((n) => n + 15)}
                   >
-                    查看更多設施
-                    <ChevronDown size={16} />
+                    <ChevronDown size={20} aria-hidden="true" />
                   </button>
                 )}
               </>
@@ -1173,17 +1181,18 @@ export default function App() {
                     <ArrowUpDown size={20} />
                   </button>
                 </div>
-                <div className="point-actions">
+                <div className="point-actions icon-actions">
                   <button
-                    className="text-button"
+                    className="text-button icon-action"
+                    aria-label="從我的位置出發"
                     onClick={() => locate("start")}
                     disabled={locating}
                   >
-                    <LocateFixed size={16} />
-                    從我的位置出發
+                    <LocateFixed size={20} aria-hidden="true" />
                   </button>
                   <button
-                    className="text-button"
+                    className="text-button icon-action"
+                    aria-label="在地圖選點"
                     onClick={() => {
                       setPick(start ? "end" : "start");
                       announce(
@@ -1194,8 +1203,7 @@ export default function App() {
                       );
                     }}
                   >
-                    <MapPin size={16} />
-                    在地圖選點
+                    <MapPin size={20} aria-hidden="true" />
                   </button>
                 </div>
                 <div className="preference-bar">
@@ -1308,47 +1316,63 @@ export default function App() {
                       </p>
                     )}
                     {!route.viaName && !route.requiresEntryConfirmation && (
-                      <div className="point-actions" aria-label="順路停靠">
-                        <button type="button" onClick={() => addStop("toilet")}>
-                          <Toilet size={16} />
-                          順路找無障礙廁所
+                      <div className="point-actions icon-actions" aria-label="順路停靠">
+                        <button
+                          type="button"
+                          className="icon-action"
+                          aria-label="順路找無障礙廁所"
+                          onClick={() => addStop("toilet")}
+                        >
+                          <Toilet size={20} aria-hidden="true" />
                         </button>
-                        <button type="button" onClick={() => addStop("rest")}>
-                          <Armchair size={16} />
-                          順路找歇腳椅
+                        <button
+                          type="button"
+                          className="icon-action"
+                          aria-label="順路找歇腳椅"
+                          onClick={() => addStop("rest")}
+                        >
+                          <Armchair size={20} aria-hidden="true" />
                         </button>
                       </div>
                     )}
-                    <div className="route-tools">
-                      <button type="button" onClick={report1999}>
-                        <Phone size={17} />
-                        1999 通報路障
+                    <div className="route-tools icon-actions">
+                      <button
+                        type="button"
+                        className="icon-action emergency-action"
+                        aria-label="1999 通報路障"
+                        onClick={report1999}
+                      >
+                        <Phone size={19} aria-hidden="true" />
+                        <span>1999</span>
                       </button>
                       <button
+                        className="icon-action"
+                        aria-label="存下行程"
                         onClick={saveTrip}
                         disabled={route.requiresEntryConfirmation}
                       >
-                        <Bookmark size={17} />
-                        存下行程
+                        <Bookmark size={20} aria-hidden="true" />
                       </button>
                       <button
+                        className="icon-action"
+                        aria-label="分享"
                         onClick={share}
                         disabled={route.requiresEntryConfirmation}
                       >
-                        <Share2 size={17} />
-                        分享
+                        <Share2 size={20} aria-hidden="true" />
                       </button>
                       {"speechSynthesis" in window && (
                         <button
+                          className="icon-action"
+                          aria-label={speaking ? "停止朗讀" : "聽路線"}
                           onClick={readRoute}
                           disabled={route.requiresEntryConfirmation}
                         >
                           {speaking ? (
-                            <VolumeX size={17} />
+                            <VolumeX size={20} aria-hidden="true" />
                           ) : (
-                            <Volume2 size={17} />
-                          )}{" "}
-                          {speaking ? "停止朗讀" : "聽路線"}
+                            <Volume2 size={20} aria-hidden="true" />
+                          )}
                         </button>
                       )}
                     </div>
@@ -1485,8 +1509,20 @@ export default function App() {
               </>
             )}
             <footer className="panel-footer">
-              <button onClick={() => setModal("sources")}>資料來源</button>
-              <button onClick={() => setModal("about")}>關於服務</button>
+              <button
+                className="icon-action"
+                aria-label="資料來源"
+                onClick={() => setModal("sources")}
+              >
+                <Info size={20} aria-hidden="true" />
+              </button>
+              <button
+                className="icon-action"
+                aria-label="關於服務"
+                onClick={() => setModal("about")}
+              >
+                <HelpCircle size={20} aria-hidden="true" />
+              </button>
             </footer>
           </div>
         </aside>
@@ -1932,40 +1968,47 @@ export default function App() {
                 </p>
               </div>
               <button
-                className="primary full"
+                className="primary icon-action detail-primary"
+                aria-label="我要到這裡"
                 onClick={() => navigateTo(selected)}
               >
-                我要到這裡
-                <ArrowRight size={18} />
+                <Navigation size={22} aria-hidden="true" />
               </button>
-              <div className="detail-actions">
+              <div className="detail-actions icon-actions">
                 <button
-                  className="secondary"
+                  className="secondary icon-action"
+                  aria-label="從這裡出發"
                   onClick={() => {
                     changePoint("start", selected);
                     setSelected(null);
                   }}
                 >
-                  從這裡出發
+                  <MapPin size={20} aria-hidden="true" />
                 </button>
                 <button
-                  className="secondary"
+                  className="secondary icon-action"
+                  aria-label={
+                    saved.some((x) => x.id === selected.id)
+                      ? "取消收藏"
+                      : "收藏"
+                  }
                   onClick={() => toggleSave(selected)}
                 >
                   <Heart
-                    size={18}
+                    size={20}
+                    aria-hidden="true"
                     fill={
                       saved.some((x) => x.id === selected.id)
                         ? "currentColor"
                         : "none"
                     }
                   />
-                  {saved.some((x) => x.id === selected.id) ? "已收藏" : "收藏"}
                 </button>
               </div>
               {selected.station && (
                 <button
-                  className="full text-button"
+                  className="text-button icon-action"
+                  aria-label="查看這個車站的電梯資訊"
                   onClick={() => {
                     const record = (data?.metro["metro-elevators"] || []).find(
                       (r) => stationKey(r["車站名稱"]) === stationKey(selected.station),
@@ -1983,8 +2026,7 @@ export default function App() {
                     });
                   }}
                 >
-                  查看這個車站的電梯資訊
-                  <ChevronRight size={16} />
+                  <ArrowUpFromLine size={20} aria-hidden="true" />
                 </button>
               )}
               <p className="source-note">
