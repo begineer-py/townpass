@@ -2149,12 +2149,12 @@ export default function App() {
             route={tab ? route : null}
             partialRoute={tab==='plan' ? partialRoute : null}
             constructionConflict={tab && !hideMapIcons ? constructionConflict : null}
-            routeGap={tab && !hideMapIcons ? routeGapView : null}
-            nearbyCandidates={tab==='plan' && !hideMapIcons ? nearbyState.candidates : NO_MAP_ICONS}
+            routeGap={tab ? routeGapView : null}
+            nearbyCandidates={tab==='plan' ? nearbyState.candidates : NO_MAP_ICONS}
             onNearbySelect={chooseNearby}
-            start={tab && !hideMapIcons ? start : null}
-            end={tab && !hideMapIcons ? end : null}
-            location={hideMapIcons ? null : currentLocation}
+            start={tab ? start : null}
+            end={tab ? end : null}
+            location={currentLocation}
             focus={focus}
             pick={pick}
             onPick={selectPoint}
