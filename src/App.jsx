@@ -246,6 +246,7 @@ export default function App() {
     [graphReady, setGraphReady] = useState(false),
     [graphError, setGraphError] = useState(false),
     [status, setStatus] = useState(""),
+    [srStatus, setSrStatus] = useState(""),
     [locating, setLocating] = useState(false),
     [listLimit, setListLimit] = useState(12),
     [speaking, setSpeaking] = useState(false),
@@ -363,7 +364,7 @@ export default function App() {
   function resetNorth() {
     map.current?.setBearing?.(0);
     setBearing(0);
-    announce("地圖已轉回正北。");
+    announce("地圖已轉回正北。", { quiet: true });
   }
   useEffect(() => {
     if (routeError)
@@ -411,7 +412,17 @@ export default function App() {
     request = useRef(0),
     map = useRef(),
     announceTimer = useRef();
-  const announce = (text) => {
+  // 提示分兩種：
+  // - 一般提示（錯誤、需要使用者處理的事）：畫面上一定顯示。
+  // - 操作確認（quiet）：只給螢幕報讀器唸；選了「聽障」出行方式或開啟「顯示操作提示」時，畫面上才顯示。
+  // 所有提示都會送到報讀用的 live region，視障者不會漏聽。
+  const showConfirmations =
+    prefs.visualPrompts ?? travelProfile === "hearing";
+  const announce = (text, { quiet = false } = {}) => {
+    // 先清空再填入，同一句話重複出現時報讀器也會再唸一次。
+    setSrStatus("");
+    setTimeout(() => setSrStatus(text), 50);
+    if (quiet && !showConfirmations) return;
     setStatus(text);
     clearTimeout(announceTimer.current);
     announceTimer.current = setTimeout(() => setStatus(""), 7000);
@@ -566,7 +577,7 @@ export default function App() {
       setFocus({ ...p, token: Date.now() });
       if (useAsStart) setStart(p);
       if (which) changePoint(which, p);
-      else if (!useAsStart) announce("已找到你的位置，可以看看附近有哪些設施。");
+      else if (!useAsStart) announce("已找到你的位置，可以看看附近有哪些設施。", { quiet: true });
     } catch (error) {
       if (!which || version === tabVersion.current)
         announce(locationErrorText(error));
@@ -688,7 +699,7 @@ export default function App() {
         setLocating(false);
       }
     }
-    announce(`正在規劃前往${cleanName(place.name)}的路線。`);
+    announce(`正在規劃前往${cleanName(place.name)}的路線。`, { quiet: true });
     setRouteRequest((n) => n + 1);
   }
   function addStop(kind) {
@@ -892,7 +903,7 @@ export default function App() {
     const next = [entry, ...trips].slice(0, 12);
     if (await saveTrips(profileStorageKey, next)) {
       setTrips(next);
-      announce("行程已存好，稍後可以從「收藏」再打開。");
+      announce("行程已存好，稍後可以從「收藏」再打開。", { quiet: true });
     } else announce("儲存空間不足，這次沒能存下行程。");
   }
   async function share() {
@@ -911,7 +922,7 @@ export default function App() {
         await navigator.share({ title: "好好走・行程", text });
       else {
         await navigator.clipboard.writeText(text);
-        announce("行程文字已複製，可以貼給同行的人。");
+        announce("行程文字已複製，可以貼給同行的人。", { quiet: true });
       }
     } catch {
       announce("這次沒有分享行程，你可以稍後再試。");
@@ -1165,6 +1176,7 @@ export default function App() {
                         start
                           ? "請在地圖上點選目的地。"
                           : "請在地圖上點選出發地。",
+                        { quiet: true },
                       );
                     }}
                   >
@@ -1628,10 +1640,11 @@ export default function App() {
           目前離線，已載入的資料仍可查看，最新路況暫時無法確認。
         </div>
       )}
+      <div className="sr-only" role="status" aria-live="polite">
+        {srStatus}
+      </div>
       <div
         className={`toast ${status ? "visible" : ""}`}
-        role="status"
-        aria-live="polite"
       >
         {status && (
           <>
@@ -2030,6 +2043,17 @@ export default function App() {
             </select>
           </label>
           <h3>閱讀</h3>
+          <label className="toggle-row">
+            <span>
+              <b>顯示操作提示</b>
+              <small>例如「地圖已轉回正北」「行程已存好」。螢幕報讀器一律會唸出；選「聽障」出行方式時預設開啟。</small>
+            </span>
+            <input
+              type="checkbox"
+              checked={showConfirmations}
+              onChange={(e) => updatePrefs({ visualPrompts: e.target.checked })}
+            />
+          </label>
           <label className="toggle-row">
             <b>放大文字</b>
             <input
