@@ -53,6 +53,8 @@ export default function MapView({
   items,
   recentPlaces = [],
   route,
+  onAvoidOfficialCondition,
+  avoidingOfficialCondition,
   referenceRoute,
   partialRoute,
   constructionConflict,
@@ -103,8 +105,8 @@ export default function MapView({
   const paddingReader=useRef(getBottomInset);paddingReader.current=getBottomInset;
   const fitPaddingReader=useRef(fitPadding);fitPaddingReader.current=fitPadding;
   const routePadding = (height) => fitPaddingReader.current?.() || {paddingTopLeft:[24,40],paddingBottomRight:[24,Math.min(height-120,(paddingReader.current?.()||0)+24)]};
-  const cb = useRef({ onPick, onSelect, onViewport, onGesture, onNearbySelect, onBearing, pick });
-  cb.current = { onPick, onSelect, onViewport, onGesture, onNearbySelect, onBearing, pick };
+  const cb = useRef({ onPick, onSelect, onViewport, onGesture, onNearbySelect, onBearing, pick, onAvoidOfficialCondition });
+  cb.current = { onPick, onSelect, onViewport, onGesture, onNearbySelect, onBearing, pick, onAvoidOfficialCondition };
   useEffect(() => {
     const m = L.map(root.current, {
       zoomControl: false,
@@ -540,11 +542,20 @@ export default function MapView({
         const label=document.createElement('span');label.textContent=`${marker.title}：${marker.detail}`;
         const detail=document.createElement('div'),heading=document.createElement('strong'),body=document.createElement('p');
         heading.textContent=marker.title;body.textContent=marker.detail;detail.append(heading,body);
+        if(route && path===route && onAvoidOfficialCondition){
+          for(const record of marker.records){
+            const button=document.createElement('button');
+            button.type='button';button.className='route-issue-avoid';button.disabled=avoidingOfficialCondition;
+            button.textContent=marker.records.length>1?`嘗試繞過${record.type==='missing_noCurbSlope'?'淨寬不足':'缺少路緣斜坡'}`:'嘗試繞過';
+            button.addEventListener('click',()=>{button.disabled=true;cb.current.onAvoidOfficialCondition?.({...record,lat:marker.lat,lon:marker.lon});});
+            detail.append(button);
+          }
+        }
         const pin=L.marker([marker.lat,marker.lon],{pane:'route-issues',icon:L.divIcon({className:'route-issue-shell',html:icon,iconSize:[30,30],iconAnchor:[15,15]}),title:marker.title,alt:marker.title,keyboard:true}).bindTooltip(label,{direction:'top',offset:[0,-12]}).bindPopup(detail).addTo(routeIssues.current);
         pin.getElement()?.setAttribute('aria-label',`${marker.title}，${marker.detail}`);
       }
     }
-  },[route,partialRoute,hideMapIcons]);
+  },[route,partialRoute,hideMapIcons,avoidingOfficialCondition]);
   useEffect(() => {
     if (!blocked.current) return;
     blocked.current.clearLayers();

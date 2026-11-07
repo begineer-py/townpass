@@ -55,7 +55,6 @@ import {
 } from "lucide-react";
 import MapView from "./MapView";
 import { routeFitPadding } from "./route-fit.mjs";
-import OfficialConditions from "./OfficialConditions";
 import ReferenceRouteResult from "./ReferenceRouteResult";
 import RouteChoice from "./RouteChoice.jsx";
 import {describeRouteChoices} from "./route-summary.mjs";
@@ -1825,7 +1824,6 @@ export default function App() {
                     {route.officialConditions?.status === "unavailable" && <p className="quiet-note" role="note">目前查不到沿途通行問題紀錄。</p>}
                     {routeWorks.length > 0 && <p className="quiet-note" role="note">附近有施工，請留意現場指引。</p>}
                     {route.kind!=='official-passageway' && <details className="route-disclosure"><summary>線條說明</summary><RouteLegend segments={[route]} colorFriendly={prefs.colorFriendly} showIssueIcons={true}/></details>}
-                    {route.officialConditions?.status==='available' && route.officialConditions.points?.length>0 && <details className="route-disclosure"><summary>查看沿途通行紀錄（{route.officialConditions.points.length}）</summary><OfficialConditions conditions={route.officialConditions} onAvoid={avoidOfficialCondition} avoiding={conditionDetourState.status==='loading'}/></details>}
                     {conditionDetourState.status==='loading'&&<p role="status">正在尋找繞路… <button type="button" onClick={()=>conditionDetourSearch.current.cancel()}>取消</button></p>}
                     {conditionDetourState.status==='error'&&<p role="status">{conditionDetourState.message}</p>}
                     {route.conditionDetour&&<p className="quiet-note" role="note">已規劃避開 {route.conditionDetour.targets.length} 筆所選官方紀錄點 10 公尺內的路線；點位與實際路況仍需現場確認。</p>}
@@ -2155,6 +2153,8 @@ export default function App() {
             colorFriendly={prefs.colorFriendly}
             onBasemapStatus={setBasemapStatus}
             route={tab ? route : null}
+            onAvoidOfficialCondition={tab==='plan' && route ? avoidOfficialCondition : null}
+            avoidingOfficialCondition={conditionDetourState.status==='loading'}
             referenceRoute={tab==='plan' && (!route || route.kind==='official-passageway') ? referenceRoute : null}
             partialRoute={tab==='plan' ? partialRoute : null}
             constructionConflict={tab && showConstruction ? constructionConflict : null}
