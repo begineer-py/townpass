@@ -313,9 +313,11 @@ export default function App() {
   const [addressResults, setAddressResults] = useState([]);
   const [addressQuery, setAddressQuery] = useState(null);
   const [addressPending, setAddressPending] = useState(false);
+  const [addressError, setAddressError] = useState(false);
   useEffect(() => {
     const ctl = new AbortController();
     setAddressResults([]);
+    setAddressError(false);
     setAddressQuery(query);
     setAddressPending(Boolean(searchFor && query.trim()));
     const t = setTimeout(() => {
@@ -323,6 +325,7 @@ export default function App() {
       Promise.allSettled([addressSearch(query, ctl.signal), landmarkSearch(query, ctl.signal)]).then(results => {
         if (ctl.signal.aborted) return;
         setAddressResults(results.flatMap(result => result.status === 'fulfilled' ? result.value : []));
+        setAddressError(results.some(result => result.status === 'rejected'));
         setAddressPending(false);
       });
     }, 350);
@@ -2111,7 +2114,7 @@ export default function App() {
           </label>
           <div className="search-options">
             <VoiceSearch onResult={setQuery} />
-            <button onClick={() => speakText(searchResults.length ? `找到${searchResults.length}個地方。${searchResults.slice(0, 8).map((p, i) => `${i + 1}，${cleanName(p.name)}。`).join('')}請從清單選擇地點。` : query.trim() && (addressQuery !== query || addressPending) ? '正在搜尋地點。' : '目前還沒找到地點，可以換個名稱再試一次。')}><Volume2 size={18} aria-hidden="true"/>{speaking ? "停止朗讀" : "朗讀搜尋結果"}</button>
+            <button onClick={() => speakText(searchResults.length ? `${addressQuery === query && addressError ? '部分搜尋來源暫時無法使用。' : ''}找到${searchResults.length}個地方。${searchResults.slice(0, 8).map((p, i) => `${i + 1}，${cleanName(p.name)}。`).join('')}請從清單選擇地點。` : query.trim() && (addressQuery !== query || addressPending) ? '正在搜尋地點。' : addressError ? '部分搜尋來源暫時無法使用，請稍後再試。' : '目前還沒找到地點，可以換個名稱再試一次。')}><Volume2 size={18} aria-hidden="true"/>{speaking ? "停止朗讀" : "朗讀搜尋結果"}</button>
             <button
               onClick={() => {
                 const which = searchFor === "explore" ? null : searchFor;
@@ -2152,7 +2155,8 @@ export default function App() {
             />
           ))}
           {query.trim() && !searchResults.length && (addressQuery !== query || addressPending) && <p role="status">正在搜尋地點…</p>}
-          {query.trim() && !searchResults.length && addressQuery === query && !addressPending && (
+          {query.trim() && addressQuery === query && !addressPending && addressError && <p role="status">部分搜尋來源暫時無法使用，請確認網路或稍後再試；也可以使用地圖選點。</p>}
+          {query.trim() && !searchResults.length && addressQuery === query && !addressPending && !addressError && (
             <div className="empty-card">
               <Search />
               <p>
