@@ -59,6 +59,8 @@ export default function MapView({
   partialRoute,
   constructionConflict,
   constructionSnapshot,
+  onAvoidConstruction,
+  avoidingConstruction,
   showConstruction = true,
   onConstructionStatus,
   routeGap,
@@ -178,7 +180,7 @@ export default function MapView({
   }, []);
   useSidewalkLayer(map, location, showOfficialSidewalk, onOfficialSidewalkStatus);
   const constructionPriorityIds=[...(route?.construction?.nearby||[]),...(constructionConflict?.blocked||[]),...(partialRoute?.segments||[]).flatMap(segment=>segment.construction?.nearby||[])].map(work=>work.id).filter(Boolean);
-  useConstructionLayer(map,constructionSnapshot,showConstruction,onConstructionStatus,constructionPriorityIds,hideMapIcons);
+  useConstructionLayer(map,constructionSnapshot,showConstruction,onConstructionStatus,constructionPriorityIds,hideMapIcons,onAvoidConstruction,avoidingConstruction);
   useEffect(() => {
     const m = map.current;
     if (!m || !showOfficialSidewalk || hideMapIcons) return;

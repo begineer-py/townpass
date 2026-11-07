@@ -8,6 +8,7 @@ import { validateNetwork } from "./network-contract.mjs";
 import { createOfficialRouteVerifier } from './verify-official-route.mjs';
 import {routeAroundConstruction,resolveVerifiedRoute} from './construction-routing.mjs';
 import {createConstructionChecker,constructionFresh} from './construction.mjs';
+import {planConstructionDetour} from './construction-detour.mjs';
 import {createDetourWaypoints} from './alternative-routes.mjs';
 import {createLocalRouteVerifier,diagnoseConstruction} from './local-route-verifier.mjs';
 import {createNearbyRoutes,verifyNearbyRoutes} from './nearby-routes.mjs';
@@ -232,6 +233,10 @@ self.onmessage = async ({ data }) => {
       let checker;try{checker=createConstructionChecker(data.construction);}catch{postMessage({type:'avoid-official-condition',id:data.id,result:{error:'CONSTRUCTION_UNAVAILABLE'}});return;}
       const result=planConditionDetour(data.startPlace,data.endPlace,data.options||{},data.construction,{graph:routeGraph,router,verifyLocal,facilities,checker},data.targets);
       postMessage({type:'avoid-official-condition',id:data.id,result});
+    } else if(data.type==='avoid-construction'){
+      await initialization;prepareTask();
+      const result=planConstructionDetour(data.startPlace,data.endPlace,data.options||{},data.construction,data.ids,{plan:(a,b,options,snapshot,checker)=>planImprovedPlaces(a,b,options,snapshot,{graph:routeGraph,router,verifyLocal,facilities,checker})});
+      postMessage({type:'avoid-construction',id:data.id,result});
     } else if(data.type==='plan-places'){
       await initialization;
       prepareTask();

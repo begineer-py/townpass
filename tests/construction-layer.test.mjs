@@ -1,10 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {selectVisibleConstruction,constructionLabel,createConstructionRedrawGate} from '../src/construction-layer.mjs';
+import {selectVisibleConstruction,constructionLabel,createConstructionRedrawGate,constructionMarkerVisible} from '../src/construction-layer.mjs';
 const now=Date.parse('2026-11-07T22:51:00Z'),stamp=new Date(now).toISOString();
 const snapshot=works=>({schemaVersion:1,fetchedAt:stamp,sourceUpdatedAt:stamp,works});
 const make=(id,impact,geometries,patch={})=>({id,address:'公開地址',impact,start:'115/11/08',end:'115/11/08',hours:'24小時施工',geometries,...patch});
 const bounds=[25,121.5,25.01,121.51],point=(lat,lon)=>({type:'Point',coordinates:[[lat,lon]]});
+test('construction points appear at the same zoom as shops',()=>{
+ assert.equal(constructionMarkerVisible(17),false);assert.equal(constructionMarkerVisible(18),true);assert.equal(constructionMarkerVisible(19),true);assert.equal(constructionMarkerVisible(NaN),false);
+});
 test('viewport lists active reported works including non-blocking projects',()=>{
  const input=snapshot([make('a','blocked',[point(25.005,121.505)]),make('b','clear',[point(25.006,121.506)]),make('c','unknown',[point(25.007,121.507)]),make('old','blocked',[point(25.005,121.505)],{start:'115/11/06',end:'115/11/07'}),make('out','blocked',[point(25.1,121.6)])]);
  const result=selectVisibleConstruction(input,bounds,now);assert.equal(result.status,'ready');assert.deepEqual(result.items.map(x=>x.work.id),['a','c','b']);assert.equal(result.total,3);assert.equal(result.truncated,false);

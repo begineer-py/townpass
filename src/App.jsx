@@ -60,6 +60,7 @@ import RouteChoice from "./RouteChoice.jsx";
 import {describeRouteChoices} from "./route-summary.mjs";
 import {createReferenceSearch} from "./reference-search.mjs";
 import {createConditionDetourSearch} from "./condition-detour-search.mjs";
+import {createConstructionDetourSearch} from "./construction-detour-search.mjs";
 import {presentRouteCandidates, sortRouteCandidates} from "./route-candidates-presentation.mjs";
 import {ROUTE_CONDITIONS, conditionForSegment, fallbackRouteCondition} from "./route-conditions.mjs";
 import {NO_WALK_URLS, UNKNOWN_NO_WALK_URL} from "./issue-icons.mjs";
@@ -405,7 +406,7 @@ export default function App() {
   const tabVersion = useRef(0);
   useEffect(() => {
     tabVersion.current++;
-    if (tab !== "plan") conditionDetourSearch.current?.cancel();
+    if (tab !== "plan") {conditionDetourSearch.current?.cancel();constructionDetourSearch.current?.cancel();}
   }, [tab]);
   useEffect(() => {
     saveLocal("hhz-basemap", basemap);
@@ -452,6 +453,9 @@ export default function App() {
   const [conditionDetourState,setConditionDetourState]=useState({status:'idle'});
   const conditionDetourSearch=useRef(null);
   if(!conditionDetourSearch.current)conditionDetourSearch.current=createConditionDetourSearch({fetchSnapshot:fetchConstruction,createWorker:()=>new Worker(new URL('./route-worker.js',import.meta.url),{type:'module'}),onState:setConditionDetourState,onSnapshot:s=>{lastConstruction.current=s;}});
+  const [constructionDetourState,setConstructionDetourState]=useState({status:'idle'}),constructionDetourSearch=useRef(null);
+  if(!constructionDetourSearch.current)constructionDetourSearch.current=createConstructionDetourSearch({fetchSnapshot:fetchConstruction,createWorker:()=>new Worker(new URL('./route-worker.js',import.meta.url),{type:'module'}),onState:setConstructionDetourState,onSnapshot:s=>{lastConstruction.current=s;}});
+  useEffect(()=>()=>constructionDetourSearch.current?.cancel(false),[]);
   const [constructionConflict,setConstructionConflict] = useState(null);
   const [routeGap,setRouteGap] = useState(null);
   const [partialRoute,setPartialRoute] = useState(null);
@@ -779,6 +783,7 @@ export default function App() {
     stopFollowing();
     dataGate.current.cancel();
     conditionDetourSearch.current.cancel();
+    constructionDetourSearch.current.cancel();
     cancelNearby();
     referenceSearch.current.cancel();referenceSnapshot.current=null;
     pendingRoute.current=null;
@@ -804,7 +809,7 @@ export default function App() {
   function selectOfficialCandidate(candidate,automatic=false) {
     if(!isCurrentOfficialRoute(candidate?.route)) { announce('路線資料已過期，請重新規劃。'); return; }
     if(!automatic)manualRouteSelection.current=true;
-    stopFollowing(); conditionDetourSearch.current.cancel();
+    stopFollowing(); conditionDetourSearch.current.cancel();constructionDetourSearch.current.cancel();
     lastConstruction.current=referenceSnapshot.current;
     setRoute(candidate.route);
     setRouteCandidates(existing=>existing.filter(item=>item.route?.construction?.sourceUpdatedAt===referenceSnapshot.current?.sourceUpdatedAt));
@@ -816,7 +821,7 @@ export default function App() {
     if (!isVerifiedNavigationRoute(candidate?.route) || !constructionFresh(lastConstruction.current) || candidate.route.construction?.sourceUpdatedAt !== lastConstruction.current?.sourceUpdatedAt) {
       announce('路線資料已更新，請重新規劃。'); return;
     }
-    conditionDetourSearch.current.cancel();stopFollowing();
+    conditionDetourSearch.current.cancel();constructionDetourSearch.current.cancel();stopFollowing();
     window.speechSynthesis?.cancel(); setSpeaking(false);
     setRoute(candidate.route); setSelectedRouteCandidate(candidate.id); setStepIndex(0);
   }
@@ -825,11 +830,25 @@ export default function App() {
   }
   function avoidOfficialCondition(point){
     if(!route||!start||!end||!graphReady)return;
-    stopFollowing();cancelNearby();
+    stopFollowing();cancelNearby();constructionDetourSearch.current.cancel();
     const a=route.resolvedStart||start,b=route.resolvedEnd||end;
     const old=route.conditionDetour?.targets||[],targets=[...old.filter(p=>p.id!==point.id||p.type!==point.type),{id:point.id,type:point.type,lat:point.lat,lon:point.lon}];
     void conditionDetourSearch.current.start({startPlace:a,endPlace:b,options:{...prefs,avoidPoints},url:new URL(dataUrl('graph')+'?policy='+ROUTING_POLICY,location.href).href,targets,online:navigator.onLine,offlineSnapshot:lastConstruction.current});
   }
+  function avoidConstruction(ids){
+    if(!route||!start||!end||!graphReady||!Array.isArray(ids)||!ids.length)return;
+    stopFollowing();cancelNearby();conditionDetourSearch.current.cancel();manualRouteSelection.current=true;
+    const a=route.resolvedStart||start,b=route.resolvedEnd||end;
+    const targets=[...new Set([...(route.constructionDetour?.ids||[]),...ids])];
+    void constructionDetourSearch.current.start({startPlace:a,endPlace:b,options:{...prefs,avoidPoints},url:new URL(dataUrl('graph')+'?policy='+ROUTING_POLICY,location.href).href,ids:targets,originalRoute:route,online:navigator.onLine,offlineSnapshot:lastConstruction.current});
+  }
+  useEffect(()=>{
+    if(constructionDetourState.status!=='ready'||constructionDetourState.originalRoute!==route)return;
+    const next=constructionDetourState.route;
+    if(!isVerifiedNavigationRoute(next)||!constructionFresh(lastConstruction.current)||next.construction?.sourceUpdatedAt!==lastConstruction.current?.sourceUpdatedAt){setConstructionDetourState({status:'error',message:'無法確認繞路結果，原路線仍可查看。'});return;}
+    referenceSearch.current.cancel();referenceSnapshot.current=null;referenceBaseline.current=null;
+    setRoute(next);setRouteCandidates([]);setSelectedRouteCandidate(null);setStepIndex(0);setConstructionDetourState({status:'idle'});
+  },[constructionDetourState,route]);
   useEffect(()=>{
     if(conditionDetourState.status!=='ready')return;
     const next=conditionDetourState.route;
@@ -997,6 +1016,7 @@ export default function App() {
     officialRequest.current?.abort();
     worker.current?.cancel();
     conditionDetourSearch.current?.cancel();
+    constructionDetourSearch.current?.cancel();
     cancelNearby();
     setRouting(false);
   }
@@ -1473,6 +1493,7 @@ export default function App() {
     setFocus({ ...p, token: Date.now() });
   };
   const retryWithEntrance = ['OFFICIAL_PATH_UNVERIFIED','OFFICIAL_ROAD_CONFLICT','OFFICIAL_CROSSING_UNVERIFIED','OFFICIAL_ENTRY_UNVERIFIED','OFFICIAL_NO_ROUTE','OFFICIAL_GAP','NO_CONNECTION','NO_ROUTE'].includes(routeError);
+  const simpleNoRoute=['NO_ROUTE','NO_CONNECTION','OFFICIAL_NO_ROUTE','OFFICIAL_GAP'].includes(routeError);
   useEffect(()=>{
     if(['NO_ROUTE','NO_CONNECTION'].includes(routeError) && referenceState.status!=='error')return;
     if(!shouldAutoSearchNearby({error:routeError,routing,graphReady,tab,start,end}))return;
@@ -1766,9 +1787,9 @@ export default function App() {
                     <Info />
                     <div>
                     <p>
-                      {nearbyState.status==='loading' ? '正在尋找附近可連通的路線…' : (errorText[routeError] || "暫時無法規劃，請稍後再試。")}
+                      {simpleNoRoute ? ((nearbyState.status==='loading'||referenceState.status==='loading')?'正在尋找路線…':'找不到路線。') : (nearbyState.status==='loading' ? '正在尋找附近可連通的路線…' : (errorText[routeError] || "暫時無法規劃，請稍後再試。"))}
                     </p>
-                    {partialRoute && <section aria-label="未連接的部分路段">
+                    {!simpleNoRoute && partialRoute && <section aria-label="未連接的部分路段">
                       <p>{partialRoute.message}</p>
                       {partialRoute.segments.some(s=>s.officialConditions?.points?.length>0)&&<p>部分路線附近有官方不利通行紀錄，地圖已標示；與路線的關係及現況未確認。</p>}
                       {partialRoute.segments.some(s=>s.officialConditions?.status==='unavailable')&&<p>官方不利通行資料暫時無法讀取。</p>}
@@ -1783,8 +1804,8 @@ export default function App() {
                       </div>)}
                       <RouteLegend segments={partialRoute.segments} colorFriendly={prefs.colorFriendly} showIssueIcons={true}/>
                     </section>}
-                    {routeGapView && <p>{routeGapView.message}</p>}
-                    {retryWithEntrance && entranceChoices.length > 0 && <div className="entrance-choices">
+                    {!simpleNoRoute && routeGapView && <p>{routeGapView.message}</p>}
+                    {!simpleNoRoute && retryWithEntrance && entranceChoices.length > 0 && <div className="entrance-choices">
                       <p>附近捷運電梯出口（距離為直線估算，選擇後會更改起終點，需重新規劃）</p>
                       {entranceChoices.map(({which,p}) => <button key={which+p.id} onClick={()=>changePoint(which,p)}>
                         <ArrowUpFromLine size={18} aria-hidden="true"/><span>{which==='start'?'出發地改為':'目的地改為'} {cleanName(p.name)}<small>距原選點約 {formatDistance(p.gap)}</small></span><ChevronRight size={18} aria-hidden="true"/>
@@ -1792,7 +1813,7 @@ export default function App() {
                     </div>}
                     {constructionConflict?.blocked?.length > 0 && <p>{showConstruction ? '地圖已標出影響路線的施工位置；' : '路線受到施工影響；'}點線位置的周邊範圍是估計，並非精確封閉邊界。</p>}
                     {constructionConflict?.blocked?.slice(0,3).map(w => <p key={w.id}>{w.address}：{w.match === 'vicinity' ? '鄰近影響通行的施工位置' : '與影響通行的施工範圍交會'}。{w.plan}</p>)}
-                    {(retryWithEntrance||routeError==='CONSTRUCTION_BLOCKED') && start && end && graphReady && <div className="entrance-choices">
+                    {!simpleNoRoute && (retryWithEntrance||routeError==='CONSTRUCTION_BLOCKED') && start && end && graphReady && <div className="entrance-choices">
                       {(nearbyState.status==='idle'||nearbyState.status==='error')&&<button type="button" onClick={findNearbyPositions}>重新找路</button>}
                       {nearbyState.status==='loading'&&<button type="button" onClick={cancelNearby}>取消搜尋</button>}
                       {nearbyState.status==='error'&&<p>{nearbyState.message}</p>}
@@ -1805,7 +1826,7 @@ export default function App() {
                     </div>
                   </div>
                 )}
-                {(route || routeError) && start && end && ['idle','error'].includes(referenceState.status) && <button type="button" onClick={()=>findReferenceRoute(isVerifiedNavigationRoute(route)?route:null)}>尋找更多人行路線</button>}
+                {!simpleNoRoute && (route || routeError) && start && end && ['idle','error'].includes(referenceState.status) && <button type="button" onClick={()=>findReferenceRoute(isVerifiedNavigationRoute(route)?route:null)}>尋找更多人行路線</button>}
                 {unifiedRouteChoices?.length>0 && <section className="route-alternatives" aria-label="選擇路線">
                   <h3>選擇路線</h3>
                   {unifiedRouteChoices.length>1 && <div className="candidate-sort" role="group" aria-label="路線排序">
@@ -1816,13 +1837,17 @@ export default function App() {
                   {unifiedRouteChoices.map((item,index)=>{const candidate=item.candidate,source=item.source==='reference';return <RouteChoice key={`${item.source}:${candidate.id}`} number={index+1} distance={item.distance} summary={unifiedRouteSummaries[index]} selected={route===candidate.route || (!source&&selectedRouteCandidate===candidate.id)} disabled={source?!isCurrentOfficialRoute(candidate.route):!constructionFresh(lastConstruction.current)||candidate.route?.construction?.sourceUpdatedAt!==lastConstruction.current?.sourceUpdatedAt} onClick={()=>source?selectOfficialCandidate(candidate):selectRouteCandidate(candidate)}/>;})}
                 </section>}
                 {referenceCollapsed && referenceState.status==='ready' && <button type="button" onClick={()=>setReferenceCollapsed(false)}>查看線條說明</button>}
-                <ReferenceRouteResult status={referenceCollapsed?'idle':referenceState.status} route={referenceRoute} candidates={displayedReferenceCandidates} selected={selectedRouteCandidate} onSelect={selectOfficialCandidate} comparisonStatus={referenceState.comparisonStatus} showCandidates={!unifiedRouteChoices} showLegend={route?.kind==='official-passageway'||!route} showSelectedNotice={route?.kind==='official-passageway'||!route} showIssueIcons={true} start={start} end={end} message={referenceState.message} onClose={()=>{if(route?.kind==='official-passageway')setReferenceCollapsed(true);else {referenceSearch.current.cancel();referenceSnapshot.current=null;referenceBaseline.current=null;}}} />
+                {!simpleNoRoute && <ReferenceRouteResult status={referenceCollapsed?'idle':referenceState.status} route={referenceRoute} candidates={displayedReferenceCandidates} selected={selectedRouteCandidate} onSelect={selectOfficialCandidate} comparisonStatus={referenceState.comparisonStatus} showCandidates={!unifiedRouteChoices} showLegend={route?.kind==='official-passageway'||!route} showSelectedNotice={route?.kind==='official-passageway'||!route} showIssueIcons={true} start={start} end={end} message={referenceState.message} onClose={()=>{if(route?.kind==='official-passageway')setReferenceCollapsed(true);else {referenceSearch.current.cancel();referenceSnapshot.current=null;referenceBaseline.current=null;}}} />}
                 {route && (
                   <>
                     <div className="route-summary"><h2>{start?.nearbyOriginal||end?.nearbyOriginal?'路網路線':'全程'} {formatDistance(route.distance)}</h2></div>
                     {(route.routeSearchStatus==='projection-limit'||route.conditionDetourComparison==='projection-limit'||route.pedestrianImprovement?.status==='projection-limit'||route.routeCandidates?.status==='projection-limit'||route.avoidanceStatus==='projection-limit') && <p role="status">部分比較未完成，路線仍可查看；可重新規劃。</p>}
                     {route.officialConditions?.status === "unavailable" && <p className="quiet-note" role="note">目前查不到沿途通行問題紀錄。</p>}
                     {routeWorks.length > 0 && <p className="quiet-note" role="note">附近有施工，請留意現場指引。</p>}
+                    {routeWorks.filter(w=>w.impact==='clear').map(w=><button className="construction-avoid" key={w.id} type="button" disabled={constructionDetourState.status==='loading'} onClick={()=>avoidConstruction(w.ids)}>繞過施工：{w.address}</button>)}
+                    {constructionDetourState.status==='loading'&&<p role="status">正在尋找繞路… <button type="button" onClick={()=>constructionDetourSearch.current.cancel()}>取消</button></p>}
+                    {constructionDetourState.status==='error'&&<p role="status">{constructionDetourState.message}</p>}
+                    {route.constructionDetour&&<p className="quiet-note">已繞過所選施工通報。</p>}
                     {route.kind!=='official-passageway' && <details className="route-disclosure"><summary>線條說明</summary><RouteLegend segments={[route]} colorFriendly={prefs.colorFriendly} showIssueIcons={true}/></details>}
                     {conditionDetourState.status==='loading'&&<p role="status">正在尋找繞路… <button type="button" onClick={()=>conditionDetourSearch.current.cancel()}>取消</button></p>}
                     {conditionDetourState.status==='error'&&<p role="status">{conditionDetourState.message}</p>}
@@ -2156,13 +2181,15 @@ export default function App() {
             onAvoidOfficialCondition={tab==='plan' && route ? avoidOfficialCondition : null}
             avoidingOfficialCondition={conditionDetourState.status==='loading'}
             referenceRoute={tab==='plan' && (!route || route.kind==='official-passageway') ? referenceRoute : null}
-            partialRoute={tab==='plan' ? partialRoute : null}
+            partialRoute={tab==='plan' && !simpleNoRoute ? partialRoute : null}
+            onAvoidConstruction={tab==='plan' && route ? avoidConstruction : null}
+            avoidingConstruction={constructionDetourState.status==='loading'}
             constructionConflict={tab && showConstruction ? constructionConflict : null}
             constructionSnapshot={constructionFeed.snapshot}
             showConstruction={showConstruction}
             onConstructionStatus={setConstructionMapStatus}
-            routeGap={tab ? routeGapView : null}
-            nearbyCandidates={tab==='plan' ? nearbyState.candidates : NO_MAP_ICONS}
+            routeGap={tab && !simpleNoRoute ? routeGapView : null}
+            nearbyCandidates={tab==='plan' && !simpleNoRoute ? nearbyState.candidates : NO_MAP_ICONS}
             onNearbySelect={chooseNearby}
             start={tab ? start : null}
             end={tab ? end : null}
