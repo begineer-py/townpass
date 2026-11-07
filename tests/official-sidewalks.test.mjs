@@ -46,3 +46,35 @@ test("the bundled sidewalk file exists and is not empty", async () => {
   const { statSync } = await import("node:fs");
   assert.ok(statSync(new URL("../public/data/sidewalks.json.gz", import.meta.url)).size > 100_000);
 });
+
+test("sidewalk issue points keep level and crosswalk kinds, and fail closed", async () => {
+  const { parseSidewalkIssues, decodeSidewalkIssues, visibleSidewalkIssues } = await import("../src/official-sidewalks.mjs");
+  const points = parseSidewalkIssues({
+    code: "101",
+    data: {
+      missing_noCurbSlope: [
+        { STAsText: "POINT (308740.27 2771606.03)", type: "活動區域分類-高" },
+        { STAsText: "POINT (308741 2771607)", type: "活動區域分類-低" },
+        { STAsText: "POINT (1 2)", type: "活動區域分類-中" },
+      ],
+      missing_crosswalkNoRamp: [{ STAsText: "POINT (310890.89 2772000)", type: "" }],
+    },
+  });
+  assert.deepEqual(points.map((p) => p.kind), [0, 2, 3]);
+  assert.throws(() => parseSidewalkIssues({ code: "101", data: {} }), /INVALID_SIDEWALK_ISSUES/);
+  const issues = decodeSidewalkIssues({ scale: 1e6, points: [25040000, 121510000, 3, 25041000, 121511000, 9] });
+  assert.deepEqual(issues, [{ lat: 25.04, lon: 121.51, kind: 3 }]);
+  const view = (s, w, n, e) => ({ getSouth: () => s, getWest: () => w, getNorth: () => n, getEast: () => e });
+  assert.equal(visibleSidewalkIssues(issues, view(25.03, 121.5, 25.05, 121.52)).length, 1);
+  assert.equal(visibleSidewalkIssues(issues, view(25.1, 121.6, 25.2, 121.7)).length, 0);
+});
+
+test("the bundled sidewalk issue file exists and decodes", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { gunzipSync } = await import("fflate");
+  const { decodeSidewalkIssues } = await import("../src/official-sidewalks.mjs");
+  const bytes = gunzipSync(readFileSync(new URL("../public/data/sidewalk-issues.json.gz", import.meta.url)));
+  const issues = decodeSidewalkIssues(JSON.parse(new TextDecoder().decode(bytes)));
+  assert.ok(issues.length > 1000);
+  assert.ok(issues.every((p) => p.lat > 24.9 && p.lat < 25.3 && p.lon > 121.4 && p.lon < 121.7));
+});

@@ -87,3 +87,81 @@ export async function loadOfficialSidewalks() {
   }
   return request;
 }
+
+// 市府平臺「缺失」圖層：不利通行（沒有路緣斜坡，依活動區域分高／中／低）與行穿線未設置路緣斜坡。
+export const SIDEWALK_ISSUES_URL =
+  "https://tppano.gov.taipei/tp_roadsidewalkplatform_be/api/C00/C10/C11_mapStreetView/missing_v2";
+// 種類代碼：0 不利通行（高）、1 不利通行（中）、2 不利通行（低）、3 行穿線未設置路緣斜坡。
+export const SIDEWALK_ISSUE_KINDS = [
+  "不利通行（活動區域高）",
+  "不利通行（活動區域中）",
+  "不利通行（活動區域低）",
+  "行穿線未設置路緣斜坡",
+];
+const LEVEL = { 高: 0, 中: 1, 低: 2 };
+
+function parsePoint(value) {
+  const match = /^POINT\s*\(\s*([\d.]+)\s+([\d.]+)\s*\)$/i.exec(String(value || "").trim());
+  if (!match) return null;
+  const x = Number(match[1]), y = Number(match[2]);
+  return x > 100_000 && x < 400_000 && y > 2_600_000 && y < 2_900_000 ? [x, y] : null;
+}
+
+// 回傳 TWD97 座標點 [{ x, y, kind }]；格式不對就整份拒絕。
+export function parseSidewalkIssues(payload) {
+  const noSlope = payload?.data?.missing_noCurbSlope,
+    crosswalk = payload?.data?.missing_crosswalkNoRamp;
+  if (
+    payload?.code !== "101" ||
+    !Array.isArray(noSlope) ||
+    !Array.isArray(crosswalk) ||
+    noSlope.length + crosswalk.length > 100_000
+  )
+    throw new Error("INVALID_SIDEWALK_ISSUES");
+  const points = [];
+  for (const row of noSlope) {
+    const point = parsePoint(row?.STAsText),
+      level = /-(高|中|低)$/.exec(String(row?.type || ""))?.[1];
+    if (point) points.push({ x: point[0], y: point[1], kind: LEVEL[level] ?? 1 });
+  }
+  for (const row of crosswalk) {
+    const point = parsePoint(row?.STAsText);
+    if (point) points.push({ x: point[0], y: point[1], kind: 3 });
+  }
+  return points;
+}
+
+// 網頁讀 public/data/sidewalk-issues.json.gz：points 為 [緯, 經, 種類, …]，緯經 × scale。
+export function decodeSidewalkIssues(payload) {
+  const scale = Number(payload?.scale) || 1e6;
+  if (!Array.isArray(payload?.points)) throw new Error("INVALID_SIDEWALK_ISSUES");
+  const out = [];
+  for (let i = 0; i + 2 < payload.points.length; i += 3) {
+    const kind = payload.points[i + 2];
+    if (!SIDEWALK_ISSUE_KINDS[kind]) continue;
+    out.push({ lat: payload.points[i] / scale, lon: payload.points[i + 1] / scale, kind });
+  }
+  return out;
+}
+
+export function visibleSidewalkIssues(issues, bounds) {
+  const south = bounds.getSouth(), west = bounds.getWest(),
+    north = bounds.getNorth(), east = bounds.getEast();
+  return issues.filter(
+    ({ lat, lon }) => lat >= south && lat <= north && lon >= west && lon <= east,
+  );
+}
+
+let issueRequest;
+export async function loadSidewalkIssues() {
+  if (!issueRequest) {
+    issueRequest = import("./data.js")
+      .then(({ loadData }) => loadData("sidewalk-issues"))
+      .then(decodeSidewalkIssues)
+      .catch((error) => {
+        issueRequest = null;
+        throw error;
+      });
+  }
+  return issueRequest;
+}

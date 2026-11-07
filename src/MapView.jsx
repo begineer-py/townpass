@@ -7,7 +7,9 @@ import { BASEMAPS } from "./basemaps.mjs";
 import { metroExitIconUrl, metroExitLabel } from "./metro-exits.mjs";
 import {
   loadOfficialSidewalks,
+  loadSidewalkIssues,
   OFFICIAL_SIDEWALK_SOURCE,
+  visibleSidewalkIssues,
   visibleSidewalkLines,
 } from "./official-sidewalks.mjs";
 import { TPColors } from "./tp-colors.mjs";
@@ -232,6 +234,7 @@ export default function MapView({
     const renderer = L.canvas({ pane: "official-sidewalks", padding: 0.25 });
     let active = true;
     let features;
+    let issues;
     let drawing;
     const clear = () => {
       drawing?.remove();
@@ -262,12 +265,38 @@ export default function MapView({
         interactive: false,
       });
       drawing = L.layerGroup([halo, official]);
+      // 不利通行點位跟人行道同一個圖層：放大到 16 以上才畫，免得整片紅點。
+      // 不利通行（沒有路緣斜坡）為實心紅點；行穿線未設置路緣斜坡為空心紅圈，形狀不同不只靠顏色。
+      if (issues && m.getZoom() >= 16) {
+        const r = m.getZoom() >= 18 ? 5.5 : 4.5;
+        for (const { lat, lon, kind } of visibleSidewalkIssues(issues, m.getBounds())) {
+          const crosswalk = kind === 3;
+          L.circleMarker([lat, lon], {
+            renderer,
+            pane: "official-sidewalks",
+            radius: r,
+            color: crosswalk ? TPColors.red600 : TPColors.white,
+            weight: crosswalk ? 2.5 : 1.5,
+            fillColor: crosswalk ? TPColors.white : TPColors.red600,
+            fillOpacity: 1,
+            interactive: false,
+          }).addTo(drawing);
+        }
+      }
       drawing.getAttribution = () =>
         `無障礙通行線 © <a href="${OFFICIAL_SIDEWALK_SOURCE}" target="_blank" rel="noopener">臺北市政府</a>`;
       drawing.addTo(m);
       onOfficialSidewalkStatus?.("ready");
     };
     onOfficialSidewalkStatus?.("loading");
+    // 不利通行點位載入失敗時，人行道照常顯示。
+    loadSidewalkIssues()
+      .then((result) => {
+        if (!active) return;
+        issues = result;
+        draw();
+      })
+      .catch(() => {});
     loadOfficialSidewalks()
       .then((result) => {
         if (!active) return;

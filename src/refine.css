@@ -1429,3 +1429,35 @@ button.icon-action {
     transition: none;
   }
 }
+
+/* 人行道圖層的不利通行圖例：實心紅點＝不利通行，空心紅圈＝行穿線未設置路緣斜坡（與 MapView 畫法一致） */
+.issue-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  margin-top: 4px;
+  color: var(--tp-grayscale700);
+  font-size: 12px;
+}
+.issue-legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.issue-dot,
+.issue-ring {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+.issue-dot {
+  background: var(--tp-red600);
+  border: 1.5px solid var(--tp-white);
+  box-shadow: 0 0 0 0.5px var(--tp-grayscale300);
+}
+.issue-ring {
+  background: var(--tp-white);
+  border: 2.5px solid var(--tp-red600);
+}

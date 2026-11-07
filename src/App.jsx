@@ -1883,6 +1883,16 @@ export default function App() {
                       <i className="sidewalk-legend" aria-hidden="true" />
                       人行道
                     </b>
+                    <span className="issue-legend">
+                      <span>
+                        <i className="issue-dot" aria-hidden="true" />
+                        不利通行
+                      </span>
+                      <span>
+                        <i className="issue-ring" aria-hidden="true" />
+                        行穿線無斜坡
+                      </span>
+                    </span>
                     {sidewalkStatusText[officialSidewalkStatus] && (
                       <small>
                         {sidewalkStatusText[officialSidewalkStatus]}
