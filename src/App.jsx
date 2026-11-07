@@ -311,16 +311,20 @@ export default function App() {
     saveLocal("hhz-basemap", basemap);
   }, [basemap]);
   const [addressResults, setAddressResults] = useState([]);
+  const [addressQuery, setAddressQuery] = useState(null);
+  const [addressPending, setAddressPending] = useState(false);
   useEffect(() => {
     const ctl = new AbortController();
     setAddressResults([]);
+    setAddressQuery(query);
+    setAddressPending(Boolean(searchFor && query.trim()));
     const t = setTimeout(() => {
-      if (!searchFor) return;
-      for (const request of [addressSearch(query, ctl.signal), landmarkSearch(query, ctl.signal)]) {
-        request.then(results => {
-          if (!ctl.signal.aborted) setAddressResults(previous => [...previous, ...results]);
-        }).catch(() => {});
-      }
+      if (!searchFor || !query.trim()) return;
+      Promise.allSettled([addressSearch(query, ctl.signal), landmarkSearch(query, ctl.signal)]).then(results => {
+        if (ctl.signal.aborted) return;
+        setAddressResults(results.flatMap(result => result.status === 'fulfilled' ? result.value : []));
+        setAddressPending(false);
+      });
     }, 350);
     return () => {
       clearTimeout(t);
@@ -1038,7 +1042,7 @@ export default function App() {
         ]
       : [...recentPlaces, ...saved, ...data.fac.filter((p) => p.kind === "20")];
     const used = new Set(), usedIds = new Set();
-    return [...addressResults.map(p => matchStationLandmark(p, data.fac)), ...list]
+    return [...(addressQuery === query ? addressResults : []).map(p => matchStationLandmark(p, data.fac)), ...list]
       .sort(
         (a, b) => {
           const exact = (a.name === query ? -1 : 0) - (b.name === query ? -1 : 0);
@@ -1066,6 +1070,7 @@ export default function App() {
     saved,
     trips,
     addressResults,
+    addressQuery,
     viewport.lat,
     viewport.lon,
   ]);
@@ -2105,7 +2110,7 @@ export default function App() {
           </label>
           <div className="search-options">
             <VoiceSearch onResult={setQuery} />
-            <button onClick={() => speakText(searchResults.length ? `找到${searchResults.length}個地方。${searchResults.slice(0, 8).map((p, i) => `${i + 1}，${cleanName(p.name)}。`).join('')}請從清單選擇地點。` : '目前還沒找到地點，可以換個名稱再試一次。')}><Volume2 size={18} aria-hidden="true"/>{speaking ? "停止朗讀" : "朗讀搜尋結果"}</button>
+            <button onClick={() => speakText(searchResults.length ? `找到${searchResults.length}個地方。${searchResults.slice(0, 8).map((p, i) => `${i + 1}，${cleanName(p.name)}。`).join('')}請從清單選擇地點。` : query.trim() && (addressQuery !== query || addressPending) ? '正在搜尋地點。' : '目前還沒找到地點，可以換個名稱再試一次。')}><Volume2 size={18} aria-hidden="true"/>{speaking ? "停止朗讀" : "朗讀搜尋結果"}</button>
             <button
               onClick={() => {
                 const which = searchFor === "explore" ? null : searchFor;
@@ -2145,7 +2150,8 @@ export default function App() {
               }}
             />
           ))}
-          {query && !searchResults.length && (
+          {query.trim() && !searchResults.length && (addressQuery !== query || addressPending) && <p role="status">正在搜尋地點…</p>}
+          {query.trim() && !searchResults.length && addressQuery === query && !addressPending && (
             <div className="empty-card">
               <Search />
               <p>
