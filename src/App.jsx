@@ -59,6 +59,7 @@ import {searchVerifiedAlternatives} from "./alternative-routes.mjs";
 import {fetchConstruction} from "./construction-client.mjs";
 import {canFallbackAfterVerification, startLocalFallback} from "./local-fallback.mjs";
 import {constructionFresh, CONSTRUCTION_MAX_AGE} from "./construction.mjs";
+import {groupConstructionNotices} from "./construction-display.mjs";
 import {nearbyReplacement,nearbyWarnings} from "./nearby-presentation.mjs";
 import {createNearbySearch} from "./nearby-search.mjs";
 import {createLiveFollow,displayedRouteCoordinates} from "./live-follow.mjs";
@@ -1058,7 +1059,7 @@ export default function App() {
       ) || [],
     [data, stationQuery],
   );
-  const routeWorks = route?.construction?.nearby?.slice(0,6) || [];
+  const routeWorks = groupConstructionNotices(route?.construction?.nearby);
   useEffect(() => {
     if(!route?.construction)return;
     const until=Date.parse(route.construction.sourceUpdatedAt)+CONSTRUCTION_MAX_AGE-Date.now();
@@ -1702,6 +1703,7 @@ export default function App() {
                               {c.start}—{c.end}
                               <br />
                               {c.plan || "通行影響請依現場指引確認。"}
+                              {c.count > 1 && `（同一工程 ${c.count} 筆通報）`}
                             </p>
                           </div>
                         ))}
