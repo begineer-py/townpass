@@ -1,0 +1,11 @@
+Chrome UI 測試記錄
+目標：http://localhost:5173/
+
+操作：點擊「閱讀與通行設定」或「調整通行偏好」。
+結果：App 空白，重新載入後恢復。
+
+Console：
+ReferenceError: routeModes is not defined
+at App (http://localhost:5173/src/App.jsx:3484:38)
+
+此錯誤在桌面與手機尺寸模擬均重現。

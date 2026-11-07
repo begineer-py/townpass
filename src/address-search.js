@@ -2,6 +2,13 @@ import { addressNorm } from "./format.mjs";
 let indexPromise;
 const cache = new Map();
 const norm = addressNorm;
+export async function landmarkSearch(query, signal) {
+  if (query.trim().length < 2 || query.trim().length > 60) return [];
+  const response = await fetch(`${import.meta.env.BASE_URL}api/landmark-search?q=${encodeURIComponent(query.trim())}`, {signal});
+  if (!response.ok) return [];
+  const data = await response.json();
+  return Array.isArray(data) ? data : [];
+}
 export async function addressSearch(query, signal) {
   if (!/[路街]/.test(query)) return [];
   indexPromise ??= fetch(`${import.meta.env.BASE_URL}data/address-index.json`)

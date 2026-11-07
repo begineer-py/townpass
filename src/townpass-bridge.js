@@ -36,11 +36,14 @@ export function sendToTownPass(name, data = null, timeoutMs = 4000) {
   return new Promise((resolve) => {
     let settled = false;
     let timer;
+    let oldHandler;
+    let usingProperty = false;
     const finish = (value) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
-      bridge.removeEventListener?.("message", onMessage);
+      if (usingProperty && bridge.onmessage === onMessage) bridge.onmessage = oldHandler;
+      else bridge.removeEventListener?.("message", onMessage);
       resolve(value);
     };
     const onMessage = (event) => {
@@ -52,7 +55,8 @@ export function sendToTownPass(name, data = null, timeoutMs = 4000) {
       }
     };
     timer = setTimeout(() => finish(null), timeoutMs);
-    bridge.addEventListener?.("message", onMessage);
+    if (typeof bridge.addEventListener === "function") bridge.addEventListener("message", onMessage);
+    else { oldHandler = bridge.onmessage; usingProperty = true; bridge.onmessage = onMessage; }
     try {
       bridge.postMessage(JSON.stringify({ name, data }));
     } catch {

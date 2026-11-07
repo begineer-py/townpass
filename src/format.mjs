@@ -34,3 +34,4 @@ export const stepText = (s) =>
   s.crossing
     ? "經行穿線通過路口"
     : `${s.turn && s.turn !== "直行" ? s.turn + "，" : ""}沿${s.name}前行`;
+export const stepConditions = s => [s.sharedRoad && '人車共道，留意車輛', s.roughSurface && '路面可能較顛簸', s.unknown && '寬度或坡度未知'].filter(Boolean).join('，');

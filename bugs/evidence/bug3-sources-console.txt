@@ -1,0 +1,16 @@
+Chrome UI 測試記錄
+目標：http://localhost:5173/
+
+操作：點擊「資料來源」。
+結果：App 空白，重新載入後恢復。
+
+Console：
+TypeError: Cannot read properties of undefined (reading 'toLocaleString')
+at App (http://localhost:5173/src/App.jsx:3874:44)
+
+檢查來源資料時發現 count 欄位缺值或為 null 的項目：
+wheel-9
+sidewalk-range-2026
+crosswalk-2026
+marked-sidewalk-2026
+curb-ramps-2026
