@@ -326,7 +326,6 @@ export default function App() {
   const panelEl = useRef(),
     gripDragged = useRef(false);
   const [sheetSnap, setSheetSnap] = useState(1);
-  const [heading, setHeading] = useState(0);
   const SHEET_SNAPS = [0.24, 0.56, 0.9];
   useEffect(()=>{if(route || routeError)setSheetSnap(v=>Math.max(v,1));},[route,routeError]);
   function gripDown(e) {
@@ -358,26 +357,6 @@ export default function App() {
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
     window.addEventListener("pointercancel", up);
-  }
-  useEffect(() => {
-    const onOrient = (event) => {
-      const deg =
-        event.webkitCompassHeading ??
-        (event.alpha == null ? null : (360 - event.alpha) % 360);
-      if (deg == null || Number.isNaN(deg)) return;
-      setHeading(deg);
-    };
-    window.addEventListener("deviceorientationabsolute", onOrient, true);
-    window.addEventListener("deviceorientation", onOrient, true);
-    return () => {
-      window.removeEventListener("deviceorientationabsolute", onOrient, true);
-      window.removeEventListener("deviceorientation", onOrient, true);
-    };
-  }, []);
-  function resetNorth() {
-    setHeading(0);
-    map.current?.setBearing?.(0);
-    announce("地圖已朝北。");
   }
   useEffect(() => {
     if (routeError)
@@ -1566,24 +1545,6 @@ export default function App() {
               </div>
             )}
           </div>
-          <button
-            className="map-fab map-compass"
-            aria-label="指南針，點一下讓地圖朝北"
-            onClick={resetNorth}
-          >
-            <svg
-              className="compass-rose"
-              viewBox="0 0 24 24"
-              width="22"
-              height="22"
-              style={{ transform: `rotate(${heading}deg)` }}
-              aria-hidden="true"
-            >
-              <path className="compass-north" d="M12 2.5 15.2 12 12 10.2 8.8 12Z" />
-              <path className="compass-south" d="M12 21.5 8.8 12 12 13.8 15.2 12Z" />
-              <circle className="compass-hub" cx="12" cy="12" r="1.3" />
-            </svg>
-          </button>
           <button
             className="map-fab map-locate"
             aria-label="移至我的位置"
