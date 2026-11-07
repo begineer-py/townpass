@@ -1,5 +1,5 @@
 {
-  "checkedAt": "2026-11-07T08:15:22.767Z",
+  "checkedAt": "2026-11-07T08:30:21.101Z",
   "results": [
     {
       "name": "大安",
@@ -120,7 +120,7 @@
     }
   ],
   "entranceCase": {
-    "name": "大安公開通道路網端點重新查詢",
+    "name": "大安 (official entrance requery)",
     "start": [
       25.033373551090687,
       121.53550154779965

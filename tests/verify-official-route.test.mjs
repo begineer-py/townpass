@@ -48,3 +48,25 @@ test('step geometry on a different unverified road is rejected even when display
  const r=route();r.segmentPaths=[[[25.0002,121.5005],[25.0008,121.5005]]];
  assert.equal(createOfficialRouteVerifier(graph())(r,a,b).error,'OFFICIAL_PATH_UNVERIFIED');
 });
+
+import { officialGeometryEvidence } from '../src/supplemental-evidence.mjs';
+function extra(g,geometry,sourceId='sidewalk-range-2026',crossing=false){
+ g.supplementalEvidence={schemaVersion:1,sources:[{id:sourceId}],features:[{sourceId,crossing,geometry}]};return g;
+}
+test('new official polygon fills a genuine same-side evidence gap without changing route rules',()=>{
+ const g=graph();g.officialAreas=[box(121.5001,25.0001,121.5003,25.0004),box(121.5001,25.0006,121.5003,25.0009)];
+ assert.equal(createOfficialRouteVerifier(g)(route(),a,b).error,'OFFICIAL_PATH_UNVERIFIED');
+ extra(g,box(121.5001,25.0004,121.5003,25.0006));assert.equal(createOfficialRouteVerifier(g)(route(),a,b).error,undefined);
+});
+test('new sidewalk polygons still cannot authorize an unmarked car-road crossing',()=>{
+ const g=extra(graph(),box(121.5,25,121.501,25.001)),c=[25.0002,121.5008];
+ assert.equal(createOfficialRouteVerifier(g)(route([a,c]),a,c).error,'OFFICIAL_ROAD_CONFLICT');
+});
+test('ramp point and unknown marking layers cannot be used as area proof',()=>{
+ assert.throws(()=>officialGeometryEvidence(extra(graph(),{type:'Point',coordinates:[121.5,25]},'curb-ramps-2026')));
+ assert.throws(()=>officialGeometryEvidence(extra(graph(),box(121.5,25,121.501,25.001),'arbitrary-markings')));
+});
+test('malformed supplemental rings fail closed',()=>{
+ const polygon=box(121.5,25,121.501,25.001);polygon.coordinates[0].pop();
+ assert.throws(()=>officialGeometryEvidence(extra(graph(),polygon)));
+});

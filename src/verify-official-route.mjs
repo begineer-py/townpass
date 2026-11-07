@@ -2,12 +2,14 @@ import { polygonConnectorChecker, roadConnectorChecker } from './geometry.mjs';
 import { validateNetwork } from './network-contract.mjs';
 import { metres, ROUTING_POLICY } from './routing.mjs';
 import { pointError } from './route-request.mjs';
+import { officialGeometryEvidence } from './supplemental-evidence.mjs';
 
 export function createOfficialRouteVerifier(graph) {
   validateNetwork(graph);
-  const covered = polygonConnectorChecker(graph.officialAreas);
-  const roadAllowed = roadConnectorChecker(graph.roadGeometries, graph.officialCrossingAreas);
-  const crossingCovered = polygonConnectorChecker(graph.officialCrossingAreas);
+  const {areas,crossings}=officialGeometryEvidence(graph);
+  const covered = polygonConnectorChecker(areas);
+  const roadAllowed = roadConnectorChecker(graph.roadGeometries, crossings);
+  const crossingCovered = polygonConnectorChecker(crossings);
   const safe = (a,b) => covered(a,b) && roadAllowed(a,b);
   return (route, start, end) => {
     const coords=route?.coordinates;
