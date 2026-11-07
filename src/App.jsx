@@ -76,7 +76,7 @@ import {
   isLandmark,
 } from "./data";
 import { getLocation } from "./location";
-import { hasTownPass, sendToTownPass, townPassUserKey } from "./townpass-bridge";
+import { installTownPassLinks, postToTownPass, townPassUserKey } from "./townpass-bridge";
 import { activeElevatorStops, nearestStop } from "./trip-extras.mjs";
 import { travelProfiles } from "./travel-profiles";
 import { loadProfile, loadTrips, saveProfile, saveTrips } from "./local-database";
@@ -384,6 +384,8 @@ export default function App() {
   useEffect(() => {
     if (panelScroll.current) panelScroll.current.scrollTop = 0;
   }, [tab]);
+  // 台北通 WebView 不支援新視窗：外部連結改用 open_link。
+  useEffect(() => installTownPassLinks(), []);
   useEffect(() => {
     let active = true;
     townPassUserKey().then(async (userKey) => {
@@ -707,9 +709,8 @@ export default function App() {
     calculate({ lat: hit.place.lat, lon: hit.place.lon, name: cleanName(hit.place.name) });
   }
   // 台北通的 1999agree 會開啟 1999 語音通報對話框（需使用者同意）。
-  async function report1999() {
-    if (!hasTownPass()) window.location.href = "tel:1999";
-    else await sendToTownPass("1999agree", true);
+  function report1999() {
+    if (!postToTownPass("1999agree", true)) window.location.href = "tel:1999";
   }
   const essential = new Set([
     "elevator",

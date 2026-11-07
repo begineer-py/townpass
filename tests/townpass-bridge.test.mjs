@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { sendToTownPass } from "../src/townpass-bridge.js";
+import { linkForTownPass, postToTownPass, sendToTownPass } from "../src/townpass-bridge.js";
 
 function fakeBridge(reply) {
   const listeners = new Set();
@@ -10,36 +10,64 @@ function fakeBridge(reply) {
     listeners,
     postMessage(text) {
       sent.push(JSON.parse(text));
-      setTimeout(() => listeners.forEach((fn) => fn({ data: JSON.stringify(reply(JSON.parse(text))) })), 0);
+      const answer = reply?.(JSON.parse(text));
+      if (answer) setTimeout(() => listeners.forEach((fn) => fn({ data: JSON.stringify(answer) })), 0);
     },
     addEventListener: (_, fn) => listeners.add(fn),
     removeEventListener: (_, fn) => listeners.delete(fn),
   };
 }
 
-test("1999 uses the Town Pass handler name 1999agree", async () => {
-  const bridge = fakeBridge((m) => ({ name: m.name, data: true }));
+function anchor(href, target) {
+  const attrs = { href, ...(target ? { target } : {}) };
+  return { getAttribute: (k) => attrs[k] ?? null, hasAttribute: (k) => k in attrs };
+}
+
+test("messages use the Town Pass handler names and JSON shape", () => {
+  const bridge = fakeBridge();
   globalThis.window = { flutterObject: bridge };
-  assert.equal(await sendToTownPass("1999agree", true), true);
-  assert.deepEqual(bridge.sent, [{ name: "1999agree", data: true }]);
-  assert.equal(bridge.listeners.size, 0);
+  assert.equal(postToTownPass("1999agree", true), true);
+  assert.equal(postToTownPass("open_link", "https://www.metro.taipei/"), true);
+  assert.deepEqual(bridge.sent, [
+    { name: "1999agree", data: true },
+    { name: "open_link", data: "https://www.metro.taipei/" },
+  ]);
 });
 
-test("unknown hooks and the old agree1999 name are not sent", async () => {
+test("hooks this service does not use are not sent", async () => {
   const bridge = fakeBridge((m) => ({ name: m.name, data: true }));
   globalThis.window = { flutterObject: bridge };
-  assert.equal(await sendToTownPass("agree1999", true), null);
+  assert.equal(postToTownPass("agree1999", true), false);
   assert.equal(await sendToTownPass("launch_map", "https://example.com"), null);
+  assert.equal(await sendToTownPass("phone_call", "1999"), null);
   assert.equal(bridge.sent.length, 0);
 });
 
-test("location replies are matched by name", async () => {
+test("location replies are matched by name and listeners are removed", async () => {
   const bridge = fakeBridge(() => ({ name: "location", data: { latitude: 25.04, longitude: 121.51 } }));
   globalThis.window = { flutterObject: bridge };
   assert.deepEqual(await sendToTownPass("location"), { latitude: 25.04, longitude: 121.51 });
+  assert.equal(bridge.listeners.size, 0);
 });
 
-test("without Town Pass the bridge resolves to null", async () => {
+test("location without permission replies an empty list", async () => {
+  const bridge = fakeBridge(() => ({ name: "location", data: [] }));
+  globalThis.window = { flutterObject: bridge };
+  const reply = await sendToTownPass("location");
+  assert.ok(!Number.isFinite(reply?.latitude));
+});
+
+test("without Town Pass nothing is sent", async () => {
   globalThis.window = {};
+  assert.equal(postToTownPass("open_link", "https://example.com"), false);
   assert.equal(await sendToTownPass("location"), null);
+});
+
+test("external and new-window links open through open_link", () => {
+  const page = "https://haohao.example/";
+  assert.equal(linkForTownPass(anchor("https://www.openstreetmap.org/copyright"), page), "https://www.openstreetmap.org/copyright");
+  assert.equal(linkForTownPass(anchor("/about.html", "_blank"), page), "https://haohao.example/about.html");
+  assert.equal(linkForTownPass(anchor("#main"), page), null);
+  assert.equal(linkForTownPass(anchor("tel:1999"), page), null);
+  assert.equal(linkForTownPass(anchor("/data/sources.json"), page), null);
 });

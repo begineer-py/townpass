@@ -19,14 +19,16 @@
 
 ## 使用的台北通 bridge
 
-`src/townpass-bridge.js` 只送出下列訊息，名稱與台北通 `TPWebMessageHandler.name` 相同：
+`src/townpass-bridge.js` 依 [taipei-doit/TownPass](https://github.com/taipei-doit/TownPass) `lib/util/web_message_handler` 的名稱送出訊息，只允許下列四個：
 
-| 訊息 | 用途 |
-| --- | --- |
-| `userinfo` | 取帳號識別值，只在記憶體計算 SHA-256 雜湊鍵 |
-| `location` | 取 App 定位；沒有回應時改用瀏覽器定位 |
-| `phone_call` | 撥打 1999 |
-| `1999agree` | 回報路障（台北通會先請使用者同意） |
+| 訊息 | 台北通的行為 | 本服務的用途 |
+| --- | --- | --- |
+| `userinfo` | 回傳整份帳號資料（含身分證字號、姓名、生日、地址） | 只取 `id` 計算 SHA-256 雜湊鍵，區分本機資料；其他欄位不保存 |
+| `location` | 回傳 `Position.toJson()`；沒有權限時回傳 `[]` | 定位；沒有回覆時改用瀏覽器定位 |
+| `open_link` | 以新的 WebView 頁面開啟網址，不回覆 | 外部連結與 `target="_blank"`（WebView 不支援新視窗） |
+| `1999agree` | 確認條款後開啟 1999 語音通報，成功時不回覆 | 路線頁「1999 通報路障」 |
+
+未使用：`launch_map`（外部地圖不會走無障礙路線，容易誤導）、`phone_call`、`deviceinfo`、`notify`、`qr_code_scan`。
 
 ## 上線驗收
 
