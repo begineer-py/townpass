@@ -1,0 +1,223 @@
+:root {
+  /* Brand Primary (Teal) */
+  --tp-primary-50: #EDF8FA;
+  --tp-primary-100: #DBF1F5;
+  --tp-primary-200: #B4E2EA;
+  --tp-primary-300: #93D4DF;
+  --tp-primary-400: #71C5D5;
+  --tp-primary-500: #5AB4C5;
+  --tp-primary-600: #468D9B;
+  --tp-primary-700: #356C77;
+  --tp-primary-800: #22474E;
+  --tp-primary-900: #112629;
+  --tp-primary-950: #081315;
+
+  /* Brand Secondary (Amber) */
+  --tp-secondary-50: #FDF8ED;
+  --tp-secondary-100: #FCF2DF;
+  --tp-secondary-200: #F8E3BC;
+  --tp-secondary-300: #F4D69E;
+  --tp-secondary-400: #F0C87C;
+  --tp-secondary-500: #F5BA4B;
+  --tp-secondary-600: #E7A43C;
+  --tp-secondary-700: #AD7B2B;
+  --tp-secondary-800: #74521B;
+  --tp-secondary-900: #3C2B0B;
+  --tp-secondary-950: #1C1304;
+
+  /* Grayscale */
+  --tp-grayscale-50: #F1F3F4;
+  --tp-grayscale-100: #E3E7E9;
+  --tp-grayscale-200: #CAD1D5;
+  --tp-grayscale-300: #ADB8BE;
+  --tp-grayscale-400: #91A0A8;
+  --tp-grayscale-500: #738995;
+  --tp-grayscale-600: #5E6D76;
+  --tp-grayscale-700: #475259;
+  --tp-grayscale-800: #30383D;
+  --tp-grayscale-900: #171B1D;
+  --tp-grayscale-950: #0B0D0E;
+
+  /* Status: Red & Orange */
+  --tp-red-50: #FAEEEE;
+  --tp-red-100: #F5DCDD;
+  --tp-red-200: #EBB6B6;
+  --tp-red-300: #E29494;
+  --tp-red-400: #D45251;
+  --tp-red-500: #D45251;
+  --tp-red-600: #C2332F;
+  --tp-red-700: #912522;
+  --tp-red-800: #5F1715;
+  --tp-red-900: #310B0B;
+  --tp-red-950: #180505;
+
+  --tp-orange-50: #FDF3EC;
+  --tp-orange-100: #FBE7D9;
+  --tp-orange-200: #F7CFB2;
+  --tp-orange-300: #F4B992;
+  --tp-orange-400: #F1A26D;
+  --tp-orange-500: #FD853A;
+  --tp-orange-600: #E6692C;
+  --tp-orange-700: #AE501F;
+  --tp-orange-800: #713311;
+  --tp-orange-900: #391A06;
+  --tp-orange-950: #1C0C02;
+
+  --tp-white: #FFFFFF;
+  --tp-black: #000000;
+
+  /* Typography */
+  --tp-font-family: 'PingFang TC', 'Noto Sans TC', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  /* Shadows & Radii */
+  --tp-shadow-card: 0 4px 12px rgba(0, 0, 0, 0.04);
+  --tp-shadow-bottom-sheet: 0 0 6px rgba(0, 0, 0, 0.10);
+  --tp-radius-btn: 10px;
+  --tp-radius-card: 12px;
+  --tp-radius-dialog: 10px;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  margin: 0;
+  font-family: var(--tp-font-family);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--tp-grayscale-800);
+  background-color: var(--tp-grayscale-50);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Typography Utilities */
+.tp-h1-regular { font-size: 36px; font-weight: 400; line-height: 1.25; }
+.tp-h1-semibold { font-size: 36px; font-weight: 600; line-height: 1.25; }
+.tp-h2-regular { font-size: 24px; font-weight: 400; line-height: 1.35; }
+.tp-h2-semibold { font-size: 24px; font-weight: 600; line-height: 1.35; }
+.tp-title-semibold { font-size: 18px; font-weight: 600; line-height: 1.4; }
+.tp-h3-regular { font-size: 16px; font-weight: 400; line-height: 1.5; }
+.tp-h3-semibold { font-size: 16px; font-weight: 600; line-height: 1.5; }
+.tp-body-regular { font-size: 14px; font-weight: 400; line-height: 1.5; }
+.tp-body-semibold { font-size: 14px; font-weight: 600; line-height: 1.5; }
+.tp-caption { font-size: 12px; font-weight: 600; line-height: 1.4; }
+
+/* Buttons (TPButton) */
+.tp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 16px;
+  border-radius: var(--tp-radius-btn);
+  font-family: var(--tp-font-family);
+  font-size: 16px;
+  font-weight: 400;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+  text-decoration: none;
+}
+
+.tp-btn-primary {
+  background-color: var(--tp-primary-500);
+  color: var(--tp-white);
+}
+.tp-btn-primary:active {
+  background-color: var(--tp-primary-600);
+}
+
+.tp-btn-secondary {
+  background-color: var(--tp-white);
+  color: var(--tp-primary-500);
+  border-color: var(--tp-primary-500);
+}
+.tp-btn-secondary:active {
+  background-color: var(--tp-primary-50);
+}
+
+.tp-btn-alarm {
+  background-color: var(--tp-red-500);
+  color: var(--tp-white);
+}
+.tp-btn-alarm:active {
+  background-color: var(--tp-red-300);
+}
+
+.tp-btn:disabled,
+.tp-btn[disabled] {
+  background-color: var(--tp-grayscale-100);
+  color: var(--tp-grayscale-500);
+  border-color: transparent;
+  cursor: not-allowed;
+}
+
+/* Cards (TPCard) */
+.tp-card {
+  background-color: var(--tp-white);
+  border-radius: var(--tp-radius-card);
+  box-shadow: var(--tp-shadow-card);
+  padding: 16px;
+}
+
+/* Form Controls */
+.tp-label {
+  display: block;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--tp-grayscale-700);
+  margin-bottom: 8px;
+}
+.tp-label-required::after {
+  content: ' *';
+  color: var(--tp-primary-500);
+}
+
+.tp-input,
+.tp-select,
+.tp-textarea {
+  width: 100%;
+  padding: 12px 16px;
+  font-family: var(--tp-font-family);
+  font-size: 16px;
+  color: var(--tp-grayscale-800);
+  background-color: var(--tp-grayscale-50);
+  border: 1px solid transparent;
+  border-radius: 10px;
+  outline: none;
+}
+.tp-input::placeholder,
+.tp-textarea::placeholder {
+  color: var(--tp-grayscale-400);
+}
+.tp-input:focus,
+.tp-select:focus,
+.tp-textarea:focus {
+  border-color: var(--tp-primary-500);
+  background-color: var(--tp-white);
+}
+
+/* Divider (TPLine) */
+.tp-divider {
+  height: 1px;
+  width: 100%;
+  background-color: var(--tp-grayscale-100);
+  border: none;
+  margin: 0;
+}
+
+/* Bottom Sheet Bar (TPBottomSheet) */
+.tp-bottom-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--tp-white);
+  box-shadow: var(--tp-shadow-bottom-sheet);
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+  z-index: 100;
+}
