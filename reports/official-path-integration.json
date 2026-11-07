@@ -1,0 +1,29 @@
+{
+  "checkedAt": "2026-11-07T06:41:27.339291+00:00",
+  "sourceCounts": {
+    "11": 15291,
+    "12": 3529,
+    "13": 1451
+  },
+  "fields": {
+    "11": {
+      "slopeKnown": 0,
+      "widthPositive": 15291
+    },
+    "12": {
+      "slopeKnown": 0,
+      "widthPositive": 0
+    },
+    "13": {
+      "slopeKnown": 0,
+      "widthPositive": 0
+    }
+  },
+  "validPolygons": 20242,
+  "invalidPolygons": 29,
+  "matchedEdges": 28461,
+  "allGraphLengthKm": 12685.83,
+  "overlapLengthKm": 458.32,
+  "overlapPercentOfImportedGraph": 3.61,
+  "method": "length weighted overlap across imported graph, not a city coverage percentage; exact polygon intersection; unknown width units retained"
+}

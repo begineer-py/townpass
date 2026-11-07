@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.venv/
+data/raw/
+data/processed/
+__pycache__/
+*.log
+.env.local
