@@ -899,3 +899,24 @@ button.icon-action {
     background: var(--tp-primary50);
   }
 }
+
+.layer-toggle-copy {
+  min-width: 0;
+}
+.layer-toggle-copy b {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.sidewalk-legend {
+  display: inline-block;
+  width: 24px;
+  height: 5px;
+  border: 1px solid var(--tp-white);
+  border-radius: var(--r-pill);
+  background: var(--tp-orange700);
+  box-shadow: 0 0 0 0.5px var(--tp-grayscale300);
+}
+.map-dock.open {
+  z-index: 470;
+}

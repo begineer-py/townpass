@@ -111,6 +111,13 @@ const filters = [
   ["water", "飲水處", GlassWater],
   ["health", "醫療", Hospital],
 ];
+const sidewalkStatusText = {
+  idle: "放大後顯示；首次開啟需載入官方資料",
+  loading: "正在載入官方資料…",
+  ready: "橘線為官方圖台提供的無障礙通行線",
+  zoom: "請放大地圖以顯示",
+  error: "官方資料目前無法載入",
+};
 const routeModes = {
   balanced: "均衡走法",
   gentle: "偏好平緩",
@@ -254,6 +261,8 @@ export default function App() {
     return Object.prototype.hasOwnProperty.call(BASEMAPS, v) ? v : "street";
   });
   const [basemapStatus, setBasemapStatus] = useState("loading");
+  const [showOfficialSidewalk, setShowOfficialSidewalk] = useState(false);
+  const [officialSidewalkStatus, setOfficialSidewalkStatus] = useState("idle");
   const [layersOpen, setLayersOpen] = useState(false),
     layersRef = useRef();
   useEffect(() => {
@@ -1512,8 +1521,10 @@ export default function App() {
           <MapView
             items={showMapFacilities ? mapItems : []}
             basemap={basemap}
+            showOfficialSidewalk={showOfficialSidewalk}
             colorFriendly={prefs.colorFriendly}
             onBasemapStatus={setBasemapStatus}
+            onOfficialSidewalkStatus={setOfficialSidewalkStatus}
             route={route}
             start={start}
             end={end}
@@ -1533,7 +1544,10 @@ export default function App() {
                 setSheetSnap(0);
             }}
           />
-          <div className="map-dock" ref={layersRef}>
+          <div
+            className={`map-dock ${layersOpen ? "open" : ""}`}
+            ref={layersRef}
+          >
             <button
               className="map-fab"
               aria-label="地圖圖層"
@@ -1592,6 +1606,25 @@ export default function App() {
                     type="checkbox"
                     checked={showMapFacilities}
                     onChange={(e) => setShowMapFacilities(e.target.checked)}
+                  />
+                </label>
+                <label className="toggle-row layers-toggle">
+                  <span className="layer-toggle-copy">
+                    <b>
+                      <i className="sidewalk-legend" aria-hidden="true" />
+                      官方無障礙通行線
+                    </b>
+                    <small>
+                      {sidewalkStatusText[officialSidewalkStatus] ||
+                        sidewalkStatusText.idle}
+                    </small>
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={showOfficialSidewalk}
+                    onChange={(e) =>
+                      setShowOfficialSidewalk(e.target.checked)
+                    }
                   />
                 </label>
               </div>

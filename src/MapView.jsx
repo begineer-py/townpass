@@ -4,6 +4,11 @@ import L from "leaflet";
 import "leaflet-rotate";
 import { category, cleanName } from "./data";
 import { BASEMAPS } from "./basemaps.mjs";
+import {
+  loadOfficialSidewalks,
+  OFFICIAL_SIDEWALK_SOURCE,
+  visibleSidewalkLines,
+} from "./official-sidewalks.mjs";
 import { TPColors } from "./tp-colors.mjs";
 const colors = {
   elevator: TPColors.primary700,
@@ -41,8 +46,10 @@ export default function MapView({
   focus,
   pick,
   basemap = "street",
+  showOfficialSidewalk = false,
   colorFriendly = false,
   onBasemapStatus,
+  onOfficialSidewalkStatus,
   onPick,
   onSelect,
   onViewport,
@@ -170,6 +177,73 @@ export default function MapView({
       baseLayers.current = [];
     };
   }, [basemap]);
+  useEffect(() => {
+    if (!map.current) return;
+    if (!showOfficialSidewalk) {
+      onOfficialSidewalkStatus?.("idle");
+      return;
+    }
+    const m = map.current;
+    const pane =
+      m.getPane("official-sidewalks") || m.createPane("official-sidewalks");
+    pane.style.zIndex = "350";
+    pane.style.pointerEvents = "none";
+    const renderer = L.canvas({ pane: "official-sidewalks", padding: 0.25 });
+    let active = true;
+    let features;
+    let drawing;
+    const clear = () => {
+      drawing?.remove();
+      drawing = null;
+    };
+    const draw = () => {
+      if (!active || !features) return;
+      clear();
+      if (m.getZoom() < 14) {
+        onOfficialSidewalkStatus?.("zoom");
+        return;
+      }
+      const lines = visibleSidewalkLines(features, m.getBounds());
+      const halo = L.polyline(lines, {
+        renderer,
+        pane: "official-sidewalks",
+        color: TPColors.white,
+        weight: 6,
+        opacity: 0.9,
+        interactive: false,
+      });
+      const official = L.polyline(lines, {
+        renderer,
+        pane: "official-sidewalks",
+        color: TPColors.orange700,
+        weight: 3,
+        opacity: 0.92,
+        interactive: false,
+      });
+      drawing = L.layerGroup([halo, official]);
+      drawing.getAttribution = () =>
+        `無障礙通行線 © <a href="${OFFICIAL_SIDEWALK_SOURCE}" target="_blank" rel="noopener">臺北市政府</a>`;
+      drawing.addTo(m);
+      onOfficialSidewalkStatus?.("ready");
+    };
+    onOfficialSidewalkStatus?.("loading");
+    loadOfficialSidewalks()
+      .then((result) => {
+        if (!active) return;
+        features = result;
+        draw();
+        m.on("moveend", draw);
+      })
+      .catch(() => {
+        if (active) onOfficialSidewalkStatus?.("error");
+      });
+    return () => {
+      active = false;
+      m.off("moveend", draw);
+      clear();
+      renderer.remove();
+    };
+  }, [showOfficialSidewalk]);
   useEffect(() => {
     if (!marks.current) return;
     marks.current.clearLayers();
