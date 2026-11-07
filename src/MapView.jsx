@@ -287,8 +287,11 @@ export default function MapView({
           img.src = exitIcon;
           img.alt = "";
           face.appendChild(img);
-        } else if (p.kind === "metro-elevator") {
+        } else if (p.kind === "metro-elevator" && metroExitLabel(p) !== "梯") {
           face.textContent = metroExitLabel(p);
+        } else if (p.kind === "metro-elevator") {
+          face.classList.add("has-glyph");
+          face.appendChild(mapIconElement("elevator", 16));
         } else {
           face.classList.add("has-glyph");
           face.appendChild(mapIconElement(iconKind(category(p)), 16));
@@ -411,13 +414,20 @@ export default function MapView({
     }
     [start, end].forEach((p, i) => {
       if (!p) return;
+      // 起點、終點用圖形（起點圓點、終點旗子），不用中文字。
+      const face = document.createElement("span");
+      face.className = i ? "destination" : "origin";
+      const glyph = mapIconElement(i ? "flag" : "start", 16);
+      glyph.classList.add("endpoint-glyph");
+      face.appendChild(glyph);
       const marker = L.marker([p.lat, p.lon], {
         icon: L.divIcon({
           className: "endpoint",
-          html: `<span class="${i ? "destination" : "origin"}">${i ? "終" : "起"}</span>`,
+          html: face,
           iconSize: [32, 40],
           iconAnchor: [16, 38],
         }),
+        title: i ? `終點：${p.name}` : `起點：${p.name}`,
       }).addTo(ends.current);
       const el = document.createElement("span");
       el.textContent = p.name;
@@ -425,14 +435,16 @@ export default function MapView({
     });
     if (route?.requiresEntryConfirmation) {
       [route.coordinates[0], route.coordinates.at(-1)].forEach((p, i) => {
-        const text = i ? "路線終點" : "路線起點";
+        const face = document.createElement("span");
+        face.appendChild(mapIconElement(i ? "flag" : "start", 16));
         L.marker(p, {
           icon: L.divIcon({
             className: "route-entry-marker",
-            html: `<span>${text}</span>`,
-            iconSize: [72, 28],
-            iconAnchor: [36, 14],
+            html: face,
+            iconSize: [28, 28],
+            iconAnchor: [14, 14],
           }),
+          title: i ? "路線終點" : "路線起點",
         }).addTo(ends.current);
       });
     }

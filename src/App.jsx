@@ -215,9 +215,13 @@ function FacilityRow({ p, from, onSelect, saved, onSave, note, stationCode }) {
             metroExitIconUrl(p) ? (
               <img className="metro-exit-icon" src={metroExitIconUrl(p)} alt="" aria-hidden="true" />
             ) : (
-              <span className="metro-exit-label" aria-hidden="true">
-                {metroExitLabel(p)}
-              </span>
+              metroExitLabel(p) === "梯" ? (
+                <Icon kind="elevator" />
+              ) : (
+                <span className="metro-exit-label" aria-hidden="true">
+                  {metroExitLabel(p)}
+                </span>
+              )
             )
           ) : k === "station" ? (
             <MetroStationIcon codes={stationCode} value={p.name} />
