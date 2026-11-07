@@ -157,6 +157,8 @@ export function createRouter(graph) {
         endGap: t.distance,
       };
     if (s.index === t.index) return { error: "SAME_POINT" };
+    if(options.lineAllowed && (!options.lineAllowed([start,graph.nodes[s.index]]) || !options.lineAllowed([graph.nodes[t.index],end]))) return {error:'CONSTRUCTION_BLOCKED'};
+    const workAllowed=new Map();
     const dist = new Float64Array(graph.nodes.length).fill(Infinity),
       prev = new Int32Array(graph.nodes.length).fill(-1),
       edgePrev = new Int32Array(graph.nodes.length).fill(-1);
@@ -177,6 +179,10 @@ export function createRouter(graph) {
         const e = graph.edges[ei],
           w = graph.ways[e[3]];
         if (graph.nodes[v][2] || !edgeAllowed(w, options, e[5])) continue;
+        if(options.lineAllowed){
+          if(!workAllowed.has(ei)) workAllowed.set(ei,options.lineAllowed([graph.nodes[e[0]],...(e[4]||[]),graph.nodes[e[1]]]));
+          if(!workAllowed.get(ei))continue;
+        }
         let factor = 1;
         if (graph.officialPathEvidence && options.preferOfficial !== false)
           factor += 3 * (1 - (e[5]?.coverage ?? 0));

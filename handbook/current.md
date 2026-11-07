@@ -8,3 +8,5 @@
 - 目前是路線預覽，沒有即時視障導航與現場安全保證。
 
 例行檢查：`npm test`、`npm run build`。詳細數據在 `/reports`；實測紀錄在根目錄 VALIDATION.md。
+
+施工已接入路由：每次線上查詢取得近期通報，遇工區排除相關邊再計算；無合格替代路線就停止指引。詳見[施工API](apis/construction.md)。

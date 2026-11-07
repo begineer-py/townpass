@@ -44,6 +44,8 @@ import {
 } from "lucide-react";
 import MapView from "./MapView";
 import VoiceSearch from "./VoiceSearch";
+import {fetchConstruction} from "./construction-client.mjs";
+import {constructionFresh, CONSTRUCTION_MAX_AGE} from "./construction.mjs";
 import { requestOfficialRoute } from "./official-router.mjs";
 import { ROUTING_POLICY } from "./routing.mjs";
 import { BASEMAPS } from "./basemaps.mjs";
@@ -58,7 +60,6 @@ import {
   normalize,
   readSaved,
   saveLocal,
-  currentConstruction,
 } from "./data";
 import { getLocation } from "./location";
 import { addressSearch } from "./address-search";
@@ -265,12 +266,14 @@ export default function App() {
   }, [query]);
   const officialRequest = useRef();
   const pendingVerifications = useRef(new Map());
-  function verifyOnlineRoute(route, start, end, id) {
+  const lastConstruction = useRef(null);
+  const [constructionConflict,setConstructionConflict] = useState(null);
+  function verifyOnlineRoute(route, start, end, id, construction) {
     return new Promise(resolve => {
       const timer=setTimeout(()=>{pendingVerifications.current.delete(id);resolve({error:'UNVERIFIED_NETWORK'});},30000);
       pendingVerifications.current.set(id,result=>{clearTimeout(timer);resolve(result);});
       if (!worker.current) { clearTimeout(timer); pendingVerifications.current.delete(id); resolve({error:'UNVERIFIED_NETWORK'}); return; }
-      worker.current.postMessage({type:'verify-official',id,route,start,end});
+      worker.current.postMessage({type:'verify-official',id,route,start,end,construction,options:prefs});
     });
   }
   const panelScroll = useRef();
@@ -304,13 +307,13 @@ export default function App() {
     setLoading(true);
     setLoadError(false);
     try {
-      const [fac, places, metro, sources, construction] = await Promise.all(
-        ["facilities", "places", "metro", "sources", "construction"].map(
+      const [fac, places, metro, sources] = await Promise.all(
+        ["facilities", "places", "metro", "sources"].map(
           loadData,
         ),
       );
       const all = [...fac, ...places];
-      setData({ fac, places, metro, sources, construction, all });
+      setData({ fac, places, metro, sources, all });
     } catch (error) {
       console.error("Data load failed", error);
       setLoadError(true);
@@ -414,6 +417,7 @@ export default function App() {
     setFocus({ ...p, token: Date.now() });
   };
   function clearRoute() {
+    setConstructionConflict(null);
     for(const resolve of pendingVerifications.current.values()) resolve({error:'UNVERIFIED_NETWORK'});
     pendingVerifications.current.clear();
     officialRequest.current?.abort();
@@ -478,17 +482,20 @@ export default function App() {
       officialRequest.current = controller;
       const timer = setTimeout(() => controller.abort(), 25000);
       try {
-        const result = await requestOfficialRoute(
+        const [result, construction] = await Promise.all([requestOfficialRoute(
           [start.lat, start.lon],
           [end.lat, end.lon],
           prefs,
           controller.signal,
-        );
+        ), fetchConstruction(controller.signal)]);
+        if (!construction.error) lastConstruction.current=construction;
         if (id !== request.current) return;
         if (result.error) setRouteError(result.error);
+        else if(construction.error) setRouteError(construction.error);
         else {
-          const verified=await verifyOnlineRoute(result,[start.lat,start.lon],[end.lat,end.lon],id);
+          const verified=await verifyOnlineRoute(result,[start.lat,start.lon],[end.lat,end.lon],id,construction);
           if(id!==request.current)return;
+          setConstructionConflict(verified.construction || null);
           if(verified.error || verified.geometryVerification !== 'official-polygons-and-crossings-v1' || verified.policyVersion !== ROUTING_POLICY) setRouteError(verified.error || 'UNVERIFIED_NETWORK');
           else { setRoute(verified); setStepIndex(0); }
         }
@@ -504,6 +511,7 @@ export default function App() {
       announce("選好出發地和目的地，就能一起看看適合的走法。");
       return;
     }
+    if(!constructionFresh(lastConstruction.current)){setRouteError('CONSTRUCTION_UNAVAILABLE');return;}
     if (!graphReady) {
       announce(
         graphError
@@ -521,6 +529,7 @@ export default function App() {
       start: [start.lat, start.lon],
       end: [end.lat, end.lon],
       options: prefs,
+      construction:lastConstruction.current,
     });
   }
   const essential = new Set([
@@ -599,24 +608,13 @@ export default function App() {
       ) || [],
     [data, stationQuery],
   );
-  const construction = useMemo(
-    () => currentConstruction(data?.construction || []),
-    [data],
-  );
-  const routeWorks = useMemo(
-    () =>
-      route
-        ? construction
-            .filter((c) =>
-              route.coordinates.some(
-                (a, i) =>
-                  i % 5 === 0 && distance(c, { lat: a[0], lon: a[1] }) < 70,
-              ),
-            )
-            .slice(0, 6)
-        : [],
-    [route, construction],
-  );
+  const routeWorks = route?.construction?.nearby?.slice(0,6) || [];
+  useEffect(() => {
+    if(!route?.construction)return;
+    const until=Date.parse(route.construction.sourceUpdatedAt)+CONSTRUCTION_MAX_AGE-Date.now();
+    const timer=setTimeout(()=>{clearRoute();setRouteError('CONSTRUCTION_UNAVAILABLE');},Math.max(0,until));
+    return ()=>clearTimeout(timer);
+  }, [route]);
   useEffect(() => {
     window.speechSynthesis?.cancel();
     setSpeaking(false);
@@ -696,6 +694,9 @@ export default function App() {
     setFocus({ ...p, token: Date.now() });
   };
   const errorText = {
+    CONSTRUCTION_UNAVAILABLE: '施工資料暫時無法更新。請連上網路再查一次，附近設施仍可查看。',
+    CONSTRUCTION_BLOCKED: '路線或入口遇到影響通行的施工通報，目前沒有找到通過檢查的替代路線。可以換個出入口再試。',
+
     OFFICIAL_PATH_UNVERIFIED: '這條路線有一段尚未取得連續人行空間的圖資依據，暫不提供通行指引。可以換個出入口再找路。',
     OFFICIAL_ROAD_CONFLICT: '這條路線與車道交會的位置缺少行穿線依據，已停止提供指引。請換個出入口再試。',
     OFFICIAL_CROSSING_UNVERIFIED: '過街路段與行穿線圖資不一致，暫時無法確認這條走法。可以改選附近入口。',
@@ -932,7 +933,8 @@ export default function App() {
                     <p>
                       {errorText[routeError] || "暫時無法規劃，請稍後再試。"}
                     </p>
-                    {["OFFICIAL_OUTSIDE_COVERAGE", "OFFICIAL_INVALID_POINTS", "OFFICIAL_ENTRY_UNVERIFIED", "OFFICIAL_PATH_UNVERIFIED", "OFFICIAL_ROAD_CONFLICT", "OFFICIAL_CROSSING_UNVERIFIED"].includes(routeError) && (
+                    {constructionConflict?.blocked?.slice(0,3).map(w => <p key={w.id}>{w.address}：{w.match === 'vicinity' ? '鄰近影響通行的施工位置' : '與影響通行的施工範圍交會'}。{w.plan}</p>)}
+                    {["OFFICIAL_OUTSIDE_COVERAGE", "OFFICIAL_INVALID_POINTS", "OFFICIAL_ENTRY_UNVERIFIED", "OFFICIAL_PATH_UNVERIFIED", "OFFICIAL_ROAD_CONFLICT", "OFFICIAL_CROSSING_UNVERIFIED", "CONSTRUCTION_BLOCKED"].includes(routeError) && (
                       <div className="route-tools">
                         <button onClick={() => openSearch("start")}>重選出發地</button>
                         <button onClick={() => openSearch("end")}>重選目的地</button>
@@ -943,12 +945,13 @@ export default function App() {
                 )}
                 {route && (
                   <>
+                    {route.construction && <p className="quiet-note">施工資料更新：{new Date(route.construction.sourceUpdatedAt).toLocaleString('zh-TW', {timeZone:'Asia/Taipei'})}。{route.construction.unmapped > 0 ? `另有 ${route.construction.unmapped} 筆影響通行的通報缺少有效位置，請留意現場。` : '已比對全程及入口；通報外的施工仍可能尚未收錄。'}</p>}
                     <div className="route-summary">
                       <div>
                         <span className="eyebrow">路線預覽</span>
                         <h2>{formatDistance(route.distance)}</h2>
                         <p>
-                          {route.provider === "taipei-official"
+                          {route.provider === "local-detour" ? "已改走避開施工的人行路線" : route.provider === "taipei-official"
                             ? "臺北市無障礙通行路線圖台回傳"
                             : "離線人行路網參考"}
                         </p>
@@ -1050,17 +1053,17 @@ export default function App() {
                       <>
                         <h2 className="section-title">沿途施工資料</h2>
                         <p className="quiet-note">
-                          以下是取得資料時的施工紀錄，並非現場即時狀態。
+                          以下為最新取得的施工通報；通報位置不一定是完整工區範圍。
                         </p>
                         {routeWorks.map((c, i) => (
                           <div className="notice" key={i}>
                             <AlertTriangle size={18} />
                             <p>
-                              <b>{c.Addr}</b>
+                              <b>{c.address}</b>
                               <br />
-                              {c.Cb_Da}—{c.Ce_Da}
+                              {c.start}—{c.end}
                               <br />
-                              {c.PlanB || "通行影響請依現場指引確認。"}
+                              {c.plan || "通行影響請依現場指引確認。"}
                             </p>
                           </div>
                         ))}
