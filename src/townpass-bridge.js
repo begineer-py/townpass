@@ -1,6 +1,9 @@
-function requestUserInfo(timeoutMs = 2500) {
-  const bridge = window.flutterObject;
-  if (!bridge?.postMessage || !bridge?.addEventListener) return Promise.resolve(null);
+// 台北通 WebView bridge。訊息名稱須與台北通 TPWebMessageHandler.name 一致。
+const HOOKS = new Set(["userinfo", "location", "phone_call", "1999agree"]);
+
+export function sendToTownPass(name, data = null, timeoutMs = 4000) {
+  const bridge = typeof window === "undefined" ? null : window.flutterObject;
+  if (!HOOKS.has(name) || !bridge?.postMessage) return Promise.resolve(null);
 
   return new Promise((resolve) => {
     let settled = false;
@@ -15,24 +18,28 @@ function requestUserInfo(timeoutMs = 2500) {
     const onMessage = (event) => {
       try {
         const message = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
-        if (message?.name === "userinfo") finish(message.data || null);
+        if (message?.name === name) finish(message.data ?? null);
       } catch {
         // Ignore bridge messages for other actions.
       }
     };
     timer = setTimeout(() => finish(null), timeoutMs);
-    bridge.addEventListener("message", onMessage);
+    bridge.addEventListener?.("message", onMessage);
     try {
-      bridge.postMessage(JSON.stringify({ name: "userinfo", data: null }));
+      bridge.postMessage(JSON.stringify({ name, data }));
     } catch {
       finish(null);
     }
   });
 }
 
+export function hasTownPass() {
+  return typeof window !== "undefined" && Boolean(window.flutterObject?.postMessage);
+}
+
 export async function townPassUserKey() {
   try {
-    const user = await requestUserInfo();
+    const user = await sendToTownPass("userinfo", null, 2500);
     const id = user?.id ?? user?.userId;
     if (!id || !globalThis.crypto?.subtle) return null;
     const digest = await crypto.subtle.digest(

@@ -49,6 +49,7 @@ import {
   WifiOff,
   Compass,
   HelpCircle,
+  Phone,
 } from "lucide-react";
 import MapView from "./MapView";
 import VoiceSearch from "./VoiceSearch";
@@ -72,9 +73,11 @@ import {
   normalize,
   readSaved,
   saveLocal,
+  isLandmark,
 } from "./data";
 import { getLocation } from "./location";
-import { townPassUserKey } from "./townpass-bridge";
+import { hasTownPass, sendToTownPass, townPassUserKey } from "./townpass-bridge";
+import { activeElevatorStops, nearestStop } from "./trip-extras.mjs";
 import { travelProfiles } from "./travel-profiles";
 import { loadProfile, loadTrips, saveProfile, saveTrips } from "./local-database";
 import { addressSearch } from "./address-search";
@@ -591,7 +594,7 @@ export default function App() {
     autoLocated.current = true;
     locate(null, true);
   }, [profileReady, travelProfile]);
-  async function calculate() {
+  async function calculate(via = null) {
     if (start && end && navigator.onLine) {
       setGraphRequested(true);
       clearRoute();
@@ -606,7 +609,7 @@ export default function App() {
         const [result, construction] = await Promise.all([requestOfficialRoute(
           [start.lat, start.lon],
           [end.lat, end.lon],
-          prefs,
+          via ? { ...prefs, via: [via.lat, via.lon] } : prefs,
           controller.signal,
         ), fetchConstruction(controller.signal)]);
         if (!construction.error) lastConstruction.current=construction;
@@ -616,7 +619,7 @@ export default function App() {
         else {
           let verified=await verifyOnlineRoute(result,[start.lat,start.lon],[end.lat,end.lon],id,construction);
           if(id!==request.current)return;
-          if(verified.error && verified.detourWaypoints?.length){
+          if(!via && verified.error && verified.detourWaypoints?.length){
             const alternatives=await searchVerifiedAlternatives({start:[start.lat,start.lon],end:[end.lat,end.lon],waypoints:verified.detourWaypoints,signal:controller.signal,
               onProgress:n=>{if(id===request.current)setRouteAttempt(n);},
               query:(a,b,via,signal)=>requestOfficialRoute(a,b,{...prefs,via},signal),
@@ -627,7 +630,7 @@ export default function App() {
           }
           setConstructionConflict(verified.construction || null);
           if(verified.error || verified.geometryVerification !== 'official-polygons-and-crossings-v1' || verified.policyVersion !== ROUTING_POLICY) setRouteError(verified.error || 'UNVERIFIED_NETWORK');
-          else { setRoute(verified); setStepIndex(0); }
+          else { setRoute(via ? { ...verified, viaName: via.name } : verified); setStepIndex(0); }
         }
       } catch (error) {
         if (id === request.current) setRouteError(error.name === "AbortError" ? "OFFICIAL_TIMEOUT" : "OFFICIAL_UNAVAILABLE");
@@ -639,6 +642,10 @@ export default function App() {
     }
     if (!start || !end) {
       announce("選好出發地和目的地，就能一起看看適合的走法。");
+      return;
+    }
+    if (via) {
+      announce("順路停靠需要網路連線，目前先維持原本的路線。");
       return;
     }
     if(!constructionFresh(lastConstruction.current)){setRouteError('CONSTRUCTION_UNAVAILABLE');return;}
@@ -659,9 +666,53 @@ export default function App() {
       id: ++request.current,
       start: [start.lat, start.lon],
       end: [end.lat, end.lon],
-      options: prefs,
+      options: { ...prefs, avoidPoints },
       construction:lastConstruction.current,
     });
+  }
+  // 從詳細卡直接導航：沒有出發地時先取得目前位置，再規劃路線。
+  const [routeRequest, setRouteRequest] = useState(0);
+  useEffect(() => {
+    if (routeRequest) calculate();
+  }, [routeRequest]);
+  async function navigateTo(place) {
+    setSelected(null);
+    changePoint("end", place);
+    if (!start) {
+      setLocating(true);
+      try {
+        const here = await getLocation();
+        if (here.lat < 24.94 || here.lat > 25.24 || here.lon < 121.42 || here.lon > 121.69) {
+          announce("你目前的位置在服務範圍外。可以先選一個臺北的出發地。");
+          return;
+        }
+        setStart(here);
+        setCurrentLocation(here);
+      } catch {
+        announce("目前無法取得位置。請先選出發地，或在地圖上選點。");
+        return;
+      } finally {
+        setLocating(false);
+      }
+    }
+    announce(`正在規劃前往${cleanName(place.name)}的路線。`);
+    setRouteRequest((n) => n + 1);
+  }
+  function addStop(kind) {
+    const hit = nearestStop(route, data?.all, kind);
+    if (!hit) {
+      announce("這條路線 150 公尺內沒有這類設施。");
+      return;
+    }
+    calculate({ lat: hit.place.lat, lon: hit.place.lon, name: cleanName(hit.place.name) });
+  }
+  async function call1999() {
+    if (!hasTownPass()) window.location.href = "tel:1999";
+    else await sendToTownPass("phone_call", "1999");
+  }
+  async function reportBlockage() {
+    if (!hasTownPass()) announce("路障回報要在台北通裡同意後送出。你也可以撥 1999。");
+    else await sendToTownPass("1999agree", true);
   }
   const essential = new Set([
     "elevator",
@@ -696,6 +747,31 @@ export default function App() {
       ),
     [facilities, viewport],
   );
+  const avoidPoints = useMemo(() => activeElevatorStops(data), [data]);
+  const landmarks = useMemo(() => {
+    if (!data) return [];
+    return data.all
+      .filter(
+        (p) =>
+          isLandmark(p) &&
+          p.lat >= viewport.bounds[0] &&
+          p.lat <= viewport.bounds[2] &&
+          p.lon >= viewport.bounds[1] &&
+          p.lon <= viewport.bounds[3],
+      )
+      .sort((a, b) => distance(viewport, a) - distance(viewport, b))
+      .slice(0, 80);
+  }, [data, viewport]);
+  const mapPins = useMemo(() => {
+    const seen = new Set();
+    const pins = [];
+    for (const p of [...(showMapFacilities ? mapItems : []), ...landmarks]) {
+      if (seen.has(p.id)) continue;
+      seen.add(p.id);
+      pins.push(p);
+    }
+    return pins;
+  }, [showMapFacilities, mapItems, landmarks]);
   const searchResults = useMemo(() => {
     if (!searchFor || !data || !profileReady) return [];
     const q = normalize(query);
@@ -1163,6 +1239,14 @@ export default function App() {
                 {route && (
                   <>
                     {route.construction && <p className="quiet-note">施工資料更新：{new Date(route.construction.sourceUpdatedAt).toLocaleString('zh-TW', {timeZone:'Asia/Taipei'})}{route.construction.unmapped > 0 ? ` · ${route.construction.unmapped} 處施工位置待確認` : ''}</p>}
+                    {route.viaName && (
+                      <p className="quiet-note">順路停靠：{route.viaName}</p>
+                    )}
+                    {avoidPoints.length > 0 && (
+                      <p className="quiet-note">
+                        今天有捷運電梯保養，離線規劃會盡量不從那些出口經過。
+                      </p>
+                    )}
                     <div className="route-summary">
                       <div>
                         <span className="eyebrow">路線預覽</span>
@@ -1190,7 +1274,27 @@ export default function App() {
                         路程使用一般道路路網，尚未確認是否有連續人行空間。
                       </p>
                     )}
+                    {!route.viaName && !route.requiresEntryConfirmation && (
+                      <div className="point-actions" aria-label="順路停靠">
+                        <button type="button" onClick={() => addStop("toilet")}>
+                          <Toilet size={16} />
+                          順路找無障礙廁所
+                        </button>
+                        <button type="button" onClick={() => addStop("rest")}>
+                          <Armchair size={16} />
+                          順路找歇腳椅
+                        </button>
+                      </div>
+                    )}
                     <div className="route-tools">
+                      <button type="button" onClick={call1999}>
+                        <Phone size={17} />
+                        撥打 1999
+                      </button>
+                      <button type="button" onClick={reportBlockage}>
+                        <AlertTriangle size={17} />
+                        回報路障
+                      </button>
                       <button
                         onClick={saveTrip}
                         disabled={route.requiresEntryConfirmation}
@@ -1427,7 +1531,7 @@ export default function App() {
         </aside>
         <main className="map-area" aria-label="地圖與設施">
           <MapView
-            items={showMapFacilities ? mapItems : []}
+            items={mapPins}
             basemap={basemap}
             colorFriendly={prefs.colorFriendly}
             onBasemapStatus={setBasemapStatus}
@@ -1840,10 +1944,7 @@ export default function App() {
               </div>
               <button
                 className="primary full"
-                onClick={() => {
-                  changePoint("end", selected);
-                  setSelected(null);
-                }}
+                onClick={() => navigateTo(selected)}
               >
                 我要到這裡
                 <ArrowRight size={18} />

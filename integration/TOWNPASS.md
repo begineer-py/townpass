@@ -17,6 +17,17 @@
 
 首次完成設定後，頁面會請求瀏覽器定位權限，並以目前位置作為預設起點。拒絕定位仍可搜尋地點或在地圖選點。Vercel 提供 HTTPS；定位由標準瀏覽器 Geolocation API 提供。
 
+## 使用的台北通 bridge
+
+`src/townpass-bridge.js` 只送出下列訊息，名稱與台北通 `TPWebMessageHandler.name` 相同：
+
+| 訊息 | 用途 |
+| --- | --- |
+| `userinfo` | 取帳號識別值，只在記憶體計算 SHA-256 雜湊鍵 |
+| `location` | 取 App 定位；沒有回應時改用瀏覽器定位 |
+| `phone_call` | 撥打 1999 |
+| `1999agree` | 回報路障（台北通會先請使用者同意） |
+
 ## 上線驗收
 
 - 從台北通服務入口開啟正式 HTTPS 網址。

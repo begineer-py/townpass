@@ -263,6 +263,13 @@ export function createRouter(graph) {
         if (options.mode === "gentle" && w.slope != null)
           factor += Math.abs(w.slope) / 6;
         if (options.mode === "crossings" && w.crossing) factor += 3;
+        if (options.avoidPoints?.length) {
+          const mid = [
+            (graph.nodes[u][0] + graph.nodes[v][0]) / 2,
+            (graph.nodes[u][1] + graph.nodes[v][1]) / 2,
+          ];
+          if (options.avoidPoints.some((p) => metres(mid, p) <= 25)) factor *= 8;
+        }
         const next = cost + e[2] * factor;
         if (next < dist[v]) {
           dist[v] = next;
