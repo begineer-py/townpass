@@ -1,4 +1,5 @@
 import proj4 from "proj4";
+import { pointError, requestError } from "./route-request.mjs";
 import { metres, ROUTING_POLICY } from "./routing.mjs";
 export const OFFICIAL_ROUTE_URL =
   "https://tppano.gov.taipei/shortestAccessibleRoute/api/v1/navigation_waypoints/";
@@ -134,7 +135,10 @@ export function normalizeOfficialRoute(payload, start, end, options = {}) {
   };
 }
 export async function requestOfficialRoute(start, end, options = {}, signal, endpoint = "./api/accessible-route") {
-  const response = await fetch(endpoint, {
+  const invalid = pointError(start) || pointError(end);
+  if (invalid) return { error: invalid };
+  let response;
+  try { response = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -144,7 +148,23 @@ export async function requestOfficialRoute(start, end, options = {}, signal, end
       ],
     }),
     signal,
-  });
-  if (!response.ok) throw Error(`Official routing HTTP ${response.status}`);
-  return normalizeOfficialRoute(await response.json(), start, end, options);
+  }); } catch (error) { return { error: requestError(error) }; }
+  if (response.status === 404 || response.status === 405)
+    return { error: "OFFICIAL_NOT_CONFIGURED" };
+  if (response.status === 504) return { error: "OFFICIAL_TIMEOUT" };
+  const type = response.headers.get("content-type") || "";
+  if (!type.includes("application/json"))
+    return { error: response.ok ? "OFFICIAL_NOT_CONFIGURED" : "OFFICIAL_UNAVAILABLE" };
+  let payload;
+  try { payload = await response.json(); }
+  catch { return { error: signal?.aborted ? "OFFICIAL_TIMEOUT" : "OFFICIAL_INVALID" }; }
+  if (!response.ok) {
+    const errors = {
+      INVALID_POINTS: "OFFICIAL_INVALID_POINTS", OUTSIDE_COVERAGE: "OFFICIAL_OUTSIDE_COVERAGE",
+      UPSTREAM_TIMEOUT: "OFFICIAL_TIMEOUT", UPSTREAM_INVALID: "OFFICIAL_INVALID",
+    };
+    return { error: errors[payload?.error] || "OFFICIAL_UNAVAILABLE" };
+  }
+  try { return normalizeOfficialRoute(payload, start, end, options); }
+  catch { return { error: "OFFICIAL_INVALID" }; }
 }

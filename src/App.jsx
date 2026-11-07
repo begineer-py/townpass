@@ -618,6 +618,16 @@ export default function App() {
     OFFICIAL_INVALID: "官方路線資料不完整，請稍後再試。",
     OFFICIAL_UNAVAILABLE:
       "官方路線服務暫時無法連線，請稍後再試。附近設施與收藏仍可使用。",
+    OFFICIAL_OUTSIDE_COVERAGE:
+      "起點或目的地超出目前的臺北路線查詢範圍。可以搜尋臺北的地點作為起點，再規劃這段行程。",
+    OFFICIAL_INVALID_POINTS:
+      "這個位置沒有完整的定位資料，請重新選擇出發地或目的地。",
+    OFFICIAL_TIMEOUT:
+      "這次查詢等得有點久，還沒收到路線。可以再試一次，或先查看附近設施。",
+    OFFICIAL_NETWORK:
+      "目前連不上路線服務，請確認網路後再試。選好的起點和目的地會留在這裡。",
+    OFFICIAL_NOT_CONFIGURED:
+      "這個版本的路線服務尚未就緒，暫時無法規劃。附近設施仍可查詢。",
     UNVERIFIED_NETWORK:
       "人行路網資料尚未完成驗證，暫時無法規劃。請重新載入後再試。",
     NO_CONNECTION:
@@ -906,9 +916,17 @@ export default function App() {
                 {routeError && (
                   <div className="notice" role="alert" ref={routeFeedback}>
                     <Info />
+                    <div>
                     <p>
                       {errorText[routeError] || "暫時無法規劃，請稍後再試。"}
                     </p>
+                    {["OFFICIAL_OUTSIDE_COVERAGE", "OFFICIAL_INVALID_POINTS"].includes(routeError) && (
+                      <div className="route-tools">
+                        <button onClick={() => openSearch("start")}>重選出發地</button>
+                        <button onClick={() => openSearch("end")}>重選目的地</button>
+                      </div>
+                    )}
+                    </div>
                   </div>
                 )}
                 {route && (

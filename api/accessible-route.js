@@ -1,9 +1,9 @@
+import { pointError } from "../src/route-request.mjs";
 const upstream = "https://tppano.gov.taipei/shortestAccessibleRoute/api/v1/navigation_waypoints/";
 
 export function validPoints(body) {
   return Array.isArray(body?.points) && body.points.length === 2 &&
-    body.points.every(p => Number.isFinite(p?.lat) && Number.isFinite(p?.lng) &&
-      p.lat >= 24.9 && p.lat <= 25.3 && p.lng >= 121.4 && p.lng <= 121.8);
+    body.points.every(p => !pointError([p?.lat, p?.lng]));
 }
 
 // A fixed read-only route query, never an arbitrary URL proxy. No identity or cookies forwarded.
@@ -15,8 +15,9 @@ export default async function handler(req, res) {
     res.setHeader("Allow", "POST");
     return send(405, { error: "METHOD_NOT_ALLOWED" });
   }
+  let body;
   try {
-    let body = req.body;
+    body = req.body;
     if (body == null) {
       let text = "";
       for await (const chunk of req) {
@@ -25,7 +26,13 @@ export default async function handler(req, res) {
       }
       body = JSON.parse(text);
     } else if (typeof body === "string") body = JSON.parse(body);
-    if (!validPoints(body)) return send(400, { error: "INVALID_POINTS" });
+  } catch { return send(400, { error: "INVALID_POINTS" }); }
+  if (!Array.isArray(body?.points) || body.points.length !== 2)
+    return send(400, { error: "INVALID_POINTS" });
+  const errors = body.points.map(p => pointError([p?.lat, p?.lng]));
+  if (errors.includes("OFFICIAL_INVALID_POINTS")) return send(400, { error: "INVALID_POINTS" });
+  if (errors.includes("OFFICIAL_OUTSIDE_COVERAGE")) return send(422, { error: "OUTSIDE_COVERAGE" });
+  try {
     const response = await fetch(upstream, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -33,7 +40,12 @@ export default async function handler(req, res) {
       signal: AbortSignal.timeout(20000),
     });
     if (!response.ok) return send(502, { error: "UPSTREAM_UNAVAILABLE" });
-    const data = await response.json();
+    let data;
+    try { data = await response.json(); }
+    catch (error) {
+      if (error.name === "TimeoutError" || error.name === "AbortError") throw error;
+      return send(502, { error: "UPSTREAM_INVALID" });
+    }
     // The upstream metadata includes internal server paths. Return only routing evidence.
     const { crs, total_distance, used_alt, issues_count, gap_records } = data.metadata || {};
     const segment = s => ({ source: s.source, length: s.length, road_name: s.road_name,
@@ -44,6 +56,7 @@ export default async function handler(req, res) {
       segments: Array.isArray(data.segments) ? data.segments.map(segment) : null,
       all_segments: Array.isArray(data.all_segments) ? data.all_segments.map(segment) : null });
   } catch (error) {
-    return send(error instanceof SyntaxError ? 400 : 502, { error: "ROUTE_UNAVAILABLE" });
+    const timeout = error.name === "TimeoutError" || error.name === "AbortError";
+    return send(timeout ? 504 : 502, { error: timeout ? "UPSTREAM_TIMEOUT" : "UPSTREAM_UNAVAILABLE" });
   }
 }

@@ -25,3 +25,23 @@ test('route proxy forwards only coordinates and removes internal metadata', asyn
   assert.equal(res.body.metadata.data_source,undefined);
   assert.equal(res.headers['Cache-Control'],'no-store');
 });
+test('out-of-range origin is a coverage response, not a failed upstream request', async t => {
+  const stub=t.mock.method(globalThis,'fetch',()=>{throw Error('must not query');});
+  const res=response();
+  await handler({method:'POST',body:{points:[{lat:22.63,lng:120.30},points[1]]}},res);
+  assert.equal(res.statusCode,422);
+  assert.equal(res.body.error,'OUTSIDE_COVERAGE');
+  assert.equal(stub.mock.callCount(),0);
+});
+test('upstream timeout and invalid JSON remain distinct from invalid user input', async t => {
+  for (const [fetcher,status,code] of [
+    [async()=>{const e=new Error();e.name='TimeoutError';throw e;},504,'UPSTREAM_TIMEOUT'],
+    [async()=>({ok:true,json:async()=>{throw new SyntaxError();}}),502,'UPSTREAM_INVALID'],
+  ]) {
+    const stub=t.mock.method(globalThis,'fetch',fetcher),res=response();
+    await handler({method:'POST',body:{points}},res);
+    assert.equal(res.statusCode,status);
+    assert.equal(res.body.error,code);
+    stub.mock.restore();
+  }
+});
