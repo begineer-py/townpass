@@ -73,10 +73,11 @@ button.icon-action {
   border-radius: 50%;
 }
 .filter-grid .filter-action {
-  flex: 0 0 48px;
-  padding: 0;
+  flex: 0 0 auto;
+  width: auto;
+  padding: 0 14px;
   justify-content: center;
-  border-radius: 50%;
+  border-radius: var(--r-pill);
 }
 .icon-actions {
   justify-content: flex-start;

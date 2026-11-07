@@ -1010,8 +1010,14 @@ export default function App() {
           onPointerDown={(e) => {
             if (!matchMedia("(max-width: 700px)").matches || sheetSnap !== 0)
               return;
-            if (e.target.closest("button, a, input, textarea, select")) return;
+            if (e.target.closest(".sheet-grip")) return;
             gripDown(e);
+          }}
+          onClickCapture={(e) => {
+            if (!gripDragged.current) return;
+            e.preventDefault();
+            e.stopPropagation();
+            gripDragged.current = false;
           }}
         >
           <button
@@ -1059,7 +1065,7 @@ export default function App() {
                 aria-current={tab === id ? "page" : undefined}
               >
                 <C size={24} aria-hidden="true" />
-                <span className="sr-only">{label}</span>
+                <span>{label}</span>
               </button>
             ))}
           </nav>
@@ -1099,7 +1105,7 @@ export default function App() {
                       }}
                     >
                       <C size={20} aria-hidden="true" />
-                      <span className="sr-only">{label}</span>
+                      <span>{label}</span>
                     </button>
                   ))}
                   {!allFilters &&
@@ -1181,17 +1187,18 @@ export default function App() {
                     <ArrowUpDown size={20} />
                   </button>
                 </div>
-                <div className="point-actions icon-actions">
+                <div className="point-actions">
                   <button
-                    className="text-button icon-action"
+                    className="text-button"
                     aria-label="從我的位置出發"
                     onClick={() => locate("start")}
                     disabled={locating}
                   >
                     <LocateFixed size={20} aria-hidden="true" />
+                    從我的位置出發
                   </button>
                   <button
-                    className="text-button icon-action"
+                    className="text-button"
                     aria-label="在地圖選點"
                     onClick={() => {
                       setPick(start ? "end" : "start");
@@ -1204,6 +1211,7 @@ export default function App() {
                     }}
                   >
                     <MapPin size={20} aria-hidden="true" />
+                    在地圖選點
                   </button>
                 </div>
                 <div className="preference-bar">
@@ -1316,22 +1324,22 @@ export default function App() {
                       </p>
                     )}
                     {!route.viaName && !route.requiresEntryConfirmation && (
-                      <div className="point-actions icon-actions" aria-label="順路停靠">
+                      <div className="point-actions" aria-label="順路停靠">
                         <button
                           type="button"
-                          className="icon-action"
                           aria-label="順路找無障礙廁所"
                           onClick={() => addStop("toilet")}
                         >
                           <Toilet size={20} aria-hidden="true" />
+                          廁所
                         </button>
                         <button
                           type="button"
-                          className="icon-action"
                           aria-label="順路找歇腳椅"
                           onClick={() => addStop("rest")}
                         >
                           <Armchair size={20} aria-hidden="true" />
+                          歇腳
                         </button>
                       </div>
                     )}
@@ -1952,15 +1960,16 @@ export default function App() {
                 </p>
               </div>
               <button
-                className="primary icon-action detail-primary"
+                className="primary full detail-primary"
                 aria-label="我要到這裡"
                 onClick={() => navigateTo(selected)}
               >
                 <Navigation size={22} aria-hidden="true" />
+                前往這裡
               </button>
               <div className="detail-actions icon-actions">
                 <button
-                  className="secondary icon-action"
+                  className="secondary"
                   aria-label="從這裡出發"
                   onClick={() => {
                     changePoint("start", selected);
@@ -1968,6 +1977,7 @@ export default function App() {
                   }}
                 >
                   <MapPin size={20} aria-hidden="true" />
+                  從這裡出發
                 </button>
                 <button
                   className="secondary icon-action"
@@ -1991,7 +2001,7 @@ export default function App() {
               </div>
               {selected.station && (
                 <button
-                  className="text-button icon-action"
+                  className="full text-button"
                   aria-label="查看這個車站的電梯資訊"
                   onClick={() => {
                     const record = (data?.metro["metro-elevators"] || []).find(
@@ -2011,6 +2021,7 @@ export default function App() {
                   }}
                 >
                   <ArrowUpFromLine size={20} aria-hidden="true" />
+                  車站電梯資訊
                 </button>
               )}
               <p className="source-note">
