@@ -12,6 +12,11 @@ export function maintenanceText(row) {
     .replace("N(夜保)", "夜間保養");
   return `${date} · ${where} · ${period}`;
 }
+export function sourceCountLabel(source) {
+  if (source?.status !== "ok") return "目前未取得資料";
+  if (!Number.isFinite(source.count)) return "筆數未提供";
+  return `${source.count.toLocaleString()} 筆來源紀錄`;
+}
 export const stationKey = (s) =>
   String(s || "")
     .replace(/臺/g, "台")
