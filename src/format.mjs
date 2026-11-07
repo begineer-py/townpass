@@ -1,0 +1,31 @@
+export function maintenanceText(row) {
+  const raw = String(row["民國年月日"] || "");
+  const date = /^\d{7}$/.test(raw)
+    ? `${Number(raw.slice(0, 3)) + 1911} 年 ${Number(raw.slice(3, 5))} 月 ${Number(raw.slice(5, 7))} 日`
+    : raw;
+  const where = String(row["電梯位置"] || "")
+    .replace(/^P\(月台\)$/, "月台電梯")
+    .replace(/^EX\d+\((.+)\)$/, "$1 電梯")
+    .replace(/^C\((.+)\)$/, "$1");
+  const period = String(row["保養時段"] || "")
+    .replace("D(日保)", "日間保養")
+    .replace("N(夜保)", "夜間保養");
+  return `${date} · ${where} · ${period}`;
+}
+export const stationKey = (s) =>
+  String(s || "")
+    .replace(/臺/g, "台")
+    .replace(/站$/, "");
+export const addressNorm = (s) =>
+  String(s ?? "")
+    .replace(/臺/g, "台")
+    .replace(/\s/g, "")
+    .replace(
+      /[一二三四五六七八九十]段/g,
+      (v) => `${"一二三四五六七八九十".indexOf(v[0]) + 1}段`,
+    )
+    .replace(/號$/, "");
+export const stepText = (s) =>
+  s.crossing
+    ? "經行穿線通過路口"
+    : `${s.turn && s.turn !== "直行" ? s.turn + "，" : ""}沿${s.name}前行`;

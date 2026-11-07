@@ -1,0 +1,203 @@
+{
+  "policy": "pedestrian-evidence-v2",
+  "eligibleEdges": 3777,
+  "components": 1789,
+  "largestComponentNodes": 38,
+  "successful": [
+    {
+      "start": [
+        25.0260519,
+        121.5362943
+      ],
+      "end": [
+        25.0334048,
+        121.5329538
+      ],
+      "distance": 949,
+      "roadPct": 0,
+      "officialCoveragePct": 100
+    },
+    {
+      "start": [
+        25.0588971,
+        121.5839139
+      ],
+      "end": [
+        25.0629183,
+        121.585048
+      ],
+      "distance": 747,
+      "roadPct": 0,
+      "officialCoveragePct": 100
+    },
+    {
+      "start": [
+        25.0485229,
+        121.5167735
+      ],
+      "end": [
+        25.048259,
+        121.5181334
+      ],
+      "distance": 146,
+      "roadPct": 0,
+      "officialCoveragePct": 100
+    },
+    {
+      "start": [
+        25.0764599,
+        121.5272124
+      ],
+      "end": [
+        25.077596,
+        121.5393155
+      ],
+      "distance": 1275,
+      "roadPct": 0,
+      "officialCoveragePct": 100
+    },
+    {
+      "start": [
+        25.0154135,
+        121.5340241
+      ],
+      "end": [
+        25.0146863,
+        121.5346822
+      ],
+      "distance": 138,
+      "roadPct": 0,
+      "officialCoveragePct": 100
+    },
+    {
+      "start": [
+        25.0325744,
+        121.5223393
+      ],
+      "end": [
+        25.0368549,
+        121.5210735
+      ],
+      "distance": 692,
+      "roadPct": 0,
+      "officialCoveragePct": 100
+    },
+    {
+      "start": [
+        25.0350061,
+        121.5170969
+      ],
+      "end": [
+        25.0379541,
+        121.5186208
+      ],
+      "distance": 523,
+      "roadPct": 0,
+      "officialCoveragePct": 100
+    },
+    {
+      "start": [
+        25.0384746,
+        121.5406512
+      ],
+      "end": [
+        25.0394379,
+        121.5382766
+      ],
+      "distance": 327,
+      "roadPct": 0,
+      "officialCoveragePct": 99
+    },
+    {
+      "start": [
+        25.0625397,
+        121.5401842
+      ],
+      "end": [
+        25.0641914,
+        121.5408387
+      ],
+      "distance": 248,
+      "roadPct": 0,
+      "officialCoveragePct": 100
+    },
+    {
+      "start": [
+        25.0240441,
+        121.502916
+      ],
+      "end": [
+        25.025485,
+        121.5069158
+      ],
+      "distance": 510,
+      "roadPct": 0,
+      "officialCoveragePct": 100
+    },
+    {
+      "start": [
+        25.0462089,
+        121.5091396
+      ],
+      "end": [
+        25.0462549,
+        121.5090779
+      ],
+      "distance": 54,
+      "roadPct": 0,
+      "officialCoveragePct": 100
+    },
+    {
+      "start": [
+        25.0400855,
+        121.5674726
+      ],
+      "end": [
+        25.0392027,
+        121.5671359
+      ],
+      "distance": 132,
+      "roadPct": 0,
+      "officialCoveragePct": 100
+    },
+    {
+      "start": [
+        25.0464818,
+        121.5157272
+      ],
+      "end": [
+        25.0455935,
+        121.5151058
+      ],
+      "distance": 178,
+      "roadPct": 0,
+      "officialCoveragePct": 100
+    },
+    {
+      "start": [
+        25.0601139,
+        121.5512556
+      ],
+      "end": [
+        25.0589602,
+        121.551265
+      ],
+      "distance": 212,
+      "roadPct": 0,
+      "officialCoveragePct": 100
+    },
+    {
+      "start": [
+        25.0464855,
+        121.5169584
+      ],
+      "end": [
+        25.0469011,
+        121.5177721
+      ],
+      "distance": 120,
+      "roadPct": 0,
+      "officialCoveragePct": 100
+    }
+  ]
+}
