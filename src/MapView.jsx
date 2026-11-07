@@ -470,9 +470,13 @@ export default function MapView({
     if(!referencePath.current||!referenceRenderer.current)return;
     referencePath.current.clearLayers();
     const lines=referenceRouteLines(route?.kind==='official-passageway'?route:referenceRoute,{start,end});
+    // Draw the whole outline first so adjacent segment outlines cannot cover
+    // an already drawn route and create visible gaps at their shared points.
+    for(const line of lines){
+      L.polyline(line.coordinates,{pane:'reference-route',renderer:referenceRenderer.current,interactive:false,color:TPColors.white,weight:7,opacity:1}).addTo(referencePath.current);
+    }
     for(const line of lines){
       const style=REFERENCE_STYLES[line.kind],options={pane:'reference-route',renderer:referenceRenderer.current,interactive:line.approximateCrossing===true};
-      L.polyline(line.coordinates,{...options,color:TPColors.white,weight:10,opacity:1}).addTo(referencePath.current);
       const stroke=L.polyline(line.coordinates,{...options,color:style.color,weight:style.weight,dashArray:style.dashArray,opacity:1}).addTo(referencePath.current);
       if(line.approximateCrossing)stroke.bindTooltip('過街邊界未確認');
     }
@@ -485,7 +489,7 @@ export default function MapView({
     if (route?.coordinates && route.kind!=='official-passageway') {
       L.polyline(route.networkCoordinates || route.coordinates, {
         color: TPColors.white,
-        weight: 13,
+        weight: 10,
         opacity: 1,
       }).addTo(path.current);
       if(route.tierSegments?.length){
@@ -505,7 +509,7 @@ export default function MapView({
         if (!Array.isArray(coords) || coords.length < 2 || !coords.every(p=>Array.isArray(p) && p.length >= 2 && Number.isFinite(p[0]) && Number.isFinite(p[1]))) continue;
         L.polyline(coords, {color: TPColors.primary900, weight: 3, dashArray: '2 5', opacity: 0.9}).bindTooltip('過街').addTo(path.current);
       }
-      for(const approach of route.approaches || []) {const style=ROUTE_CONDITIONS.approach;L.polyline(approach.coordinates,{color:TPColors.white,weight:8,opacity:1}).addTo(path.current);const line=L.polyline(approach.coordinates,{color:colorFriendly?TPColors.primary900:style.color,weight:4,dashArray:style.dash}).addTo(path.current);if(approach.estimated)line.bindTooltip('入口及實際通行狀況未確認，虛線僅為位置估算');}
+      for(const approach of route.approaches || []) {const style=ROUTE_CONDITIONS.approach;L.polyline(approach.coordinates,{color:TPColors.white,weight:6,opacity:1}).addTo(path.current);const line=L.polyline(approach.coordinates,{color:colorFriendly?TPColors.primary900:style.color,weight:4,dashArray:style.dash}).addTo(path.current);if(approach.estimated)line.bindTooltip('入口及實際通行狀況未確認，虛線僅為位置估算');}
       if (!hideMapIcons) drawOfficialConditions(path.current,route.officialConditions);
       const m=map.current;
       const fit=()=>{if(!m||map.current!==m)return;const height=m.getSize().y;m.fitBounds(L.latLngBounds(route.coordinates),{animate:false,...routePadding(height)});};
@@ -520,14 +524,14 @@ export default function MapView({
     for(const segment of partialRoute.segments){
       if (!hideMapIcons) drawOfficialConditions(partialPath.current,segment.officialConditions);
       bounds.push(...segment.coordinates);
-      L.polyline(segment.networkCoordinates,{color:TPColors.white,weight:10,opacity:1}).addTo(partialPath.current);
+      L.polyline(segment.networkCoordinates,{color:TPColors.white,weight:7,opacity:1}).addTo(partialPath.current);
       if(segment.tierSegments.length){
         for(const tier of segment.tierSegments){const style=ROUTE_CONDITIONS[conditionForSegment(tier)];L.polyline(tier.coordinates,{color:colorFriendly?TPColors.primary900:style.color,weight:5,dashArray:style.dash,opacity:1}).addTo(partialPath.current);if(tier.nearbyOfficialCondition===true)L.polyline(tier.coordinates,{color:'#7036a3',weight:3,dashArray:'3 4',opacity:1}).bindTooltip('附近有官方不利通行紀錄，位置及影響未確認').addTo(partialPath.current);}
       }else{
         const style=ROUTE_CONDITIONS[fallbackRouteCondition(segment)];L.polyline(segment.networkCoordinates,{color:colorFriendly?TPColors.primary900:style.color,weight:5,dashArray:style.dash,opacity:1}).addTo(partialPath.current);
       }
       for(const crossing of segment.crossingUncertainties||[]){const coords=crossing.coordinates;if(!Array.isArray(coords)||coords.length<2||!coords.every(p=>Array.isArray(p)&&p.length>=2&&Number.isFinite(p[0])&&Number.isFinite(p[1])))continue;L.polyline(coords,{color:TPColors.primary900,weight:3,dashArray:'2 5',opacity:.9}).bindTooltip('OSM 過街位置，官方資料未完整確認').addTo(partialPath.current);}
-      for(const approach of segment.approaches){const style=ROUTE_CONDITIONS.approach;L.polyline(approach.coordinates,{color:TPColors.white,weight:8,opacity:1}).addTo(partialPath.current);const l=L.polyline(approach.coordinates,{color:colorFriendly?TPColors.primary900:style.color,weight:4,dashArray:style.dash}).addTo(partialPath.current);if(approach.estimated)l.bindTooltip('入口銜接為位置估算，實際通行狀況未確認');}
+      for(const approach of segment.approaches){const style=ROUTE_CONDITIONS.approach;L.polyline(approach.coordinates,{color:TPColors.white,weight:6,opacity:1}).addTo(partialPath.current);const l=L.polyline(approach.coordinates,{color:colorFriendly?TPColors.primary900:style.color,weight:4,dashArray:style.dash}).addTo(partialPath.current);if(approach.estimated)l.bindTooltip('入口銜接為位置估算，實際通行狀況未確認');}
     }
     for(const [side,label] of [['startSide','起點側路段到此'],['endSide','目的地側路段由此開始']]){
       const point=partialRoute.gap[side];if(!point)continue;bounds.push(point);

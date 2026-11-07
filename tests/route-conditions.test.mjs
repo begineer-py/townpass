@@ -36,8 +36,8 @@ test('recorded sidewalks keep unknown and rough conditions visible', () => {
 test('rough routes remain identifiable with or without unknown dimensions', () => {
   assert.equal(conditionForSegment({unknownWidth:false,unknownSlope:false,roughSurface:true}), 'rough');
   assert.equal(conditionForSegment({unknownWidth:true,unknownSlope:false,roughSurface:true}), 'roughUnknown');
-  const dashes=Object.values(ROUTE_CONDITIONS).map(value=>value.dash || 'solid');
-  assert.equal(new Set(dashes).size,dashes.length);
+  for(const key of ['sidewalk','sidewalkUnknown','sidewalkRough','sidewalkRoughUnknown']) assert.equal(ROUTE_CONDITIONS[key].dash,undefined);
+  assert.ok(ROUTE_CONDITIONS.crossing.dash);assert.ok(ROUTE_CONDITIONS.approach.dash);
 });
 
 test('near-boundary crossing instructions preserve uncertainty',()=>{

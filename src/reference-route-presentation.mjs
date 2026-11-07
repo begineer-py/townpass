@@ -1,7 +1,7 @@
 import {generalSidewalkSegment} from './general-sidewalk.mjs';
 export const REFERENCE_NOTICE='路側、銜接與樓層未確認';
 export const REFERENCE_STYLES=Object.freeze({
-  sidewalk:{color:'#5B8996',weight:5,dashArray:'1 0',label:'一般人行道'},
+  sidewalk:{color:'#5B8996',weight:5,label:'一般人行道'},
   pedestrian:{color:'#475259',weight:5,dashArray:'5 5',label:'其他人行路段'},
   shared:{color:'#765A25',weight:5,dashArray:'16 5 3 5',label:'人車共行'},
   crossing:{color:'#263C46',weight:5,dashArray:'1 5',label:'過街'},
