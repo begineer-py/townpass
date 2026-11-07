@@ -1,8 +1,16 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   MapPin,
   ArrowUpDown,
   ArrowRight,
+  ArrowLeft,
   ChevronRight,
   ChevronDown,
   Navigation,
@@ -40,11 +48,14 @@ import {
   Clock,
   WifiOff,
   Compass,
-  Menu,
+  HelpCircle,
 } from "lucide-react";
 import MapView from "./MapView";
 import { ROUTING_POLICY } from "./routing.mjs";
 import { BASEMAPS } from "./basemaps.mjs";
+// Layer-picker preview: the z15 tile covering Taipei Main Station.
+const layerThumb = (url) =>
+  url.replace("{z}", 15).replace("{x}", 27444).replace("{y}", 14027);
 import {
   loadData,
   dataUrl,
@@ -80,29 +91,20 @@ const icons = {
   road: Route,
 };
 const filters = [
-  ["all", "常用設施"],
-  ["elevator", "電梯出口"],
-  ["toilet", "無障礙廁所"],
-  ["rest", "歇歇腳"],
-  ["water", "飲水處"],
-  ["ramp", "坡道"],
-  ["park", "公園"],
-  ["friendly", "友善店家"],
-  ["bus", "公車站"],
-  ["parking", "停車設施"],
-  ["health", "醫療與藥局"],
+  ["all", "常用設施", Layers],
+  ["elevator", "電梯出口", ArrowUpFromLine],
+  ["toilet", "無障礙廁所", Toilet],
+  ["ramp", "坡道", Accessibility],
+  ["rest", "歇歇腳", Armchair],
+  ["water", "飲水處", GlassWater],
+  ["park", "公園", TreePine],
+  ["friendly", "友善店家", Store],
+  ["bus", "公車站", BusFront],
+  ["parking", "停車設施", Car],
+  ["health", "醫療與藥局", Hospital],
 ];
-const features = [
-  ["explore", "找設施", Compass],
-  ["plan", "規劃路線", Route],
-  ["stations", "捷運出口", TrainFront],
-  ["saved", "收藏", Heart],
-];
-const routeModes = {
-  balanced: "均衡走法",
-  gentle: "偏好平緩",
-  crossings: "減少過街",
-};
+// Shown before 更多: the four a wheelchair or low-vision user reaches for first.
+const MAIN_FILTERS = 4;
 const basePrefs = {
   avoidSteps: true,
   minWidth: 0.8,
@@ -153,7 +155,8 @@ function Sheet({ title, onClose, children }) {
   );
 }
 function FacilityRow({ p, from, onSelect, saved, onSave }) {
-  const k = category(p);
+  const k = category(p),
+    sub = labels[k] || "設施";
   return (
     <div className="facility-row">
       <button className="facility-main" onClick={() => onSelect(p)}>
@@ -162,15 +165,14 @@ function FacilityRow({ p, from, onSelect, saved, onSave }) {
         </span>
         <span className="facility-copy">
           <strong>{cleanName(p.name)}</strong>
-          <span>
-            {labels[k] || "設施"}
-            {p.exit ? ` · ${p.exit}` : ""}
-          </span>
+          {(sub !== cleanName(p.name) || p.exit) && (
+            <span>
+              {sub}
+              {p.exit ? ` · ${p.exit}` : ""}
+            </span>
+          )}
         </span>
-        <span className="distance">
-          {formatDistance(distance(from, p))}
-          <ChevronRight size={15} />
-        </span>
+        <span className="distance">{formatDistance(distance(from, p))}</span>
       </button>
       {onSave && (
         <button
@@ -188,7 +190,8 @@ export default function App() {
   const [data, setData] = useState(null),
     [loading, setLoading] = useState(false),
     [loadError, setLoadError] = useState(false);
-  const [tab, setTab] = useState(null),
+  const [allFilters, setAllFilters] = useState(false);
+  const [tab, setTab] = useState("plan"),
     [filter, setFilter] = useState("all"),
     [viewport, setViewport] = useState({
       lat: 25.0478,
@@ -230,10 +233,32 @@ export default function App() {
     return Object.prototype.hasOwnProperty.call(BASEMAPS, v) ? v : "street";
   });
   const [basemapStatus, setBasemapStatus] = useState("loading");
+  const [layersOpen, setLayersOpen] = useState(false),
+    layersRef = useRef();
+  useEffect(() => {
+    if (!layersOpen) return;
+    const away = (e) => {
+      if (!layersRef.current?.contains(e.target)) setLayersOpen(false);
+    };
+    const esc = (e) => e.key === "Escape" && setLayersOpen(false);
+    document.addEventListener("pointerdown", away);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("pointerdown", away);
+      document.removeEventListener("keydown", esc);
+    };
+  }, [layersOpen]);
   const [showMapFacilities, setShowMapFacilities] = useState(false);
-  const needsData =
-    showMapFacilities || (tab !== null && tab !== "saved") || modal === "sources";
+  const needsData = showMapFacilities || tab !== "saved" || modal === "sources";
   const waitingForData = needsData && !data && !loadError;
+  // Tab change: facilities show on the map only while browsing them, the route
+  // graph loads the first time 規劃路線 opens, and stale locate() replies drop.
+  const tabVersion = useRef(0);
+  useEffect(() => {
+    tabVersion.current++;
+    setShowMapFacilities(tab === "explore");
+    if (tab === "plan") setGraphRequested(true);
+  }, [tab]);
   useEffect(() => {
     saveLocal("hhz-basemap", basemap);
   }, [basemap]);
@@ -254,21 +279,54 @@ export default function App() {
     };
   }, [query]);
   const panelScroll = useRef();
-  const panel = useRef();
-  const menuButton = useRef();
   const routeFeedback = useRef();
+  // Phone bottom sheet: 0 = peek, 1 = half, 2 = full (heights in style.css).
+  const panelEl = useRef(),
+    gripDragged = useRef(false);
+  const [sheetSnap, setSheetSnap] = useState(1);
+  const SHEET_SNAPS = [0.24, 0.56, 0.9];
+  function gripDown(e) {
+    const el = panelEl.current;
+    if (!el || e.button > 0) return;
+    const startY = e.clientY,
+      startH = el.getBoundingClientRect().height;
+    gripDragged.current = false;
+    el.classList.add("dragging");
+    const move = (ev) => {
+      const dy = startY - ev.clientY;
+      if (Math.abs(dy) > 5) gripDragged.current = true;
+      el.style.setProperty("--sheet-h", `${Math.max(110, startH + dy)}px`);
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
+      el.classList.remove("dragging");
+      const f = el.getBoundingClientRect().height / window.innerHeight;
+      el.style.removeProperty("--sheet-h");
+      if (!gripDragged.current) return;
+      let best = 0;
+      SHEET_SNAPS.forEach((v, i) => {
+        if (Math.abs(v - f) < Math.abs(SHEET_SNAPS[best] - f)) best = i;
+      });
+      setSheetSnap(best);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
+  }
   useEffect(() => {
-    if(routeError) routeFeedback.current?.scrollIntoView({block:'nearest',behavior:'auto'});
+    if (routeError)
+      routeFeedback.current?.scrollIntoView({
+        block: "nearest",
+        behavior: "auto",
+      });
   }, [routeError]);
   useEffect(() => {
-    if (tab) {
-      panelScroll.current.scrollTop = 0;
-      panel.current.focus();
-    }
+    if (panelScroll.current) panelScroll.current.scrollTop = 0;
   }, [tab]);
   const worker = useRef(),
     request = useRef(0),
-    panelVersion = useRef(0),
     map = useRef(),
     announceTimer = useRef();
   const announce = (text) => {
@@ -351,22 +409,6 @@ export default function App() {
     });
     return () => w.terminate();
   }, [graphRequested]);
-  function openPanel(nextTab) {
-    if (nextTab !== tab) {
-      panelVersion.current++;
-      setShowMapFacilities(nextTab === "explore");
-      setPick(null);
-    }
-    if (nextTab === "plan") setGraphRequested(true);
-    setTab(nextTab);
-  }
-  function closePanel() {
-    openPanel(null);
-    setStatus("");
-    window.speechSynthesis?.cancel();
-    setSpeaking(false);
-    menuButton.current?.focus();
-  }
   const changePoint = (which, p) => {
     request.current++;
     setRouting(false);
@@ -376,7 +418,7 @@ export default function App() {
     setSearchFor(null);
     setQuery("");
     setPick(null);
-    openPanel("plan");
+    setTab("plan");
     setFocus({ ...p, token: Date.now() });
   };
   function clearRoute() {
@@ -408,11 +450,11 @@ export default function App() {
     setQuery("");
   }
   async function locate(which) {
-    const version = panelVersion.current;
+    const version = tabVersion.current;
     setLocating(true);
     try {
       const p = await getLocation();
-      if (which && version !== panelVersion.current) return;
+      if (which && version !== tabVersion.current) return;
       if (p.lat < 24.94 || p.lat > 25.24 || p.lon < 121.42 || p.lon > 121.69) {
         announce(
           "你目前的位置在服務範圍外。可以搜尋臺北的地點，或直接在地圖上選擇。",
@@ -423,7 +465,7 @@ export default function App() {
       if (which) changePoint(which, p);
       else announce("已找到你的位置，可以看看附近有哪些設施。");
     } catch {
-      if (!which || version === panelVersion.current)
+      if (!which || version === tabVersion.current)
         announce("目前無法取得位置。你仍可以搜尋地點，或在地圖上選擇。");
     } finally {
       setLocating(false);
@@ -445,6 +487,7 @@ export default function App() {
     clearRoute();
     setRouting(true);
     setRouteError("");
+    if (!worker.current) return;
     worker.current.postMessage({
       type: "route",
       id: ++request.current,
@@ -614,19 +657,62 @@ export default function App() {
       <a className="skip-link" href="#main-content">
         跳至服務內容
       </a>
-      <div className={`workspace${tab ? " with-panel" : ""}`}>
+      <div className="workspace">
         <aside
           className="panel"
-          hidden={!tab}
-          ref={panel}
-          tabIndex={-1}
-          aria-label={features.find(([id]) => id === tab)?.[1]}
+          id="main-content"
+          ref={panelEl}
+          data-snap={sheetSnap}
         >
-          <div className="panel-toolbar">
-            <button className="text-button" onClick={closePanel}>
-              <X size={18} /> 回到地圖
+          <button
+            className="sheet-grip"
+            onPointerDown={gripDown}
+            onClick={() => {
+              if (gripDragged.current) {
+                gripDragged.current = false;
+                return;
+              }
+              setSheetSnap((v) => (v + 1) % SHEET_SNAPS.length);
+            }}
+            aria-label={
+              ["展開面板", "面板放到最大", "收合面板，顯示更多地圖"][sheetSnap]
+            }
+          />
+          <div className="omnibox-wrap">
+            <button className="omnibox" onClick={() => openSearch("explore")}>
+              <Search size={20} />
+              <span>搜尋地點、捷運站或路名</span>
+            </button>
+            <button
+              className="omnibox-settings"
+              aria-label="閱讀與通行設定"
+              onClick={() => setModal("prefs")}
+            >
+              <SlidersHorizontal size={21} />
             </button>
           </div>
+          <nav className="main-nav" aria-label="主要功能">
+            {[
+              ["explore", "找設施", Compass],
+              ["plan", "規劃路線", Route],
+              ["stations", "捷運出口", TrainFront],
+              ["saved", "收藏", Heart],
+            ].map(([id, label, C]) => (
+              <button
+                key={id}
+                className={tab === id ? "active" : ""}
+                onClick={() => {
+                  setTab(id);
+                  setPick(null);
+                  setSheetSnap((v) => Math.max(v, 1));
+                }}
+                aria-current={tab === id ? "page" : undefined}
+              >
+                <C size={20} />
+                <span>{label}</span>
+              </button>
+            ))}
+          </nav>
           <div className="panel-scroll" ref={panelScroll}>
             {waitingForData && (
               <div className="loading-note">
@@ -645,45 +731,42 @@ export default function App() {
             )}
             {tab === "explore" && (
               <>
-                <div className="intro">
-                  <h1>附近設施</h1>
+                <h1 className="sr-only">找設施</h1>
+                <div className="filter-grid" aria-label="設施類別">
+                  {(allFilters ||
+                  filters.findIndex(([id]) => id === filter) >= MAIN_FILTERS
+                    ? filters
+                    : filters.slice(0, MAIN_FILTERS)
+                  ).map(([id, label, C]) => (
+                    <button
+                      key={id}
+                      className={filter === id ? "selected" : ""}
+                      aria-pressed={filter === id}
+                      onClick={() => {
+                        setFilter(id);
+                        setListLimit(12);
+                      }}
+                    >
+                      <C size={17} />
+                      {label}
+                    </button>
+                  ))}
+                  {!allFilters &&
+                    filters.findIndex(([id]) => id === filter) <
+                      MAIN_FILTERS && (
+                      <button onClick={() => setAllFilters(true)}>
+                        更多
+                        <ChevronDown size={16} />
+                      </button>
+                    )}
                 </div>
-                <button
-                  className="search-launch"
-                  onClick={() => openSearch("explore")}
-                >
-                  <Search size={21} />
-                  <span>搜尋地點、捷運站或路名</span>
-                  <span className="search-kbd">找地點</span>
-                </button>
-                <label className="select-row">
-                  設施類別
-                  <select
-                    value={filter}
-                    onChange={(e) => {
-                      setFilter(e.target.value);
-                      setListLimit(12);
-                    }}
-                  >
-                    {filters.map(([id, label]) => (
-                      <option key={id} value={id}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <div className="list-caption">
-                  <span>依地圖中心，從近到遠</span>
-                  <span>{nearby.length.toLocaleString()} 處</span>
-                </div>
+                <p className="list-caption">離地圖中心由近到遠</p>
                 {nearby.slice(0, listLimit).map((p) => (
                   <FacilityRow
                     key={p.id}
                     p={p}
                     from={viewport}
                     onSelect={inspect}
-                    saved={saved.some((s) => s.id === p.id)}
-                    onSave={toggleSave}
                   />
                 ))}
                 {data && !nearby.length && (
@@ -704,10 +787,7 @@ export default function App() {
             )}
             {tab === "plan" && (
               <>
-                <div className="intro compact">
-                  <h1>路線規劃</h1>
-                  <p>搜尋地點，或直接在地圖上選兩點。</p>
-                </div>
+                <h1 className="sr-only">規劃路線</h1>
                 <div className="endpoints">
                   <span className="route-dots">
                     <i />
@@ -768,12 +848,35 @@ export default function App() {
                     在地圖選點
                   </button>
                 </div>
-                <button
-                  className="text-button route-settings"
-                  onClick={() => setModal("prefs")}
-                >
-                  <SlidersHorizontal size={18} /> 通行設定
-                </button>
+                <div className="preference-bar">
+                  <Accessibility size={20} />
+                  <span>
+                    {prefs.avoidSteps ? "避開階梯" : "允許階梯"} ·{" "}
+                    {prefs.minWidth}m 以上已知寬度
+                  </span>
+                  <button
+                    onClick={() => setModal("prefs")}
+                    aria-label="調整通行偏好"
+                  >
+                    <SlidersHorizontal size={18} />
+                  </button>
+                </div>
+                <div className="mode-tabs" aria-label="路線偏好">
+                  {[
+                    ["balanced", "均衡走法"],
+                    ["gentle", "偏好平緩"],
+                    ["crossings", "減少過街"],
+                  ].map(([id, name]) => (
+                    <button
+                      key={id}
+                      aria-pressed={prefs.mode === id}
+                      className={prefs.mode === id ? "active" : ""}
+                      onClick={() => updatePrefs({ mode: id })}
+                    >
+                      {name}
+                    </button>
+                  ))}
+                </div>
                 <button
                   className="primary full"
                   onClick={calculate}
@@ -916,10 +1019,7 @@ export default function App() {
             )}
             {tab === "stations" && (
               <>
-                <div className="intro">
-                  <h1>捷運電梯出口</h1>
-                  <p>先找到車站，再看看出口與保養資訊。</p>
-                </div>
+                <h1 className="sr-only">捷運電梯出口</h1>
                 <label className="search-launch input">
                   <Search size={20} />
                   <input
@@ -931,47 +1031,53 @@ export default function App() {
                 </label>
                 <div className="notice soft">
                   <Info size={18} />
-                  <p>
-                    電梯位置來自捷運公司。維修公告有更新時間，出發前也可以再向車站確認。
-                  </p>
+                  <p>資料來自捷運公司，出發前可再向車站確認電梯是否維修。</p>
                 </div>
-                {stations.map((s, i) => {
-                  const name = s["車站名稱"];
-                  const exits = data.fac.filter(
-                    (p) =>
-                      p.kind === "metro-elevator" &&
-                      stationKey(p.station) === stationKey(name),
-                  );
-                  return (
-                    <button
-                      className="station-card"
-                      key={i}
-                      onClick={() =>
-                        setSelected({
-                          id: `station-${i}`,
-                          name: `${name}站`,
-                          kind: "station-detail",
-                          record: s,
-                          exits,
-                        })
-                      }
-                    >
-                      <span className="station-icon">
-                        <TrainFront size={22} />
-                      </span>
-                      <span>
-                        <strong>{name}</strong>
-                        <small>
-                          {s["路線別"]} ·{" "}
-                          {exits.length
-                            ? `${exits.length} 處電梯／坡道出口`
-                            : "查看電梯位置說明"}
-                        </small>
-                      </span>
-                      <ChevronRight size={18} />
-                    </button>
-                  );
-                })}
+                {stations
+                  .map((s) => {
+                    const name = s["車站名稱"];
+                    const exits = data.fac.filter(
+                      (p) =>
+                        p.kind === "metro-elevator" &&
+                        stationKey(p.station) === stationKey(name),
+                    );
+                    const near = exits.length
+                      ? Math.min(...exits.map((p) => distance(viewport, p)))
+                      : Infinity;
+                    return { s, name, exits, near };
+                  })
+                  .sort((a, b) => a.near - b.near)
+                  .map(({ s, name, exits }) => {
+                    return (
+                      <button
+                        className="station-card"
+                        key={`${name}-${s["路線別"]}`}
+                        onClick={() =>
+                          setSelected({
+                            id: `station-${name}-${s["路線別"]}`,
+                            name: `${name}站`,
+                            kind: "station-detail",
+                            record: s,
+                            exits,
+                          })
+                        }
+                      >
+                        <span className="station-icon">
+                          <TrainFront size={22} />
+                        </span>
+                        <span>
+                          <strong>{name}</strong>
+                          <small>
+                            {s["路線別"]} ·{" "}
+                            {exits.length
+                              ? `${exits.length} 處電梯／坡道出口`
+                              : "查看電梯位置說明"}
+                          </small>
+                        </span>
+                        <ChevronRight size={18} />
+                      </button>
+                    );
+                  })}
                 {!stations.length && data && (
                   <p className="quiet-note">
                     還沒找到這個站名，試試少打幾個字。
@@ -981,12 +1087,19 @@ export default function App() {
             )}
             {tab === "saved" && (
               <>
-                <div className="intro">
-                  <h1>我的收藏</h1>
-                  <p>收藏留在這部裝置，不需要登入。</p>
-                </div>
-                <h2 className="section-title">已存行程</h2>
-                {trips.length ? (
+                <h1 className="sr-only">收藏</h1>
+                {!trips.length && !saved.length && (
+                  <div className="empty-card">
+                    <Heart size={25} />
+                    <p>
+                      還沒有收藏。在地點資訊按「收藏」，或規劃路線後按「存下行程」。
+                    </p>
+                  </div>
+                )}
+                {trips.length > 0 && (
+                  <h2 className="section-title">已存行程</h2>
+                )}
+                {trips.length > 0 &&
                   trips.map((t) => (
                     <div className="trip-card" key={t.id}>
                       <button
@@ -1001,7 +1114,7 @@ export default function App() {
                             avoidSteps: true,
                             officialOnly: true,
                           });
-                          openPanel("plan");
+                          setTab("plan");
                           setRouteError("");
                           setRouting(false);
                           announce(
@@ -1032,15 +1145,11 @@ export default function App() {
                         <X size={17} />
                       </button>
                     </div>
-                  ))
-                ) : (
-                  <div className="empty-card">
-                    <Bookmark size={25} />
-                    <p>找到喜歡的走法後，點「存下行程」，下次就能輕鬆找到。</p>
-                  </div>
+                  ))}
+                {saved.length > 0 && (
+                  <h2 className="section-title">想再去的地方</h2>
                 )}
-                <h2 className="section-title">想再去的地方</h2>
-                {saved.length ? (
+                {saved.length > 0 &&
                   saved.map((p) => (
                     <FacilityRow
                       key={p.id}
@@ -1050,62 +1159,119 @@ export default function App() {
                       saved
                       onSave={toggleSave}
                     />
-                  ))
-                ) : (
-                  <div className="empty-card">
-                    <Heart size={25} />
-                    <p>點設施旁的愛心，把需要的地方留在這裡。</p>
-                  </div>
-                )}
+                  ))}
               </>
             )}
+            <footer className="panel-footer">
+              <button onClick={() => setModal("sources")}>資料來源</button>
+              <button onClick={() => setModal("about")}>關於服務</button>
+            </footer>
           </div>
         </aside>
-        <main
-          className="map-area"
-          id="main-content"
-          tabIndex={-1}
-          aria-label="地圖與設施"
-        >
+        <main className="map-area" aria-label="地圖與設施">
           <MapView
             items={showMapFacilities ? mapItems : []}
             basemap={basemap}
             onBasemapStatus={setBasemapStatus}
-            route={tab ? route : null}
-            start={tab ? start : null}
-            end={tab ? end : null}
+            route={route}
+            start={start}
+            end={end}
             focus={{ ...viewport, ...focus }}
             pick={pick}
             onPick={selectPoint}
             onSelect={inspect}
             onViewport={setViewport}
             onMapReady={(m) => (map.current = m)}
+            onGesture={() => {
+              if (matchMedia("(max-width: 700px)").matches) setSheetSnap(0);
+            }}
           />
-          <button
-            className="map-menu-button"
-            ref={menuButton}
-            aria-haspopup="dialog"
-            onClick={() => setModal("menu")}
-          >
-            <Menu size={21} aria-hidden="true" /> 選單
-          </button>
-          <div className="map-controls">
+          <div className="map-dock" ref={layersRef}>
+            <div className="dock-group">
+              <button
+                aria-label="地圖圖層"
+                aria-expanded={layersOpen}
+                aria-controls="layers-panel"
+                onClick={() => {
+                  // Phone: lower the sheet so the whole picker sits on open map.
+                  if (!layersOpen && matchMedia("(max-width: 700px)").matches)
+                    setSheetSnap(0);
+                  setLayersOpen(!layersOpen);
+                }}
+              >
+                <Layers size={20} />
+              </button>
+              <button
+                aria-label="移至我的位置"
+                onClick={() => locate()}
+                disabled={locating}
+              >
+                {locating ? (
+                  <LoaderCircle className="spin" size={20} />
+                ) : (
+                  <Navigation size={19} />
+                )}
+              </button>
+            </div>
+            {layersOpen && (
+              <div
+                className="layers-panel"
+                id="layers-panel"
+                role="group"
+                aria-labelledby="layers-title"
+              >
+                <div className="layers-head">
+                  <b id="layers-title">地圖</b>
+                  <button
+                    className="icon-button"
+                    aria-label="關閉地圖圖層"
+                    onClick={() => setLayersOpen(false)}
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+                <div className="layers-grid">
+                  {Object.entries(BASEMAPS).map(([id, spec]) => (
+                    <button
+                      key={id}
+                      className="layer-option"
+                      aria-pressed={basemap === id}
+                      onClick={() => setBasemap(id)}
+                    >
+                      <span className="layer-thumb">
+                        {[spec.url, spec.overlay].filter(Boolean).map((u) => (
+                          <img
+                            key={u}
+                            src={layerThumb(u)}
+                            alt=""
+                            loading="lazy"
+                          />
+                        ))}
+                      </span>
+                      <span>{spec.label}</span>
+                    </button>
+                  ))}
+                </div>
+                <label className="toggle-row layers-toggle">
+                  <b>在地圖上顯示無障礙設施</b>
+                  <input
+                    type="checkbox"
+                    checked={showMapFacilities}
+                    onChange={(e) => setShowMapFacilities(e.target.checked)}
+                  />
+                </label>
+              </div>
+            )}
+          </div>
+          <div className="dock-group map-zoom">
             <button aria-label="放大地圖" onClick={() => map.current?.zoomIn()}>
-              <Plus />
+              <Plus size={20} />
             </button>
             <button
               aria-label="縮小地圖"
               onClick={() => map.current?.zoomOut()}
             >
-              <Minus />
-            </button>
-            <span />
-            <button
-              aria-label="移至我的位置"
-              onClick={() => locate()}
-              disabled={locating}
-            >
-              {locating ? <LoaderCircle className="spin" /> : <LocateFixed />}
+              <Minus size={20} />
             </button>
           </div>
           {pick && (
@@ -1127,20 +1293,11 @@ export default function App() {
               影像暫時讀取不到，切回一般地圖
             </button>
           )}
-          {showMapFacilities && (
+          {basemap !== "street" && (
             <div className="map-bottom">
-              <div className="map-legend">
-                <span>
-                  <i className="legend-elevator" /> 電梯
-                </span>
-                <span>
-                  <i className="legend-toilet" /> 廁所
-                </span>
-                <span>
-                  <i className="legend-rest" /> 休息
-                </span>
-              </div>
-              <span className="map-footnote">設施開放情形請留意現場</span>
+              <span className="map-footnote">
+                航照為歷史拍攝影像，非即時路況
+              </span>
             </div>
           )}
         </main>
@@ -1200,9 +1357,9 @@ export default function App() {
             </button>
             <button
               onClick={() => {
-                openPanel("plan");
                 setPick(searchFor === "explore" ? "end" : searchFor);
                 setSearchFor(null);
+                setTab("plan");
               }}
             >
               <MapPin size={20} />
@@ -1323,30 +1480,30 @@ export default function App() {
                   {selected.address}
                 </p>
               )}
-              <div className="detail-facts">
-                <div>
-                  <small>距地圖中心</small>
-                  <b>{formatDistance(distance(viewport, selected))}</b>
+              {(selected.accessibleCount > 0 ||
+                selected.exit ||
+                selected.slopePct != null) && (
+                <div className="detail-facts">
+                  {selected.accessibleCount > 0 && (
+                    <div>
+                      <small>無障礙廁座</small>
+                      <b>{selected.accessibleCount} 座</b>
+                    </div>
+                  )}
+                  {selected.exit && (
+                    <div>
+                      <small>出入口</small>
+                      <b>{selected.exit}</b>
+                    </div>
+                  )}
+                  {selected.slopePct != null && (
+                    <div>
+                      <small>資料記載坡度</small>
+                      <b>{selected.slopePct}%</b>
+                    </div>
+                  )}
                 </div>
-                {selected.accessibleCount > 0 && (
-                  <div>
-                    <small>無障礙廁座</small>
-                    <b>{selected.accessibleCount} 座</b>
-                  </div>
-                )}
-                {selected.exit && (
-                  <div>
-                    <small>出入口</small>
-                    <b>{selected.exit}</b>
-                  </div>
-                )}
-                {selected.slopePct != null && (
-                  <div>
-                    <small>資料記載坡度</small>
-                    <b>{selected.slopePct}%</b>
-                  </div>
-                )}
-              </div>
+              )}
               {selected.careBed && <p>照護床：{selected.careBed}</p>}
               {selected.routes && (
                 <p>
@@ -1367,6 +1524,16 @@ export default function App() {
                       : "這是公開資料記載的位置，實際通行與開放情形請留意現場。"}
                 </p>
               </div>
+              <button
+                className="primary full"
+                onClick={() => {
+                  changePoint("end", selected);
+                  setSelected(null);
+                }}
+              >
+                我要到這裡
+                <ArrowRight size={18} />
+              </button>
               <div className="detail-actions">
                 <button
                   className="secondary"
@@ -1378,38 +1545,26 @@ export default function App() {
                   從這裡出發
                 </button>
                 <button
-                  className="primary"
-                  onClick={() => {
-                    changePoint("end", selected);
-                    setSelected(null);
-                  }}
+                  className="secondary"
+                  onClick={() => toggleSave(selected)}
                 >
-                  我要到這裡
-                  <ArrowRight size={18} />
+                  <Heart
+                    size={18}
+                    fill={
+                      saved.some((x) => x.id === selected.id)
+                        ? "currentColor"
+                        : "none"
+                    }
+                  />
+                  {saved.some((x) => x.id === selected.id) ? "已收藏" : "收藏"}
                 </button>
               </div>
-              <button
-                className="full secondary"
-                onClick={() => toggleSave(selected)}
-              >
-                <Heart
-                  size={18}
-                  fill={
-                    saved.some((x) => x.id === selected.id)
-                      ? "currentColor"
-                      : "none"
-                  }
-                />
-                {saved.some((x) => x.id === selected.id)
-                  ? "已收藏・點選取消"
-                  : "收藏這個地方"}
-              </button>
               {selected.station && (
                 <button
                   className="full text-button"
                   onClick={() => {
                     setStationQuery(selected.station);
-                    openPanel("stations");
+                    setTab("stations");
                     setSelected(null);
                   }}
                 >
@@ -1429,109 +1584,30 @@ export default function App() {
           )}
         </Sheet>
       )}
-      {modal === "menu" && (
-        <Sheet title="好好走 · 功能選單" onClose={() => setModal(null)}>
-          <nav className="menu-actions" aria-label="主要功能">
-            {features.map(([id, label, C]) => (
-              <button
-                key={id}
-                aria-current={tab === id ? "page" : undefined}
-                onClick={() => {
-                  setModal(null);
-                  openPanel(id);
-                }}
-              >
-                <C size={20} aria-hidden="true" />
-                {label}
-                <ChevronRight size={16} aria-hidden="true" />
-              </button>
-            ))}
-          </nav>
-          <h3>地圖顯示</h3>
-          <label className="select-row">
-            底圖類型
-            <select value={basemap} onChange={(e) => setBasemap(e.target.value)}>
-              {Object.entries(BASEMAPS).map(([id, spec]) => (
-                <option key={id} value={id}>
-                  {spec.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          {basemap !== "street" && (
-            <p className="quiet-note">航照為歷史拍攝影像，非即時路況。</p>
-          )}
-          <label className="toggle-row">
-            <span>在地圖上顯示設施</span>
-            <input
-              type="checkbox"
-              checked={showMapFacilities}
-              onChange={(e) => setShowMapFacilities(e.target.checked)}
-            />
-          </label>
-          {showMapFacilities && waitingForData && (
-            <p className="quiet-note" role="status">
-              正在載入設施…
-            </p>
-          )}
-          {showMapFacilities && loadError && (
-            <button className="text-button" onClick={boot}>
-              設施載入失敗，再試一次
-            </button>
-          )}
-          <div className="menu-actions">
-            <button
-              onClick={() => {
-                map.current?.fitBounds([
-                  [24.95, 121.45],
-                  [25.22, 121.67],
-                ]);
-                setModal(null);
-              }}
-            >
-              <MapPin size={20} aria-hidden="true" /> 查看全臺北地圖
-            </button>
-            <button onClick={() => setModal("prefs")}>
-              <SlidersHorizontal size={20} aria-hidden="true" /> 通行與閱讀設定
-            </button>
-            <button onClick={() => setModal("about")}>
-              <Info size={20} aria-hidden="true" /> 關於服務
-            </button>
-            <button onClick={() => setModal("sources")}>
-              <Layers size={20} aria-hidden="true" /> 資料來源
-            </button>
-          </div>
-        </Sheet>
-      )}
       {modal === "prefs" && (
         <Sheet title="通行與閱讀設定" onClose={() => setModal(null)}>
-          <p className="modal-lead">選擇這次出門需要的條件，隨時都可以調整。</p>
-          <label className="select-row">
-            路線偏好
-            <select
-              value={prefs.mode}
-              onChange={(e) => updatePrefs({ mode: e.target.value })}
-            >
-              {Object.entries(routeModes).map(([id, name]) => (
-                <option key={id} value={id}>
-                  {name}
-                </option>
-              ))}
-            </select>
-          </label>
+          <h3>閱讀</h3>
           <label className="toggle-row">
-            <span>
-              <b>不行走車道與階梯</b>
-              <small>固定排除；過街須有官方行穿線依據。</small>
-            </span>
+            <b>放大文字</b>
             <input
               type="checkbox"
-              checked
-              readOnly
-              disabled
-              aria-label="車道與階梯固定排除"
+              checked={prefs.largeText}
+              onChange={(e) =>
+                setPrefs({ ...prefs, largeText: e.target.checked })
+              }
             />
           </label>
+          <label className="toggle-row">
+            <b>提高對比</b>
+            <input
+              type="checkbox"
+              checked={prefs.contrast}
+              onChange={(e) =>
+                setPrefs({ ...prefs, contrast: e.target.checked })
+              }
+            />
+          </label>
+          <h3>路線</h3>
           <label className="range-row">
             <span>
               希望通道至少多寬<b>{prefs.minWidth} 公尺</b>
@@ -1546,7 +1622,7 @@ export default function App() {
                 updatePrefs({ minWidth: Number(e.target.value) })
               }
             />
-            <small>只對有寬度資料的路段套用，未知路段會另外提醒。</small>
+            <small>沒有寬度資料的路段會另外提醒。</small>
           </label>
           <label className="range-row">
             <span>
@@ -1562,12 +1638,12 @@ export default function App() {
                 updatePrefs({ maxSlope: Number(e.target.value) })
               }
             />
-            <small>依自己的通行需求選擇，這不是安全認證標準。</small>
+            <small>依自己的需求選擇，不是安全認證標準。</small>
           </label>
           <label className="toggle-row">
             <span>
-              <b>只考慮寬度、坡度都有資料的路段</b>
-              <small>資料還不完整，可能暫時找不到連續路線。</small>
+              <b>只走寬度、坡度都有資料的路段</b>
+              <small>資料還不完整，可能找不到路線。</small>
             </span>
             <input
               type="checkbox"
@@ -1575,50 +1651,11 @@ export default function App() {
               onChange={(e) => updatePrefs({ knownOnly: e.target.checked })}
             />
           </label>
-          <label className="toggle-row">
-            <span>
-              <b>全段須有官方人行空間圖資依據</b>
-              <small>
-                不自動補接資料缺漏，可能暫時找不到連續路線；仍需確認坡度與出入口。
-              </small>
-            </span>
-            <input
-              type="checkbox"
-              checked
-              readOnly
-              disabled
-              aria-label="官方人行空間依據固定啟用"
-            />
-          </label>
-          <h3>閱讀設定</h3>
-          <label className="toggle-row">
-            <span>
-              <b>放大文字</b>
-              <small>保留完整內容，閱讀更輕鬆</small>
-            </span>
-            <input
-              type="checkbox"
-              checked={prefs.largeText}
-              onChange={(e) =>
-                setPrefs({ ...prefs, largeText: e.target.checked })
-              }
-            />
-          </label>
-          <label className="toggle-row">
-            <span>
-              <b>提高對比</b>
-              <small>讓文字與按鈕更清楚</small>
-            </span>
-            <input
-              type="checkbox"
-              checked={prefs.contrast}
-              onChange={(e) =>
-                setPrefs({ ...prefs, contrast: e.target.checked })
-              }
-            />
-          </label>
+          <p className="quiet-note">
+            路線一律不走車道與階梯，全段須有官方人行空間圖資。
+          </p>
           <button className="primary full" onClick={() => setModal(null)}>
-            套用設定
+            完成
             <Check size={18} />
           </button>
         </Sheet>

@@ -28,6 +28,7 @@ export default function MapView({
   onSelect,
   onViewport,
   onMapReady,
+  onGesture,
 }) {
   const root = useRef(),
     map = useRef(),
@@ -35,8 +36,8 @@ export default function MapView({
     path = useRef(),
     ends = useRef();
   const baseLayers = useRef([]);
-  const cb = useRef({ onPick, onSelect, onViewport, pick });
-  cb.current = { onPick, onSelect, onViewport, pick };
+  const cb = useRef({ onPick, onSelect, onViewport, onGesture, pick });
+  cb.current = { onPick, onSelect, onViewport, onGesture, pick };
   useEffect(() => {
     const m = L.map(root.current, {
       zoomControl: false,
@@ -69,11 +70,22 @@ export default function MapView({
           id: `point-${Date.now()}`,
         });
     });
+    // User pan/zoom gestures only (not taps, not fitBounds/setView), so the
+    // phone sheet can get out of the way the way Google Maps does.
+    const gesture = () => cb.current.onGesture?.();
+    const el = root.current;
+    const pinch = (e) => e.touches.length > 1 && gesture();
+    m.on("dragstart", gesture);
+    m.on("dblclick", gesture);
+    el.addEventListener("wheel", gesture, { passive: true });
+    el.addEventListener("touchstart", pinch, { passive: true });
     viewport();
     onMapReady(m);
     const observer = new ResizeObserver(() => m.invalidateSize());
     observer.observe(root.current);
     return () => {
+      el.removeEventListener("wheel", gesture);
+      el.removeEventListener("touchstart", pinch);
       observer.disconnect();
       m.remove();
     };
