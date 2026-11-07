@@ -142,17 +142,9 @@ const icons = {
   road: Route,
 };
 const filters = [
-  ["all", "常用設施", Layers],
-  ["elevator", "電梯出口", ArrowUpFromLine],
   ["toilet", "無障礙廁所", Toilet],
-  ["ramp", "坡道", Accessibility],
-  ["rest", "歇歇腳", Armchair],
-  ["water", "飲水處", GlassWater],
-  ["park", "公園", TreePine],
-  ["friendly", "友善店家", Store],
-  ["bus", "公車站", BusFront],
-  ["parking", "停車設施", Car],
-  ["health", "醫療與藥局", Hospital],
+  ["water", "飲水台", GlassWater],
+  ["rest", "椅子", Armchair],
 ];
 const routeModes = { balanced: "均衡走法", crossings: "減少過街" };
 const basePrefs = {
@@ -1190,16 +1182,8 @@ export default function App() {
       announce("路障回報要在台北通裡同意後送出。你也可以撥 1999。");
     else postToTownPass("1999agree", true);
   }
-  const essential = new Set([
-    "elevator",
-    "toilet",
-    "rest",
-    "water",
-    "park",
-    "friendly",
-    "bus",
-  ]);
-  const mapKinds = new Set([...essential, "public-toilet", "ramp", "entrance", "parking", "health", "facility", "place"]);
+  const essential = new Set(["toilet", "water", "rest"]);
+  const mapKinds = new Set([...essential, "elevator", "park", "friendly", "bus", "public-toilet", "ramp", "entrance", "parking", "health", "facility", "place"]);
   const facilities = useMemo(
     () =>
       data?.all.filter((p) =>
@@ -1594,7 +1578,6 @@ export default function App() {
               <>
                 <h1 className="sr-only">找設施</h1>
                 <button className="search-launch" onClick={() => openSearch("explore")}><Search size={20} aria-hidden="true" />搜尋地點、捷運站或路名</button>
-                <button className="text-button" onClick={() => setTab("stations")}><TrainFront size={18} aria-hidden="true" />捷運出口</button>
                 <div className="filter-grid" aria-label="設施類別">
                   {filters.map(([id, label, C]) => (
                     <button
@@ -1603,7 +1586,7 @@ export default function App() {
                       aria-label={label}
                       aria-pressed={filter === id}
                       onClick={() => {
-                        setFilter(id);
+                        setFilter(current => current === id ? "all" : id);
                         setListLimit(12);
                       }}
                     >
