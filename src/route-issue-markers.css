@@ -1,6 +1,6 @@
 .route-issue-shell { background: transparent; border: 0; }
-.route-issue-pin { box-sizing: border-box; display: flex; width: 30px; height: 30px; align-items: center; justify-content: center; border: 2px solid #fff; border-radius: 50%; background: #8e3428; color: #fff; font-size: 20px; font-weight: 700; line-height: 1; box-shadow: 0 1px 5px rgba(0,0,0,.4); }
+.route-issue-pin { box-sizing: border-box; display: flex; width: 30px; height: 30px; align-items: center; justify-content: center; border: 2px solid var(--tp-white, #fff); border-radius: 50%; background: var(--tp-red500); color: var(--tp-white, #fff); font-size: 20px; font-weight: 600; line-height: 1; box-shadow: 0 1px 5px rgba(0,0,0,.4); }
 
-.route-issue-legend { display: inline-flex; width: 20px; height: 20px; align-items: center; justify-content: center; border-radius: 50%; background: #8e3428; color: #fff; font-style: normal; font-size: 14px; font-weight: 700; }
-.route-issue-avoid { display: block; min-height: 44px; margin-top: 8px; padding: 8px 12px; border: 1px solid #468d9b; border-radius: 8px; background: #fff; color: #356c77; font: inherit; cursor: pointer; }
+.route-issue-legend { display: inline-flex; width: 20px; height: 20px; align-items: center; justify-content: center; border-radius: 50%; background: var(--tp-red500); color: var(--tp-white, #fff); font-style: normal; font-size: 14px; font-weight: 600; }
+.route-issue-avoid { display: block; min-height: 44px; margin-top: 8px; padding: 8px 12px; border: 1px solid var(--tp-primary600); border-radius: 8px; background: var(--tp-white, #fff); color: var(--tp-primary700); font: inherit; cursor: pointer; }
 .route-issue-avoid:disabled { opacity: .55; cursor: default; }

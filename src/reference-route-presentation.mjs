@@ -1,9 +1,11 @@
+import {TPColors} from './tp-colors.mjs';
+
 export const REFERENCE_NOTICE='路側、銜接與樓層未確認';
 export const REFERENCE_STYLES=Object.freeze({
-  sidewalk:{color:'#5B8996',weight:5,label:'一般人行道'},
-  shared:{color:'#765A25',weight:5,dashArray:'16 5 3 5',label:'人車共行'},
-  crossing:{color:'#263C46',weight:5,dashArray:'1 5',label:'過街'},
-  join:{color:'#AE501F',weight:5,dashArray:'3 6',label:'銜接與入口位置未確認'},
+  sidewalk:{color:TPColors.primary600,weight:5,label:'一般人行道'},
+  shared:{color:TPColors.secondary800,weight:5,dashArray:'16 5 3 5',label:'人車共行'},
+  crossing:{color:TPColors.grayscale700,weight:5,dashArray:'1 5',label:'過街'},
+  join:{color:TPColors.orange700,weight:5,dashArray:'3 6',label:'銜接與入口位置未確認'},
 });
 const validLine=line=>Array.isArray(line)&&line.length>=2&&line.every(p=>Array.isArray(p)&&p.length===2&&p.every(Number.isFinite)&&p[0]>=24.9&&p[0]<=25.3&&p[1]>=121.4&&p[1]<=121.8);
 const distance=(a,b)=>Math.hypot((a[0]-b[0])*111195,(a[1]-b[1])*100700);

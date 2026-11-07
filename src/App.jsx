@@ -180,7 +180,7 @@ function RouteLegend({ segments, colorFriendly, showIssueIcons=true }) {
       const condition = ROUTE_CONDITIONS[key];
       return <svg key={key} width="52" height="16" aria-hidden="true"><line x1="2" y1="8" x2="50" y2="8" stroke={colorFriendly ? TPColors.primary900 : condition.color} strokeWidth="6" strokeDasharray={condition.dash}/></svg>;
     })}{label}</span>)}
-    {segments.some(route => route.officialConditions?.status==='available' && route.officialConditions.points?.length>0) && <span>{showIssueIcons && <i className="route-issue-legend" aria-hidden="true">!</i>}<svg width="52" height="16" aria-hidden="true"><line x1="2" y1="8" x2="50" y2="8" stroke="#7036a3" strokeWidth="4" strokeDasharray="3 4"/></svg>附近通行紀錄</span>}
+    {segments.some(route => route.officialConditions?.status==='available' && route.officialConditions.points?.length>0) && <span>{showIssueIcons && <i className="route-issue-legend" aria-hidden="true">!</i>}<svg width="52" height="16" aria-hidden="true"><line x1="2" y1="8" x2="50" y2="8" stroke={TPColors.red600} strokeWidth="4" strokeDasharray="3 4"/></svg>附近通行紀錄</span>}
     {!groups.has('過街') && segments.some(route => route.crossingUncertainties?.length > 0 || route.crossingSegments?.length > 0) && <span><svg width="52" height="16" aria-hidden="true"><line x1="2" y1="8" x2="50" y2="8" stroke={TPColors.primary900} strokeWidth="3" strokeDasharray="2 5"/></svg>過街</span>}
   </div>;
 }

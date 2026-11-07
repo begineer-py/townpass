@@ -536,7 +536,7 @@ export default function MapView({
       const {markers,highlights}=routeIssueMarkers(path);
       for(const highlight of highlights){
         const note=document.createElement('span');note.textContent=highlight.label;
-        L.polyline(highlight.coordinates,{pane:'route-issue-line',color:'#7036a3',weight:4,dashArray:'3 4',opacity:1}).bindTooltip(note).addTo(routeIssues.current);
+        L.polyline(highlight.coordinates,{pane:'route-issue-line',color:TPColors.red600,weight:4,dashArray:'3 4',opacity:1}).bindTooltip(note).addTo(routeIssues.current);
       }
       for(const marker of markers){
         const key=`${marker.lat},${marker.lon}`;if(seen.has(key))continue;seen.add(key);
