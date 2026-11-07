@@ -31,6 +31,17 @@ const colors = {
 // 每種地點用不同圖形（Lucide），不只靠顏色辨認。
 const iconKind = (k) =>
   ({ place: "store", "public-toilet": "toilet" })[k] || k;
+// 標記（圖形＋店名）隨縮放一起變大變小：縮放 18 為原尺寸，最小 0.9 倍免得太難點。
+const pinScale = (z) => Math.min(1.15, Math.max(0.9, 1 + (z - 18) * 0.13));
+// 店家與地標在圖形下方顯示名稱。
+const hasLabel = (p) =>
+  p.landmark || ["place", "friendly"].includes(category(p));
+// 估計名稱寬度（11px 字，中文一字一格，英數約半格），最多約 9 個字寬後截斷。
+const labelWidth = (name) =>
+  Math.min(
+    99,
+    [...name].reduce((w, ch) => w + (ch.charCodeAt(0) > 0x2e80 ? 11 : 6.5), 0),
+  ) + 4;
 export default function MapView({
   items,
   route,
@@ -91,6 +102,12 @@ export default function MapView({
       });
     };
     m.on("moveend", viewport);
+    const scale = (z) =>
+      root.current?.style.setProperty("--pin-scale", pinScale(z).toFixed(3));
+    scale(m.getZoom());
+    // zoomanim 帶目標縮放，標記和地圖同時開始變大小（CSS 有 transition）。
+    m.on("zoomanim", (e) => scale(e.zoom));
+    m.on("zoomend", () => scale(m.getZoom()));
     m.on("rotate", () => cb.current.onBearing?.(m.getBearing()));
     m.on("click", (e) => {
       if (cb.current.pick)
@@ -260,6 +277,40 @@ export default function MapView({
       if (!buckets.has(key)) buckets.set(key, []);
       buckets.get(key).push(p);
     }
+    // 名稱互相重疊、或蓋到別的標記時就不顯示：地標優先，其次離畫面中心近的。
+    const s = pinScale(m.getZoom()),
+      size = m.getSize(),
+      boxes = [],
+      labelled = new Set();
+    const overlaps = (r) =>
+      boxes.some(
+        (b) => r.x0 < b.x1 && r.x1 > b.x0 && r.y0 < b.y1 && r.y1 > b.y0,
+      );
+    const pins = [...buckets.values()].map((bucket) => ({
+      p: bucket[0],
+      single: bucket.length === 1,
+      pos: m.latLngToContainerPoint([bucket[0].lat, bucket[0].lon]),
+    }));
+    for (const { pos } of pins) {
+      const r = 15 * s;
+      boxes.push({ x0: pos.x - r, x1: pos.x + r, y0: pos.y - r, y1: pos.y + r });
+    }
+    pins
+      .filter(({ p, single }) => single && hasLabel(p) && cleanName(p.name))
+      .sort(
+        (a, b) =>
+          !!b.p.landmark - !!a.p.landmark ||
+          Math.hypot(a.pos.x - size.x / 2, a.pos.y - size.y / 2) -
+            Math.hypot(b.pos.x - size.x / 2, b.pos.y - size.y / 2),
+      )
+      .forEach(({ p, pos }) => {
+        const half = (labelWidth(cleanName(p.name)) * s) / 2,
+          top = pos.y + (p.landmark ? 17 : 15) * s;
+        const r = { x0: pos.x - half, x1: pos.x + half, y0: top, y1: top + 15 * s };
+        if (overlaps(r)) return;
+        boxes.push(r);
+        labelled.add(p);
+      });
     for (const bucket of buckets.values()) {
       const p = bucket[0],
         count = bucket.length,
@@ -296,6 +347,17 @@ export default function MapView({
           face.classList.add("has-glyph");
           face.appendChild(mapIconElement(iconKind(category(p)), 16));
         }
+        // 圖形和名稱包在同一個元素裡，一起縮放。名稱用 div，避免套到 .fac-pin span 的圓點樣式。
+        const body = document.createElement("div");
+        body.className = "pin-body";
+        body.appendChild(face);
+        const showLabel = labelled.has(p);
+        if (showLabel) {
+          const label = document.createElement("div");
+          label.className = "pin-label";
+          label.textContent = cleanName(p.name);
+          body.appendChild(label);
+        }
         marker = L.marker([p.lat, p.lon], {
           icon: L.divIcon({
             className:
@@ -304,15 +366,18 @@ export default function MapView({
                 : p.landmark
                   ? "fac-pin landmark"
                   : "fac-pin",
-            html: face,
+            html: body,
             iconSize: p.landmark ? [32, 32] : [28, 28],
             iconAnchor: p.landmark ? [16, 16] : [14, 14],
           }),
           keyboard: false,
         }).addTo(marks.current);
-        const tip = document.createElement("span");
-        tip.textContent = cleanName(p.name);
-        marker.bindTooltip(tip, { direction: "top", offset: [0, -14] });
+        // 名稱已經顯示在地圖上就不再用滑鼠提示重複一次。
+        if (!showLabel) {
+          const tip = document.createElement("span");
+          tip.textContent = cleanName(p.name);
+          marker.bindTooltip(tip, { direction: "top", offset: [0, -14] });
+        }
         marker.on("click", (ev) => {
           L.DomEvent.stopPropagation(ev);
           if (cb.current.pick) cb.current.onPick(p);
