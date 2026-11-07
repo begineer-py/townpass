@@ -52,6 +52,8 @@ import {
   Phone,
 } from "lucide-react";
 import MapView from "./MapView";
+import OfficialConditions from "./OfficialConditions";
+import {createConditionDetourSearch} from "./condition-detour-search.mjs";
 import {presentRouteCandidates, sortRouteCandidates} from "./route-candidates-presentation.mjs";
 import {ROUTE_CONDITIONS, conditionForSegment} from "./route-conditions.mjs";
 import {TPColors} from "./tp-colors.mjs";
@@ -313,6 +315,7 @@ export default function App() {
     tabVersion.current++;
     setShowMapFacilities(tab === "explore");
     if (tab === "plan") setGraphRequested(true);
+    else conditionDetourSearch.current?.cancel();
   }, [tab]);
   useEffect(() => {
     saveLocal("hhz-basemap", basemap);
@@ -348,6 +351,9 @@ export default function App() {
   const [nearbyState,setNearbyState]=useState({status:'idle',candidates:[]});
   const nearbySearch=useRef(null);
   if(!nearbySearch.current)nearbySearch.current=createNearbySearch({fetchSnapshot:fetchConstruction,createWorker:()=>new Worker(new URL('./route-worker.js',import.meta.url),{type:'module'}),onState:setNearbyState,onSnapshot:s=>{lastConstruction.current=s;}});
+  const [conditionDetourState,setConditionDetourState]=useState({status:'idle'});
+  const conditionDetourSearch=useRef(null);
+  if(!conditionDetourSearch.current)conditionDetourSearch.current=createConditionDetourSearch({fetchSnapshot:fetchConstruction,createWorker:()=>new Worker(new URL('./route-worker.js',import.meta.url),{type:'module'}),onState:setConditionDetourState,onSnapshot:s=>{lastConstruction.current=s;}});
   const [constructionConflict,setConstructionConflict] = useState(null);
   const [routeGap,setRouteGap] = useState(null);
   const [partialRoute,setPartialRoute] = useState(null);
@@ -568,7 +574,7 @@ export default function App() {
       },
     });
     worker.current=lifecycle;lifecycle.start();
-    return () => { lifecycle.dispose();if(worker.current===lifecycle)worker.current=null;nearbySearch.current?.cancel(false);for(const resolve of pendingVerifications.current.values()) resolve({error:'UNVERIFIED_NETWORK'});pendingVerifications.current.clear(); };
+    return () => { lifecycle.dispose();if(worker.current===lifecycle)worker.current=null;nearbySearch.current?.cancel(false);conditionDetourSearch.current?.cancel(false);for(const resolve of pendingVerifications.current.values()) resolve({error:'UNVERIFIED_NETWORK'});pendingVerifications.current.clear(); };
   }, [graphRequested]);
   const changePoint = (which, p) => {
     stopFollowing();
@@ -586,6 +592,7 @@ export default function App() {
     setFocus({ ...p, token: Date.now() });
   };
   function clearRoute() {
+    conditionDetourSearch.current.cancel();
     cancelNearby();
     pendingRoute.current=null;
     worker.current?.cancel();
@@ -608,13 +615,28 @@ export default function App() {
     if (!constructionFresh(lastConstruction.current) || candidate.route.construction?.sourceUpdatedAt !== lastConstruction.current?.sourceUpdatedAt) {
       clearRoute(); setRouteError("CONSTRUCTION_UNAVAILABLE"); return;
     }
-    stopFollowing();
+    conditionDetourSearch.current.cancel();stopFollowing();
     window.speechSynthesis?.cancel(); setSpeaking(false);
     setRoute(candidate.route); setSelectedRouteCandidate(candidate.id); setStepIndex(0);
   }
   function cancelNearby(){
     nearbySearch.current.cancel();
   }
+  function avoidOfficialCondition(point){
+    if(!route||!start||!end||!graphReady)return;
+    stopFollowing();cancelNearby();
+    const a=route.resolvedStart||start,b=route.resolvedEnd||end;
+    const old=route.conditionDetour?.targets||[],targets=[...old.filter(p=>p.id!==point.id||p.type!==point.type),{id:point.id,type:point.type,lat:point.lat,lon:point.lon}];
+    void conditionDetourSearch.current.start({startPlace:a,endPlace:b,options:{...prefs,avoidPoints},url:new URL(dataUrl('graph')+'?policy='+ROUTING_POLICY,location.href).href,targets,online:navigator.onLine,offlineSnapshot:lastConstruction.current});
+  }
+  useEffect(()=>{
+    if(conditionDetourState.status!=='ready')return;
+    const next=conditionDetourState.route;
+    if(next?.policyVersion!==ROUTING_POLICY||next.geometryVerification!=='pedestrian-network-v1'||!constructionFresh(lastConstruction.current)||next.construction?.sourceUpdatedAt!==lastConstruction.current?.sourceUpdatedAt){
+      setConditionDetourState({status:'error',message:'無法確認繞路結果，原路線仍可查看。'});return;
+    }
+    setRoute(next);setRouteCandidates([]);setSelectedRouteCandidate(null);setStepIndex(0);
+  },[conditionDetourState]);
   function findNearbyPositions(){
     if(!start||!end||!graphReady)return;
     void nearbySearch.current.start({startPlace:start,endPlace:end,options:{...prefs,avoidPoints},url:new URL(dataUrl('graph')+'?policy='+ROUTING_POLICY,location.href).href,online:navigator.onLine,offlineSnapshot:lastConstruction.current});
@@ -1666,10 +1688,10 @@ export default function App() {
                       })}
                     </div>
                     <p className="quiet-note">線條反映已知資料，實際路況請留意現場。</p>
-                    {route.officialConditions?.status==='available' && route.officialConditions.points.length>0 && (
-                      <div className="notice" role="note"><AlertTriangle aria-hidden="true"/><p>路線 10 公尺內有 {route.officialConditions.points.length} 筆官方不利通行紀錄，已在地圖標示：淨寬不足 {route.officialConditions.points.filter(p=>p.type==='missing_noCurbSlope').length} 筆、行穿線未設路緣斜坡 {route.officialConditions.points.filter(p=>p.type==='missing_crosswalkNoRamp').length} 筆。點位可能位於另一側或相鄰道路；與本路線的關係和現況請現場確認。資料擷取時間：{new Date(route.officialConditions.fetchedAt).toLocaleString('zh-TW',{timeZone:'Asia/Taipei'})}；官方紀錄的更新時間未提供。</p></div>
-                    )}
-                    {route.officialConditions?.status==='unavailable' && <p className="quiet-note" role="note">官方不利通行資料暫時無法讀取，不能確認沿途是否有相關紀錄。</p>}
+                    <OfficialConditions conditions={route.officialConditions} onAvoid={avoidOfficialCondition} avoiding={conditionDetourState.status==='loading'}/>
+                    {conditionDetourState.status==='loading'&&<p role="status">正在尋找繞路… <button type="button" onClick={()=>conditionDetourSearch.current.cancel()}>取消</button></p>}
+                    {conditionDetourState.status==='error'&&<p role="status">{conditionDetourState.message}</p>}
+                    {route.conditionDetour&&<p className="quiet-note" role="note">已規劃避開 {route.conditionDetour.targets.length} 筆所選官方紀錄點 10 公尺內的路線；點位與實際路況仍需現場確認。</p>}
                     {route.pedestrianImprovement?.status === 'unsupported-official-provenance' && <p className="quiet-note">使用官方原路；此路線暫無法比較沿線人行道替代路段。</p>}
                     {route.tierSegments?.some(segment => segment.sharedRoad === true) && (
                       <p className="quiet-note" role="note">部分路段可能人車共行，通行與無障礙狀況未確認。</p>

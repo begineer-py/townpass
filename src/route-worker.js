@@ -13,6 +13,7 @@ import {createVerifiedRouter,planImprovedPlaces} from './pedestrian-planning.mjs
 import {improvePedestrianRoute,measurePedestrianRoute} from './pedestrian-improvement.mjs';
 import {findRouteCandidates} from './route-candidates.mjs';
 import {compareOfficialAndLocal} from './cross-source-candidates.mjs';
+import {planConditionDetour} from './official-condition-detour.mjs';
 let router, verifyOfficial, verifyLocal, facilities, initialization, detourWaypoints, nearbyRoutes, routeGraph;
 function withCandidates(base,startPlace,endPlace,options,snapshot,checker){
   if(base?.error)return base;
@@ -102,6 +103,11 @@ self.onmessage = async ({ data }) => {
       if(!nearbyRoutes)nearbyRoutes=createNearbyRoutes(routeGraph,{router,verifyLocal,facilities});
       const result=nearbyRoutes(data.startPlace,data.endPlace,data.options||{},data.construction,checker);
       postMessage({type:'nearby-positions',id:data.id,result});
+    } else if(data.type==='avoid-official-condition'){
+      await initialization;
+      let checker;try{checker=createConstructionChecker(data.construction);}catch{postMessage({type:'avoid-official-condition',id:data.id,result:{error:'CONSTRUCTION_UNAVAILABLE'}});return;}
+      const result=planConditionDetour(data.startPlace,data.endPlace,data.options||{},data.construction,{graph:routeGraph,router,verifyLocal,facilities,checker},data.targets);
+      postMessage({type:'avoid-official-condition',id:data.id,result});
     } else if(data.type==='plan-places'){
       await initialization;
       let checker;try{checker=createConstructionChecker(data.construction);}catch{postMessage({type:'route',id:data.id,result:{error:'CONSTRUCTION_UNAVAILABLE'}});return;}
