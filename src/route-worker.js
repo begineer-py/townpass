@@ -1,4 +1,4 @@
-import { createRouter } from "./routing.mjs";
+import { createRouter, metres } from "./routing.mjs";
 import { gunzipSync } from "fflate";
 import { validateNetwork } from "./network-contract.mjs";
 import { createOfficialRouteVerifier } from './verify-official-route.mjs';
@@ -55,7 +55,7 @@ self.onmessage = async ({ data }) => {
       validateNetwork(graph);
       routeGraph=graph;
       const baseRouter=createRouter(graph);
-      router=(a,b,options={})=>baseRouter(a,b,{...options,approachAllowed:(p,n,side)=>verifyLocal.approachAllowed(p,n,side==='start'?options.startPlace:options.endPlace,options)});
+      router=(a,b,options={})=>baseRouter(a,b,{...options,approachAllowed:(p,n,side)=>verifyLocal.approachAllowed(p,n,side==='start'?options.startPlace:options.endPlace,options,side)});
       verifyOfficial = createOfficialRouteVerifier(graph);
       const fr=await fetch(new URL('./facilities.json.gz',data.url));if(!fr.ok)throw Error('facilities');
       const fb=new Uint8Array(await fr.arrayBuffer());facilities=JSON.parse(new TextDecoder().decode(fb[0]===31&&fb[1]===139?gunzipSync(fb):fb));
@@ -80,7 +80,17 @@ self.onmessage = async ({ data }) => {
     } else if (data.type === 'verify-official') {
       await initialization;
       if (!verifyOfficial) throw Error('UNVERIFIED_NETWORK');
-      const result=resolveVerifiedRoute(data.route,data.start,data.end,data.options,data.construction,{router,verifyOfficial,verifyLocal});
+      if(!verifyLocal.endpointAllowed(data.start,data.options?.startPlace,'start')||!verifyLocal.endpointAllowed(data.end,data.options?.endPlace,'end')){
+        postMessage({type:'verified-official',id:data.id,result:{error:'OFFICIAL_ENTRY_UNVERIFIED'}});return;
+      }
+      let result=resolveVerifiedRoute(data.route,data.start,data.end,data.options,data.construction,{router,verifyOfficial,verifyLocal});
+      // Official polygon checks can establish coverage, not the user's actual
+      // position or physical access to the network. Mark an explicit user
+      // start connector as estimated even when covered by official polygons.
+      const origin=data.options?.startPlace?.originKind,first=data.route?.coordinates?.[0];
+      if(!result.error&&result.provider==='taipei-official'&&['gps','map'].includes(origin)&&first&&metres(data.start,first)>.05){
+        result={...result,networkCoordinates:result.coordinates.slice(1),approaches:[...(result.approaches||[]),{side:'start',coordinates:[data.start,first],distance:Math.round(metres(data.start,first)),estimated:true,unconfirmed:true,entryStatus:'unconfirmed',originKind:origin}]};
+      }
       if(result.error && ['OFFICIAL_PATH_UNVERIFIED','OFFICIAL_ROAD_CONFLICT','OFFICIAL_CROSSING_UNVERIFIED','OFFICIAL_ENTRY_UNVERIFIED','CONSTRUCTION_BLOCKED'].includes(result.error))result.detourWaypoints=detourWaypoints(data.start,data.end,result.detourCenter);
       postMessage({type:'verified-official',id:data.id,result});
     } else if (data.type === "route") {

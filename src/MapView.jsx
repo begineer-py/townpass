@@ -4,6 +4,7 @@ import { category, cleanName } from "./data";
 import { BASEMAPS } from "./basemaps.mjs";
 import { ROUTE_CONDITIONS, conditionForSegment } from "./route-conditions.mjs";
 import { TPColors } from "./tp-colors.mjs";
+import { mapPickPoint } from "./location.js";
 const colors = {
   elevator: TPColors.primary700,
   toilet: TPColors.grayscale700,
@@ -76,12 +77,7 @@ export default function MapView({
     m.on("moveend", viewport);
     m.on("click", (e) => {
       if (cb.current.pick)
-        cb.current.onPick({
-          lat: e.latlng.lat,
-          lon: e.latlng.lng,
-          name: "地圖上選的位置",
-          id: `point-${Date.now()}`,
-        });
+        cb.current.onPick(mapPickPoint(e.latlng.lat,e.latlng.lng,cb.current.pick));
     });
     // User pan/zoom gestures only (not taps, not fitBounds/setView), so the
     // phone sheet can get out of the way the way Google Maps does.

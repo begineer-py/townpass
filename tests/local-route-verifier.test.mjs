@@ -66,6 +66,43 @@ test('OSM POI estimate requires a verified source match; non-OSM sources remain 
  const sharedLocation=createLocalRouteVerifier(g,[official],[{...osm,osmRestrictionsMatched:false}]);
  assert.equal(sharedLocation(r,p,b,{startPlace:official}).error,'OFFICIAL_ENTRY_UNVERIFIED');
 });
+test('explicit GPS and map starts may connect with a machine-readable unconfirmed estimate',()=>{
+ const g=base(),p=[25+30/111195,121.5],candidate=createRouter(g)(a,b),v=createLocalRouteVerifier(g);
+ const sources=[{id:'point-123',originKind:'map',lat:p[0],lon:p[1]},
+  {id:'my-location',originKind:'gps',locationSource:'browser',accuracy:20,needsConfirmation:false,lat:p[0],lon:p[1]}];
+ for(const place of sources){const result=v(candidate,p,b,{startPlace:place});assert.equal(result.error,undefined);assert.equal(result.approaches[0].estimated,true);assert.equal(result.approaches[0].unconfirmed,true);assert.equal(result.approaches[0].entryStatus,'unconfirmed');assert.equal(result.approaches[0].originKind,place.originKind);assert.equal(result.approaches[0].distance,30);}
+});
+test('user point estimate is start-only, respects accuracy, provenance, knownOnly and source identity',()=>{
+ const g=base(),p=[25+30/111195,121.5],v=createLocalRouteVerifier(g),map={id:'point-123',originKind:'map',lat:p[0],lon:p[1]},gps={id:'my-location',originKind:'gps',locationSource:'browser',accuracy:20,needsConfirmation:false,lat:p[0],lon:p[1]};
+ assert.equal(v.approachAllowed(p,a,map,{},'start'),true);assert.equal(v.approachAllowed(p,a,map,{},'end'),false);
+ assert.equal(v.approachAllowed(p,a,map,{knownOnly:true},'start'),false);
+ const covered=base();covered.officialAreas=[{type:'Polygon',coordinates:[[[121.49,24.99],[121.51,24.99],[121.51,25.01],[121.49,25.01],[121.49,24.99]]]}];
+ assert.equal(createLocalRouteVerifier(covered).approachAllowed(p,a,map,{knownOnly:true},'start'),false);
+ for(const bad of [{...gps,accuracy:null},{...gps,accuracy:101},{...gps,needsConfirmation:true},{...gps,locationSource:'invented'},{...gps,id:'osm-n123'},{...map,kind:'place'},{...map,sourceId:'osm'},{...map,id:'osm-n123'},{...map,foot:'no'},{...map,level:'2'}])assert.equal(v.approachAllowed(p,a,bad,{},'start'),false,JSON.stringify(bad));
+ const far={...map,lat:25+51/111195};assert.equal(v.approachAllowed([far.lat,far.lon],a,far,{},'start'),false);
+});
+test('GPS and map starts cannot bypass recorded prohibited, upstairs or unmatched OSM points',()=>{
+ const g=base(),p=[25+30/111195,121.5],map={id:'point-123',originKind:'map',lat:p[0],lon:p[1]};
+ for(const known of [{id:'osm-n1',sourceId:'osm',kind:'place',lat:p[0],lon:p[1],access:'private',osmRestrictionsMatched:true},{id:'osm-n2',sourceId:'osm',kind:'toilet',lat:p[0],lon:p[1],name:'2F廁所',osmRestrictionsMatched:true},{id:'osm-n3',sourceId:'osm',kind:'place',lat:p[0],lon:p[1],osmRestrictionsMatched:false}]){
+  assert.equal(createLocalRouteVerifier(g,[],[known]).approachAllowed(p,a,map,{},'start'),false);
+ }
+ const covered=base();covered.officialAreas=[{type:'Polygon',coordinates:[[[121.49,24.99],[121.51,24.99],[121.51,25.01],[121.49,25.01],[121.49,24.99]]]}];
+ const unmatched={id:'osm-n3',sourceId:'osm',kind:'place',lat:p[0],lon:p[1],osmRestrictionsMatched:false},cv=createLocalRouteVerifier(covered,[],[unmatched]);
+ assert.equal(cv.endpointAllowed(p,map,'start'),false);assert.equal(cv.approachAllowed(p,a,map,{},'start'),false);
+ g.roadGeometries=[[[121.499,25+15/111195],[121.502,25+15/111195]]];assert.equal(createLocalRouteVerifier(g).approachAllowed(p,a,map,{},'start'),false);
+});
+test('map start estimate still observes active construction',()=>{
+ const g=base(),p=[25+30/111195,121.5],start={id:'point-123',originKind:'map',lat:p[0],lon:p[1]},end={lat:b[0],lon:b[1]};
+ const now=Date.parse('2026-11-07T08:00:00Z'),stamp=new Date(now).toISOString(),works=[{id:'closed',start:'115/11/07',end:'115/11/07',hours:'24小時施工',impact:'blocked',geometries:[{type:'Point',coordinates:[p]}]}],snapshot={schemaVersion:1,fetchedAt:stamp,sourceUpdatedAt:stamp,works};
+ const result=planPlaces(start,end,{},snapshot,{router:createRouter(g),verifyLocal:createLocalRouteVerifier(g),facilities:[],checker:createConstructionChecker(snapshot,now)});
+ assert.equal(result.error,'CONSTRUCTION_BLOCKED');assert.equal(result.coordinates,undefined);
+});
+test('edge projection cannot skip a closer blocked node for a map start',()=>{
+ const g=base(),middle=121.5005,p=[25+20/111195,middle],start={id:'point-123',originKind:'map',lat:p[0],lon:p[1]};
+ g.nodes.push([25+10/111195,middle,1]);const v=createLocalRouteVerifier(g),route=createRouter(g);
+ const result=route(p,b,{approachAllowed:(x,y,side)=>v.approachAllowed(x,y,side==='start'?start:null,{},side)});
+ assert.equal(result.error,'NO_CONNECTION');assert.ok(g.nodes.length>3,'projection was considered but must not bypass the closer blocked point');
+});
 test('upper, underground or unlocated indoor POIs cannot become ground-level connectors through aliases',()=>{
  const g=base(),p=[25+30/111195,121.5],r=createRouter(g)(a,b),poi={id:'osm-n123',kind:'toilet',sourceId:'osm',osmRestrictionsMatched:true,lat:p[0],lon:p[1],name:'廁所'};
  for(const patch of [{level:'1'},{level:'-1'},{level:'0;1'},{level:'unknown'},{'addr:level':'2'},{'addr:floor':'2'},

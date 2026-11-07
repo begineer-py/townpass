@@ -61,6 +61,8 @@ import {canFallbackAfterVerification, startLocalFallback} from "./local-fallback
 import {constructionFresh, CONSTRUCTION_MAX_AGE} from "./construction.mjs";
 import {nearbyReplacement,nearbyWarnings} from "./nearby-presentation.mjs";
 import {createNearbySearch} from "./nearby-search.mjs";
+import {createLiveFollow,displayedRouteCoordinates} from "./live-follow.mjs";
+import {createLiveFollowSearch} from "./live-follow-search.mjs";
 import { requestOfficialRoute } from "./official-router.mjs";
 import { ROUTING_POLICY } from "./routing.mjs";
 import { BASEMAPS } from "./basemaps.mjs";
@@ -80,7 +82,7 @@ import {
   readSaved,
   saveLocal,
 } from "./data";
-import { getLocation, locationError } from "./location";
+import { getLocation, locationError, watchLocation, destinationPoint, swappedOrigin } from "./location";
 import { townPassUserKey, hasTownPass, sendToTownPass } from "./townpass-bridge";
 import { travelProfiles } from "./travel-profiles";
 import { loadProfile, loadTrips, saveProfile, saveTrips } from "./local-database";
@@ -266,6 +268,8 @@ export default function App() {
     [stepIndex, setStepIndex] = useState(0),
     [online, setOnline] = useState(navigator.onLine);
   const [currentLocation, setCurrentLocation] = useState(null);
+  const [followState,setFollowState] = useState({active:false,status:'idle',message:''});
+  const followSession = useRef(null);
   const [basemap, setBasemap] = useState(() => {
     const v = readSaved("hhz-basemap", "street");
     return Object.prototype.hasOwnProperty.call(BASEMAPS, v) ? v : "street";
@@ -544,6 +548,8 @@ export default function App() {
     return () => { w.terminate(); nearbySearch.current?.cancel(false); for(const resolve of pendingVerifications.current.values()) resolve({error:'UNVERIFIED_NETWORK'}); pendingVerifications.current.clear(); };
   }, [graphRequested]);
   const changePoint = (which, p) => {
+    stopFollowing();
+    if(which==='end')p=destinationPoint(p);
     locationRequest.current++;
     request.current++;
     setRouting(false);
@@ -577,6 +583,7 @@ export default function App() {
     void nearbySearch.current.start({startPlace:start,endPlace:end,options:{...prefs,avoidPoints},url:new URL(dataUrl('graph')+'?policy='+ROUTING_POLICY,location.href).href,online:navigator.onLine,offlineSnapshot:lastConstruction.current});
   }
   function chooseNearby(candidate){
+    stopFollowing();
     if(!constructionFresh(lastConstruction.current)){cancelNearby();announce('施工資料已過期，請重新搜尋附近位置。');return;}
     const original=candidate.side==='start'?start:end,point=nearbyReplacement(candidate,original);
     const points=candidate.side==='start'?{start:point,end}:{start,end:point};
@@ -587,11 +594,95 @@ export default function App() {
     if (pick) changePoint(pick, p);
   }
   function updatePrefs(patch) {
+    stopFollowing();
     request.current++;
     setRouting(false);
     clearRoute();
     setPrefs({ ...prefs, ...patch, avoidSteps: true, officialOnly: false });
   }
+  function stopFollowing() {
+    const session=followSession.current;
+    if(!session)return;
+    followSession.current=null;
+    session.engine.stop();
+    session.search.cancel();
+    session.stopWatch?.();
+    setFollowState({active:false,status:'idle',message:''});
+  }
+  function startFollowing() {
+    if(!route||!end||route.requiresEntryConfirmation||route.viaName){
+      announce(route?.viaName?'順路停靠的行程暫不支援位置跟隨。':'請先規劃路線，再開始位置跟隨。');
+      return;
+    }
+    stopFollowing();
+    // Discard any earlier one-shot positioning response before subscribing.
+    locationRequest.current++;
+    const destination=end,options={...prefs,avoidPoints};
+    const session={engine:null,search:null,stopWatch:null,latest:null,referenceRoute:route};
+    followSession.current=session;
+    session.search=createLiveFollowSearch({
+      fetchSnapshot:fetchConstruction,
+      createWorker:()=>new Worker(new URL('./route-worker.js',import.meta.url),{type:'module'}),
+      onSnapshot:s=>{if(followSession.current===session)lastConstruction.current=s;},
+      onState:state=>{
+        if(followSession.current!==session)return;
+        if(state.status==='loading')return;
+        if(state.status==='ready'){
+          const result=state.route,current=session.latest;
+          if(result?.policyVersion!==ROUTING_POLICY||result.geometryVerification!=='pedestrian-network-v1'||!constructionFresh(lastConstruction.current)||result.construction?.sourceUpdatedAt!==lastConstruction.current?.sourceUpdatedAt){
+            session.engine.complete(null);
+            setFollowState({active:true,status:'failed',message:'無法確認重新規劃的路線，請稍後再試。'});
+            return;
+          }
+          // Do not replace a user's route with a result based on a position
+          // they have already moved away from while the worker was running.
+          if(!current||distance(current,state.startPlace)>Math.max(20,current.accuracy*2)){
+            session.engine.complete(displayedRouteCoordinates(session.referenceRoute));
+            setFollowState({active:true,status:'uncertain',message:'位置已變動，正在等待新的定位。'});
+            return;
+          }
+          session.referenceRoute=result;
+          setStart(state.startPlace);
+          setRoute(result);
+          setRouteError('');
+          setStepIndex(0);
+          session.engine.complete(displayedRouteCoordinates(result));
+          announce('已依目前位置重新規劃，請確認估計銜接及現場路況。');
+        }else{
+          session.engine.complete(null);
+          setFollowState({active:true,status:'failed',message:state.message||'暫時無法重新規劃。'});
+        }
+      },
+    });
+    session.engine=createLiveFollow({
+      coordinates:displayedRouteCoordinates(route),
+      onPosition:p=>{
+        if(followSession.current!==session)return;
+        if(p.lat<24.94||p.lat>25.24||p.lon<121.42||p.lon>121.69){
+          stopFollowing();setFollowState({active:false,status:'error',message:'目前位置超出路線服務範圍。'});return;
+        }
+        session.latest=p;setCurrentLocation(p);
+      },
+      onStatus:status=>{if(followSession.current===session)setFollowState(s=>({...s,active:true,status,message:status==='following'?'':s.message}));},
+      onReplan:p=>{
+        if(followSession.current!==session)return;
+        void session.search.start({startPlace:p,endPlace:destination,options,url:new URL(dataUrl('graph')+'?policy='+ROUTING_POLICY,location.href).href,online:navigator.onLine,offlineSnapshot:lastConstruction.current});
+      },
+    });
+    setFollowState({active:true,status:'following',message:''});
+    session.stopWatch=watchLocation(p=>session.engine.sample(p),error=>{
+      if(followSession.current!==session)return;
+      stopFollowing();
+      setFollowState({active:false,status:'error',message:locationMessages[locationError(error)]});
+    });
+  }
+  useEffect(()=>{
+    if(tab!=='plan')stopFollowing();
+  },[tab]);
+  useEffect(()=>()=>{
+    const session=followSession.current;
+    if(session){followSession.current=null;session.engine.stop();session.search.cancel();session.stopWatch?.();}
+  },[]);
   function toggleSave(p) {
     const next = saved.some((x) => x.id === p.id)
       ? saved.filter((x) => x.id !== p.id)
@@ -606,6 +697,7 @@ export default function App() {
   }
   const locationMessages={LOCATION_DENIED:'定位權限尚未開啟。請在瀏覽器網站設定或手機定位設定允許此網站，再點一次定位。',LOCATION_TIMEOUT:'定位等候較久，請移到訊號較好的地方再試一次。',LOCATION_INSECURE:'請使用HTTPS網址開啟此服務，才能使用定位。',LOCATION_UNSUPPORTED:'這個瀏覽器不支援定位，可以搜尋出發地。',LOCATION_UNAVAILABLE:'裝置目前無法提供位置，請確認手機定位服務已開啟，再試一次。'};
   async function locate(which, useAsStart = false) {
+    if(which || useAsStart)stopFollowing();
     const locationId=++locationRequest.current;
     const version = tabVersion.current;
     setLocating(true);
@@ -646,6 +738,7 @@ export default function App() {
     locate(null, true);
   }, [profileReady, travelProfile]);
   async function navigateTo(place) {
+    stopFollowing();
     const locationId=++locationRequest.current;
     setSelected(null);
     setSearchFor(null);
@@ -691,6 +784,7 @@ export default function App() {
     [data],
   );
   async function calculate(points) {
+    stopFollowing();
     const from=points?.start||start,to=points?.end||end;
     const requestPrefs={...(points?.prefs||prefs),avoidPoints,startPlace:from,endPlace:to};
     if(!from||!to){announce('請先選擇出發地和目的地。');return;}
@@ -1179,7 +1273,7 @@ export default function App() {
                 key={id}
                 className={tab === id ? "active" : ""}
                 onClick={() => {
-                  if(id!=='plan')cancelNearby();
+                  if(id!=='plan'){cancelNearby();stopFollowing();}
                   setTab(id);
                   setPick(null);
                   setSheetSnap((v) => Math.max(v, 1));
@@ -1292,8 +1386,9 @@ export default function App() {
                     className="icon-button swap"
                     aria-label="交換起點與終點"
                     onClick={() => {
-                      setStart(end);
-                      setEnd(start);
+                      stopFollowing();
+                      setStart(swappedOrigin(end));
+                      setEnd(destinationPoint(start));
                       clearRoute();
                       setRouting(false);
                       request.current++;
@@ -1404,6 +1499,15 @@ export default function App() {
                   {routing ? (routeAttempt ? `正在嘗試第 ${routeAttempt} 條繞路…` : "正在找路線…") : "規劃路線"}
                   <ArrowRight size={19} />
                 </button>
+                {(route || followState.active) && <div className="point-actions">
+                  <button type="button" onClick={followState.active?stopFollowing:startFollowing} disabled={!followState.active && (routing || Boolean(route?.viaName))}>
+                    <LocateFixed size={16}/>{followState.active?'停止位置跟隨':'開始位置跟隨'}
+                  </button>
+                </div>}
+                {route?.viaName && !followState.active && <p className="quiet-note">順路停靠的行程暫不支援位置跟隨。</p>}
+                {(followState.active || followState.message) && <p className="quiet-note" role="status">
+                  {followState.message || ({following:'位置跟隨中；偏離門檻依定位精度調整，輕微偏離可能不會觸發。',replanning:'偵測到偏離，正在重新規劃。',uncertain:'定位精度或時間不足，暫停自動重新規劃。',failed:'暫時無法重新規劃。',unavailable:'目前路線資料不足，暫停位置跟隨。'}[followState.status]||'')}
+                </p>}
                 {!graphReady && !online && (
                   <p className="quiet-note">
                     {graphError
@@ -1694,6 +1798,7 @@ export default function App() {
                     <div className="trip-card" key={t.id}>
                       <button
                         onClick={() => {
+                          stopFollowing();
                           request.current++;
                           setStart(t.start);
                           setEnd(t.end);
@@ -2215,6 +2320,7 @@ export default function App() {
                 <button
                   className="full text-button"
                   onClick={() => {
+                    stopFollowing();
                     setStationQuery(selected.station);
                     setTab("stations");
                     setSelected(null);
