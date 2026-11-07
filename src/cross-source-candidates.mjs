@@ -33,7 +33,7 @@ function localMetrics(graph,route,start,end){
  const roughValues=new Set(['gravel','unpaved','cobblestone','ground','sand','dirt']);
  for(const id of route.edgeIds){const e=graph.edges[id],w=e&&graph.ways[e[3]];if(!w||!Number.isFinite(e[2]))return null;network+=e[2];
   const crossing=w.crossing===true||w.footway==='crossing',sourceProof=e[5]?.derivedFrom!=null?graph.edges[e[5].derivedFrom]?.[5]:e[5];
-  if(w.source==='osm-shared-street')shared+=e[2];else if(generalSidewalkEdge(w,sourceProof))sidewalk+=e[2];else if(['footway','path','pedestrian','corridor'].includes(w.highway))other+=e[2];
+  if(w.source==='osm-shared-street')shared+=e[2];else if(generalSidewalkEdge(w,sourceProof))sidewalk+=e[2];else if(!crossing&&['footway','path','pedestrian','corridor'].includes(w.highway))other+=e[2];
   if(w.width==null||w.slope==null||w.surface==null||(crossing&&crossingEvidence({...w,crossing},sourceProof)!=='full'))unknown+=e[2];
   if(roughValues.has(w.surface))rough+=e[2];
  }
@@ -98,7 +98,7 @@ export function compareOfficialAndLocal(official,start,end,options,snapshot,{gra
  // unknown by policy without inventing actual zero values for those attributes.
  for(const c of candidates){
   const m=c.metrics,d=m.distanceMetres,officialCandidate=c.id==='official',detour=Math.max(0,d-shortest);
-  const parts={sidewalk:m.explicitSidewalkMetres==null?null:40*m.explicitSidewalkMetres/d,shared:officialCandidate?null:-25*m.sharedMetres/d,
+  const parts={sidewalk:m.explicitSidewalkMetres==null?null:40*(m.explicitSidewalkMetres+(m.otherPedestrianMetres??0))/d,shared:officialCandidate?null:-25*m.sharedMetres/d,
    unknown:-12*(officialCandidate?d:m.unknownMetres)/d,rough:officialCandidate?null:-10*m.roughMetres/d,
    estimated:officialCandidate?null:-15*m.estimatedMetres/d,detour:-20*detour/shortest,
    officialConditions:officialConditionScore(m.officialConditionWeight)};

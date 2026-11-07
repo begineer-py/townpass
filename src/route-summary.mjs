@@ -4,7 +4,7 @@ const amount=n=>n>=1000?`${(n/1000).toFixed(1)} 公里`:`${Math.round(n)} 公尺
 export function routeSummaryMetrics(candidate,source='local'){
  const route=candidate?.route, data=source==='reference'?candidate?.coverage:candidate?.metrics;
  const distance=source==='reference'?route?.distanceMetres:data?.distanceMetres;
- const sidewalk=source==='reference'?data?.generalSidewalkMetres:data?.explicitSidewalkMetres;
+ const sidewalk=source==='reference'?data?.generalSidewalkMetres:finite(data?.explicitSidewalkMetres)?data.explicitSidewalkMetres+(finite(data?.otherPedestrianMetres)?data.otherPedestrianMetres:0):null;
  const shared=data?.sharedMetres,unknown=data?.unknownMetres,approach=data?.estimatedMetres??data?.estimatedApproachMetres;
  const conditions=route?.officialConditions;
  const records=conditions?.status==='available'&&Array.isArray(conditions.points)?conditions.points.length:null;

@@ -173,7 +173,7 @@ function createProvisionalNetworkInner({parts,sourceHash,graph,osmEdgeIds,snapsh
  // known-clear segment. Each search remains on the same bounded graph.
  function metrics(route,shortest){
   let sidewalkMetres=0,sharedMetres=0,unknownMetres=0,approachMetres=0,joinCount=0;
-  for(const s of route.segments){const d=s.distanceMetres||0;if(generalSidewalkSegment(s))sidewalkMetres+=d;if(s.sharedRoad===true&&s.kind==='osm')sharedMetres+=d;
+  for(const s of route.segments){const d=s.distanceMetres||0;if(generalSidewalkSegment(s)||(s.kind==='osm'&&!s.sharedRoad&&!s.crossing))sidewalkMetres+=d;if(s.sharedRoad===true&&s.kind==='osm')sharedMetres+=d;
    if(s.kind==='official-line'||s.kind==='source-join'||s.kind==='osm-join'||s.kind==='endpoint-approach'||s.unknownDimensions!==false)unknownMetres+=d;
    if(s.kind==='endpoint-approach')approachMetres+=d;if(s.kind==='source-join'||s.kind==='osm-join')joinCount++;
   }

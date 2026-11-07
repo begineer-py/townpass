@@ -29,7 +29,7 @@ test('long candidates retain real condition records but cannot gain from fewer r
  const baseline=r.candidates.find(c=>c.id==='baseline'),sidewalk=r.candidates.find(c=>c.id==='candidate-1');
  assert.ok(baseline&&sidewalk);assert.deepEqual(baseline.route.conditionDetourLimit,limit);assert.deepEqual(sidewalk.route.conditionDetourLimit,limit);
  assert.equal(sidewalk.metrics.officialConditionCount,0);assert.equal(sidewalk.scoreBreakdown.officialConditions,0);assert.equal(sidewalk.scoreBreakdown.conditionDetourGuard,-20);
- assert.ok(sidewalk.score>baseline.score,'sidewalk evidence still affects ranking independently');
+ assert.ok(Math.abs(sidewalk.scoreBreakdown.sidewalk-baseline.scoreBreakdown.sidewalk)<1e-6,'other pedestrian paths receive the same sidewalk credit');
  const within={...limit,maxDistanceMetres:110};d.base.conditionDetourLimit=within;
  const allowed=findRouteCandidates(d.base,A,D,{},d.snapshot,d,{maxAttempts:1,improvementRounds:0}).candidates.find(c=>c.id==='candidate-1');
  assert.equal(allowed.scoreBreakdown.conditionDetourGuard,undefined);

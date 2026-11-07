@@ -40,7 +40,7 @@ function measure(g,route,start,end){
   const crossing=w.crossing===true||w.footway==='crossing',sourceProof=e[5]?.derivedFrom!=null?g.edges[e[5].derivedFrom]?.[5]:e[5];
   if(w.source==='osm-shared-street')shared+=length;
   else if(generalSidewalkEdge(w,sourceProof))sidewalk+=length;
-  else if(walking.has(w.highway))pedestrian+=length;
+  else if(!crossing && walking.has(w.highway))pedestrian+=length;
   const evidence=crossingEvidence({...w,crossing},sourceProof);
   const crossingUnknown=crossing&&evidence!=='full';
   if(w.width==null||w.slope==null||w.surface==null||crossingUnknown)unknown+=length;
@@ -53,7 +53,7 @@ function measure(g,route,start,end){
 }
 function score(m,shortest,conditionDetourLimit){
  const d=m.distanceMetres||1,detour=Math.max(0,m.distanceMetres-shortest);
- const scoreBreakdown={sidewalk:40*m.explicitSidewalkMetres/d,shared:-25*m.sharedMetres/d,unknown:-12*m.unknownMetres/d,rough:-10*m.roughMetres/d,estimated:-15*m.estimatedMetres/d,detour:-20*detour/(shortest||1),officialConditions:officialConditionScore(m.officialConditionWeight)};
+ const scoreBreakdown={sidewalk:40*(m.explicitSidewalkMetres+m.otherPedestrianMetres)/d,shared:-25*m.sharedMetres/d,unknown:-12*m.unknownMetres/d,rough:-10*m.roughMetres/d,estimated:-15*m.estimatedMetres/d,detour:-20*detour/(shortest||1),officialConditions:officialConditionScore(m.officialConditionWeight)};
  // Nearby official records are uncertain. Beyond the baseline detour budget,
  // only remove their relative scoring advantage; retain all other factors.
  if(Number.isFinite(conditionDetourLimit?.maxDistanceMetres) && d>conditionDetourLimit.maxDistanceMetres+1e-7){

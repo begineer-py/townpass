@@ -165,7 +165,7 @@ function RouteLegend({ segments, colorFriendly, showIssueIcons=true }) {
     ...(route.tierSegments?.length ? route.tierSegments.map(conditionForSegment) : [fallbackRouteCondition(route)]),
     ...(route.approaches?.length ? ['approach'] : []),
   ]))];
-  const labelFor = key => key.startsWith('sidewalk') || key.startsWith('official') ? '一般人行道' : key.startsWith('shared') ? '人車共行' : key === 'crossing' ? '過街' : key === 'approach' ? '起終點銜接' : '其他人行路段';
+  const labelFor = key => key.startsWith('shared') ? '人車共行' : key === 'crossing' ? '過街' : key === 'approach' ? '起終點銜接' : '一般人行道';
   const groups = new Map();
   for (const key of keys) {
     const label = labelFor(key);

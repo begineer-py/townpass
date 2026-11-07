@@ -39,7 +39,7 @@ function localMetrics(route){
   for(const p of s.coordinates)if(!points.length||metres(points.at(-1),p)>.000001)points.push(p);previous=s.coordinates.at(-1);
   network+=s.distance;
   if(s.sharedRoad)shared+=s.distance;
-  else if(!s.crossing&&(s.explicitSidewalk||s.tier==='official'))sidewalk+=s.distance;
+  else if(!s.crossing)sidewalk+=s.distance;
  }
  if(!sameSegmentedLine(points,route.networkCoordinates))return null;
  const expected=network+metres(route.coordinates[0],points[0])+metres(route.coordinates.at(-1),points.at(-1));
@@ -56,7 +56,7 @@ function officialMetrics(route){
   if(!['official-line','osm','osm-join','source-join','endpoint-approach'].includes(s.kind)||!Number.isFinite(s.distanceMetres)||s.distanceMetres<0||!Array.isArray(s.coordinates)||s.coordinates.length<2||s.coordinates.some(p=>!point(p))||(previous&&metres(previous,s.coordinates[0])>.000001))return null;
   for(const p of s.coordinates)if(!coords.length||metres(coords.at(-1),p)>.000001)coords.push(p);
   previous=s.coordinates.at(-1);total+=s.distanceMetres;
-  if(generalSidewalkSegment(s))sidewalk+=s.distanceMetres;
+  if(generalSidewalkSegment(s)||(s.kind==='osm'&&!s.sharedRoad&&!s.crossing))sidewalk+=s.distanceMetres;
   if(s.kind==='osm'&&s.sharedRoad===true)shared+=s.distanceMetres;
   if(s.kind==='endpoint-approach')estimated+=s.distanceMetres;
   if(s.kind.endsWith('join'))joins++;

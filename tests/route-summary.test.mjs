@@ -24,6 +24,13 @@ test('mixed source metrics use the same categories and do not compare unknown va
  assert.doesNotMatch(summaries[0].strength,/人行道較多/);assert.doesNotMatch(summaries[1].strength,/人行道較多/);
 });
 
+test('other pedestrian distance is included in the sidewalk summary',()=>{
+ const local={route:{officialConditions:{status:'available',points:[]}},metrics:{distanceMetres:100,explicitSidewalkMetres:40,otherPedestrianMetres:35,sharedMetres:15,unknownMetres:35,estimatedMetres:0}};
+ assert.equal(routeSummaryMetrics(local).sidewalk,75);
+ const [summary]=describeRouteChoices([{source:'local',candidate:local}]);
+ assert.match(summary.strength,/人行道約 75 公尺/);assert.match(summary.concern,/人車共行/);
+});
+
 test('approximate crossings remain visible even when the route has other concerns',()=>{
  const c=candidate(100,60,30,100,[{distanceMetres:1}]);c.route.segments=[{approximateCrossing:true}];
  const [summary]=describeRouteChoices([{source:'reference',candidate:c}]);assert.match(summary.concern,/過街邊界未確認/);
