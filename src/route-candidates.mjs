@@ -50,9 +50,15 @@ function measure(g,route,start,end){
  const distance=network+metres(start,g.nodes[route.nodeIds[0]])+metres(end,g.nodes[route.nodeIds.at(-1)]);
  return {distanceMetres:distance,explicitSidewalkMetres:sidewalk,otherPedestrianMetres:pedestrian,sharedMetres:shared,unknownMetres:unknown,roughMetres,estimatedMetres:estimated,unverifiedCrossings,approaches,...officialConditionMetrics(route.officialConditions)};
 }
-function score(m,shortest){
+function score(m,shortest,conditionDetourLimit){
  const d=m.distanceMetres||1,detour=Math.max(0,m.distanceMetres-shortest);
  const scoreBreakdown={sidewalk:40*m.explicitSidewalkMetres/d,shared:-25*m.sharedMetres/d,unknown:-12*m.unknownMetres/d,rough:-10*m.roughMetres/d,estimated:-15*m.estimatedMetres/d,detour:-20*detour/(shortest||1),officialConditions:officialConditionScore(m.officialConditionWeight)};
+ // Nearby official records are uncertain. Beyond the baseline detour budget,
+ // only remove their relative scoring advantage; retain all other factors.
+ if(Number.isFinite(conditionDetourLimit?.maxDistanceMetres) && d>conditionDetourLimit.maxDistanceMetres+1e-7){
+  const baseline=officialConditionScore(conditionDetourLimit.baselineOfficialConditionWeight);
+  scoreBreakdown.conditionDetourGuard=Math.min(0,baseline-scoreBreakdown.officialConditions);
+ }
  const scoreRaw=Object.values(scoreBreakdown).reduce((a,b)=>a+(b??0),0);
  return {score:100/(1+Math.exp(-scoreRaw/20)),scoreRaw,scoreBreakdown,metrics:{...m,detourMetres:detour,detourRatio:shortest?m.distanceMetres/shortest:1}};
 }
@@ -63,7 +69,8 @@ export function findRouteCandidates(base,start,end,options,snapshot,{graph,route
  if(base?.provider==='taipei-official')return {status:'unsupported-official-provenance',candidates:[],attempts:[],limits};
  const verifiedBase=verifyLocal({...base,coordinates:base.networkCoordinates||base.coordinates},start,end,options);if(verifiedBase.error||verifiedBase.geometryVerification!=='pedestrian-network-v1'||verifiedBase.policyVersion!==ROUTING_POLICY)return {error:'UNVERIFIED_NETWORK'};
  const baseWork=checker.inspect(verifiedBase.coordinates);if(baseWork.blocked.length)return {error:'CONSTRUCTION_BLOCKED'};
- const initial={...verifiedBase,provider:base.provider,construction:baseWork,resolvedStart:base.resolvedStart,resolvedEnd:base.resolvedEnd};
+ const conditionDetourLimit=base.conditionDetourLimit;
+ const initial={...verifiedBase,provider:base.provider,construction:baseWork,resolvedStart:base.resolvedStart,resolvedEnd:base.resolvedEnd,...(conditionDetourLimit?{conditionDetourLimit}:{})};
  const baseline=measure(graph,initial,start,end);if(!baseline)return {error:'UNVERIFIED_NETWORK'};
  const started=Date.now(),deadline=started+limits.totalMs,generationDeadline=started+limits.totalMs*limits.generationFraction,attempts=[],items=[{id:'baseline',route:initial,metrics:baseline,nearbyImprovement:null}];
  const generationVisited=Math.floor(limits.totalVisited*limits.generationFraction);
@@ -82,7 +89,7 @@ export function findRouteCandidates(base,start,end,options,snapshot,{graph,route
   if(Date.now()>generationDeadline){a.reason='time-limit';status='time-limit';break;}
   const work=checker.inspect(verified.coordinates);if(work.blocked.length){a.reason='construction-blocked';continue;}
   if(Date.now()>generationDeadline){a.reason='time-limit';status='time-limit';break;}
-  const route={...verified,provider:base.provider,construction:work,resolvedStart:base.resolvedStart,resolvedEnd:base.resolvedEnd},m=measure(graph,route,start,end);
+  const route={...verified,provider:base.provider,construction:work,resolvedStart:base.resolvedStart,resolvedEnd:base.resolvedEnd,...(conditionDetourLimit?{conditionDetourLimit}:{})},m=measure(graph,route,start,end);
   if(!m){a.reason='invalid-provenance';continue;}
   const approachError=compareUnconfirmedApproaches(baseline.approaches,m.approaches);if(approachError){a.reason=approachError;continue;}
   if(m.distanceMetres>Math.min(baseline.distanceMetres*1.3,baseline.distanceMetres+300)+1e-7){a.reason='detour-limit';continue;}
@@ -121,7 +128,7 @@ export function findRouteCandidates(base,start,end,options,snapshot,{graph,route
    if(Date.now()>deadline||improved.error){item.improvement.status=Date.now()>deadline?'time-limit':state;continue;}
    const check=verifyLocal({...improved,coordinates:improved.networkCoordinates||improved.coordinates},start,end,options);
    if(check.error){item.improvement.status='verification-failed';continue;}
-   const work=checker.inspect(check.coordinates),route={...check,provider:base.provider,construction:work,resolvedStart:base.resolvedStart,resolvedEnd:base.resolvedEnd},m=measure(graph,route,start,end);
+   const work=checker.inspect(check.coordinates),route={...check,provider:base.provider,construction:work,resolvedStart:base.resolvedStart,resolvedEnd:base.resolvedEnd,...(conditionDetourLimit?{conditionDetourLimit}:{})},m=measure(graph,route,start,end);
    if(Date.now()>deadline){item.improvement.status='time-limit';continue;}
    if(work.blocked.length||!m||m.distanceMetres>Math.min(baseline.distanceMetres*1.3,baseline.distanceMetres+300)+1e-7||compareUnconfirmedApproaches(baseline.approaches,m.approaches)){
     item.improvement.status='verification-rejected';continue;
@@ -148,6 +155,6 @@ export function findRouteCandidates(base,start,end,options,snapshot,{graph,route
  }
  if(!constructionFresh(snapshot))return {error:'CONSTRUCTION_UNAVAILABLE'};
  const shortest=Math.min(...finalItems.map(x=>x.metrics.distanceMetres));
- const candidates=finalItems.map(item=>({...item,...score(item.metrics,shortest)})).sort((a,b)=>b.score-a.score||a.metrics.distanceMetres-b.metrics.distanceMetres||a.id.localeCompare(b.id));
+ const candidates=finalItems.map(item=>({...item,...score(item.metrics,shortest,conditionDetourLimit)})).sort((a,b)=>b.score-a.score||a.metrics.distanceMetres-b.metrics.distanceMetres||a.id.localeCompare(b.id));
  return {status,limits,attempts,visited,candidates,constructionSourceUpdatedAt:snapshot.sourceUpdatedAt,scoreMeaning:'ranking-only-not-safety',scoreFormula:'100 / (1 + exp(-sum(scoreBreakdown) / 20))'};
 }

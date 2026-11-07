@@ -18,3 +18,19 @@ test('timeout during one improvement preserves every already verified candidate'
 test('exhausted improvement visited budget retains candidate and reports limit',()=>{const d=setup();const r=findRouteCandidates(d.base,A,D,{},d.snapshot,d,{maxAttempts:1,totalVisited:2,improvementRounds:2});assert.ok(r.candidates.every(c=>c.improvement.status==='visited-limit'));assert.ok(r.candidates.some(c=>c.id==='baseline'));});
 test('display score is 0-100, explainable and preserves raw-score ordering',()=>{const d=setup();const r=findRouteCandidates(d.base,A,D,{},d.snapshot,d,{maxAttempts:1});for(const c of r.candidates){const raw=Object.values(c.scoreBreakdown).reduce((a,b)=>a+b,0);assert.equal(c.scoreRaw,raw);assert.ok(c.score>0&&c.score<100);assert.ok(Math.abs(c.score-100/(1+Math.exp(-raw/20)))<1e-10);}assert.ok(r.candidates.every((c,i)=>i===0||r.candidates[i-1].scoreRaw>=c.scoreRaw));});
 test('partial and derived crossing coverage uses strict original-edge evidence',()=>{const d=setup();d.graph.ways[1].footway='crossing';d.graph.ways[1].crossing=true;d.graph.edges[2][5]={...proof,crossingCoverage:.99995};d.graph.edges[3][5]={...proof,crossingCoverage:1,derivedFrom:2};const r=findRouteCandidates(d.base,A,D,{},d.snapshot,d,{maxAttempts:1,improvementRounds:0});const m=r.candidates.find(x=>x.id!=='baseline').metrics;assert.equal(m.unknownMetres,104);assert.equal(m.unverifiedCrossings.length,2);assert.equal(m.unverifiedCrossings[1].coverageScope,'source-edge');assert.equal(m.unverifiedCrossings[1].crossingCoverage,.99995);});
+
+test('long candidates retain real condition records but cannot gain from fewer records beyond the original baseline limit',()=>{
+ const d=setup(),limit={baselineDistanceMetres:70,maxDistanceMetres:91,baselineOfficialConditionWeight:20,applied:true};
+ d.base.conditionDetourLimit=limit;const original=d.verifyLocal;
+ d.verifyLocal=Object.assign((...args)=>{const result=original(...args);delete result.conditionDetourLimit;
+  const points=result.edgeIds?.includes(0)?Array.from({length:7},()=>({type:'missing_noCurbSlope',activity:'活動區域分類-高',distanceMetres:1})):[];
+  return {...result,officialConditions:{status:'available',points}};},original);
+ const r=findRouteCandidates(d.base,A,D,{},d.snapshot,d,{maxAttempts:1,improvementRounds:1});
+ const baseline=r.candidates.find(c=>c.id==='baseline'),sidewalk=r.candidates.find(c=>c.id==='candidate-1');
+ assert.ok(baseline&&sidewalk);assert.deepEqual(baseline.route.conditionDetourLimit,limit);assert.deepEqual(sidewalk.route.conditionDetourLimit,limit);
+ assert.equal(sidewalk.metrics.officialConditionCount,0);assert.equal(sidewalk.scoreBreakdown.officialConditions,0);assert.equal(sidewalk.scoreBreakdown.conditionDetourGuard,-20);
+ assert.ok(sidewalk.score>baseline.score,'sidewalk evidence still affects ranking independently');
+ const within={...limit,maxDistanceMetres:110};d.base.conditionDetourLimit=within;
+ const allowed=findRouteCandidates(d.base,A,D,{},d.snapshot,d,{maxAttempts:1,improvementRounds:0}).candidates.find(c=>c.id==='candidate-1');
+ assert.equal(allowed.scoreBreakdown.conditionDetourGuard,undefined);
+});

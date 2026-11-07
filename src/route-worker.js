@@ -137,7 +137,7 @@ self.onmessage = async ({ data }) => {
       if(!nearbyRoutes)nearbyRoutes=createNearbyRoutes(routeGraph,{router,verifyLocal,facilities});
       const result=nearbyRoutes(data.startPlace,data.endPlace,data.options||{},data.construction,checker,{radius:120,includeOuter:true});
       if(result.error){postMessage({type:'nearby-positions',id:data.id,result});return;}
-      const verified=verifyNearbyRoutes(result,data.startPlace,data.endPlace,data.options||{},data.construction,{router,verifyLocal,facilities,checker});
+      const verified=verifyNearbyRoutes(result,data.startPlace,data.endPlace,data.options||{},data.construction,{graph:routeGraph,router,verifyLocal,facilities,checker});
       if(verified.error){postMessage({type:'nearby-positions',id:data.id,result:verified});return;}
       postMessage({type:'nearby-positions',id:data.id,result:{...result,verifiedCandidates:verified.candidates,truncated:verified.truncated}});
     } else if(data.type==='avoid-official-condition'){

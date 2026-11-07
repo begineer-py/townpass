@@ -28,6 +28,10 @@ test('initial search applies the same activity-area preference to nearby points'
  const route=activity=>createRouter(graph(activity))(a,b,{approachAllowed:(x,y)=>x[0]===y[0]&&x[1]===y[1]});
  const high=route('活動區域分類-高'),low=route('活動區域分類-低'),unknown=route('未分類');
  assert.equal(high.distance,low.distance);assert.ok(high.costBreakdown.officialCondition>unknown.costBreakdown.officialCondition);assert.ok(unknown.costBreakdown.officialCondition>low.costBreakdown.officialCondition);
+ const ignored=createRouter(graph('活動區域分類-高'))(a,b,{_ignoreOfficialConditions:true,approachAllowed:(x,y)=>x[0]===y[0]&&x[1]===y[1]});
+ assert.equal(ignored.costBreakdown.officialCondition,0);
+ const blocked=createRouter(graph('活動區域分類-高'))(a,b,{_ignoreOfficialConditions:true,lineAllowed:()=>false,approachAllowed:(x,y)=>x[0]===y[0]&&x[1]===y[1]});
+ assert.ok(blocked.error);
 });
 test('returns only nearby observations and de-duplicates across adjacent segments',()=>{
  const index=createOfficialConditionIndex(dataset([point('1',50,1),point('2',70,5,'missing_crosswalkNoRamp')]));
@@ -40,7 +44,7 @@ test('rejects malformed, unknown and duplicate observations',()=>{
  assert.throws(()=>createOfficialConditionIndex(dataset([point('1',1,1,'unexpected')])));
  assert.throws(()=>createOfficialConditionIndex({schemaVersion:1,points:[]}));
 });
-test('a nearby official condition adds a preference cost without deleting the edge',()=>{
+test('nearby official records add a local preference cost without deleting the edge',()=>{
  const nodes=[node(0,0),node(200,0),node(0,100),node(200,100)];
  const ways=[{name:'人行道',highway:'footway',footway:'sidewalk',width:1.5,slope:0,surface:'paved'}];
  const proof={schemaVersion:2,coverage:1,maxUncoveredMetres:0,crossingCoverage:0,roadCrossingVerified:true,crossingVerified:true};
@@ -51,7 +55,19 @@ test('a nearby official condition adds a preference cost without deleting the ed
  assert.equal(initial.error,undefined);assert.equal(initial.distance,200);
  const updated=make();updated.officialConditionIndex=createOfficialConditionIndex(dataset([point('1',50,0),point('2',100,0),point('3',150,0)]));
  const routed=createRouter(updated)(nodes[0],nodes[1],options);
- assert.equal(routed.error,undefined);assert.equal(routed.distance,400);assert.equal(routed.costBreakdown.officialCondition,0);
+ assert.equal(routed.error,undefined);assert.equal(routed.distance,200);assert.ok(routed.costBreakdown.officialCondition>0);assert.ok(routed.costBreakdown.officialCondition<10);
+});
+test('one nearby point cannot penalize an entire long edge or change with edge splits and direction',()=>{
+ const nodes=[node(0,0),node(500,0),node(250,250),node(250,0)];
+ const proof={schemaVersion:2,coverage:1,maxUncoveredMetres:0,crossingCoverage:0,roadCrossingVerified:true,crossingVerified:true};
+ const ways=[{highway:'footway',footway:'sidewalk',width:2,slope:0,surface:'paved'}];
+ const index=createOfficialConditionIndex(dataset([{...point('high',250,0),activity:'活動區域分類-高'}]));
+ const make=split=>({officialPathEvidence:{schemaVersion:2},nodes:nodes.map(n=>n.slice()),ways,edges:split?[[0,3,250,0,[],proof],[3,1,250,0,[],proof],[0,2,354,0,[],proof],[2,1,354,0,[],proof]]:[[0,1,500,0,[],proof],[0,2,354,0,[],proof],[2,1,354,0,[],proof]],officialAreas:[],officialCrossingAreas:[],roadGeometries:[],officialConditionIndex:index});
+ const run=(split,reverse=false)=>{const g=make(split);return createRouter(g)(nodes[reverse?1:0],nodes[reverse?0:1],{approachAllowed:(a,b)=>a[0]===b[0]&&a[1]===b[1]});};
+ const whole=run(false),split=run(true),reverse=run(true,true);
+ for(const r of [whole,split,reverse]){assert.equal(r.error,undefined);assert.equal(r.distance,500);assert.ok(r.costBreakdown.officialCondition>2&&r.costBreakdown.officialCondition<2.2);}
+ assert.ok(Math.abs(whole.costBreakdown.officialCondition-split.costBreakdown.officialCondition)<1e-5);
+ assert.ok(Math.abs(split.costBreakdown.officialCondition-reverse.costBreakdown.officialCondition)<1e-5);
 });
 test('official snapshot contains both returned groups and finds the Tianmu example',()=>{
  const input=JSON.parse(gunzipSync(fs.readFileSync(new URL('../public/data/official-conditions.json.gz',import.meta.url))));

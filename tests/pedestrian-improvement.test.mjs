@@ -4,7 +4,7 @@ import {createRouter} from '../src/routing.mjs';
 import {createLocalRouteVerifier} from '../src/local-route-verifier.mjs';
 import {createConstructionChecker} from '../src/construction.mjs';
 import {improvePedestrianRoute,hasNewPedestrianNearShared,hasNewSidewalkNearReplaced,measureUnconfirmedApproaches,compareUnconfirmedApproaches} from '../src/pedestrian-improvement.mjs';
-import {planImprovedPlaces} from '../src/pedestrian-planning.mjs';
+import {planImprovedPlaces,improvePlannedRoute} from '../src/pedestrian-planning.mjs';
 const n=(x,y)=>[25+y/111195,121.5+x/100700,0];
 const proof={schemaVersion:2,coverage:0,maxUncoveredMetres:100,crossingCoverage:0,roadCrossingVerified:true,crossingVerified:true};
 const shared={...proof,sharedRoad:true,sourceTopologyVerified:true,junctionsVerified:true,roadIntersectionsVerified:true,barriersVerified:true};
@@ -76,6 +76,11 @@ test('reduces actual shared-road length using a connected nearby pedestrian deto
  assert.ok(result.pedestrianImprovement.iterations.some(i=>i.result==='improved'));
  const chosen=result.pedestrianImprovement.iterations.flatMap(i=>i.attempts).find(a=>a.selected);
  assert.ok(chosen);assert.equal(chosen.reason,'eligible');assert.equal(chosen.sharedMetres,0);assert.ok(Number.isFinite(chosen.distanceMetres));
+});
+test('retains the official-condition baseline when an improved route is selected',()=>{
+ const x=setup(),limit={baselineDistanceMetres:110,maxDistanceMetres:143,baselineOfficialConditionWeight:4,applied:false};
+ const result=improvePlannedRoute({...x.base,conditionDetourLimit:limit},{lat:x.start[0],lon:x.start[1]},{lat:x.end[0],lon:x.end[1]},x.options,x.snap,{graph:x.g,router:x.router,verifyLocal:x.verifyLocal,checker:x.checker});
+ assert.equal(result.pedestrianImprovement.status,'improved');assert.equal(result.roadPct,0);assert.deepEqual(result.conditionDetourLimit,limit);
 });
 test('a route with no shared road can improve its explicit sidewalk share',()=>{
  const g=graph();g.ways[0]={...g.ways[0],highway:'path',source:undefined,width:1.5,slope:0};g.edges[0][5]=proof;

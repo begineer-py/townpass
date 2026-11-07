@@ -72,6 +72,11 @@ export function compareOfficialAndLocal(official,start,end,options,snapshot,{gra
  }
  if(!constructionFresh(snapshot))return {error:'CONSTRUCTION_UNAVAILABLE'};
  const shortest=Math.min(...candidates.map(x=>x.metrics.distanceMetres));
+ // Proximity records are not confirmed blockages. Past the ordinary detour
+ // budget, removing such records alone must not make the longer option rank
+ // above the shortest verified route. Keep the option and its real metrics:
+ // other documented differences may still justify recommending it.
+ const shortestConditionScore=Math.max(...candidates.filter(c=>Math.abs(c.metrics.distanceMetres-shortest)<1e-7).map(c=>officialConditionScore(c.metrics.officialConditionWeight)));
  // The official source lacks edge attributes; its entire route is treated as
  // unknown by policy without inventing actual zero values for those attributes.
  for(const c of candidates){
@@ -80,6 +85,8 @@ export function compareOfficialAndLocal(official,start,end,options,snapshot,{gra
    unknown:-12*(officialCandidate?d:m.unknownMetres)/d,rough:officialCandidate?null:-10*m.roughMetres/d,
    estimated:officialCandidate?null:-15*m.estimatedMetres/d,detour:-20*detour/shortest,
    officialConditions:officialConditionScore(m.officialConditionWeight)};
+  const conditionDetourLimit=Math.min(shortest*1.3,shortest+300);
+  parts.conditionDetourGuard=d>conditionDetourLimit+1e-7?Math.min(0,shortestConditionScore-parts.officialConditions):0;
   const raw=Object.values(parts).reduce((sum,v)=>sum+(v??0),0);
   c.scoreRaw=raw;c.score=100/(1+Math.exp(-raw/20));c.scoreBreakdown=parts;
   c.metrics={...m,detourMetres:detour,detourRatio:d/shortest};

@@ -1,5 +1,5 @@
 import { eligibleSharedRoad } from "./shared-road-policy.mjs";
-import { officialConditionWeight } from "./official-conditions.mjs";
+import { officialConditionCostFactor } from "./official-condition-cost.mjs";
 import { diagnoseRouteGap } from "./route-gap.mjs";
 import { roadConnectorChecker } from "./geometry.mjs";
 import { officialGeometryEvidence } from "./supplemental-evidence.mjs";
@@ -124,7 +124,8 @@ export function createRouter(graph) {
   heuristicScale=Math.max(0,heuristicScale*.999);
   const adjacency = Array.from({ length: graph.nodes.length }, () => []);
   const conditionCosts = new Map();
-  function officialConditionPenalty(index) {
+  function officialConditionPenalty(index,options={}) {
+    if (options._ignoreOfficialConditions === true) return 0;
     if (!graph.officialConditionIndex) return 0;
     if (!conditionCosts.has(index)) {
       const edge=graph.edges[index], way=graph.ways[edge[3]];
@@ -133,8 +134,8 @@ export function createRouter(graph) {
       // geometry; never turn a nearby observation into a hard road closure.
       const pedestrian=['footway','path','pedestrian','corridor'].includes(way.highway);
       const line=[graph.nodes[edge[0]],...(edge[4]||[]),graph.nodes[edge[1]]];
-      const weight=pedestrian?graph.officialConditionIndex.find(line,2).reduce((sum,p)=>sum+officialConditionWeight(p),0):0;
-      conditionCosts.set(index,Math.min(2,weight*0.175));
+      const points=pedestrian?graph.officialConditionIndex.find(line,2):[];
+      conditionCosts.set(index,officialConditionCostFactor(line,points));
     }
     return conditionCosts.get(index);
   }
@@ -290,7 +291,7 @@ export function createRouter(graph) {
         const e = graph.edges[ei],
           w = graph.ways[e[3]];
         if (graph.nodes[v][2] || !canTraverse(ei)) continue;
-        let factor = edgeCostFactor(w,e[5],options) + officialConditionPenalty(ei);
+        let factor = edgeCostFactor(w,e[5],options) + officialConditionPenalty(ei,options);
         if(w.source==='osm-shared-street'&&Number.isFinite(options._optimizeSharedPenalty))factor+=Math.max(0,Math.min(20,options._optimizeSharedPenalty));
         if(w.source!=='osm-shared-street'&&!(w.highway==='footway'&&w.footway==='sidewalk')&&Number.isFinite(options._optimizeNonSidewalkPenalty))factor+=Math.max(0,Math.min(10,options._optimizeNonSidewalkPenalty));
         const mid = [
@@ -362,9 +363,9 @@ export function createRouter(graph) {
       const detail=edgeCostDetails(w,e[5],options);
       const crossEvidence=crossingEvidence(w,e[5]);
       for(const key of ['base','source','unknown','surface','width','slope','crossing'])costBreakdown[key]+=detail[key]*e[2];
-      costBreakdown.officialCondition+=officialConditionPenalty(ei)*e[2];
+      costBreakdown.officialCondition+=officialConditionPenalty(ei,options)*e[2];
       const mid=[(graph.nodes[e[0]][0]+graph.nodes[e[1]][0])/2,(graph.nodes[e[0]][1]+graph.nodes[e[1]][1])/2];
-      if(options.avoidPoints?.some(p=>metres(mid,p)<=25))costBreakdown.avoidPoint+=(edgeCostFactor(w,e[5],options)+officialConditionPenalty(ei))*7*e[2];
+      if(options.avoidPoints?.some(p=>metres(mid,p)<=25))costBreakdown.avoidPoint+=(edgeCostFactor(w,e[5],options)+officialConditionPenalty(ei,options))*7*e[2];
       if (w.crossing) crossings++;
       if (
         ![

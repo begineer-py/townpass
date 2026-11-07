@@ -18,5 +18,6 @@ export function improvePlannedRoute(base,startPlace,endPlace,options,snapshot,de
  if(base.error)return base;
  const start=base.resolvedStart||startPlace,end=base.resolvedEnd||endPlace;
  if(!Number.isFinite(start?.lat)||!Number.isFinite(start?.lon)||!Number.isFinite(end?.lat)||!Number.isFinite(end?.lon))return {...base,pedestrianImprovement:{status:'missing-endpoints',iterations:[]}};
- return improvePedestrianRoute(base,[start.lat,start.lon],[end.lat,end.lon],{...options,startPlace:start,endPlace:end},snapshot,deps,config);
+ const result=improvePedestrianRoute(base,[start.lat,start.lon],[end.lat,end.lon],{...options,startPlace:start,endPlace:end},snapshot,deps,config);
+ return result.error||!base.conditionDetourLimit?result:{...result,conditionDetourLimit:base.conditionDetourLimit};
 }

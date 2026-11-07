@@ -22,3 +22,19 @@ test('forged or restricted local route is omitted',()=>{const d=setup();const fa
 test('duplicates among local candidates are not presented as independent routes',()=>{const d=setup(),r=compareOfficialAndLocal(d.official,A,B,{},d.snapshot,d,{localCandidates:[{id:'first',route:d.candidate},{id:'second',route:d.candidate}]});assert.equal(r.candidates.length,2);assert.equal(r.rejected[0].reason,'similar-geometry');assert.equal(r.rejected[0].geometryComparison.id,'first');});
 test('cross-source scores use identical coefficients and a common shortest-distance baseline',()=>{const d=setup(),r=compareOfficialAndLocal(d.official,A,B,{},d.snapshot,d,{localCandidates:[{id:'local',route:d.candidate}]});const [o,l]=r.candidates;const shortest=Math.min(o.metrics.distanceMetres,l.metrics.distanceMetres);for(const c of r.candidates){const m=c.metrics,raw=Object.values(c.scoreBreakdown).reduce((n,x)=>n+(x??0),0);assert.ok(Math.abs(c.scoreRaw-raw)<1e-10);assert.ok(Math.abs(c.score-100/(1+Math.exp(-raw/20)))<1e-10);assert.ok(Math.abs(c.scoreBreakdown.detour+20*Math.max(0,m.distanceMetres-shortest)/shortest)<1e-10);}assert.equal(o.metrics.estimatedMetres,null);assert.equal(o.scoreBreakdown.estimated,null);assert.deepEqual(o.assumptions,['official-attributes-missing-whole-route-penalty']);});
 test('local partial crossing is unknown with strict original-edge coverage',()=>{const d=setup();d.graph.ways[0].footway='crossing';d.graph.ways[0].crossing=true;d.graph.edges[0][5]={...proof,crossingCoverage:.99995};d.graph.edges[1][5]={...proof,crossingCoverage:1,derivedFrom:0};d.candidate=d.verifyLocal(createRouter(d.graph)(A,B),A,B);d.candidate.provider='mapped-pedestrian';const r=compareOfficialAndLocal(d.official,A,B,{},d.snapshot,d,{localCandidates:[{id:'local',route:d.candidate}]});assert.equal(r.candidates[1].metrics.unknownMetres,110);});
+
+test('nearby condition records alone cannot promote an excessive cross-source detour',()=>{
+ function compare(edgeDistance,sidewalk=false){
+  const d=setup();d.graph.edges.forEach(e=>e[2]=edgeDistance);
+  d.graph.ways[0]={highway:'footway',...(sidewalk?{footway:'sidewalk',width:2,slope:0,surface:'asphalt'}:{})};
+  const original=d.verifyLocal;
+  d.verifyLocal=Object.assign((...args)=>({...original(...args),officialConditions:{status:'available',points:[]}}),original);
+  d.candidate=d.verifyLocal(createRouter(d.graph)(A,B),A,B);d.candidate.provider='mapped-pedestrian';
+  d.official.officialConditions={status:'available',points:Array.from({length:7},()=>({type:'missing_noCurbSlope',activity:'活動區域分類-高',distanceMetres:1}))};
+  return compareOfficialAndLocal(d.official,A,B,{},d.snapshot,d,{localCandidates:[{id:'local',route:d.candidate}]}).candidates;
+ }
+ const [short,long]=compare(90);assert.equal(short.scoreBreakdown.officialConditions,-20);assert.equal(long.scoreBreakdown.officialConditions,0);
+ assert.equal(long.scoreBreakdown.conditionDetourGuard,-20);assert.ok(short.score>long.score);
+ const [near,nearDetour]=compare(60);assert.equal(nearDetour.scoreBreakdown.conditionDetourGuard,0);assert.ok(nearDetour.score>near.score);
+ const [base,sidewalk]=compare(90,true);assert.equal(sidewalk.scoreBreakdown.conditionDetourGuard,-20);assert.ok(sidewalk.score>base.score,'independent sidewalk evidence can still justify the longer route');
+});

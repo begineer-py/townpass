@@ -1,8 +1,11 @@
 import {polygonConnectorChecker,roadConnectorChecker} from './geometry.mjs';
 import {officialGeometryEvidence} from './supplemental-evidence.mjs';
 import {edgeAllowed,metres,ROUTING_POLICY,SNAP_METRES} from './routing.mjs';
+import {restoreOfficialConditionCost} from './official-condition-cost.mjs';
 import {edgeTier,edgeCostDetails} from './route-tiers.mjs';
 import {crossingEvidence,crossingUncertainty} from './crossing-evidence.mjs';
+import {constructionFresh} from './construction.mjs';
+import {officialConditionMetrics} from './official-conditions.mjs';
 const same=(a,b)=>a&&b&&a[0]===b[0]&&a[1]===b[1];
 // OSM level 0 is ground; Taiwanese labels 1F / 一樓 also denote ground.
 // Any ambiguous explicit level or indoor-only point fails closed. No level
@@ -178,17 +181,46 @@ export function diagnoseConstruction(start,end,prefs,snapshot,{router,verifyLoca
  const work=checker.inspect(checked.coordinates);
  return work.blocked.length?{error:'CONSTRUCTION_BLOCKED',construction:work}:null;
 }
-export function planPlaces(startPlace,endPlace,options,snapshot,{router,verifyLocal,facilities,checker}){
+export function planPlaces(startPlace,endPlace,options,snapshot,{router,verifyLocal,facilities,checker,graph}){
  let last={error:'NO_ROUTE'},best=null,blocked=null;
+ let bestCost=Infinity;
  const attempts=[],failures=[];
  function failed(result){last=result;failures.push(result);}
  for(const a of stationEntrances(startPlace,facilities))for(const b of stationEntrances(endPlace,facilities)){
-  const start=[a.lat,a.lon],end=[b.lat,b.lon],prefs={...options,startPlace:a,endPlace:b,lineAllowed:checker.allowed,approachAllowed:(p,n,side)=>verifyLocal.approachAllowed(p,n,side==='start'?a:b,options,side)};
+  const start=[a.lat,a.lon],end=[b.lat,b.lon],prefs={...options,_ignoreOfficialConditions:false,startPlace:a,endPlace:b,lineAllowed:checker.allowed,approachAllowed:(p,n,side)=>verifyLocal.approachAllowed(p,n,side==='start'?a:b,options,side)};
   attempts.push({start,end,prefs});
   const candidate=router(start,end,prefs);if(candidate.error){failed(['NO_ROUTE','NO_CONNECTION'].includes(candidate.error)?{...candidate,failedPair:{start:a,end:b}}:candidate);continue;}
   const checked=verifyLocal(candidate,start,end,prefs);if(checked.error){failed(checked);continue;}
   const work=checker.inspect(checked.coordinates);if(work.blocked.length){blocked={error:'CONSTRUCTION_BLOCKED',construction:work};continue;}
-  if(!best||checked.weightedCost<best.weightedCost)best={...checked,construction:work,resolvedStart:a,resolvedEnd:b};
+  let chosen=checked,chosenWork=work,conditionDetourLimit;
+  // Compare only routes for the same resolved endpoints, with the same
+  // restrictions and construction snapshot. This preference may not turn a
+  // nearby map observation into an unbounded detour.
+  if(graph?.officialConditionIndex){
+   if(!constructionFresh(snapshot))return {error:'CONSTRUCTION_UNAVAILABLE'};
+   const baselinePrefs={...prefs,_ignoreOfficialConditions:true};
+   const baselineCandidate=router(start,end,baselinePrefs);
+   const withinDeadline=()=>!Number.isFinite(prefs._optimizeDeadline)||Date.now()<=prefs._optimizeDeadline;
+   if(!constructionFresh(snapshot))return {error:'CONSTRUCTION_UNAVAILABLE'};
+   if(!baselineCandidate.error&&withinDeadline()){
+    const baseline=verifyLocal(baselineCandidate,start,end,baselinePrefs);
+    if(!baseline.error&&withinDeadline()){
+     const baselineWork=checker.inspect(baseline.coordinates);
+     if(!baselineWork.blocked.length&&Number.isFinite(baseline.distance)&&baseline.distance>0&&Number.isFinite(checked.distance)){
+      const maxDistanceMetres=Math.min(baseline.distance*1.3,baseline.distance+300);
+      const applied=checked.distance>maxDistanceMetres+1e-7;
+      conditionDetourLimit={baselineDistanceMetres:baseline.distance,maxDistanceMetres,baselineOfficialConditionWeight:officialConditionMetrics(baseline.officialConditions).officialConditionWeight,applied};
+      if(applied){
+       const repriced=restoreOfficialConditionCost(graph,baseline,prefs);
+       if(repriced){chosen=repriced;chosenWork=baselineWork;}
+       else conditionDetourLimit={...conditionDetourLimit,applied:false,reason:'baseline-cost-unavailable'};
+      }
+     }
+    }
+   }
+   if(!constructionFresh(snapshot))return {error:'CONSTRUCTION_UNAVAILABLE'};
+  }
+  if(!best||chosen.weightedCost<bestCost){bestCost=chosen.weightedCost;best={...chosen,construction:chosenWork,resolvedStart:a,resolvedEnd:b,...(conditionDetourLimit?{conditionDetourLimit}:{})};}
  }
  if(best)return best;
  if(blocked)return blocked;
