@@ -405,7 +405,7 @@ export default function App() {
   // Phone bottom sheet: 0 = peek, 1 = half, 2 = full (heights in style.css).
   const panelEl = useRef(),
     gripDragged = useRef(false);
-  const [sheetSnap, setSheetSnap] = useState(1);
+  const [sheetSnap, setSheetSnap] = useState(0);
   // 地圖目前旋轉的角度（不是手機朝向）。指南針指針用它轉回正北。
   const [bearing, setBearing] = useState(0);
   const SHEET_SNAPS = [0.11, 0.56, 0.9];
@@ -1243,6 +1243,16 @@ export default function App() {
               ["展開面板", "面板放到最大", "收合面板，顯示更多地圖"][sheetSnap]
             }
           />
+          <div className="omnibox-wrap">
+            <button
+              className="omnibox"
+              onClick={() => openSearch("explore")}
+              aria-label="搜尋地點、捷運站或路名"
+            >
+              <Search size={20} aria-hidden="true" />
+              <span>搜尋地點、捷運站或路名</span>
+            </button>
+          </div>
           <nav className="main-nav" aria-label="主要功能">
             {[
               ["explore", "找設施", Compass],

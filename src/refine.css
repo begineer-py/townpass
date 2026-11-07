@@ -658,7 +658,7 @@ button.icon-action {
   border: 2px solid currentColor;
   border-radius: 8px;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1;
   letter-spacing: -0.02em;
   background: var(--tp-white);
@@ -1099,7 +1099,7 @@ button.icon-action {
   background: var(--tp-primary700);
   color: var(--tp-white);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1;
   box-shadow: 0 2px 6px color-mix(in srgb, var(--tp-grayscale950) 24%, transparent);
 }

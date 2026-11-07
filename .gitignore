@@ -6,3 +6,16 @@ data/processed/
 __pycache__/
 *.log
 .env.local
+reports/*benchmark*.json
+reports/*comparison*.json
+reports/*diagnostic*.json
+reports/*endpoints*.json
+reports/*-audit.json
+reports/debug-*.md
+reports/*-findings.md
+reports/*-diagnosis.md
+reports/partial-stations-test.json
+bugs/bug[4-9].md
+bugs/bug1[0-7].md
+bugs/candidate-distance.md
+bugs/worker-cancellation.md
