@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>簡記</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">靜態前端 · FastAPI</p>
+        <h1>簡記</h1>
+        <p class="lede">
+          這個頁面只負責畫面。讀取、新增、刪除都呼叫同一個網站上的
+          <code>/api</code>。
+        </p>
+        <p id="health" role="status">正在確認 API…</p>
+      </header>
+
+      <form id="note-form">
+        <label for="note-text">新增一則</label>
+        <div class="composer">
+          <input
+            id="note-text"
+            name="text"
+            type="text"
+            maxlength="200"
+            required
+            placeholder="寫下一句話"
+            autocomplete="off"
+          />
+          <button type="submit">記下</button>
+        </div>
+      </form>
+
+      <p id="form-message" role="status"></p>
+      <ul id="notes"></ul>
+      <p class="footnote">
+        備忘存在這個服務實例的記憶體裡。重新部署或冷啟動後，會回到預設的兩則。
+        <a href="/docs">API 文件</a>
+      </p>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>
