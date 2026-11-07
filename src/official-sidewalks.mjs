@@ -1,11 +1,8 @@
-import proj4 from "proj4";
-
 export const OFFICIAL_SIDEWALK_URL =
   "https://tppano.gov.taipei/tp_roadsidewalkplatform_be/api/C00/C10/C11_mapStreetView/sidewalk_accessiblePassageway";
 export const OFFICIAL_SIDEWALK_SOURCE =
   "https://tppano.gov.taipei/tp_roadsidewalkplatform_public/";
 
-const TWD97 = "+proj=tmerc +lat_0=0 +lon_0=121 +k=0.9999 +x_0=250000 +y_0=0 +ellps=GRS80 +units=m +no_defs";
 let request;
 
 export function parseSidewalkWkt(value, id = "") {
@@ -50,43 +47,39 @@ export function parseOfficialSidewalks(payload) {
   );
 }
 
-export function projectedBounds(bounds) {
-  const corners = [
-    [bounds.getWest(), bounds.getSouth()],
-    [bounds.getEast(), bounds.getNorth()],
-  ].map((point) => proj4("EPSG:4326", TWD97, point));
-  return [
-    Math.min(corners[0][0], corners[1][0]),
-    Math.min(corners[0][1], corners[1][1]),
-    Math.max(corners[0][0], corners[1][0]),
-    Math.max(corners[0][1], corners[1][1]),
-  ];
+// 網頁讀取由 scripts/build_sidewalks.mjs 預先整理的 public/data/sidewalks.json.gz
+// （約 1.5 MB，已是 WGS84），不再每次向市府 API 下載未壓縮的約 9.5 MB。
+// 每條線為 [南, 西, 北, 東, 緯, 經, …]，數值 × scale。
+export function decodeSidewalks(payload) {
+  const scale = Number(payload?.scale) || 1e6;
+  if (!Array.isArray(payload?.lines)) throw new Error("INVALID_SIDEWALKS");
+  return payload.lines
+    .filter((row) => Array.isArray(row) && row.length >= 8)
+    .map((row) => {
+      const latLngs = [];
+      for (let i = 4; i + 1 < row.length; i += 2) latLngs.push([row[i] / scale, row[i + 1] / scale]);
+      return {
+        bounds: [row[0] / scale, row[1] / scale, row[2] / scale, row[3] / scale],
+        latLngs,
+      };
+    });
 }
 
 export function visibleSidewalkLines(features, bounds) {
-  const [west, south, east, north] = projectedBounds(bounds);
+  const south = bounds.getSouth(), west = bounds.getWest(),
+    north = bounds.getNorth(), east = bounds.getEast();
   return features
-    .filter(({ bounds: [minX, minY, maxX, maxY] }) =>
-      maxX >= west && minX <= east && maxY >= south && minY <= north,
+    .filter(({ bounds: [minLat, minLon, maxLat, maxLon] }) =>
+      maxLat >= south && minLat <= north && maxLon >= west && minLon <= east,
     )
-    .map((feature) => {
-      if (!feature.latLngs)
-        feature.latLngs = feature.coordinates.map((point) => {
-          const [lon, lat] = proj4(TWD97, "EPSG:4326", point);
-          return [lat, lon];
-        });
-      return feature.latLngs;
-    });
+    .map((feature) => feature.latLngs);
 }
 
 export async function loadOfficialSidewalks() {
   if (!request) {
-    request = fetch(OFFICIAL_SIDEWALK_URL)
-      .then((response) => {
-        if (!response.ok) throw new Error(`OFFICIAL_SIDEWALKS_${response.status}`);
-        return response.json();
-      })
-      .then(parseOfficialSidewalks)
+    request = import("./data.js")
+      .then(({ loadData }) => loadData("sidewalks"))
+      .then(decodeSidewalks)
       .catch((error) => {
         request = null;
         throw error;

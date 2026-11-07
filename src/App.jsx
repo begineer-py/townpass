@@ -307,7 +307,8 @@ export default function App() {
   const [route, setRoute] = useState(null),
     [routeError, setRouteError] = useState(""),
     [routing, setRouting] = useState(false),
-    [graphRequested, setGraphRequested] = useState(true),
+    // 路網（約 22 MB）不在開啟時下載：選好起點和終點、或按規劃路線時才載入。
+    [graphRequested, setGraphRequested] = useState(false),
     [graphReady, setGraphReady] = useState(false),
     [graphError, setGraphError] = useState(false),
     [status, setStatus] = useState(""),
@@ -357,8 +358,11 @@ export default function App() {
   const tabVersion = useRef(0);
   useEffect(() => {
     tabVersion.current++;
-    if (tab === "plan") setGraphRequested(true);
   }, [tab]);
+  // 起點、終點都選好時先在背景載入路網，按下規劃路線時通常已經準備好。
+  useEffect(() => {
+    if (start && end) setGraphRequested(true);
+  }, [start, end]);
   useEffect(() => {
     saveLocal("hhz-basemap", basemap);
   }, [basemap]);
