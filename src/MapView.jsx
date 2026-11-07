@@ -252,7 +252,7 @@ export default function MapView({
     }
     for(const [side,label] of [['startSide','起點側路段到此'],['endSide','目的地側路段由此開始']]){
       const point=partialRoute.gap[side];if(!point)continue;bounds.push(point);
-      L.circleMarker(point,{radius:9,color:TPColors.white,weight:3,fillColor:TPColors.orange700,fillOpacity:1}).bindTooltip(label,{permanent:true,direction:'top'}).addTo(partialPath.current);
+      L.circleMarker(point,{radius:9,color:TPColors.white,weight:3,fillColor:TPColors.orange700,fillOpacity:1}).bindTooltip(label,{permanent:true,direction:side==='startSide'?'top':'bottom',offset:side==='startSide'?[0,-8]:[0,8]}).addTo(partialPath.current);
     }
     if(bounds.length&&!route){const height=map.current.getSize().y;map.current.fitBounds(L.latLngBounds(bounds),{maxZoom:17,animate:false,paddingTopLeft:[24,40],paddingBottomRight:[24,Math.min(height-120,(paddingReader.current?.()||0)+24)]});}
   },[partialRoute,route,sheetSnap,colorFriendly]);

@@ -1233,7 +1233,7 @@ export default function App() {
   };
   const retryWithEntrance = ['OFFICIAL_PATH_UNVERIFIED','OFFICIAL_ROAD_CONFLICT','OFFICIAL_CROSSING_UNVERIFIED','OFFICIAL_ENTRY_UNVERIFIED','OFFICIAL_NO_ROUTE','OFFICIAL_GAP','NO_CONNECTION','NO_ROUTE'].includes(routeError);
   useEffect(()=>{
-    if(partialRoute||!shouldAutoSearchNearby({error:routeError,routing,graphReady,tab,start,end}))return;
+    if(!shouldAutoSearchNearby({error:routeError,routing,graphReady,tab,start,end}))return;
     findNearbyPositions();
     // A new route request, changed endpoint or changed preference invalidates
     // the search. Nearby status is deliberately not a dependency: cancel or
