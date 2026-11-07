@@ -2206,3 +2206,18 @@ small {
   text-align: center;
   white-space: nowrap;
 }
+
+/* Compact map controls retain a 44px touch target. */
+.map-controls { width: 44px; padding: 0; }
+.map-controls button { width: 44px; height: 44px; min-width: 44px; min-height: 44px; padding: 10px; }
+.map-controls svg { width: 18px; height: 18px; }
+.map-tag, .map-pill { padding: 6px 10px; min-height: 44px; font-size: var(--tp-text-bodyRegular-size); }
+.basemap-controls button { min-height: 44px; padding: 0 10px; font-size: var(--tp-text-bodyRegular-size); }
+.voice-search { grid-column: 1 / -1; width: 100%; }
+.voice-search p { margin: 6px 0; }
+.voice-search button { min-height: 44px; }
+.voice-stop { position: fixed; top: 64px; right: 12px; z-index: 4000; display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 12px; background: var(--tp-primary900); color: var(--tp-white); border: 2px solid var(--tp-white); border-radius: 4px; }
+.color-friendly .map-canvas .leaflet-tile-pane { filter: grayscale(1) contrast(.85) !important; }
+.color-friendly .filter-grid button[aria-pressed="true"] { outline: 3px solid var(--tp-primary900); outline-offset: -3px; font-weight: 600; }
+.color-friendly .endpoint .destination { border-radius: 3px; background: var(--tp-secondary800); }
+.color-friendly .endpoint .origin { background: var(--tp-primary900); }

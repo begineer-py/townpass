@@ -23,6 +23,7 @@ export default function MapView({
   focus,
   pick,
   basemap = "hybrid",
+  colorFriendly = false,
   onBasemapStatus,
   onPick,
   onSelect,
@@ -145,9 +146,9 @@ export default function MapView({
     for (const bucket of buckets.values()) {
       const p = bucket[0],
         count = bucket.length,
-        color = colors[category(p)] || TPColors.primary700;
+        color = colorFriendly ? TPColors.primary900 : colors[category(p)] || TPColors.primary700;
       const marker = L.circleMarker([p.lat, p.lon], {
-        radius: count > 1 ? 12 : 6,
+        radius: count > 1 || colorFriendly ? 12 : 6,
         color: TPColors.white,
         weight: 2,
         fillColor: color,
@@ -167,11 +168,15 @@ export default function MapView({
           m.setView([p.lat, p.lon], Math.min(19, m.getZoom() + 2)),
         );
       } else {
-        marker.bindTooltip(tip, { direction: "top" });
+        if (colorFriendly) {
+          const label = document.createElement('span');
+          label.textContent = ({elevator:'梯',toilet:'廁','public-toilet':'廁',rest:'休',water:'水',park:'園',ramp:'坡',station:'站',friendly:'店',parking:'停',bus:'車',health:'醫'})[category(p)] || '點';
+          marker.bindTooltip(label, {permanent:true,direction:'center',className:'cluster-label'});
+        } else marker.bindTooltip(tip, { direction: "top" });
         marker.on("click", () => cb.current.onSelect(p));
       }
     }
-  }, [items, focus]);
+  }, [items, focus, colorFriendly]);
   useEffect(() => {
     if (!path.current) return;
     path.current.clearLayers();

@@ -44,6 +44,7 @@ import {
   HelpCircle,
 } from "lucide-react";
 import MapView from "./MapView";
+import VoiceSearch from "./VoiceSearch";
 import { requestOfficialRoute } from "./official-router.mjs";
 import { ROUTING_POLICY } from "./routing.mjs";
 import { BASEMAPS } from "./basemaps.mjs";
@@ -104,6 +105,8 @@ const basePrefs = {
   mode: "balanced",
   largeText: false,
   contrast: false,
+  colorFriendly: false,
+  voiceRate: 0.9,
 };
 function Icon({ kind, ...props }) {
   const C = icons[kind] || MapPin;
@@ -293,6 +296,7 @@ export default function App() {
     saveLocal("hhz-preferences", prefs);
     document.documentElement.classList.toggle("large-text", prefs.largeText);
     document.documentElement.classList.toggle("high-contrast", prefs.contrast);
+    document.documentElement.classList.toggle("color-friendly", prefs.colorFriendly);
   }, [prefs]);
   useEffect(() => {
     const w = new Worker(new URL("./route-worker.js", import.meta.url), {
@@ -539,6 +543,10 @@ export default function App() {
         : [],
     [route, construction],
   );
+  useEffect(() => {
+    window.speechSynthesis?.cancel();
+    setSpeaking(false);
+  }, [searchFor, modal]);
   function readRoute() {
     if (speaking) {
       speechSynthesis.cancel();
@@ -552,9 +560,15 @@ export default function App() {
     )
       return;
     const text = `從${start.name}前往${end.name}，路線長約${formatDistance(route.distance)}。${route.steps.map((s) => `${stepText(s)}約${Math.round(s.distance)}公尺。`).join("")}路況仍需留意現場，這是路線預覽。`;
+    speakText(text);
+  }
+  function speakText(text) {
+    if (speaking) { window.speechSynthesis?.cancel(); setSpeaking(false); return; }
+    if (!window.speechSynthesis) { announce("這個瀏覽器尚不支援朗讀，可以使用裝置的螢幕閱讀器。"); return; }
+    window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
     u.lang = "zh-TW";
-    u.rate = 0.9;
+    u.rate = Number(prefs.voiceRate) || 0.9;
     u.onend = () => setSpeaking(false);
     u.onerror = () => setSpeaking(false);
     speechSynthesis.speak(u);
@@ -638,6 +652,7 @@ export default function App() {
   };
   return (
     <div className="app-shell">
+      {speaking && !searchFor && !modal && <button className="voice-stop" onClick={() => { window.speechSynthesis?.cancel(); setSpeaking(false); }}><VolumeX size={18} aria-hidden="true"/>停止朗讀</button>}
       <a className="skip-link" href="#main-content">
         跳至服務內容
       </a>
@@ -1251,6 +1266,7 @@ export default function App() {
           <MapView
             items={showMapFacilities ? mapItems : []}
             basemap={basemap}
+            colorFriendly={prefs.colorFriendly}
             onBasemapStatus={setBasemapStatus}
             route={route}
             start={start}
@@ -1401,6 +1417,8 @@ export default function App() {
             />
           </label>
           <div className="search-options">
+            <VoiceSearch onResult={setQuery} />
+            <button onClick={() => speakText(searchResults.length ? `找到${searchResults.length}個地方。${searchResults.slice(0, 8).map((p, i) => `${i + 1}，${cleanName(p.name)}。`).join('')}請從清單選擇地點。` : '目前還沒找到地點，可以換個名稱再試一次。')}><Volume2 size={18} aria-hidden="true"/>{speaking ? "停止朗讀" : "朗讀搜尋結果"}</button>
             <button
               onClick={() => {
                 const which = searchFor === "explore" ? null : searchFor;
@@ -1719,6 +1737,9 @@ export default function App() {
             />
           </label>
           <h3>閱讀設定</h3>
+          <label className="toggle-row"><span><b>色覺友善地圖</b><small>降低底圖色彩干擾，設施加上文字標記，不只靠顏色辨認。</small></span><input type="checkbox" checked={!!prefs.colorFriendly} onChange={e => setPrefs({...prefs, colorFriendly:e.target.checked})}/></label>
+          <label className="range-row"><span>朗讀速度<b>{prefs.voiceRate || 0.9} 倍</b></span><input aria-label="朗讀速度" type="range" min="0.6" max="1.2" step="0.1" value={prefs.voiceRate || 0.9} onChange={e => setPrefs({...prefs, voiceRate:Number(e.target.value)})}/></label>
+          <button className="secondary" onClick={() => speakText('你好，可以用語音搜尋地點，也能聽取路線與搜尋結果。')}>{speaking ? '停止朗讀' : '試聽語音'}</button>
           <label className="toggle-row">
             <span>
               <b>放大文字</b>
