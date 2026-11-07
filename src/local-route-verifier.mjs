@@ -2,6 +2,7 @@ import {polygonConnectorChecker,roadConnectorChecker} from './geometry.mjs';
 import {officialGeometryEvidence} from './supplemental-evidence.mjs';
 import {edgeAllowed,metres,ROUTING_POLICY,SNAP_METRES} from './routing.mjs';
 import {edgeTier,edgeCostDetails} from './route-tiers.mjs';
+import {crossingEvidence,crossingUncertainty} from './crossing-evidence.mjs';
 const same=(a,b)=>a&&b&&a[0]===b[0]&&a[1]===b[1];
 // OSM level 0 is ground; Taiwanese labels 1F / 一樓 also denote ground.
 // Any ambiguous explicit level or indoor-only point fails closed. No level
@@ -98,10 +99,13 @@ export function createLocalRouteVerifier(graph,facilities=[],places=[]){
  const verify=(route,start,end,options={})=>{
   if(route.error)return route;
   if(!Array.isArray(route.edgeIds)||!route.edgeIds.length||route.nodeIds?.length!==route.edgeIds.length+1)return {error:'UNVERIFIED_NETWORK'};
-  const coordinates=[graph.nodes[route.nodeIds[0]]?.slice(0,2)],tierSegments=[];
+  const coordinates=[graph.nodes[route.nodeIds[0]]?.slice(0,2)],tierSegments=[],crossingUncertainties=[],verifiedSegments=[];
+  let networkDistance=0;
   for(let i=0;i<route.edgeIds.length;i++){
    const e=graph.edges[route.edgeIds[i]],a=route.nodeIds[i],b=route.nodeIds[i+1];
    if(!e||!((e[0]===a&&e[1]===b)||(e[1]===a&&e[0]===b))||graph.nodes[a]?.[2]||graph.nodes[b]?.[2]||!edgeAllowed(graph.ways[e[3]],options,e[5]))return {error:'UNVERIFIED_NETWORK'};
+   if(!Number.isFinite(e[2])||e[2]<=0)return {error:'UNVERIFIED_NETWORK'};
+   networkDistance+=e[2];
    const way=graph.ways[e[3]],middle=e[0]===a?e[4]||[]:[...(e[4]||[])].reverse();
    const segmentCoordinates=[graph.nodes[a].slice(0,2),...middle,graph.nodes[b].slice(0,2)];
    coordinates.push(...segmentCoordinates.slice(1));
@@ -109,18 +113,30 @@ export function createLocalRouteVerifier(graph,facilities=[],places=[]){
    // rather than trusting annotations on the candidate route.
    const tier=edgeTier(e[5]),unknownWidth=way.width==null,unknownSlope=way.slope==null,
     roughSurface=edgeCostDetails(way,e[5],options).surface>0,
-    sharedRoad=way.source==='osm-shared-street';
+    sharedRoad=way.source==='osm-shared-street',crossEvidence=crossingEvidence(way,e[5]);
+   verifiedSegments.push({way:e[3],start:segmentCoordinates[0],crossingEvidence:crossEvidence});
+   const uncertainty=crossingUncertainty(way,e[5],segmentCoordinates);if(uncertainty)crossingUncertainties.push(uncertainty);
    const last=tierSegments.at(-1);
-   if(last?.tier===tier&&last.unknownWidth===unknownWidth&&last.unknownSlope===unknownSlope&&last.roughSurface===roughSurface&&last.sharedRoad===sharedRoad){
+   if(last?.tier===tier&&last.unknownWidth===unknownWidth&&last.unknownSlope===unknownSlope&&last.roughSurface===roughSurface&&last.sharedRoad===sharedRoad&&last.crossingEvidence===crossEvidence){
     last.coordinates.push(...segmentCoordinates.slice(1));last.distance+=e[2];
-   }else tierSegments.push({tier,unknownWidth,unknownSlope,roughSurface,sharedRoad,coordinates:segmentCoordinates,distance:e[2]});
+   }else tierSegments.push({tier,unknownWidth,unknownSlope,roughSurface,sharedRoad,crossingEvidence:crossEvidence,coordinates:segmentCoordinates,distance:e[2]});
   }
   if(coordinates.length!==route.coordinates?.length||coordinates.some((p,i)=>!same(p,route.coordinates[i])))return {error:'UNVERIFIED_NETWORK'};
   const wayIds=new Set(route.edgeIds.map(id=>graph.edges[id][3]));
   if(!Array.isArray(route.steps)||route.steps.some(step=>!wayIds.has(step.way)))return {error:'UNVERIFIED_NETWORK'};
+  let stepCursor=0;
   const steps=route.steps.map(step=>{
    const way=graph.ways[step.way];
-   return {...step,sharedRoad:way.source==='osm-shared-street'};
+   let match=-1;
+   if(Number.isFinite(step.lat)&&Number.isFinite(step.lon))
+    match=verifiedSegments.findIndex((segment,index)=>index>=stepCursor&&segment.way===step.way&&same(segment.start,[step.lat,step.lon]));
+   if(match<0)match=verifiedSegments.findIndex((segment,index)=>index>=stepCursor&&segment.way===step.way);
+   // If a legacy synthetic step has no coordinates, choose the most
+   // conservative evidence for its verified way rather than trusting it.
+   const candidates=verifiedSegments.filter(segment=>segment.way===step.way).map(segment=>segment.crossingEvidence);
+   const evidence=match>=0?verifiedSegments[match].crossingEvidence:candidates.includes('none')?'none':candidates.includes('partial')?'partial':candidates.includes('full')?'full':null;
+   if(match>=0)stepCursor=match+1;
+   return {...step,crossing:way.crossing===true,crossingEvidence:evidence,sharedRoad:way.source==='osm-shared-street'};
   });
   const approaches=[];
   for(const [point,target,place,side]of [[start,coordinates[0],options.startPlace,'start'],[end,coordinates.at(-1),options.endPlace,'end']]){
@@ -132,7 +148,7 @@ export function createLocalRouteVerifier(graph,facilities=[],places=[]){
     approaches.push({side,coordinates:side==='start'?[point,target]:[target,point],distance:Math.round(gap),estimated,name:known?.name,...(origin?{originKind:origin,unconfirmed:true,entryStatus:'unconfirmed'}:{})});}
   }
   const all=[...coordinates];if(!same(start,all[0]))all.unshift(start);if(!same(end,all.at(-1)))all.push(end);
-  return {...route,steps,tierSegments,coordinates:all,networkCoordinates:coordinates,approaches,distance:Math.round(route.distance+metres(start,coordinates[0])+metres(end,coordinates.at(-1))),provider:'mapped-pedestrian',geometryVerification:'pedestrian-network-v1',policyVersion:ROUTING_POLICY,requiresEntryConfirmation:false};
+  return {...route,steps,tierSegments,crossingUncertainties,coordinates:all,networkCoordinates:coordinates,approaches,distance:Math.round(networkDistance+metres(start,coordinates[0])+metres(end,coordinates.at(-1))),provider:'mapped-pedestrian',geometryVerification:'pedestrian-network-v1',policyVersion:ROUTING_POLICY,requiresEntryConfirmation:false};
  };
  verify.approachAllowed=allowed;
  verify.endpointAllowed=endpointAllowed;

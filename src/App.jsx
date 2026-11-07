@@ -52,6 +52,7 @@ import {
   Phone,
 } from "lucide-react";
 import MapView from "./MapView";
+import {presentRouteCandidates, sortRouteCandidates} from "./route-candidates-presentation.mjs";
 import {ROUTE_CONDITIONS, conditionForSegment} from "./route-conditions.mjs";
 import {TPColors} from "./tp-colors.mjs";
 import VoiceSearch from "./VoiceSearch";
@@ -271,6 +272,10 @@ export default function App() {
     [sentence, setSentence] = useState(""),
     [stepIndex, setStepIndex] = useState(0),
     [online, setOnline] = useState(navigator.onLine);
+  const [routeCandidates, setRouteCandidates] = useState([]);
+  const [selectedRouteCandidate, setSelectedRouteCandidate] = useState(null);
+  const [candidateSort, setCandidateSort] = useState("score");
+  const sortedRouteCandidates = useMemo(() => sortRouteCandidates(routeCandidates, candidateSort), [routeCandidates, candidateSort]);
   const [currentLocation, setCurrentLocation] = useState(null);
   const [followState,setFollowState] = useState({active:false,status:'idle',message:''});
   const followSession = useRef(null);
@@ -543,6 +548,9 @@ export default function App() {
           setSpeaking(false);
           if(d.result.resolvedStart)setStart(d.result.resolvedStart);
           if(d.result.resolvedEnd)setEnd(d.result.resolvedEnd);
+          const candidates=presentRouteCandidates(d.result.routeCandidates,ROUTING_POLICY,lastConstruction.current?.sourceUpdatedAt);
+          setRouteCandidates(candidates);
+          setSelectedRouteCandidate(candidates.find(c=>c.id===d.result.selectedCandidateId)?.id ?? null);
           setRoute(d.result);
           setRouteError("");
           setStepIndex(0);
@@ -593,6 +601,16 @@ export default function App() {
     setSpeaking(false);
     setRouting(false);
     setRoute(null);
+    setRouteCandidates([]);
+    setSelectedRouteCandidate(null);
+  }
+  function selectRouteCandidate(candidate) {
+    if (!constructionFresh(lastConstruction.current) || candidate.route.construction?.sourceUpdatedAt !== lastConstruction.current?.sourceUpdatedAt) {
+      clearRoute(); setRouteError("CONSTRUCTION_UNAVAILABLE"); return;
+    }
+    stopFollowing();
+    window.speechSynthesis?.cancel(); setSpeaking(false);
+    setRoute(candidate.route); setSelectedRouteCandidate(candidate.id); setStepIndex(0);
   }
   function cancelNearby(){
     nearbySearch.current.cancel();
@@ -663,6 +681,7 @@ export default function App() {
           session.referenceRoute=result;
           setStart(state.startPlace);
           setRoute(result);
+          setRouteCandidates([]); setSelectedRouteCandidate(null);
           setRouteError('');
           setStepIndex(0);
           session.engine.complete(displayedRouteCoordinates(result));
@@ -866,7 +885,12 @@ export default function App() {
             if (!localStarted) setRouteError(verified.error);
           }
           else if(verified.error || !['official-polygons-and-crossings-v1','pedestrian-network-v1'].includes(verified.geometryVerification) || verified.policyVersion !== ROUTING_POLICY) setRouteError(verified.error || 'UNVERIFIED_NETWORK');
-          else { setRoute(verified); setStepIndex(0); }
+          else {
+            const candidates=presentRouteCandidates(verified.routeCandidates,ROUTING_POLICY,lastConstruction.current?.sourceUpdatedAt);
+            setRouteCandidates(candidates);
+            setSelectedRouteCandidate(candidates.find(c=>c.id===verified.selectedCandidateId)?.id ?? null);
+            setRoute(verified); setStepIndex(0);
+          }
         }
       } catch (error) {
         if (id === request.current) setRouteError(error.name === "AbortError" ? "OFFICIAL_TIMEOUT" : "OFFICIAL_UNAVAILABLE");
@@ -1644,6 +1668,22 @@ export default function App() {
                     {route.tierSegments?.some(segment => segment.sharedRoad === true) && (
                       <p className="quiet-note" role="note">部分路段可能人車共行，通行與無障礙狀況未確認。</p>
                     )}
+                    {routeCandidates.length > 0 && <section className="route-alternatives" aria-label="選擇路線">
+                      <h3>選擇路線</h3>
+                      <p className="quiet-note">分數僅供比較，不代表安全保證。地圖顯示目前選擇的路線。</p>
+                      {routeCandidates.length===1 && <p className="quiet-note">本次搜尋找到一條可比較的路線。</p>}
+                      {routeCandidates.length>1 && <div className="candidate-sort" role="group" aria-label="路線排序">
+                        <button type="button" aria-pressed={candidateSort==='score'} onClick={()=>setCandidateSort('score')}>依分數</button>
+                        <button type="button" aria-pressed={candidateSort==='distance'} onClick={()=>setCandidateSort('distance')}>依距離</button>
+                      </div>}
+                      {sortedRouteCandidates.map((candidate,index)=>{const m=candidate.metrics; const length=v=>Number.isFinite(v)?formatDistance(v):"資料不足"; return <button type="button" className="route-alternative" key={candidate.id ?? index} aria-pressed={selectedRouteCandidate===candidate.id} onClick={()=>selectRouteCandidate(candidate)}>
+                        <strong>路線 {index+1} · {candidate.route.provider==='taipei-official' ? '官方路線' : '本機路線'} · {length(m.distanceMetres)} · 分數 {candidate.score.toFixed(1)}</strong>
+                        <span>明示人行道 {length(m.explicitSidewalkMetres)} · 其他人行路網 {length(m.otherPedestrianMetres)} · 人車共行 {length(m.sharedMetres)}</span>
+                        <span>路寬、坡度、路面或過街資料未知 {length(m.unknownMetres)} · 估算銜接 {length(m.estimatedMetres)}</span>
+                        <span>較顛簸路面 {length(m.roughMetres)} · 較短候選多走 {length(m.detourMetres)}</span>
+                        {candidate.assumptions?.includes('official-attributes-missing-whole-route-penalty') && <span>官方資料不足，部分路段特徵未計入；評分包含資料缺失扣分。</span>}
+                      </button>;})}
+                    </section>}
                     <div className="route-summary">
                       <div>
                         <span className="eyebrow">路線預覽</span>
@@ -1724,6 +1764,7 @@ export default function App() {
                         </button>
                       )}
                     </div>
+                    {route.crossingUncertainties?.length > 0 && <p className="quiet-note">路線包含 {route.crossingUncertainties.length} 段 OSM 過街資料未被官方資料完整覆蓋；地圖以點線標出相關路段。</p>}
                     <div className="section-top">
                       <h2>一步一步看路</h2>
                       <span className="muted">共 {route.steps.length} 段</span>

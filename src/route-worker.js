@@ -10,7 +10,20 @@ import {createLocalRouteVerifier,diagnoseConstruction} from './local-route-verif
 import {createNearbyRoutes} from './nearby-routes.mjs';
 import {createVerifiedRouter,planImprovedPlaces} from './pedestrian-planning.mjs';
 import {improvePedestrianRoute,measurePedestrianRoute} from './pedestrian-improvement.mjs';
+import {findRouteCandidates} from './route-candidates.mjs';
+import {compareOfficialAndLocal} from './cross-source-candidates.mjs';
 let router, verifyOfficial, verifyLocal, facilities, initialization, detourWaypoints, nearbyRoutes, routeGraph;
+function withCandidates(base,startPlace,endPlace,options,snapshot,checker){
+  if(base?.error)return base;
+  const a=base.resolvedStart||startPlace,b=base.resolvedEnd||endPlace;
+  if(!Number.isFinite(a?.lat)||!Number.isFinite(a?.lon)||!Number.isFinite(b?.lat)||!Number.isFinite(b?.lon))
+    return {...base,routeCandidates:{status:'missing-endpoints',candidates:[]}};
+  const prefs={...options,startPlace:a,endPlace:b};
+  const choices=findRouteCandidates(base,[a.lat,a.lon],[b.lat,b.lon],prefs,snapshot,{graph:routeGraph,router,verifyLocal,checker});
+  if(choices.error)return choices.error==='CONSTRUCTION_UNAVAILABLE'?choices:{...base,routeCandidates:{status:choices.error,candidates:[]}};
+  const selected=choices.candidates?.[0];
+  return selected?{...selected.route,routeCandidates:choices,selectedCandidateId:selected.id}:{...base,routeCandidates:choices};
+}
 function combineRoutes(a, b, viaName) {
   if (a.error) return a;
   if (b.error) return b;
@@ -25,6 +38,7 @@ function combineRoutes(a, b, viaName) {
     distance: total,
     tierSegments:[...(a.tierSegments||[]),...(b.tierSegments||[])],
     approaches:[...(a.approaches||[]),...(b.approaches||[])],
+    crossingUncertainties:[...(a.crossingUncertainties||[]),...(b.crossingUncertainties||[])],
     unknownPct: mix(a.unknownPct, b.unknownPct),
     officialCoveragePct:
       a.officialCoveragePct == null
@@ -79,6 +93,7 @@ self.onmessage = async ({ data }) => {
       await initialization;
       let checker;try{checker=createConstructionChecker(data.construction);}catch{postMessage({type:'route',id:data.id,result:{error:'CONSTRUCTION_UNAVAILABLE'}});return;}
       let result=planImprovedPlaces(data.startPlace,data.endPlace,data.options||{},data.construction,{graph:routeGraph,router,verifyLocal,facilities,checker});
+      if(!result.error)result=withCandidates(result,data.startPlace,data.endPlace,data.options||{},data.construction,checker);
       if(['NO_ROUTE','NO_CONNECTION'].includes(result.error)&&result.failedPair&&constructionFresh(data.construction)){
         const {start:a,end:b}=result.failedPair,prefs={...data.options,startPlace:a,endPlace:b,lineAllowed:checker.allowed,diagnosePartial:true};
         const start=[a.lat,a.lon],end=[b.lat,b.lon],diagnostic=router(start,end,prefs);
@@ -98,7 +113,8 @@ self.onmessage = async ({ data }) => {
       }
       let result=resolveVerifiedRoute(data.route,data.start,data.end,data.options,data.construction,{router,verifyOfficial,verifyLocal});
       if(!result.error){let checker;try{checker=createConstructionChecker(data.construction);}catch{result={error:'CONSTRUCTION_UNAVAILABLE'};}
-        if(checker)result=improvePedestrianRoute(result,data.start,data.end,data.options||{},data.construction,{graph:routeGraph,router,verifyLocal,checker});}
+        if(checker){result=improvePedestrianRoute(result,data.start,data.end,data.options||{},data.construction,{graph:routeGraph,router,verifyLocal,checker});
+          if(!result.error&&result.provider!=='taipei-official')result=withCandidates(result,data.options?.startPlace||{lat:data.start[0],lon:data.start[1]},data.options?.endPlace||{lat:data.end[0],lon:data.end[1]},data.options||{},data.construction,checker);}}
       // Official polygon checks can establish coverage, not the user's actual
       // position or physical access to the network. Mark an explicit user
       // start connector as estimated even when covered by official polygons.
@@ -110,6 +126,23 @@ self.onmessage = async ({ data }) => {
         if(['map','selected'].includes(destination)&&last&&metres(data.end,last)>.05)
           approaches.push({side:'end',coordinates:[last,data.end],distance:Math.round(metres(data.end,last)),estimated:true,unconfirmed:true,entryStatus:'unconfirmed',originKind:destination});
         if(approaches.length)result={...result,networkCoordinates:data.route.coordinates,approaches};
+      }
+      if(!result.error&&result.provider==='taipei-official'){
+        let checker;try{checker=createConstructionChecker(data.construction);}catch{result={error:'CONSTRUCTION_UNAVAILABLE'};}
+        if(checker){
+          const opts=data.options||{},startPlace=opts.startPlace||{lat:data.start[0],lon:data.start[1]},endPlace=opts.endPlace||{lat:data.end[0],lon:data.end[1]},deps={graph:routeGraph,router,verifyLocal,facilities,checker};
+          const local=planImprovedPlaces(startPlace,endPlace,opts,data.construction,deps);
+          let localCandidates=[];
+          if(!local.error){const a=local.resolvedStart||startPlace,b=local.resolvedEnd||endPlace;
+            // Compare only the exact same requested endpoints, not alternative station exits.
+            if(metres([a.lat,a.lon],data.start)<=.001&&metres([b.lat,b.lon],data.end)<=.001){
+              const found=findRouteCandidates(local,data.start,data.end,{...opts,startPlace:a,endPlace:b},data.construction,deps);
+              if(found.error==='CONSTRUCTION_UNAVAILABLE')result=found;else localCandidates=found.candidates||[];
+            }}
+          if(!result.error){const compared=compareOfficialAndLocal(result,data.start,data.end,opts,data.construction,{graph:routeGraph,verifyOfficial,verifyLocal,checker},{localCandidates});
+            if(compared.error)result=compared;else{const ordered=[...compared.candidates].sort((a,b)=>b.score-a.score||a.metrics.distanceMetres-b.metrics.distanceMetres||a.id.localeCompare(b.id)),selected=ordered[0];
+              result=selected?{...selected.route,routeCandidates:compared,selectedCandidateId:selected.id}:result;}}
+        }
       }
       if(!constructionFresh(data.construction))result={error:'CONSTRUCTION_UNAVAILABLE'};
       if(result.error && ['OFFICIAL_PATH_UNVERIFIED','OFFICIAL_ROAD_CONFLICT','OFFICIAL_CROSSING_UNVERIFIED','OFFICIAL_ENTRY_UNVERIFIED','CONSTRUCTION_BLOCKED'].includes(result.error))result.detourWaypoints=detourWaypoints(data.start,data.end,result.detourCenter);
@@ -156,7 +189,8 @@ self.onmessage = async ({ data }) => {
         if(!result.error)result={...result,provider:'local-verified',geometryVerification:a.geometryVerification,construction:checker.inspect(result.coordinates)};
       }else{
         result=leg(data.start,data.end);
-        if(!result.error)result=improvePedestrianRoute(result,data.start,data.end,data.options||{},data.construction,{graph:routeGraph,router,verifyLocal,checker});
+        if(!result.error){result=improvePedestrianRoute(result,data.start,data.end,data.options||{},data.construction,{graph:routeGraph,router,verifyLocal,checker});
+          if(!result.error)result=withCandidates(result,data.options?.startPlace||{lat:data.start[0],lon:data.start[1]},data.options?.endPlace||{lat:data.end[0],lon:data.end[1]},data.options||{},data.construction,checker);}
       }
       if(!constructionFresh(data.construction))result={error:'CONSTRUCTION_UNAVAILABLE'};
       postMessage({type:'route',id:data.id,result});

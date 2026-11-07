@@ -96,6 +96,7 @@ class Extract(osmium.SimpleHandler):
             or tags.get("access") in ["private", "no"]
             or tags.get("foot") in ["no", "private"]
             or tags.get("wheelchair") == "no"
+            or tags.get("crossing") in ["no", "none"]
         ):
             return
         bridge_sidewalk = highway == "footway" and tags.get("bridge") == "yes" and (tags.get("footway") == "sidewalk" or tags.get("wheelchair") == "yes")

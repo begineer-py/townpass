@@ -5,6 +5,11 @@ import{createConstructionChecker}from'../src/construction.mjs';
 const a=[25,121.5],b=[25,121.501],proof={schemaVersion:2,coverage:0,maxUncoveredMetres:100,crossingCoverage:0,roadCrossingVerified:true,crossingVerified:true};
 const base=()=>({officialPathEvidence:{schemaVersion:2},nodes:[[...a,0],[...b,0]],ways:[{highway:'footway',width:2,slope:0}],edges:[[0,1,100,0,[],proof]],officialAreas:[],officialCrossingAreas:[],roadGeometries:[[[121.51,25],[121.51,25.01]]]});
 test('mapped footway provenance replaces an unrelated full-city polygon coverage requirement',()=>{const g=base(),r=createRouter(g)(a,b);const v=createLocalRouteVerifier(g)(r,a,b);assert.equal(v.error,undefined);assert.equal(v.geometryVerification,'pedestrian-network-v1');});
+test('revalidating a route reconstructs network distance without counting an approach twice',()=>{
+ const g=base(),p=[25+30/111195,121.5],exit={id:'exit',kind:'metro-elevator',lat:p[0],lon:p[1]},v=createLocalRouteVerifier(g,[exit]),raw=createRouter(g)(a,b),opts={startPlace:exit};
+ const first=v(raw,p,b,opts),second=v({...first,coordinates:first.networkCoordinates,distance:9999},p,b,opts);
+ assert.equal(first.error,undefined);assert.equal(second.error,undefined);assert.equal(first.distance,130);assert.equal(second.distance,130);
+});
 test('forged geometry and vehicle way cannot inherit pedestrian verification',()=>{const g=base(),r=createRouter(g)(a,b);assert.equal(createLocalRouteVerifier(g)({...r,coordinates:[a,[25.01,121.5],b]},a,b).error,'UNVERIFIED_NETWORK');g.ways[0].highway='primary';assert.equal(createLocalRouteVerifier(g)(r,a,b).error,'UNVERIFIED_NETWORK');});
 test('unknown point near the network does not gain an invented connector',()=>{const g=base(),r=createRouter(g)(a,b),p=[25.00005,121.5];assert.equal(createLocalRouteVerifier(g)(r,p,b).error,'OFFICIAL_ENTRY_UNVERIFIED');});
 test('short registered metro exit approach is labelled estimated and checks its entire road crossing',()=>{const g=base(),r=createRouter(g)(a,b),p=[25.00005,121.5],exit={id:'exit',kind:'metro-elevator',lat:p[0],lon:p[1]};const v=createLocalRouteVerifier(g,[exit])(r,p,b,{startPlace:exit});assert.equal(v.approaches[0].estimated,true);g.roadGeometries=[[[121.499,25.000025],[121.502,25.000025]]];assert.equal(createLocalRouteVerifier(g,[exit])(r,p,b,{startPlace:exit}).error,'OFFICIAL_ENTRY_UNVERIFIED');});

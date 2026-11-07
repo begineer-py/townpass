@@ -2,6 +2,7 @@ import { eligibleSharedRoad } from "./shared-road-policy.mjs";
 import { diagnoseRouteGap } from "./route-gap.mjs";
 import { roadConnectorChecker } from "./geometry.mjs";
 import { officialGeometryEvidence } from "./supplemental-evidence.mjs";
+import { crossingEvidence, crossingUncertainty } from "./crossing-evidence.mjs";
 import {edgeTier,edgeCostFactor,edgeCostDetails,ROUTE_TIERS} from "./route-tiers.mjs";
 export const ROUTING_POLICY = "pedestrian-evidence-v4";
 // Building entrances sit back from the mapped footway. 50m reaches a sidewalk;
@@ -45,6 +46,7 @@ export class MinHeap {
 }
 export function edgeAllowed(way, options = {}, evidence = null) {
   // Safety constraints cannot be relaxed by UI options or old stored preferences.
+  if (!way || ['no','private'].includes(way.access) || ['no','private'].includes(way.foot) || way.crossing === 'no') return false;
   const sharedRoad = eligibleSharedRoad(way, evidence);
   if ((way.source === "osm-shared-street" || evidence?.sharedRoad === true) && !sharedRoad) return false;
   if (!sharedRoad && !["footway", "path", "pedestrian", "corridor"].includes(way.highway))
@@ -336,6 +338,7 @@ export function createRouter(graph) {
       if (w.width == null) unknownWidth += e[2];
       if (w.slope == null) unknownSlope += e[2];
       const detail=edgeCostDetails(w,e[5],options);
+      const crossEvidence=crossingEvidence(w,e[5]);
       for(const key of ['base','source','unknown','surface','width','slope','crossing'])costBreakdown[key]+=detail[key]*e[2];
       const mid=[(graph.nodes[e[0]][0]+graph.nodes[e[1]][0])/2,(graph.nodes[e[0]][1]+graph.nodes[e[1]][1])/2];
       if(options.avoidPoints?.some(p=>metres(mid,p)<=25))costBreakdown.avoidPoint+=edgeCostFactor(w,e[5],options)*7*e[2];
@@ -371,6 +374,7 @@ export function createRouter(graph) {
         last &&
         last.name === w.name &&
         last.crossing === w.crossing &&
+        last.crossingEvidence === crossEvidence &&
         last.unknown === (w.width == null || w.slope == null) &&
         last.roughSurface === (detail.surface > 0) &&
         last.sharedRoad === (w.source === "osm-shared-street") &&
@@ -386,6 +390,7 @@ export function createRouter(graph) {
           lat: a[0],
           lon: a[1],
           crossing: w.crossing,
+          crossingEvidence: crossEvidence,
           unknown: w.width == null || w.slope == null,
           roughSurface: detail.surface > 0,
           sharedRoad: w.source === "osm-shared-street",
@@ -402,12 +407,13 @@ export function createRouter(graph) {
         graph.nodes[path[k + 1]].slice(0, 2),
       );
     });
-    const tierSegments=[];
+    const tierSegments=[],crossingUncertainties=[];
     es.forEach((ei,k)=>{
       const e=graph.edges[ei],tier=edgeTier(e[5]),middle=e[0]===path[k] ? e[4]||[] : [...(e[4]||[])].reverse();
-      const way=graph.ways[e[3]],unknownWidth=way.width==null,unknownSlope=way.slope==null,roughSurface=edgeCostDetails(way,e[5],options).surface>0,sharedRoad=way.source==="osm-shared-street";
+      const way=graph.ways[e[3]],unknownWidth=way.width==null,unknownSlope=way.slope==null,roughSurface=edgeCostDetails(way,e[5],options).surface>0,sharedRoad=way.source==="osm-shared-street",crossEvidence=crossingEvidence(way,e[5]);
       const coords=[graph.nodes[path[k]].slice(0,2),...middle,graph.nodes[path[k+1]].slice(0,2)],last=tierSegments.at(-1);
-      if(last?.tier===tier && last.unknownWidth===unknownWidth && last.unknownSlope===unknownSlope && last.roughSurface===roughSurface && last.sharedRoad===sharedRoad){last.coordinates.push(...coords.slice(1));last.distance+=e[2];}else tierSegments.push({tier,unknownWidth,unknownSlope,roughSurface,sharedRoad,coordinates:coords,distance:e[2]});
+      const uncertainty=crossingUncertainty(way,e[5],coords);if(uncertainty)crossingUncertainties.push(uncertainty);
+      if(last?.tier===tier && last.unknownWidth===unknownWidth && last.unknownSlope===unknownSlope && last.roughSurface===roughSurface && last.sharedRoad===sharedRoad && last.crossingEvidence===crossEvidence){last.coordinates.push(...coords.slice(1));last.distance+=e[2];}else tierSegments.push({tier,unknownWidth,unknownSlope,roughSurface,sharedRoad,crossingEvidence:crossEvidence,coordinates:coords,distance:e[2]});
     });
     return {
       policyVersion: ROUTING_POLICY,
@@ -416,6 +422,7 @@ export function createRouter(graph) {
       unknownWidthMetres:unknownWidth,
       unknownSlopeMetres:unknownSlope,
       tierSegments,
+      crossingUncertainties,
       edgeIds: es,
       nodeIds: path,
       coordinates,

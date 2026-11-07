@@ -136,6 +136,7 @@ test('official routes obey the same endpoint restriction and mark a GPS approach
   await self.onmessage({data:{type:'init',url:'https://example.test/graph.json'}});
   await self.onmessage({data:{type:'verify-official',id:81,start:p,end:b,route:candidate,options:{startPlace:gps},construction}});
   const result=replies.find(m=>m.id===81)?.result;assert.equal(result.error,undefined);assert.equal(result.approaches[0].estimated,true);assert.equal(result.approaches[0].unconfirmed,true);assert.equal(result.approaches[0].originKind,'gps');
+  const officialChoice=result.routeCandidates?.candidates?.find(c=>c.id==='official');assert.ok(officialChoice);assert.equal(officialChoice.metrics.explicitSidewalkMetres,null);assert.equal(officialChoice.metrics.sharedMetres,null);assert.ok(Number.isFinite(officialChoice.score));
   assert.deepEqual(result.approaches[0].coordinates,[p,a]);assert.deepEqual(result.networkCoordinates,[a,b]);assert.equal(result.pedestrianImprovement.status,'unsupported-official-provenance');
   const q=[25+3/111195,121.501],selectedStart={id:'address-start',kind:'place',sourceId:'osm',selectionKind:'user',lat:p[0],lon:p[1]},selectedEnd={id:'address-end',kind:'place',sourceId:'osm',selectionKind:'user',lat:q[0],lon:q[1]};
   await self.onmessage({data:{type:'verify-official',id:83,start:p,end:q,route:candidate,options:{startPlace:selectedStart,endPlace:selectedEnd},construction}});
@@ -160,6 +161,10 @@ test('worker applies the same verified local pedestrian improvement as shared pl
   await import('../src/route-worker.js?pedestrian-improvement-test');await self.onmessage({data:{type:'init',url:'https://example.test/graph.json'}});
   const stamp=new Date().toISOString(),construction={schemaVersion:1,fetchedAt:stamp,sourceUpdatedAt:stamp,works:[]},startPlace={lat:nodes[0][0],lon:nodes[0][1]},endPlace={lat:nodes[2][0],lon:nodes[2][1]};
   await self.onmessage({data:{type:'plan-places',id:90,startPlace,endPlace,options:{},construction}});
-  const result=replies.find(m=>m.id===90)?.result;assert.equal(result.error,undefined);assert.equal(result.distance,140);assert.equal(result.pedestrianImprovement.status,'improved');assert.equal(result.pedestrianImprovement.sharedMetres,0);
+  const result=replies.find(m=>m.id===90)?.result;assert.equal(result.error,undefined);
+  const choices=result.routeCandidates?.candidates||[],improved=choices.find(c=>c.route.distance===140);
+  assert.ok(improved,'the independently verified low-shared route remains selectable');
+  assert.equal(improved.route.pedestrianImprovement.status,'improved');assert.equal(improved.metrics.sharedMetres,0);
+  assert.equal(result.selectedCandidateId,choices[0].id);assert.equal(result.distance,choices[0].route.distance);
  }finally{globalThis.fetch=oldFetch;globalThis.self=oldSelf;globalThis.postMessage=oldPost;}
 });
