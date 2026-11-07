@@ -66,15 +66,16 @@ export function measurePedestrianRoute(graph,route,start,end){
 }
 // Search the full segment geometries, not just vertices. This only identifies
 // nearby existing edges; graph connectivity is checked by the normal router.
-export function hasNewPedestrianNearShared(graph,current,candidate,{radius=50,deadline=Infinity,maxComparisons=100000}={}){
+const sharedEdge=w=>w?.source==='osm-shared-street';
+const groundPedestrian=(w,e)=>pedestrian.has(w?.highway)&&w.source!=='osm-shared-street'&&!w.isConnector&&!w.crossing&&(e[5]?.crossingCoverage??0)===0&&!w.gradeSeparatedPedestrian&&(!w.bridge||w.bridge==='no')&&(!w.tunnel||w.tunnel==='no')&&(w.layer==null||String(w.layer)==='0')&&(w.level==null||String(w.level)==='0');
+const explicitSidewalk=(w,e)=>groundPedestrian(w,e)&&w.highway==='footway'&&w.footway==='sidewalk';
+function nearReplaced(graph,current,candidate,removedEdge,addedEdge,{radius=50,deadline=Infinity,maxComparisons=100000}={}){
  if(Date.now()>deadline)return {near:false,limited:true};
- const sharedEdge=w=>w?.source==='osm-shared-street';
- const pedestrianEdge=(w,e)=>pedestrian.has(w?.highway)&&w.source!=='osm-shared-street'&&!w.isConnector&&!w.crossing&&(e[5]?.crossingCoverage??0)===0&&!w.gradeSeparatedPedestrian&&(!w.bridge||w.bridge==='no')&&(!w.tunnel||w.tunnel==='no')&&(w.layer==null||String(w.layer)==='0')&&(w.level==null||String(w.level)==='0');
- const removed=differenceSegments(graph,current,candidate,sharedEdge,{deadline,maxComparisons});
+ const removed=differenceSegments(graph,current,candidate,removedEdge,{deadline,maxComparisons});
  if(removed.limited)return {near:false,limited:true};
  const shared=removed.segments;
  if(!shared.length)return {near:false};
- const added=differenceSegments(graph,candidate,current,pedestrianEdge,{deadline,maxComparisons:maxComparisons-removed.comparisons});
+ const added=differenceSegments(graph,candidate,current,addedEdge,{deadline,maxComparisons:maxComparisons-removed.comparisons});
  if(added.limited)return {near:false,limited:true};
  let comparisons=removed.comparisons+added.comparisons;
  for(const [c,d] of added.segments){
@@ -86,10 +87,14 @@ export function hasNewPedestrianNearShared(graph,current,candidate,{radius=50,de
  }
  return Date.now()>deadline?{near:false,limited:true}:{near:false};
 }
+export function hasNewPedestrianNearShared(graph,current,candidate,options){return nearReplaced(graph,current,candidate,sharedEdge,groundPedestrian,options);}
+export function hasNewSidewalkNearReplaced(graph,current,candidate,options){
+ return nearReplaced(graph,current,candidate,(w,e)=>sharedEdge(w)||(groundPedestrian(w,e)&&!explicitSidewalk(w,e)),explicitSidewalk,options);
+}
 
 export function improvePedestrianRoute(base,start,end,options,snapshot,{graph,router,verifyLocal,checker},config={}){
  const maxIterations=config.maxIterations??3,totalMs=config.totalMs??4000,maxVisited=config.maxVisited??40000;
- const penalties=config.penalties??[2,6,12],pathPenalties=config.pathPenalties??[0,1.5],radius=50,minimumReduction=1;
+ const penalties=config.penalties??[0,6,12],sidewalkPenalties=config.sidewalkPenalties??[0,2,6],radius=50,minimumReduction=1;
  if(!constructionFresh(snapshot))return {error:'CONSTRUCTION_UNAVAILABLE'};
  if(base?.error)return base;
  if(base.provider==='taipei-official')return {...base,pedestrianImprovement:{status:'unsupported-official-provenance',iterations:[]}};
@@ -97,48 +102,56 @@ export function improvePedestrianRoute(base,start,end,options,snapshot,{graph,ro
  const original=portions(graph,base);
  if(!original)return {...base,pedestrianImprovement:{status:'missing-local-provenance',iterations:[]}};
  const originalDistance=fullDistance(graph,base,start,end,original),parent=config.parentBaselineDistance,other=config.otherLegDistance;
- const maxDistance=Number.isFinite(parent)&&parent>0&&Number.isFinite(other)&&other>=0
+ const hasParent=Number.isFinite(parent)&&parent>0&&Number.isFinite(other)&&other>=0;
+ const otherSidewalk=hasParent&&Number.isFinite(config.otherLegSidewalkMetres)&&config.otherLegSidewalkMetres>=0?config.otherLegSidewalkMetres:0;
+ const maxDistance=hasParent
   ?Math.min(parent*1.3,parent+300)-other:Math.min(originalDistance*1.3,originalDistance+300);
  const deadline=Date.now()+totalMs,iterations=[];
- let current=base,currentParts=original,status=original.shared<minimumReduction?'no-shared-segments':'no-improvement';
- for(let round=0;round<maxIterations&&currentParts.shared>=minimumReduction;round++){
+ let current=base,currentParts=original,currentDistance=originalDistance,status=original.total-original.sidewalk<5?'no-non-sidewalk-segments':'no-improvement';
+ for(let round=0;round<maxIterations&&currentParts.total-currentParts.sidewalk>=5;round++){
   if(Date.now()>deadline){status='time-limit';break;}
   let best=null,sawLimited=false,timedOut=false;const reasons=[],attempts=[];
   const reject=(attempt,reason)=>{attempt.reason=reason;reasons.push(reason);};
-  for(const penalty of penalties)for(const pathPenalty of pathPenalties){
+  for(const penalty of penalties)for(const sidewalkPenalty of sidewalkPenalties){
    if(Date.now()>deadline){timedOut=true;break;}
-   const attempt={penalty,pathPenalty};attempts.push(attempt);
-   const candidate=router(start,end,{...options,lineAllowed:checker.allowed,_optimizeSharedPenalty:penalty,_optimizePathPenalty:pathPenalty,_optimizeDeadline:deadline,_optimizeMaxVisited:maxVisited});
+   const attempt={penalty,sidewalkPenalty};attempts.push(attempt);
+   const candidate=router(start,end,{...options,lineAllowed:checker.allowed,_optimizeSharedPenalty:penalty,_optimizeNonSidewalkPenalty:sidewalkPenalty,_optimizeDeadline:deadline,_optimizeMaxVisited:maxVisited});
    if(Date.now()>deadline){attempt.reason='time-limit';timedOut=true;break;}
    if(candidate.error){reject(attempt,candidate.error==='OPTIMIZATION_BUDGET'?'search-limit':candidate.error);if(candidate.error==='OPTIMIZATION_BUDGET')sawLimited=true;continue;}
    const parts=portions(graph,candidate);if(!parts){reject(attempt,'invalid-provenance');continue;}
    const distance=fullDistance(graph,candidate,start,end,parts);
-   Object.assign(attempt,{distanceMetres:distance,sharedMetres:parts.shared,footwayMetres:parts.footway,explicitSidewalkMetres:parts.sidewalk});
+   const currentShare=(currentParts.sidewalk+otherSidewalk)/(currentDistance+(hasParent?other:0)),candidateShare=(parts.sidewalk+otherSidewalk)/(distance+(hasParent?other:0));
+   Object.assign(attempt,{distanceMetres:distance,sharedMetres:parts.shared,footwayMetres:parts.footway,explicitSidewalkMetres:parts.sidewalk,sidewalkShare:candidateShare});
    if(distance>maxDistance+1e-7){reject(attempt,'detour-limit');continue;}
-   if(currentParts.shared-parts.shared<minimumReduction){reject(attempt,'insufficient-shared-reduction');continue;}
-   const near=hasNewPedestrianNearShared(graph,current,candidate,{radius,deadline,maxComparisons:config.maxComparisons??100000});
+   if(parts.shared>currentParts.shared+1e-7){reject(attempt,'shared-increased');continue;}
+   if(candidateShare+1e-12<currentShare){reject(attempt,'sidewalk-share-regression');continue;}
+   const sharedBetter=currentParts.shared-parts.shared>=minimumReduction,sidewalkBetter=candidateShare>currentShare+1e-12;
+   if(!sharedBetter&&!sidewalkBetter){reject(attempt,'insufficient-improvement');continue;}
+   let near=sidewalkBetter?hasNewSidewalkNearReplaced(graph,current,candidate,{radius,deadline,maxComparisons:config.maxComparisons??100000}):{near:false};
+   let reason='sidewalk-share-increased';
+   if(!near.near&&!near.limited&&sharedBetter){near=hasNewPedestrianNearShared(graph,current,candidate,{radius,deadline,maxComparisons:config.maxComparisons??100000});reason='shared-reduced';}
    if(Date.now()>deadline){attempt.reason='time-limit';timedOut=true;break;}
    if(!near.near){reject(attempt,near.limited?'proximity-limit':'no-connected-pedestrian-within-50m');if(near.limited)sawLimited=true;continue;}
    const verified=verifyLocal(candidate,start,end,options);if(verified.error){reject(attempt,'verification-failed');continue;}
    if(Date.now()>deadline){attempt.reason='time-limit';timedOut=true;break;}
    const work=checker.inspect(verified.coordinates);if(work.blocked.length){reject(attempt,'construction-blocked');continue;}
    if(Date.now()>deadline){attempt.reason='time-limit';timedOut=true;break;}
-   attempt.reason='eligible';
+   attempt.reason='eligible';attempt.improvementKind=reason;
    const value={...verified,provider:base.provider,construction:work,resolvedStart:base.resolvedStart,resolvedEnd:base.resolvedEnd,weightedCost:Object.values(candidate.costBreakdown||{}).reduce((a,b)=>a+b,0)};
-   if(!best||parts.shared<best.parts.shared||(parts.shared===best.parts.shared&&(parts.sidewalk>best.parts.sidewalk||(parts.sidewalk===best.parts.sidewalk&&(parts.footway>best.parts.footway||(parts.footway===best.parts.footway&&distance<best.distance))))))best={value,parts,distance,penalty,pathPenalty,attempt};
+   if(!best||candidateShare>best.share+1e-12||(Math.abs(candidateShare-best.share)<=1e-12&&(parts.shared<best.parts.shared||(parts.shared===best.parts.shared&&distance<best.distance))))best={value,parts,distance,share:candidateShare,penalty,sidewalkPenalty,attempt};
   }
   if(!constructionFresh(snapshot))return {error:'CONSTRUCTION_UNAVAILABLE'};
   if(timedOut||Date.now()>deadline){iterations.push({round:round+1,result:'time-limit',reasons:[...new Set(reasons)],attempts});status='time-limit';break;}
   if(!best){iterations.push({round:round+1,result:sawLimited?'search-limit':'no-improvement',reasons:[...new Set(reasons)],attempts});status=sawLimited?'search-limit':iterations.length>1?'improved':'no-improvement';break;}
   best.attempt.selected=true;
-  iterations.push({round:round+1,result:'improved',previousSharedMetres:currentParts.shared,sharedMetres:best.parts.shared,distanceMetres:best.distance,penalty:best.penalty,pathPenalty:best.pathPenalty,attempts});
-  current=best.value;currentParts=best.parts;status=round+1===maxIterations?'iteration-limit':'improved';
+  iterations.push({round:round+1,result:'improved',improvementKind:best.attempt.improvementKind,previousSharedMetres:currentParts.shared,sharedMetres:best.parts.shared,previousSidewalkShare:(currentParts.sidewalk+otherSidewalk)/(currentDistance+(hasParent?other:0)),sidewalkShare:best.share,distanceMetres:best.distance,penalty:best.penalty,sidewalkPenalty:best.sidewalkPenalty,attempts});
+  current=best.value;currentParts=best.parts;currentDistance=best.distance;status=round+1===maxIterations?'iteration-limit':'improved';
  }
  if(!constructionFresh(snapshot))return {error:'CONSTRUCTION_UNAVAILABLE'};
  // A synchronous router cannot be preempted during projection/verification.
  // Never deliver an improvement if the total deadline expired in that work.
  let rolledBack=false;
- if(status==='time-limit'||Date.now()>deadline){status='time-limit';rolledBack=current!==base;current=base;currentParts=original;}
+ if(status==='time-limit'||Date.now()>deadline){status='time-limit';rolledBack=current!==base;current=base;currentParts=original;currentDistance=originalDistance;}
  if(rolledBack)for(const iteration of iterations)if(iteration.result==='improved')iteration.rolledBack=true;
- return {...current,pedestrianImprovement:{status,rolledBack,originalDistanceMetres:originalDistance,maxDistanceMetres:maxDistance,originalSharedMetres:original.shared,sharedMetres:currentParts.shared,originalFootwayMetres:original.footway,footwayMetres:currentParts.footway,originalExplicitSidewalkMetres:original.sidewalk,explicitSidewalkMetres:currentParts.sidewalk,radiusMetres:radius,minimumReductionMetres:minimumReduction,searchLimits:{maxIterations,totalMs,maxVisited,maxComparisons:config.maxComparisons??100000},iterations}};
+ return {...current,pedestrianImprovement:{status,rolledBack,originalDistanceMetres:originalDistance,maxDistanceMetres:maxDistance,originalSharedMetres:original.shared,sharedMetres:currentParts.shared,originalFootwayMetres:original.footway,footwayMetres:currentParts.footway,originalExplicitSidewalkMetres:original.sidewalk,explicitSidewalkMetres:currentParts.sidewalk,originalSidewalkShare:(original.sidewalk+otherSidewalk)/(originalDistance+(hasParent?other:0)),sidewalkShare:(currentParts.sidewalk+otherSidewalk)/(currentDistance+(hasParent?other:0)),radiusMetres:radius,minimumReductionMetres:minimumReduction,searchLimits:{maxIterations,totalMs,maxVisited,maxComparisons:config.maxComparisons??100000},iterations}};
 }

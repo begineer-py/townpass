@@ -238,7 +238,7 @@ export function createRouter(graph) {
         if (graph.nodes[v][2] || !canTraverse(ei)) continue;
         let factor = edgeCostFactor(w,e[5],options);
         if(w.source==='osm-shared-street'&&Number.isFinite(options._optimizeSharedPenalty))factor+=Math.max(0,Math.min(20,options._optimizeSharedPenalty));
-        if(w.highway==='path'&&Number.isFinite(options._optimizePathPenalty))factor+=Math.max(0,Math.min(10,options._optimizePathPenalty));
+        if(w.source!=='osm-shared-street'&&!(w.highway==='footway'&&w.footway==='sidewalk')&&Number.isFinite(options._optimizeNonSidewalkPenalty))factor+=Math.max(0,Math.min(10,options._optimizeNonSidewalkPenalty));
         const mid = [
           (graph.nodes[u][0] + graph.nodes[v][0]) / 2,
           (graph.nodes[u][1] + graph.nodes[v][1]) / 2,

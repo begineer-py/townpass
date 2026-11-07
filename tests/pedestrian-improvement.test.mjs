@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {createRouter} from '../src/routing.mjs';
 import {createLocalRouteVerifier} from '../src/local-route-verifier.mjs';
 import {createConstructionChecker} from '../src/construction.mjs';
-import {improvePedestrianRoute,hasNewPedestrianNearShared} from '../src/pedestrian-improvement.mjs';
+import {improvePedestrianRoute,hasNewPedestrianNearShared,hasNewSidewalkNearReplaced} from '../src/pedestrian-improvement.mjs';
 import {planImprovedPlaces} from '../src/pedestrian-planning.mjs';
 const n=(x,y)=>[25+y/111195,121.5+x/100700,0];
 const proof={schemaVersion:2,coverage:0,maxUncoveredMetres:100,crossingCoverage:0,roadCrossingVerified:true,crossingVerified:true};
@@ -20,6 +20,28 @@ test('reduces actual shared-road length using a connected nearby pedestrian deto
  assert.ok(result.pedestrianImprovement.iterations.some(i=>i.result==='improved'));
  const chosen=result.pedestrianImprovement.iterations.flatMap(i=>i.attempts).find(a=>a.selected);
  assert.ok(chosen);assert.equal(chosen.reason,'eligible');assert.equal(chosen.sharedMetres,0);assert.ok(Number.isFinite(chosen.distanceMetres));
+});
+test('a route with no shared road can improve its explicit sidewalk share',()=>{
+ const g=graph();g.ways[0]={...g.ways[0],highway:'path',source:undefined,width:1.5,slope:0};g.edges[0][5]=proof;
+ g.ways.push({...g.ways[1],footway:'sidewalk'});for(const e of g.edges.slice(2))e[3]=2;
+ const snap=snapshot([]),checker=createConstructionChecker(snap),router=createRouter(g),verifyLocal=createLocalRouteVerifier(g),start=g.nodes[0].slice(0,2),end=g.nodes[2].slice(0,2),options={approachAllowed:(p,q)=>p[0]===q[0]&&p[1]===q[1]};
+ const base=verifyLocal(router(start,end,{...options,lineAllowed:checker.allowed}),start,end,options),result=improvePedestrianRoute(base,start,end,options,snap,{graph:g,router,verifyLocal,checker});
+ assert.equal(base.distance,110);assert.equal(result.error,undefined);assert.equal(result.distance,140);
+ assert.equal(result.pedestrianImprovement.originalSharedMetres,0);assert.equal(result.pedestrianImprovement.sharedMetres,0);
+ assert.ok(result.pedestrianImprovement.explicitSidewalkMetres>0);assert.equal(result.pedestrianImprovement.iterations[0].improvementKind,'sidewalk-share-increased');
+});
+test('shared reduction is rejected if full-route explicit sidewalk share decreases',()=>{
+ const g=graph();g.ways[1].footway='sidewalk';g.ways.push({...g.ways[1],footway:null});for(const e of g.edges.slice(2))e[3]=2;
+ const snap=snapshot([]),checker=createConstructionChecker(snap),router=createRouter(g),verifyLocal=createLocalRouteVerifier(g),start=g.nodes[0].slice(0,2),end=g.nodes[2].slice(0,2),options={approachAllowed:(p,q)=>p[0]===q[0]&&p[1]===q[1]};
+ const base=verifyLocal(router(start,end,{...options,lineAllowed:checker.allowed}),start,end,options),result=improvePedestrianRoute(base,start,end,options,snap,{graph:g,router,verifyLocal,checker});
+ assert.equal(result.distance,110);assert.equal(result.pedestrianImprovement.sharedMetres,10);
+ assert.ok(result.pedestrianImprovement.iterations[0].reasons.includes('sidewalk-share-regression'));
+});
+test('compares exact sidewalk share before distance rounding',()=>{
+ const g={nodes:[n(0,0),n(10,0),n(100,0)],ways:[{highway:'residential',source:'osm-shared-street'},{highway:'footway',footway:'sidewalk'},{highway:'path'}],edges:[[0,1,10,0,[],shared],[1,2,90,1,[],proof],[0,1,10.001,2,[],proof]]};
+ const base={edgeIds:[0,1],nodeIds:[0,1,2],coordinates:g.nodes.map(p=>p.slice(0,2)),distance:100},candidate={...base,edgeIds:[2,1],distance:100,costBreakdown:{base:100.001}};
+ const snapshotNow=snapshot([]),checker={allowed:()=>true,inspect:()=>({blocked:[]})},result=improvePedestrianRoute(base,g.nodes[0].slice(0,2),g.nodes[2].slice(0,2),{},snapshotNow,{graph:g,router:()=>candidate,verifyLocal:x=>x,checker});
+ assert.deepEqual(result.edgeIds,[0,1]);assert.ok(result.pedestrianImprovement.iterations[0].reasons.includes('sidewalk-share-regression'));
 });
 test('shared planning entry resolves and keeps actual registered station exit identities',()=>{
  const g=graph(),snap=snapshot([]),checker=createConstructionChecker(snap),exit={id:'exit',kind:'metro-elevator',station:'測試',name:'測試出口',lat:g.nodes[0][0],lon:g.nodes[0][1]},facilities=[exit],v=createLocalRouteVerifier(g,facilities),baseRouter=createRouter(g),router=(a,b,o={})=>baseRouter(a,b,{...o,approachAllowed:(p,q,side)=>p[0]===q[0]&&p[1]===q[1]&&v.approachAllowed(p,q,side==='start'?o.startPlace:o.endPlace,o,side)});
@@ -46,11 +68,13 @@ test('a via leg uses the whole original journey budget rather than a separate le
  assert.equal(local.distance,10);
  const joint=improvePedestrianRoute(base,x.start,via,x.options,x.snap,deps,{parentBaselineDistance:110,otherLegDistance:100});
  assert.equal(joint.distance,40);assert.equal(joint.pedestrianImprovement.maxDistanceMetres,43);assert.equal(joint.pedestrianImprovement.sharedMetres,0);
+ const withOtherSidewalk=improvePedestrianRoute(base,x.start,via,x.options,x.snap,deps,{parentBaselineDistance:110,otherLegDistance:100,otherLegSidewalkMetres:50});
+ assert.equal(withOtherSidewalk.distance,10);assert.ok(withOtherSidewalk.pedestrianImprovement.iterations[0].reasons.includes('sidewalk-share-regression'));
 });
 test('repeated improvements keep the original distance budget rather than compounding it',()=>{
  const g={nodes:[n(0,0),n(10,0),n(100,0),n(1,10),n(1,20)],ways:[{highway:'residential',source:'osm-shared-street'},{highway:'footway'}],edges:[[0,1,100,0,[],shared],[1,2,900,1,[],proof],[0,3,80,0,[],shared],[3,2,1120,1,[],proof],[0,4,60,0,[],shared],[4,2,1340,1,[],proof]]};
  const route=(ids,nodes,distance)=>({edgeIds:ids,nodeIds:nodes,coordinates:nodes.map(i=>g.nodes[i].slice(0,2)),distance,costBreakdown:{base:distance}}),base=route([0,1],[0,1,2],1000),first=route([2,3],[0,3,2],1200),second=route([4,5],[0,4,2],1400);
- let calls=0;const router=()=>++calls<=6?first:second,verifyLocal=c=>c,checker={allowed:()=>true,inspect:()=>({blocked:[]})},snap=snapshot([]);
+ let calls=0;const router=()=>++calls<=9?first:second,verifyLocal=c=>c,checker={allowed:()=>true,inspect:()=>({blocked:[]})},snap=snapshot([]);
  const result=improvePedestrianRoute(base,g.nodes[0].slice(0,2),g.nodes[2].slice(0,2),{},snap,{graph:g,router,verifyLocal,checker});
  assert.equal(result.distance,1200);assert.equal(result.pedestrianImprovement.maxDistanceMetres,1300);
  assert.ok(result.pedestrianImprovement.iterations[1].reasons.includes('detour-limit'));
@@ -88,7 +112,7 @@ test('timeout after an earlier improved round explicitly rolls back to the origi
  x.base=x.verifyLocal(x.router(x.start,x.end,{...x.options,lineAllowed:x.checker.allowed}),x.start,x.end,x.options);
  const alternate=x.router(x.start,x.end,{...x.options,lineAllowed:x.checker.allowed,_optimizeSharedPenalty:20});let calls=0;
  const delayed=()=>{if(++calls>1){const until=Date.now()+30;while(Date.now()<until){}}return alternate;};
- const result=improvePedestrianRoute(x.base,x.start,x.end,x.options,x.snap,{graph:x.g,router:delayed,verifyLocal:x.verifyLocal,checker:x.checker},{totalMs:20,penalties:[20],pathPenalties:[0]});
+ const result=improvePedestrianRoute(x.base,x.start,x.end,x.options,x.snap,{graph:x.g,router:delayed,verifyLocal:x.verifyLocal,checker:x.checker},{totalMs:20,penalties:[20],sidewalkPenalties:[0]});
  assert.equal(result.distance,110);assert.equal(result.pedestrianImprovement.status,'time-limit');assert.equal(result.pedestrianImprovement.rolledBack,true);
  assert.equal(result.pedestrianImprovement.iterations[0].rolledBack,true);
 });
@@ -97,10 +121,18 @@ test('a perpendicular crossing is not an along-route pedestrian alternative',()=
  assert.equal(hasNewPedestrianNearShared(g,{edgeIds:[0]},{edgeIds:[1]}).near,false);
  assert.equal(hasNewPedestrianNearShared(g,{edgeIds:[0]},{edgeIds:[2]}).near,false);
  assert.equal(hasNewPedestrianNearShared(g,{edgeIds:[0]},{edgeIds:[3]}).near,true);
+ g.ways[2].footway='sidewalk';assert.equal(hasNewSidewalkNearReplaced(g,{edgeIds:[0]},{edgeIds:[2]}).near,false);
+ assert.equal(hasNewSidewalkNearReplaced(g,{edgeIds:[0]},{edgeIds:[3]}).near,true);
+ g.ways[2].highway='path';assert.equal(hasNewSidewalkNearReplaced(g,{edgeIds:[0]},{edgeIds:[3]}).near,false);
 });
 test('nearby pedestrian edge must correspond to shared geometry actually removed',()=>{
  const g={nodes:[n(0,0),n(100,0),n(500,0),n(600,0),n(0,10),n(100,10)],ways:[{highway:'residential',source:'osm-shared-street'},{highway:'footway'}],edges:[[0,1,100,0,[],shared],[2,3,100,0,[],shared],[4,5,100,1,[],proof]]};
  assert.equal(hasNewPedestrianNearShared(g,{edgeIds:[0,1]},{edgeIds:[0,2]}).near,false);
+});
+test('new sidewalk must be near a non-sidewalk portion actually replaced',()=>{
+ const g={nodes:[n(0,0),n(100,0),n(500,0),n(600,0),n(0,10),n(100,10)],ways:[{highway:'path'},{highway:'footway',footway:'sidewalk'}],edges:[[0,1,100,0,[],proof],[2,3,100,0,[],proof],[4,5,100,1,[],proof]]};
+ assert.equal(hasNewSidewalkNearReplaced(g,{edgeIds:[0,1]},{edgeIds:[0,2]}).near,false);
+ assert.equal(hasNewSidewalkNearReplaced(g,{edgeIds:[0,1]},{edgeIds:[1,2]}).near,true);
 });
 test('partially retained projected shared edge credits only its removed portion',()=>{
  const g={nodes:[n(0,0),n(100,0),n(50,0),n(0,10),n(50,10),n(100,10)],ways:[{highway:'residential',source:'osm-shared-street'},{highway:'footway'}],edges:[[0,1,100,0,[],shared],[0,2,50,0,[],{...shared,derivedFrom:0}],[3,4,50,1,[],proof],[4,5,50,1,[],proof]]};

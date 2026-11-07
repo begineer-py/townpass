@@ -138,9 +138,9 @@ self.onmessage = async ({ data }) => {
           const ma=measurePedestrianRoute(routeGraph,a,data.start,data.via),mb=measurePedestrianRoute(routeGraph,b,data.via,data.end);
           if(ma&&mb){
             const total=ma.distance+mb.distance,limit=Math.min(total*1.3,total+300),deps={graph:routeGraph,router,verifyLocal,checker};
-            a=improvePedestrianRoute(a,data.start,data.via,{...data.options,endPlace:null},data.construction,deps,{parentBaselineDistance:total,otherLegDistance:mb.distance});
+            a=improvePedestrianRoute(a,data.start,data.via,{...data.options,endPlace:null},data.construction,deps,{parentBaselineDistance:total,otherLegDistance:mb.distance,otherLegSidewalkMetres:mb.sidewalk});
             if(!a.error){const improvedA=measurePedestrianRoute(routeGraph,a,data.start,data.via);
-              b=improvePedestrianRoute(b,data.via,data.end,{...data.options,startPlace:null},data.construction,deps,{parentBaselineDistance:total,otherLegDistance:improvedA.distance});}
+              b=improvePedestrianRoute(b,data.via,data.end,{...data.options,startPlace:null},data.construction,deps,{parentBaselineDistance:total,otherLegDistance:improvedA.distance,otherLegSidewalkMetres:improvedA.sidewalk});}
             if(!a.error&&!b.error){const resultA=measurePedestrianRoute(routeGraph,a,data.start,data.via),resultB=measurePedestrianRoute(routeGraph,b,data.via,data.end);
               result=combineRoutes(a,b,data.viaName);result.pedestrianImprovement={status:'via-legs',originalDistanceMetres:total,maxDistanceMetres:limit,distanceMetres:resultA.distance+resultB.distance,legs:[a.pedestrianImprovement,b.pedestrianImprovement]};}
           }

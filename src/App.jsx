@@ -1612,6 +1612,7 @@ export default function App() {
                       })}
                     </div>
                     <p className="quiet-note">線條反映已知資料，實際路況請留意現場。</p>
+                    {route.pedestrianImprovement?.status === 'unsupported-official-provenance' && <p className="quiet-note">使用官方原路；此路線暫無法比較沿線人行道替代路段。</p>}
                     {route.tierSegments?.some(segment => segment.sharedRoad === true) && (
                       <p className="quiet-note" role="note">部分路段可能人車共行，通行與無障礙狀況未確認。</p>
                     )}
