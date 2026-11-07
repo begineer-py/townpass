@@ -15,6 +15,21 @@ const colors = {
   parking: TPColors.grayscale600,
   health: TPColors.red700,
 };
+// 每個設施都有文字代號，不只靠顏色辨認。
+const glyphs = {
+  elevator: "梯",
+  toilet: "廁",
+  "public-toilet": "廁",
+  rest: "休",
+  water: "水",
+  park: "園",
+  ramp: "坡",
+  station: "站",
+  friendly: "店",
+  parking: "停",
+  bus: "車",
+  health: "醫",
+};
 export default function MapView({
   items,
   route,
@@ -49,6 +64,7 @@ export default function MapView({
       zoomAnimation: !matchMedia("(prefers-reduced-motion: reduce)").matches,
     }).setView([25.0478, 121.517], 15);
     map.current = m;
+    m.attributionControl?.setPrefix(false);
     marks.current = L.layerGroup().addTo(m);
     path.current = L.layerGroup().addTo(m);
     ends.current = L.layerGroup().addTo(m);
@@ -148,7 +164,7 @@ export default function MapView({
     const m = map.current,
       b = m.getBounds();
     const visible = items.filter((p) => b.contains([p.lat, p.lon]));
-    const cell = m.getZoom() < 14 ? 75 : 55,
+    const cell = m.getZoom() < 14 ? 110 : m.getZoom() < 17 ? 88 : 60,
       buckets = new Map();
     for (const p of visible) {
       const pos = m.latLngToContainerPoint([p.lat, p.lon]),
@@ -160,32 +176,33 @@ export default function MapView({
       const p = bucket[0],
         count = bucket.length,
         color = colorFriendly ? TPColors.primary900 : colors[category(p)] || TPColors.primary700;
-      const marker = L.circleMarker([p.lat, p.lon], {
-        radius: count > 1 || colorFriendly ? 12 : 6,
-        color: TPColors.white,
-        weight: 2,
-        fillColor: color,
-        fillOpacity: 0.96,
-      }).addTo(marks.current);
-      const tip = document.createElement("span");
-      tip.textContent = cleanName(p.name);
+      const face = document.createElement("span");
+      face.style.setProperty("--pin", color);
+      let marker;
       if (count > 1) {
-        const label = document.createElement("span");
-        label.textContent = count;
-        marker.bindTooltip(label, {
-          permanent: true,
-          direction: "center",
-          className: "cluster-label",
-        });
+        face.textContent = count;
+        marker = L.marker([p.lat, p.lon], {
+          icon: L.divIcon({ className: "cluster-pin", html: face, iconSize: null }),
+          keyboard: false,
+          title: `${count} 個地點，點一下放大`,
+        }).addTo(marks.current);
         marker.on("click", () =>
           m.setView([p.lat, p.lon], Math.min(19, m.getZoom() + 2)),
         );
       } else {
-        if (colorFriendly) {
-          const label = document.createElement('span');
-          label.textContent = ({elevator:'梯',toilet:'廁','public-toilet':'廁',rest:'休',water:'水',park:'園',ramp:'坡',station:'站',friendly:'店',parking:'停',bus:'車',health:'醫'})[category(p)] || '點';
-          marker.bindTooltip(label, {permanent:true,direction:'center',className:'cluster-label'});
-        } else marker.bindTooltip(tip, { direction: "top" });
+        face.textContent = glyphs[category(p)] || "點";
+        marker = L.marker([p.lat, p.lon], {
+          icon: L.divIcon({
+            className: `fac-pin${p.landmark ? " landmark" : ""}`,
+            html: face,
+            iconSize: [28, 28],
+            iconAnchor: [14, 14],
+          }),
+          keyboard: false,
+        }).addTo(marks.current);
+        const tip = document.createElement("span");
+        tip.textContent = cleanName(p.name);
+        marker.bindTooltip(tip, { direction: "top", offset: [0, -14] });
         marker.on("click", (ev) => {
           L.DomEvent.stopPropagation(ev);
           if (cb.current.pick) cb.current.onPick(p);

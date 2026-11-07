@@ -706,12 +706,9 @@ export default function App() {
     }
     calculate({ lat: hit.place.lat, lon: hit.place.lon, name: cleanName(hit.place.name) });
   }
-  async function call1999() {
+  // 台北通的 1999agree 會開啟 1999 語音通報對話框（需使用者同意）。
+  async function report1999() {
     if (!hasTownPass()) window.location.href = "tel:1999";
-    else await sendToTownPass("phone_call", "1999");
-  }
-  async function reportBlockage() {
-    if (!hasTownPass()) announce("路障回報要在台北通裡同意後送出。你也可以撥 1999。");
     else await sendToTownPass("1999agree", true);
   }
   const essential = new Set([
@@ -749,7 +746,8 @@ export default function App() {
   );
   const avoidPoints = useMemo(() => activeElevatorStops(data), [data]);
   const landmarks = useMemo(() => {
-    if (!data) return [];
+    // 公園與捷運站只在放大到街區時顯示，避免整張地圖都是標記。
+    if (!data || (viewport.zoom ?? 15) < 16) return [];
     return data.all
       .filter(
         (p) =>
@@ -760,7 +758,8 @@ export default function App() {
           p.lon <= viewport.bounds[3],
       )
       .sort((a, b) => distance(viewport, a) - distance(viewport, b))
-      .slice(0, 80);
+      .slice(0, 40)
+      .map((p) => ({ ...p, landmark: true }));
   }, [data, viewport]);
   const mapPins = useMemo(() => {
     const seen = new Set();
@@ -1287,13 +1286,9 @@ export default function App() {
                       </div>
                     )}
                     <div className="route-tools">
-                      <button type="button" onClick={call1999}>
+                      <button type="button" onClick={report1999}>
                         <Phone size={17} />
-                        撥打 1999
-                      </button>
-                      <button type="button" onClick={reportBlockage}>
-                        <AlertTriangle size={17} />
-                        回報路障
+                        1999 通報路障
                       </button>
                       <button
                         onClick={saveTrip}

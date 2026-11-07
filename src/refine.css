@@ -1,0 +1,336 @@
+/* ==========================================================================
+   Refinement layer（載入順序在 style.css 之後）
+   目標：接近 Apple 地圖的質感，同時守住台北通色票與無障礙對比。
+   - 顏色只用 TPColors token；文字與按鈕底色都達 4.5:1 以上。
+   - 動態效果一律尊重 prefers-reduced-motion。
+   ========================================================================== */
+
+:root {
+  /* 主要按鈕：primary700 配白字 5.89:1（台北通原本 primary500 配白字只有 2.39:1）。 */
+  --action: var(--tp-primary700);
+  --action-hover: var(--tp-primary800);
+  --action-press: var(--tp-primary800);
+  --action-text: var(--tp-primary700);
+
+  /* Apple 式的彈簧曲線與時間。 */
+  --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --t-fast: 120ms;
+  --t-mid: 240ms;
+
+  /* 半透明材質：地圖上的浮動元件。沒有 backdrop-filter 時退回實色白。 */
+  --material: color-mix(in srgb, var(--tp-white) 82%, transparent);
+  --material-strong: color-mix(in srgb, var(--tp-white) 92%, transparent);
+  --hairline: color-mix(in srgb, var(--tp-grayscale950) 10%, transparent);
+
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* 數字對齊：距離、時間、人數不跳動。 */
+.route-summary,
+.facility-copy small,
+.trip-card,
+.cluster-pin,
+.main-nav {
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- 按壓回饋：輕微縮小，放開回彈 --------------------------------------- */
+button,
+.primary,
+.secondary,
+.map-fab,
+.dock-group button,
+.omnibox {
+  transition:
+    transform var(--t-fast) var(--ease-out),
+    background-color var(--t-fast) linear,
+    box-shadow var(--t-fast) linear,
+    color var(--t-fast) linear;
+}
+button:active:not(:disabled),
+.omnibox:active {
+  transform: scale(0.97);
+}
+.map-fab:active:not(:disabled),
+.dock-group button:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+/* --- 主要、次要按鈕 ------------------------------------------------------ */
+.primary {
+  background: var(--action);
+  color: var(--tp-white);
+  border-radius: var(--tp-radius-btn);
+  box-shadow: none;
+  min-height: 50px;
+  font-weight: var(--tp-text-h3SemiBold-weight);
+  letter-spacing: 0.02em;
+}
+.primary:hover {
+  background: var(--action-hover);
+}
+.primary:active {
+  background: var(--action-press);
+}
+.primary:disabled {
+  background: var(--tp-grayscale100);
+  color: var(--tp-grayscale600);
+}
+.secondary {
+  color: var(--action-text);
+  border-color: var(--action-text);
+}
+
+/* --- 地圖上的浮動控制：白色材質、單一柔和陰影 --------------------------- */
+.map-fab,
+.dock-group button {
+  background: var(--material-strong);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  box-shadow:
+    0 0 0 0.5px var(--hairline),
+    0 4px 14px color-mix(in srgb, var(--tp-grayscale950) 14%, transparent);
+  color: var(--tp-grayscale900);
+}
+.map-fab:hover,
+.dock-group button:hover {
+  background: var(--tp-white);
+}
+
+/* 圖資標示：小字、半透明，不搶視線（OpenStreetMap 授權仍保留文字）。 */
+.leaflet-control-attribution {
+  background: var(--material) !important;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  color: var(--tp-grayscale700) !important;
+  font-size: 10px !important;
+  font-weight: 400 !important;
+  padding: 2px 8px !important;
+  border-radius: 0 0 0 var(--r-sm) !important;
+}
+.leaflet-control-attribution a {
+  color: var(--tp-grayscale800);
+}
+
+/* --- 地圖標記：白框彩色圓點＋文字代號；群組為白色膠囊 ----------------- */
+.fac-pin,
+.cluster-pin {
+  background: none;
+  border: 0;
+}
+.fac-pin span {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--tp-white);
+  background: var(--pin, var(--tp-primary700));
+  color: var(--tp-white);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--tp-grayscale950) 28%, transparent);
+}
+.fac-pin.landmark span {
+  width: 24px;
+  height: 24px;
+  font-size: 12px;
+  background: var(--tp-white);
+  color: var(--pin, var(--tp-primary800));
+  border: 2px solid var(--pin, var(--tp-primary700));
+}
+.cluster-pin span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: var(--r-pill);
+  background: var(--material-strong);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  color: var(--tp-grayscale900);
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow:
+    inset 0 0 0 2px var(--pin, var(--tp-primary700)),
+    0 2px 8px color-mix(in srgb, var(--tp-grayscale950) 22%, transparent);
+}
+.color-friendly .fac-pin span {
+  background: var(--tp-primary900);
+}
+
+/* --- 底部抽屜：較深的材質陰影與細把手 ---------------------------------- */
+@media (max-width: 700px) {
+  .panel {
+    box-shadow:
+      0 -0.5px 0 var(--hairline),
+      0 -8px 30px color-mix(in srgb, var(--tp-grayscale950) 12%, transparent);
+  }
+  .sheet-grip:after {
+    width: 36px;
+    height: 5px;
+    background: var(--tp-grayscale300);
+  }
+
+  /* 分頁列：iOS 式半透明材質，選中只改顏色與字重，不加指示條。 */
+  .main-nav {
+    background: var(--material-strong);
+    -webkit-backdrop-filter: saturate(180%) blur(24px);
+    backdrop-filter: saturate(180%) blur(24px);
+    box-shadow: 0 -0.5px 0 var(--hairline);
+  }
+  .main-nav button {
+    gap: 3px;
+    font-size: var(--tp-text-caption-size);
+    font-weight: 400;
+    color: var(--tp-grayscale600);
+  }
+  .main-nav button.active {
+    color: var(--tp-primary700);
+    font-weight: 600;
+    background: transparent;
+  }
+  .main-nav button.active:after {
+    display: none;
+  }
+}
+/* 舊規則把選中分頁設為 primary500（2.39:1），這裡改回可讀的顏色。 */
+.main-nav button.active {
+  color: var(--tp-primary700);
+}
+.high-contrast .main-nav button.active {
+  color: var(--tp-primary900);
+}
+
+/* --- 起訖點卡片：iOS 分組清單 ----------------------------------------- */
+.endpoints {
+  background: var(--surface-sunken);
+  border: 0;
+  border-radius: var(--r-md);
+}
+.endpoints .point-fields button + button,
+.point-fields hr {
+  border-color: color-mix(in srgb, var(--tp-grayscale950) 8%, transparent);
+}
+.swap {
+  background: var(--tp-white);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 0.5px var(--hairline),
+    0 2px 6px color-mix(in srgb, var(--tp-grayscale950) 12%, transparent);
+}
+
+/* 搜尋欄：iOS 搜尋框，填色、無邊框，聚焦時才出現外框。 */
+.omnibox {
+  background: color-mix(in srgb, var(--tp-grayscale100) 70%, var(--tp-white));
+  border-color: transparent;
+  color: var(--tp-grayscale600);
+}
+.omnibox svg {
+  color: var(--tp-grayscale600);
+}
+.omnibox:hover {
+  background: var(--tp-grayscale100);
+  border-color: transparent;
+}
+.omnibox:focus-visible {
+  background: var(--tp-white);
+  border-color: var(--tp-primary700);
+}
+.omnibox-settings {
+  background: color-mix(in srgb, var(--tp-grayscale100) 70%, var(--tp-white));
+}
+
+/* 分段選擇器（路線偏好）：iOS segmented control。 */
+.mode-tabs {
+  background: color-mix(in srgb, var(--tp-grayscale100) 80%, var(--tp-white));
+  border-radius: 9px;
+  padding: 2px;
+}
+.mode-tabs button {
+  border-radius: 7px;
+}
+.mode-tabs button.active {
+  box-shadow:
+    0 0 0 0.5px var(--hairline),
+    0 3px 8px color-mix(in srgb, var(--tp-grayscale950) 12%, transparent);
+}
+
+/* --- 提示訊息：從上方滑入的橫幅，不再蓋住抽屜與分頁列 ------------------ */
+.toast {
+  top: calc(env(safe-area-inset-top) + 10px);
+  bottom: auto;
+  background: var(--material-strong);
+  -webkit-backdrop-filter: saturate(180%) blur(24px);
+  backdrop-filter: saturate(180%) blur(24px);
+  color: var(--tp-grayscale900);
+  border-radius: 16px;
+  box-shadow:
+    0 0 0 0.5px var(--hairline),
+    0 10px 30px color-mix(in srgb, var(--tp-grayscale950) 18%, transparent);
+  font-size: var(--tp-text-bodyRegular-size);
+  line-height: 1.6;
+  padding: 12px 14px 12px 16px;
+}
+.toast svg {
+  color: var(--tp-primary700);
+}
+.toast button {
+  color: var(--tp-grayscale700);
+}
+.toast.visible {
+  animation: toast-in var(--t-mid) var(--ease-spring);
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -16px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+
+/* --- 卡片與清單 ------------------------------------------------------- */
+.trip-card,
+.station-card {
+  box-shadow:
+    0 0 0 0.5px var(--hairline),
+    0 2px 10px color-mix(in srgb, var(--tp-grayscale950) 6%, transparent);
+}
+.sheet-dialog {
+  border-radius: 16px;
+}
+
+/* 沒有半透明支援時，材質改成實色，維持文字對比。 */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root {
+    --material: var(--tp-white);
+    --material-strong: var(--tp-white);
+  }
+}
+/* 高對比：材質全部改成實色白，細線加深。 */
+.high-contrast {
+  --material: var(--tp-white);
+  --material-strong: var(--tp-white);
+  --hairline: var(--tp-grayscale700);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button:active:not(:disabled),
+  .omnibox:active,
+  .map-fab:active:not(:disabled),
+  .dock-group button:active:not(:disabled) {
+    transform: none;
+  }
+  .toast.visible {
+    animation: none;
+  }
+}
