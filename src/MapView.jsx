@@ -180,7 +180,11 @@ export default function MapView({
         );
       } else {
         marker.bindTooltip(tip, { direction: "top" });
-        marker.on("click", () => cb.current.onSelect(p));
+        marker.on("click", (ev) => {
+          L.DomEvent.stopPropagation(ev);
+          if (cb.current.pick) cb.current.onPick(p);
+          else cb.current.onSelect(p);
+        });
       }
     }
   }, [items, focus]);

@@ -849,13 +849,18 @@ small {
   margin: 12px 0;
   line-height: 1.85;
 }
+.sentence,
+.sentence-form {
+  margin: 0 0 12px;
+}
 .route-tools {
   display: flex;
+  flex-wrap: wrap;
   gap: 5px;
   margin: 16px 0;
 }
 .route-tools button {
-  flex: 1;
+  flex: 1 1 30%;
   display: flex;
   align-items: center;
   justify-content: center;

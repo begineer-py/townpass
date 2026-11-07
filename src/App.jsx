@@ -49,6 +49,7 @@ import {
   WifiOff,
   Compass,
   HelpCircle,
+  Phone,
 } from "lucide-react";
 import MapView from "./MapView";
 import { ROUTING_POLICY } from "./routing.mjs";
@@ -62,6 +63,7 @@ import {
   distance,
   formatDistance,
   category,
+  isLandmark,
   labels,
   cleanName,
   normalize,
@@ -70,6 +72,19 @@ import {
   currentConstruction,
 } from "./data";
 import { getLocation } from "./location";
+import { sendToTownPass } from "./bridge";
+import { fetchConstruction } from "./construction-client.mjs";
+import {
+  IDENTITIES,
+  DEMOS,
+  PHONES,
+  mapLink,
+  identityFromUser,
+  parseTripSentence,
+  matchPlace,
+  nearestStop,
+  activeElevatorStops,
+} from "./trip-extras.mjs";
 import { addressSearch } from "./address-search";
 import { maintenanceText, stationKey, stepText } from "./format.mjs";
 const icons = {
@@ -226,6 +241,7 @@ export default function App() {
     [listLimit, setListLimit] = useState(12),
     [stationQuery, setStationQuery] = useState(""),
     [speaking, setSpeaking] = useState(false),
+    [sentence, setSentence] = useState(""),
     [stepIndex, setStepIndex] = useState(0),
     [online, setOnline] = useState(navigator.onLine);
   const [basemap, setBasemap] = useState(() => {
@@ -346,6 +362,8 @@ export default function App() {
   useEffect(() => {
     if (panelScroll.current) panelScroll.current.scrollTop = 0;
   }, [tab]);
+  const wantedStop = useRef(null);
+  const pendingRoute = useRef(null);
   const worker = useRef(),
     request = useRef(0),
     map = useRef(),
@@ -386,6 +404,25 @@ export default function App() {
       window.removeEventListener("offline", off);
       clearTimeout(announceTimer.current);
       window.speechSynthesis?.cancel();
+    };
+  }, []);
+  useEffect(() => {
+    let gone = false;
+    sendToTownPass("userinfo").then((info) => {
+      if (gone) return;
+      const id = identityFromUser(info);
+      const preset = IDENTITIES.find((row) => row[0] === id);
+      if (!preset) return;
+      setPrefs((current) => ({
+        ...current,
+        ...preset[2],
+        identity: id,
+        avoidSteps: true,
+        officialOnly: false,
+      }));
+    });
+    return () => {
+      gone = true;
     };
   }, []);
   useEffect(() => {
@@ -492,30 +529,161 @@ export default function App() {
       setLocating(false);
     }
   }
-  function calculate() {
-    if (!start || !end) {
+  async function navigateTo(place) {
+    setSelected(null);
+    setSearchFor(null);
+    setQuery("");
+    setPick(null);
+    setTab("plan");
+    setGraphRequested(true);
+    setFocus({ ...place, token: Date.now() });
+    if (matchMedia("(max-width: 700px)").matches) setSheetSnap(1);
+    let from = start;
+    if (!from) {
+      setLocating(true);
+      try {
+        from = await getLocation();
+        if (
+          from.lat < 24.94 ||
+          from.lat > 25.24 ||
+          from.lon < 121.42 ||
+          from.lon > 121.69
+        ) {
+          setEnd(place);
+          announce("你目前的位置在服務範圍外。可以先選一個臺北的出發地。");
+          return;
+        }
+      } catch {
+        setEnd(place);
+        announce("目前無法取得位置。請先選出發地，或在地圖上選點。");
+        return;
+      } finally {
+        setLocating(false);
+      }
+    }
+    setStart(from);
+    setEnd(place);
+    wantedStop.current = null;
+    announce(`正在規劃前往${cleanName(place.name)}的路線。`);
+    calculate({ start: from, end: place });
+  }
+  const avoidPoints = useMemo(
+    () => activeElevatorStops(data),
+    [data],
+  );
+  async function calculate(points) {
+    const from = points?.start || start;
+    const to = points?.end || end;
+    const via = points?.via || null;
+    if (!from || !to) {
       announce("選好出發地和目的地，就能一起看看適合的走法。");
       return;
     }
     if (!graphReady) {
+      pendingRoute.current = {
+        start: from,
+        end: to,
+        via,
+        prefs: points?.prefs,
+      };
       announce(
         graphError
           ? "路線資料暫時讀取不到，請重新整理後再試一次。"
-          : "正在準備路線資料，附近設施已經可以先查看。",
+          : "正在準備路線資料，準備好就會開始規劃。",
       );
       return;
     }
+    pendingRoute.current = null;
     clearRoute();
+    const id = ++request.current;
     setRouting(true);
     setRouteError("");
-    if (!worker.current) return;
+    let construction = null;
+    if (online) {
+      const snap = await Promise.race([
+        fetchConstruction(),
+        new Promise((resolve) =>
+          setTimeout(() => resolve({ error: "CONSTRUCTION_UNAVAILABLE" }), 4000),
+        ),
+      ]);
+      if (!snap?.error) construction = snap;
+    }
+    if (id !== request.current || !worker.current) {
+      if (id === request.current) setRouting(false);
+      return;
+    }
     worker.current.postMessage({
       type: "route",
-      id: ++request.current,
-      start: [start.lat, start.lon],
-      end: [end.lat, end.lon],
-      options: prefs,
+      id,
+      start: [from.lat, from.lon],
+      end: [to.lat, to.lon],
+      via: via ? [via.lat, via.lon] : null,
+      viaName: via?.name,
+      construction,
+      options: { ...(points?.prefs || prefs), avoidPoints },
     });
+  }
+  function runDemo(demo) {
+    setStart(demo.start);
+    setEnd(demo.end);
+    setTab("plan");
+    wantedStop.current = null;
+    calculate({ start: demo.start, end: demo.end });
+  }
+  function applySentence(event) {
+    event.preventDefault();
+    const parsed = parseTripSentence(sentence);
+    const preset = IDENTITIES.find((row) => row[0] === parsed.identity);
+    const nextPrefs = preset
+      ? {
+          ...prefs,
+          ...preset[2],
+          identity: parsed.identity,
+          avoidSteps: true,
+          officialOnly: false,
+        }
+      : prefs;
+    if (preset) setPrefs(nextPrefs);
+    const from = matchPlace(parsed.startName, data?.all);
+    const to = matchPlace(parsed.endName, data?.all);
+    if (!from || !to) {
+      announce("這句話裡還沒對到出發地和目的地。");
+      return;
+    }
+    setStart(from);
+    setEnd(to);
+    wantedStop.current = parsed.stop;
+    calculate({ start: from, end: to, prefs: nextPrefs });
+  }
+  function addStop(kind) {
+    const hit = nearestStop(route, data?.all, kind);
+    if (!hit) {
+      announce("這條路線 150 公尺內沒有這類設施。");
+      return;
+    }
+    wantedStop.current = null;
+    calculate({
+      via: {
+        lat: hit.place.lat,
+        lon: hit.place.lon,
+        name: cleanName(hit.place.name),
+      },
+    });
+  }
+  async function openPhoneMap() {
+    if (!start || !end) return;
+    const url = mapLink(start, end);
+    if (!window.flutterObject) window.open(url, "_blank", "noopener");
+    else await sendToTownPass("launch_map", url);
+  }
+  async function callNumber(number) {
+    if (!window.flutterObject) window.location.href = `tel:${number}`;
+    else await sendToTownPass("phone_call", number);
+  }
+  async function reportBlockage() {
+    if (!window.flutterObject)
+      announce("路障回報要在台北通裡同意後送出。你也可以撥 1999。");
+    else await sendToTownPass("agree1999", true);
   }
   const essential = new Set([
     "elevator",
@@ -550,6 +718,33 @@ export default function App() {
       ),
     [facilities, viewport],
   );
+  const landmarks = useMemo(() => {
+    if (!data) return [];
+    return data.all
+      .filter(
+        (p) =>
+          isLandmark(p) &&
+          p.lat >= viewport.bounds[0] &&
+          p.lat <= viewport.bounds[2] &&
+          p.lon >= viewport.bounds[1] &&
+          p.lon <= viewport.bounds[3],
+      )
+      .sort((a, b) => distance(viewport, a) - distance(viewport, b))
+      .slice(0, 80);
+  }, [data, viewport]);
+  const mapPins = useMemo(() => {
+    const seen = new Set();
+    const pins = [];
+    for (const p of [
+      ...(showMapFacilities ? mapItems : []),
+      ...landmarks,
+    ]) {
+      if (seen.has(p.id)) continue;
+      seen.add(p.id);
+      pins.push(p);
+    }
+    return pins;
+  }, [showMapFacilities, mapItems, landmarks]);
   const searchResults = useMemo(() => {
     if (!searchFor || !data) return [];
     const q = normalize(query);
@@ -660,6 +855,29 @@ export default function App() {
       announce("這次沒有分享行程，你可以稍後再試。");
     }
   }
+  useEffect(() => {
+    if (!graphReady || !pendingRoute.current) return;
+    const job = pendingRoute.current;
+    pendingRoute.current = null;
+    calculate(job);
+  }, [graphReady]);
+  useEffect(() => {
+    if (!route || route.viaName || !wantedStop.current) return;
+    const kind = wantedStop.current;
+    wantedStop.current = null;
+    const hit = nearestStop(route, data?.all, kind);
+    if (!hit) {
+      announce("這條路線 150 公尺內沒有這類設施。");
+      return;
+    }
+    calculate({
+      via: {
+        lat: hit.place.lat,
+        lon: hit.place.lon,
+        name: cleanName(hit.place.name),
+      },
+    });
+  }, [route]);
   const inspect = (p) => {
     setSelected(p);
     setFocus({ ...p, token: Date.now() });
@@ -672,6 +890,8 @@ export default function App() {
     NO_ROUTE:
       "目前沒有足夠資料確認兩點間有連續人行路線。我們不會改走車道補接；可以更換入口，或先查詢附近設施。",
     SAME_POINT: "這兩個位置很接近，可以再確認一下目的地入口。",
+    CONSTRUCTION_BLOCKED:
+      "今日施工擋住這段路，附近也沒有確認可走的人行繞路。",
   };
   return (
     <div className="app-shell">
@@ -875,6 +1095,43 @@ export default function App() {
                     在地圖選點
                   </button>
                 </div>
+                <form className="sentence" onSubmit={applySentence}>
+                  <label className="search-launch input">
+                    <Search size={20} />
+                    <input
+                      value={sentence}
+                      onChange={(e) => setSentence(e.target.value)}
+                      placeholder="例如：推嬰兒車從台北車站到大安森林公園，順便找無障礙廁所"
+                      aria-label="用一句話規劃路線"
+                    />
+                  </label>
+                </form>
+                <div className="mode-tabs" aria-label="出行身分">
+                  {IDENTITIES.map(([id, name, preset]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      aria-pressed={prefs.identity === id}
+                      className={prefs.identity === id ? "active" : ""}
+                      onClick={() => updatePrefs({ ...preset, identity: id })}
+                    >
+                      {name}
+                    </button>
+                  ))}
+                </div>
+                <div className="point-actions" aria-label="示範路線">
+                  {DEMOS.map((demo) => (
+                    <button
+                      key={demo.name}
+                      className="text-button"
+                      type="button"
+                      onClick={() => runDemo(demo)}
+                      disabled={routing || !graphReady}
+                    >
+                      {demo.name}
+                    </button>
+                  ))}
+                </div>
                 <div className="preference-bar">
                   <Accessibility size={20} />
                   <span>
@@ -934,6 +1191,24 @@ export default function App() {
                 )}
                 {route && (
                   <>
+                    {route.construction?.avoided > 0 && (
+                      <p className="quiet-note">
+                        已避開 {route.construction.avoided} 處今日施工。
+                      </p>
+                    )}
+                    {route.constructionOpen && (
+                      <p className="quiet-note">
+                        這條路仍經過今日施工，附近沒有可繞開的人行道。
+                      </p>
+                    )}
+                    {avoidPoints.length > 0 && (
+                      <p className="quiet-note">
+                        今天有電梯保養，路線會盡量不從那些出口經過。
+                      </p>
+                    )}
+                    {route.viaName && (
+                      <p className="quiet-note">順路停靠：{route.viaName}</p>
+                    )}
                     <div className="route-summary">
                       <div>
                         <span className="eyebrow">路線預覽</span>
@@ -972,7 +1247,33 @@ export default function App() {
                         路程使用一般道路路網，尚未確認是否有連續人行空間。
                       </p>
                     )}
+                    <div className="point-actions">
+                      <button type="button" onClick={() => addStop("toilet")}>
+                        <Toilet size={16} />
+                        順路找無障礙廁所
+                      </button>
+                      <button type="button" onClick={() => addStop("rest")}>
+                        <Armchair size={16} />
+                        順路找歇腳椅
+                      </button>
+                    </div>
                     <div className="route-tools">
+                      <button type="button" onClick={openPhoneMap}>
+                        <Navigation size={17} />
+                        手機地圖
+                      </button>
+                      <button type="button" onClick={() => callNumber(PHONES.metro)}>
+                        <Phone size={17} />
+                        捷運專線
+                      </button>
+                      <button type="button" onClick={() => callNumber(PHONES.city)}>
+                        <Phone size={17} />
+                        1999
+                      </button>
+                      <button type="button" onClick={reportBlockage}>
+                        <AlertTriangle size={17} />
+                        回報路障
+                      </button>
                       <button onClick={saveTrip}>
                         <Bookmark size={17} />
                         存下行程
@@ -1197,7 +1498,7 @@ export default function App() {
         </aside>
         <main className="map-area" aria-label="地圖與設施">
           <MapView
-            items={showMapFacilities ? mapItems : []}
+            items={mapPins}
             basemap={basemap}
             onBasemapStatus={setBasemapStatus}
             route={route}
@@ -1206,7 +1507,7 @@ export default function App() {
             focus={{ ...viewport, ...focus }}
             pick={pick}
             onPick={selectPoint}
-            onSelect={inspect}
+            onSelect={(p) => (isLandmark(p) ? navigateTo(p) : inspect(p))}
             onViewport={setViewport}
             onMapReady={(m) => (map.current = m)}
             onGesture={() => {
@@ -1574,10 +1875,7 @@ export default function App() {
               </div>
               <button
                 className="primary full"
-                onClick={() => {
-                  changePoint("end", selected);
-                  setSelected(null);
-                }}
+                onClick={() => navigateTo(selected)}
               >
                 我要到這裡
                 <ArrowRight size={18} />
