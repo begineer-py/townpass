@@ -147,29 +147,56 @@ export default function MapView({
     root.current?.removeAttribute("data-tile-error");
     onBasemapStatus?.("loading");
     let failed = false;
-    const base = L.tileLayer(spec.url, {
-      maxZoom: 19,
-      maxNativeZoom: 19,
-      attribution: spec.attribution,
-      zIndex: 1,
-    });
-    base.on("loading", () => {
-      failed = false;
-      onBasemapStatus?.("loading");
-    });
-    base.on("tileerror", () => {
-      failed = true;
-      onBasemapStatus?.("error");
-      root.current?.setAttribute("data-tile-error", "true");
-    });
-    base.on("load", () => {
-      if (!failed) {
-        root.current?.removeAttribute("data-tile-error");
-        onBasemapStatus?.("ready");
+    const watch = (layer) => {
+      layer.on("loading", () => {
+        failed = false;
+        onBasemapStatus?.("loading");
+      });
+      layer.on("tileerror", () => {
+        failed = true;
+        onBasemapStatus?.("error");
+        root.current?.setAttribute("data-tile-error", "true");
+      });
+      layer.on("load", () => {
+        if (!failed) {
+          root.current?.removeAttribute("data-tile-error");
+          onBasemapStatus?.("ready");
+        }
+      });
+      layer.addTo(m);
+      baseLayers.current.push(layer);
+    };
+    // spec.close：放大到 minZoom 以上改用另一組圖磚（例如不印店名的底圖）。
+    const close = spec.close;
+    watch(
+      L.tileLayer(spec.url, {
+        maxZoom: close ? close.minZoom - 1 : 19,
+        maxNativeZoom: 19,
+        attribution: spec.attribution,
+        zIndex: 1,
+      }),
+    );
+    if (close) {
+      watch(
+        L.tileLayer(close.url, {
+          minZoom: close.minZoom,
+          maxZoom: 19,
+          maxNativeZoom: 19,
+          attribution: close.attribution,
+          zIndex: 1,
+        }),
+      );
+      if (close.overlay) {
+        const roads = L.tileLayer(close.overlay, {
+          minZoom: close.minZoom,
+          maxZoom: 19,
+          maxNativeZoom: 19,
+          zIndex: 2,
+        });
+        roads.addTo(m);
+        baseLayers.current.push(roads);
       }
-    });
-    base.addTo(m);
-    baseLayers.current.push(base);
+    }
     if (spec.overlay) {
       const overlay = L.tileLayer(spec.overlay, {
         maxZoom: 19,
