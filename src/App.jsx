@@ -279,6 +279,25 @@ export default function App() {
       avoidSteps: true,
       officialOnly: false,
     }));
+  // 搜尋紀錄：最近選過的地點，只存在這支手機（hhz- 開頭，設定裡的清除資料會一起刪）。
+  const [recents, setRecents] = useState(() => readSaved("hhz-recent-places", []));
+  const rememberPlace = (p) => {
+    if (!p || !Number.isFinite(p.lat) || !Number.isFinite(p.lon) || p.id === "my-location")
+      return;
+    const keep = {
+      id: p.id, name: p.name, lat: p.lat, lon: p.lon, kind: p.kind,
+      address: p.address, station: p.station, exit: p.exit, sourceId: p.sourceId,
+    };
+    setRecents((list) => {
+      const next = [keep, ...list.filter((x) => x.id !== p.id)].slice(0, 10);
+      saveLocal("hhz-recent-places", next);
+      return next;
+    });
+  };
+  const clearRecents = () => {
+    setRecents([]);
+    saveLocal("hhz-recent-places", []);
+  };
   const [saved, setSaved] = useState(() => readSaved("hhz-saved", [])),
     [trips, setTrips] = useState([]);
   const [route, setRoute] = useState(null),
@@ -826,7 +845,6 @@ export default function App() {
     const recentPlaces = trips
       .flatMap((trip) => [trip.start, trip.end])
       .filter((place) => Number.isFinite(place?.lat) && Number.isFinite(place?.lon));
-    const recentIds = new Set(recentPlaces.map((place) => place.id));
     const list = q
       ? [
           ...recentPlaces.filter((p) =>
@@ -836,15 +854,15 @@ export default function App() {
             normalize(p.name + " " + (p.address || "")).includes(q),
           ),
         ]
-      : [...recentPlaces, ...saved, ...data.fac.filter((p) => p.kind === "20")];
+      : [...recents, ...recentPlaces, ...saved];
     const used = new Set();
     return [...addressResults, ...list]
       .sort(
         (a, b) => {
           const exact = (a.name === query ? -1 : 0) - (b.name === query ? -1 : 0);
           if (exact) return exact;
-          if (!q && recentIds.has(a.id) !== recentIds.has(b.id))
-            return recentIds.has(a.id) ? -1 : 1;
+          // 沒有輸入時保留紀錄原本的順序（最近的在最上面）。
+          if (!q) return 0;
           return distance(viewport, a) - distance(viewport, b);
         },
       )
@@ -865,6 +883,7 @@ export default function App() {
     searchFor,
     saved,
     trips,
+    recents,
     addressResults,
     viewport.lat,
     viewport.lon,
@@ -885,6 +904,7 @@ export default function App() {
     );
   const selectSearchPlace = (p) => {
     if (searchFor === "explore") {
+      rememberPlace(p);
       setSearchFor(null);
       inspect(p);
       return;
@@ -899,6 +919,7 @@ export default function App() {
       });
       return;
     }
+    rememberPlace(p);
     changePoint(searchFor, p);
   };
   const exitUnderMaintenance = (p) =>
@@ -1932,6 +1953,7 @@ export default function App() {
           </div>
           {stationMatches.map(({ s, name, exits }) => {
             const pickExit = (p) => {
+              rememberPlace(p);
               if (searchFor === "explore") {
                 setSearchFor(null);
                 inspect(p);
@@ -1981,6 +2003,16 @@ export default function App() {
           })}
           {query && searchResults.length > 0 && (
             <p className="list-caption">找到 {searchResults.length} 個地方</p>
+          )}
+          {!query && searchResults.length > 0 && (
+            <div className="list-caption recent-caption">
+              <span>最近</span>
+              {recents.length > 0 && (
+                <button type="button" className="text-button" onClick={clearRecents}>
+                  清除
+                </button>
+              )}
+            </div>
           )}
           {searchResults.map((p) => (
             <FacilityRow
