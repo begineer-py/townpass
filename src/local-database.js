@@ -110,6 +110,7 @@ export async function saveTrips(profileKey, trips) {
   return fallbackSaved || databaseSaved;
 }
 
+// 清除這支手機上本服務存的所有資料：收藏、行程、出行方式與各項設定。
 export async function clearLocalData() {
   try {
     for (const key of Object.keys(localStorage)) {

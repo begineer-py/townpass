@@ -25,14 +25,27 @@ function point(coords,source,timestamp=coords?.timestamp){
  const measuredAt=timestamp!=null&&Number.isFinite(Number(timestamp))?Number(timestamp):null;
  return {lat,lon,name:'我的位置',id:'my-location',originKind:'gps',accuracy,needsConfirmation:accuracy==null||accuracy>100,locationSource:source,timestamp:measuredAt};
 }
-export async function getLocation(){
- let bridged;try{bridged=await sendToTownPass('location');}catch{}
- if(bridged){try{return point(bridged,'townpass');}catch{}}
- if(!globalThis.navigator?.geolocation)throw Error('unsupported');
+export async function browserLocation(){
  if(globalThis.isSecureContext===false)throw Error('insecure');
+ if(!globalThis.navigator?.geolocation)throw Error('unsupported');
  const request=options=>new Promise((resolve,reject)=>navigator.geolocation.getCurrentPosition(p=>{try{resolve(point(p.coords,'browser',p.timestamp));}catch(e){reject(e);}},reject,options));
  try{const coarse=await request({timeout:10000,maximumAge:60000,enableHighAccuracy:false});if(!coarse.needsConfirmation)return coarse;try{return await request({timeout:20000,maximumAge:0,enableHighAccuracy:true});}catch(error){if(error.code===1)throw error;return coarse;}}
  catch(error){if(error.code===1)throw error;return request({timeout:20000,maximumAge:0,enableHighAccuracy:true});}
+}
+export async function townPassLocation(){
+ let bridged;try{bridged=await sendToTownPass('location');}catch{return null;}
+ if(!bridged)return null;
+ try{return point(bridged,'townpass');}catch{return null;}
+}
+export function devLocation(search=globalThis.location?.search){
+ if(!import.meta.env?.DEV||!search)return null;
+ const [lat,lon]=String(new URLSearchParams(search).get('devLocation')||'').split(',').map(Number);
+ return Number.isFinite(lat)&&Number.isFinite(lon)?point({latitude:lat,longitude:lon,accuracy:5},'browser',Date.now()):null;
+}
+export async function getLocation(){
+ const fake=devLocation();if(fake)return fake;
+ const bridged=await townPassLocation();if(bridged)return bridged;
+ return browserLocation();
 }
 
 // A live subscription starts only when requested by the user. Town Pass exposes
@@ -56,4 +69,13 @@ export function watchLocation(onPosition,onError){
   } catch(error) { queueMicrotask(()=>fail(error)); }
  }
  return ()=>{active=false;clearTimeout(timer);if(watchId!=null)globalThis.navigator?.geolocation?.clearWatch?.(watchId);};
+}
+
+export function locationErrorText(error){
+ if(error?.message==='insecure')return '這個網址不是 HTTPS，瀏覽器不允許定位。請改用 https 網址或在電腦上用 localhost 開啟；也可以搜尋地點，或在地圖上選擇。';
+ if(error?.message==='unsupported')return '這個瀏覽器不支援定位。你仍可以搜尋地點，或在地圖上選擇。';
+ if(error?.code===1)return '沒有定位權限。請在瀏覽器或手機設定允許這個網站使用位置；也可以搜尋地點，或在地圖上選擇。';
+ if(error?.code===2)return '裝置目前取不到位置，請確認已開啟定位服務。你仍可以搜尋地點，或在地圖上選擇。';
+ if(error?.code===3)return '定位逾時，請到訊號較好的地方再試一次，或搜尋地點、在地圖上選擇。';
+ return '目前無法取得位置。你仍可以搜尋地點，或在地圖上選擇。';
 }

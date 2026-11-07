@@ -20,6 +20,7 @@ export function sourceCountLabel(source) {
 export const stationKey = (s) =>
   String(s || "")
     .replace(/臺/g, "台")
+    .replace(/[（(].*$/, "")
     .replace(/站$/, "");
 export const addressNorm = (s) =>
   String(s ?? "")

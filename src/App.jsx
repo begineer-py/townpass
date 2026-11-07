@@ -24,7 +24,6 @@ import {
   SlidersHorizontal,
   TrainFront,
   Accessibility,
-  Footprints,
   Toilet,
   ArrowUpFromLine,
   Armchair,
@@ -55,6 +54,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import MapView from "./MapView";
+import { routeFitPadding } from "./route-fit.mjs";
 import OfficialConditions from "./OfficialConditions";
 import {createConditionDetourSearch} from "./condition-detour-search.mjs";
 import {presentRouteCandidates, sortRouteCandidates} from "./route-candidates-presentation.mjs";
@@ -87,7 +87,6 @@ import {
   distance,
   formatDistance,
   category,
-  isLandmark,
   labels,
   cleanName,
   normalize,
@@ -95,7 +94,7 @@ import {
   saveLocal,
 } from "./data";
 import { getLocation, locationError, watchLocation, destinationPoint, swappedOrigin } from "./location";
-import { townPassUserKey, hasTownPass, sendToTownPass } from "./townpass-bridge";
+import { townPassUserKey, hasTownPass, postToTownPass } from "./townpass-bridge";
 import { travelProfiles } from "./travel-profiles";
 import { clearLocalData, loadProfile, loadTrips, saveProfile, saveTrips } from "./local-database";
 import {
@@ -1164,14 +1163,14 @@ export default function App() {
     const url = mapLink(start, end);
     window.open(url, "_blank", "noopener");
   }
-  async function callNumber(number) {
+  function callNumber(number) {
     if (!hasTownPass()) window.location.href = `tel:${number}`;
-    else await sendToTownPass("phone_call", number);
+    else postToTownPass("phone_call", number);
   }
-  async function reportBlockage() {
+  function reportBlockage() {
     if (!hasTownPass())
       announce("路障回報要在台北通裡同意後送出。你也可以撥 1999。");
-    else await sendToTownPass("1999agree", true);
+    else postToTownPass("1999agree", true);
   }
   const essential = new Set([
     "elevator",
@@ -1476,6 +1475,7 @@ export default function App() {
         <aside
           className="panel"
           hidden={!tab}
+          data-tab={tab}
           id="main-content"
           ref={panelEl}
           data-snap={sheetSnap}
@@ -1624,22 +1624,6 @@ export default function App() {
                           <small>{label}</small>
                           <strong className={point ? "" : "placeholder"}>{point?.name || placeholder}</strong>
                         </button>
-                        <div className="point-tools">
-                          <button className="point-tool" aria-label={`用目前位置當${noun}`}
-                            onClick={() => locate(which)} disabled={locating}>
-                            <LocateFixed size={20} aria-hidden="true" />
-                          </button>
-                          <button className="point-tool" aria-label={`在地圖上選${noun}`}
-                            aria-pressed={pick === which} onClick={() => {
-                              cancelPendingNavigation();
-                              cancelLocation();
-                              setPick(which);
-                              setSheetSnap(0);
-                              announce(`請在地圖上點選${noun}。`);
-                            }}>
-                            <MapPin size={20} aria-hidden="true" />
-                          </button>
-                        </div>
                       </div>
                     ))}
                   </div>
@@ -1725,15 +1709,6 @@ export default function App() {
                   {routing ? (routeAttempt ? `正在嘗試第 ${routeAttempt} 條繞路…` : "正在找路線…") : "規劃路線"}
                   <ArrowRight size={19} />
                 </button>
-                {(route || followState.active) && <div className="point-actions">
-                  <button type="button" onClick={followState.active?stopFollowing:startFollowing} disabled={!followState.active && (routing || Boolean(route?.viaName))}>
-                    <LocateFixed size={16}/>{followState.active?'停止位置跟隨':'開始位置跟隨'}
-                  </button>
-                </div>}
-                {route?.viaName && !followState.active && <p className="quiet-note">順路停靠的行程暫不支援位置跟隨。</p>}
-                {(followState.active || followState.message) && <p className="quiet-note" role="status">
-                  {followState.message || ({following:'位置跟隨中；偏離門檻依定位精度調整，輕微偏離可能不會觸發。',replanning:'偵測到偏離，正在重新規劃。',uncertain:'定位精度或時間不足，暫停自動重新規劃。',failed:'暫時無法重新規劃。',unavailable:'目前路線資料不足，暫停位置跟隨。'}[followState.status]||'')}
-                </p>}
                 {graphRequested && !graphReady && (
                   <p className="quiet-note" role="status">
                     {graphError
@@ -1795,6 +1770,46 @@ export default function App() {
                 )}
                 {route && (
                   <>
+                    <div className="route-summary"><h2>全程 {formatDistance(route.distance)}</h2></div>
+                    {(route.requiresEntryConfirmation || route.approaches?.some(point => point.estimated) || route.startGap > 10 || route.endGap > 10) && <p className="quiet-note" role="note">請先確認入口和銜接路段能否通行。</p>}
+                    {(route.roadPct > 0 || route.tierSegments?.some(segment => segment.sharedRoad === true)) && <p className="quiet-note" role="note">部分路段可能人車共用，請留意來車。</p>}
+                    {route.officialConditions?.points?.length > 0 && <p className="quiet-note" role="note">沿途附近有通行問題紀錄，請查看路線詳情。</p>}
+                    {route.officialConditions?.status === "unavailable" && <p className="quiet-note" role="note">目前查不到沿途通行問題紀錄。</p>}
+                    {routeWorks.length > 0 && <p className="quiet-note" role="note">附近有施工，請留意現場指引。</p>}
+                    {(followState.active || !route.viaName) && <button type="button" className="primary full" disabled={routing && !followState.active} onClick={followState.active ? stopFollowing : startFollowing}>
+                      <LocateFixed size={20} aria-hidden="true" />{followState.active ? "停止跟隨" : "開始跟隨"}
+                    </button>}
+                    {route.viaName && !followState.active && <p className="quiet-note">順路停靠的行程暫不支援位置跟隨。</p>}
+                    {(followState.active || followState.message) && <p className="quiet-note" role="status">
+                      {followState.message || ({following:'位置跟隨中；偏離門檻依定位精度調整，輕微偏離可能不會觸發。',replanning:'偵測到偏離，正在重新規劃。',uncertain:'定位精度或時間不足，暫停自動重新規劃。',failed:'暫時無法重新規劃。',unavailable:'目前路線資料不足，暫停位置跟隨。'}[followState.status]||'')}
+                    </p>}
+                    <details className="route-disclosure"><summary>查看步驟</summary>
+                    <ol className="steps">
+                      {route.steps.map((s, i) => (
+                        <li
+                          key={i}
+                          className={stepIndex === i ? "current" : ""}
+                        >
+                          <button
+                            onClick={() => {
+                              setStepIndex(i);
+                              setFocus({ ...s, token: Date.now(), zoom: 18 });
+                            }}
+                          >
+                            <span className="step-number">{i + 1}</span>
+                            <span>
+                              <b>{stepText(s)}</b>
+                              <small>
+                                約 {formatDistance(s.distance)}
+                                {stepConditions(s) ? ` · ${stepConditions(s)}` : ''}
+                              </small>
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ol>
+                    </details>
+                    <details className="route-disclosure"><summary>路線詳情</summary>
                     {destinationNotice && <p className="quiet-note" role="note">{destinationNotice}</p>}
                     {route.construction && <p className="quiet-note">施工資料更新：{new Date(route.construction.sourceUpdatedAt).toLocaleString('zh-TW', {timeZone:'Asia/Taipei'})}{route.construction.unmapped > 0 ? ` · ${route.construction.unmapped} 處施工位置待確認` : ''}</p>}
                     {route.construction?.avoided > 0 && (
@@ -1843,20 +1858,7 @@ export default function App() {
                         {candidate.assumptions?.includes('official-attributes-missing-whole-route-penalty') && <span>官方資料不足，部分路段特徵未計入；評分包含資料缺失扣分。</span>}
                       </button>;})}
                     </section>}
-                    <div className="route-summary">
-                      <div>
-                        <span className="eyebrow">路線預覽</span>
-                        <h2>{formatDistance(route.distance)}</h2>
-                        <p>
-                          {route.provider === "mapped-pedestrian" ? "路網參考路線" : route.provider === "local-verified" ? "另一條人行路線" : route.provider === "local-detour" ? "已改走避開施工的人行路線" : route.provider === "taipei-official"
-                            ? "臺北市無障礙通行路線圖台回傳"
-                            : "離線人行路網參考"}
-                        </p>
-                      </div>
-                      <span className="route-symbol">
-                        <Footprints size={32} />
-                      </span>
-                    </div>
+                    <p className="quiet-note">{route.provider === "mapped-pedestrian" ? "路網參考路線" : route.provider === "local-verified" ? "另一條人行路線" : route.provider === "local-detour" ? "已改走避開施工的人行路線" : route.provider === "taipei-official" ? "臺北市無障礙通行路線圖台回傳" : "離線人行路網參考"}</p>
                     {route.costBreakdown && <p className="quiet-note">這條路依距離、路況資料、坡度與寬度等條件綜合比較；資料未知不代表無障礙。</p>}
                     {route.unknownPct > 0 && <p className="quiet-note">路寬／坡度：尚無完整資料{Number.isFinite(route.unknownWidthMetres) && Number.isFinite(route.unknownSlopeMetres) ? `（路網中約 ${Math.round(route.unknownWidthMetres)} 公尺寬度未知、${Math.round(route.unknownSlopeMetres)} 公尺坡度未知）` : ''}。</p>}
                     {!route.approaches && !route.requiresEntryConfirmation && (route.startGap > 10 || route.endGap > 10) && (
@@ -1924,34 +1926,6 @@ export default function App() {
                       )}
                     </div>
                     {route.crossingUncertainties?.length > 0 && <p className="quiet-note">路線包含 {route.crossingUncertainties.length} 段 OSM 過街資料未被官方資料完整覆蓋；地圖以點線標出相關路段。</p>}
-                    <div className="section-top">
-                      <h2>一步一步看路</h2>
-                      <span className="muted">共 {route.steps.length} 段</span>
-                    </div>
-                    <ol className="steps">
-                      {route.steps.map((s, i) => (
-                        <li
-                          key={i}
-                          className={stepIndex === i ? "current" : ""}
-                        >
-                          <button
-                            onClick={() => {
-                              setStepIndex(i);
-                              setFocus({ ...s, token: Date.now(), zoom: 18 });
-                            }}
-                          >
-                            <span className="step-number">{i + 1}</span>
-                            <span>
-                              <b>{stepText(s)}</b>
-                              <small>
-                                約 {formatDistance(s.distance)}
-                                {stepConditions(s) ? ` · ${stepConditions(s)}` : ''}
-                              </small>
-                            </span>
-                          </button>
-                        </li>
-                      ))}
-                    </ol>
                     {routeWorks.length > 0 && (
                       <>
                         <h2 className="section-title">沿途施工資料</h2>
@@ -1974,6 +1948,7 @@ export default function App() {
                         ))}
                       </>
                     )}
+                    </details>
                   </>
                 )}
               </>
@@ -2157,6 +2132,14 @@ export default function App() {
             onViewport={setViewport}
             onBearing={setBearing}
             onMapReady={(m) => (map.current = m)}
+            fitPadding={() => routeFitPadding({
+              phone: matchMedia("(max-width: 700px)").matches,
+              viewportHeight: window.innerHeight,
+              sheetFraction: SHEET_SNAPS[1],
+              sheetMax: parseFloat(panelEl.current?.style.getPropertyValue("--sheet-max")) || Infinity,
+              mapRect: map.current?.getContainer().getBoundingClientRect(),
+              panelRect: panelEl.current?.getBoundingClientRect(),
+            })}
             sheetSnap={sheetSnap}
             getBottomInset={()=>matchMedia('(max-width:700px)').matches && tab && panelEl.current ? window.innerHeight-panelEl.current.getBoundingClientRect().top : 0}
             onGesture={() => {
@@ -2364,7 +2347,7 @@ export default function App() {
               }}
             >
               <LocateFixed size={20} />
-              <span>使用我的位置</span>
+              <span>{locating ? "定位中…" : "使用目前位置"}</span>
             </button>
             <button
               onClick={() => {
@@ -2372,11 +2355,14 @@ export default function App() {
                 cancelLocation();
                 setPick(searchFor === "explore" ? "end" : searchFor);
                 setSearchFor(null);
+                setQuery("");
                 setTab("plan");
+                setSheetSnap(0);
+                announce(`請在地圖上點選${searchFor === "start" ? "出發地" : "目的地"}。`);
               }}
             >
               <MapPin size={20} />
-              <span>直接在地圖上選擇</span>
+              <span>在地圖上點選</span>
             </button>
           </div>
           {stationMatches.map((match) => (

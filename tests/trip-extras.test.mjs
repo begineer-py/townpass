@@ -9,6 +9,7 @@ import {
   matchPlace,
   identityFromUser,
   activeElevatorStops,
+  facilitiesAlongRoute,
   nearestStop,
 } from "../src/trip-extras.mjs";
 
@@ -77,4 +78,24 @@ test("a stop is chosen only within 150 metres of the route", () => {
   const far = { kind: "toilet", name: "遠廁所", lat: 25.01, lon: 121.5 };
   assert.equal(nearestStop(route, [far, near], "toilet").place.name, "近廁所");
   assert.equal(nearestStop(route, [far], "toilet"), null);
+});
+
+test("accessible toilets along a route are ordered by route progress", () => {
+  const route = {
+    coordinates: [
+      [25, 121.5],
+      [25, 121.51],
+      [25, 121.52],
+    ],
+  };
+  const places = [
+    { kind: "toilet", name: "後段", lat: 25.0001, lon: 121.519 },
+    { kind: "toilet", name: "前段", lat: 25.0001, lon: 121.501 },
+    { kind: "toilet", name: "太遠", lat: 25.01, lon: 121.51 },
+    { kind: "rest", name: "不是廁所", lat: 25, lon: 121.505 },
+  ];
+  assert.deepEqual(
+    facilitiesAlongRoute(route, places, "toilet").map(({ place }) => place.name),
+    ["前段", "後段"],
+  );
 });

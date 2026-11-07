@@ -55,7 +55,7 @@ const candidate={provider:'taipei-official',coordinates:[A,B],segmentPaths:[[A,B
 const deps={router:createRouter(graph),verifyOfficial:createOfficialRouteVerifier(graph)};
 test('routing truly takes longer verified pedestrian path around construction',()=>{
  const r=routeAroundConstruction(candidate,A,B,{},snapshot([work()]),deps,now);
- assert.equal(r.provider,'local-detour');assert.equal(r.distance,422);assert.equal(r.construction.avoided,1);assert.ok(r.coordinates.some(p=>p[0]===25.001));
+ assert.equal(r.provider,'local-detour');assert.equal(r.distance,422);assert.equal(r.construction.avoided,1);assert.deepEqual(r.construction.avoidedWorks.map(w=>w.id),['x']);assert.ok(r.coordinates.some(p=>p[0]===25.001));
 });
 test('blocked start connector and no alternative are not presented as safe routes',()=>{
  const r=routeAroundConstruction(candidate,A,B,{},snapshot([work({geometries:[{type:'Point',coordinates:[A]}]})]),deps,now);

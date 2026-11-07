@@ -7,7 +7,9 @@ import { ROUTE_CONDITIONS, conditionForSegment } from "./route-conditions.mjs";
 import { TPColors } from "./tp-colors.mjs";
 import { focusOffsetForInset, groupMarkers, isMetroStation, metroExitLabelForAccessibility, selectMapMarkers } from "./marker-layout.mjs";
 import { useSidewalkLayer } from "./use-sidewalk-layer.js";
-import { metroExitIconUrl, metroExitLabel } from "./metro-exits.mjs";
+import { isNumberedStationExit, metroExitIconUrl, metroExitLabel } from "./metro-exits.mjs";
+import { loadSidewalkIssues, visibleSidewalkIssues } from "./official-sidewalks.mjs";
+import { NO_WALK_URLS } from "./issue-icons.mjs";
 import { metroStationCodes, metroStationIconUrl } from "./metro-station-icons.mjs";
 import { mapIconElement } from "./map-icons.mjs";
 import { mapPickPoint } from "./location.js";
@@ -27,10 +29,20 @@ const colors = {
   health: TPColors.red700,
 };
 const iconKind = (kind) => ({ place: "store", "public-toilet": "toilet" })[kind] || kind;
-const isMetroExit = (p) => p.kind === "metro-elevator" || p.kind === "metro-exit";
-const markerKindLabel = (p) => p.kind === "metro-exit"
+const isMetroExit = (p) => p.kind === "metro-elevator" || p.kind === "metro-exit" || isNumberedStationExit(p);
+const isExitSymbol = (p) => p.kind === "metro-exit" || isNumberedStationExit(p);
+const markerKindLabel = (p) => isExitSymbol(p)
   ? metroExitLabelForAccessibility(p)
   : labels[category(p)] || "地點";
+const noWalkImages = NO_WALK_URLS.map((src) => Object.assign(new Image(), { src }));
+const ImageMark = L.CircleMarker.extend({
+  _updatePath() {
+    const renderer = this._renderer, img = this.options.image;
+    if (!renderer._drawing || this._empty() || !img?.complete) return;
+    const size = this._radius * 2;
+    renderer._ctx.drawImage(img, this._point.x - size / 2, this._point.y - size / 2, size, size);
+  },
+});
 const pinScale = (zoom) => Math.min(1.15, Math.max(0.9, 1 + (zoom - 18) * 0.13));
 const hasLabel = (p) => p.landmark || ["place", "friendly"].includes(category(p));
 const labelWidth = (name) => Math.min(99, [...name].reduce((w, ch) => w + (ch.charCodeAt(0) > 0x2e80 ? 11 : 6.5), 0)) + 4;
@@ -68,6 +80,7 @@ export default function MapView({
   onBearing,
   getBottomInset,
   sheetSnap,
+  fitPadding,
 }) {
   const root = useRef(),
     map = useRef(),
@@ -83,6 +96,8 @@ export default function MapView({
   const markerRedraw = useRef();
   markerData.current = { items, recentPlaces, colorFriendly };
   const paddingReader=useRef(getBottomInset);paddingReader.current=getBottomInset;
+  const fitPaddingReader=useRef(fitPadding);fitPaddingReader.current=fitPadding;
+  const routePadding = (height) => fitPaddingReader.current?.() || {paddingTopLeft:[24,40],paddingBottomRight:[24,Math.min(height-120,(paddingReader.current?.()||0)+24)]};
   const cb = useRef({ onPick, onSelect, onViewport, onGesture, onNearbySelect, onBearing, pick });
   cb.current = { onPick, onSelect, onViewport, onGesture, onNearbySelect, onBearing, pick };
   useEffect(() => {
@@ -145,6 +160,36 @@ export default function MapView({
     };
   }, []);
   useSidewalkLayer(map, location, showOfficialSidewalk, onOfficialSidewalkStatus);
+  useEffect(() => {
+    const m = map.current;
+    if (!m || !showOfficialSidewalk) return;
+    const pane = m.getPane("sidewalk-issues") || m.createPane("sidewalk-issues", m.getPane("rotatePane") || undefined);
+    pane.style.zIndex = "351";
+    pane.style.pointerEvents = "none";
+    const renderer = L.canvas({pane: "sidewalk-issues", padding: 0.25});
+    const layer = L.layerGroup().addTo(m);
+    let active = true, issues, timer;
+    const draw = () => {
+      if (!active) return;
+      layer.clearLayers();
+      if (!issues || m.getZoom() < 16) return;
+      const z = m.getZoom(), size = z >= 19 ? 28 : z >= 18 ? 24 : z >= 17 ? 20 : 16;
+      const cell = z >= 19 ? 38 : z >= 18 ? 46 : z >= 17 ? 54 : 64;
+      const taken = new Set();
+      for (const {lat, lon, kind} of visibleSidewalkIssues(issues, m.getBounds()).sort((a,b) => a.kind-b.kind)) {
+        const point = m.latLngToContainerPoint([lat, lon]), key = `${Math.floor(point.x/cell)}:${Math.floor(point.y/cell)}`;
+        if (taken.has(key)) continue;
+        taken.add(key);
+        if (kind === 3) L.circleMarker([lat, lon], {renderer, pane:"sidewalk-issues", radius:size*0.32, color:TPColors.red600, weight:z>=18?3:2.5, fillColor:TPColors.white, fillOpacity:1, interactive:false}).addTo(layer);
+        else new ImageMark([lat, lon], {renderer, pane:"sidewalk-issues", radius:size/2, image:noWalkImages[kind], interactive:false}).addTo(layer);
+      }
+    };
+    const schedule = () => {clearTimeout(timer); timer=setTimeout(draw,120);};
+    loadSidewalkIssues().then((data) => {if (!active) return; issues=data; draw();}).catch(() => {});
+    for (const img of noWalkImages) if (!img.complete) img.addEventListener("load", draw, {once:true});
+    m.on("moveend", schedule);
+    return () => {active=false; clearTimeout(timer); m.off("moveend", schedule); layer.remove(); renderer.remove();};
+  }, [showOfficialSidewalk]);
   useEffect(() => {
     if (!map.current) return;
     const m = map.current,
@@ -237,6 +282,7 @@ export default function MapView({
       const bounds = m.getBounds();
       const visible = [];
       for (const p of selectMapMarkers(markerData.current.items, markerData.current.recentPlaces, m.getZoom())) {
+        if (category(p) === "ramp") continue;
         if (!Number.isFinite(p.lat) || !Number.isFinite(p.lon) || !bounds.contains([p.lat, p.lon])) continue;
         const pos = m.latLngToContainerPoint([p.lat, p.lon]);
         visible.push({ p, x: pos.x, y: pos.y });
@@ -267,15 +313,15 @@ export default function MapView({
         const face = document.createElement("span");
         face.style.setProperty("--pin", color);
         const stationIcon = isMetroStation(p) ? metroStationIconUrl(metroStationCodes(p.name)[0]) : "";
-        const exitIcon = p.kind === "metro-exit" && m.getZoom() >= 16 ? metroExitIconUrl(p) : "";
-        if (p.kind === "metro-exit" && m.getZoom() >= 16) face.classList.add("metro-exit-face");
+        const exitIcon = isExitSymbol(p) && m.getZoom() >= 16 ? metroExitIconUrl(p) : "";
+        if (isExitSymbol(p) && m.getZoom() >= 16) face.classList.add("metro-exit-face");
         if (stationIcon) {
           face.classList.add("metro-station-face");
           const img = document.createElement("img"); img.src = stationIcon; img.alt = ""; face.appendChild(img);
         } else if (exitIcon) {
           face.classList.add("has-exit-icon");
           const img = document.createElement("img"); img.src = exitIcon; img.alt = ""; face.appendChild(img);
-        } else if (p.kind === "metro-exit" && m.getZoom() >= 16 && metroExitLabel(p) !== "梯") {
+        } else if (isExitSymbol(p) && m.getZoom() >= 16 && metroExitLabel(p) !== "梯") {
           face.textContent = metroExitLabel(p);
         } else {
           face.classList.add("has-glyph"); face.appendChild(mapIconElement(m.getZoom() < 16 && isMetroExit(p) ? "place" : p.kind === "metro-exit" ? "entrance" : p.kind === "metro-elevator" ? "elevator" : iconKind(kind), 16));
@@ -283,7 +329,7 @@ export default function MapView({
         const body = document.createElement("div");
         body.className = "pin-body";
         body.appendChild(face);
-        if (p.kind === "metro-exit" && m.getZoom() >= 16) {
+        if (isExitSymbol(p) && m.getZoom() >= 16) {
           const stationBadge = metroStationIconUrl(p.stationCode);
           if (stationBadge) {
             const img = document.createElement("img");
@@ -305,7 +351,7 @@ export default function MapView({
         const marker = L.marker([p.lat, p.lon], {
           title: multiple ? "選擇鄰近設施" : `${markerKindLabel(p)}：${name}`,
           icon: L.divIcon({
-            className: p.kind === "metro-exit" && m.getZoom() >= 16 ? "fac-pin metro-exit-pin" : p.landmark ? "fac-pin landmark" : "fac-pin",
+            className: isExitSymbol(p) && m.getZoom() >= 16 ? "fac-pin metro-exit-pin" : p.landmark ? "fac-pin landmark" : "fac-pin",
             html: body, iconSize: p.landmark ? [32, 32] : [28, 28], iconAnchor: p.landmark ? [16, 16] : [14, 14],
           }),
         }).addTo(marks.current);
@@ -326,7 +372,7 @@ export default function MapView({
             const choiceKind = category(choice), button = document.createElement("button"); button.type = "button";
             const iconUrl = isMetroStation(choice)
               ? metroStationIconUrl(metroStationCodes(choice.name)[0])
-              : choice.kind === "metro-exit" && m.getZoom() >= 16 ? metroExitIconUrl(choice) : "";
+              : isExitSymbol(choice) && m.getZoom() >= 16 ? metroExitIconUrl(choice) : "";
             const icon = iconUrl ? document.createElement("img") : mapIconElement(iconKind(choiceKind), 16);
             if (iconUrl) { icon.src = iconUrl; icon.alt = ""; }
             const text = document.createElement("span");
@@ -384,15 +430,15 @@ export default function MapView({
     if (route?.coordinates) {
       L.polyline(route.networkCoordinates || route.coordinates, {
         color: TPColors.white,
-        weight: 10,
+        weight: 13,
         opacity: 1,
       }).addTo(path.current);
       if(route.tierSegments?.length){
-        for(const segment of route.tierSegments){const style=ROUTE_CONDITIONS[conditionForSegment(segment)];const line=L.polyline(segment.coordinates,{color:colorFriendly?TPColors.primary900:style.color,weight:5,dashArray:style.dash,opacity:1}).addTo(path.current);if(segment.sharedRoad===true)line.bindTooltip(`${style.label}；請留意車輛及現場通行狀況`);}
+        for(const segment of route.tierSegments){const style=ROUTE_CONDITIONS[conditionForSegment(segment)];const line=L.polyline(segment.coordinates,{color:colorFriendly?TPColors.primary900:style.color,weight:8,dashArray:style.dash,opacity:1}).addTo(path.current);if(segment.sharedRoad===true)line.bindTooltip(`${style.label}；請留意車輛及現場通行狀況`);}
       }else {
         // The online response does not certify width or slope.
         const style=ROUTE_CONDITIONS.unknown;
-        L.polyline(route.networkCoordinates||route.coordinates,{color:colorFriendly?TPColors.primary900:style.color,weight:5,dashArray:style.dash,opacity:1}).addTo(path.current);
+        L.polyline(route.networkCoordinates||route.coordinates,{color:colorFriendly?TPColors.primary900:style.color,weight:8,dashArray:style.dash,opacity:1}).addTo(path.current);
       }
       for (const crossing of route.crossingUncertainties || []) {
         const coords = crossing.coordinates;
@@ -402,7 +448,7 @@ export default function MapView({
       }
       for(const approach of route.approaches || []) {const style=ROUTE_CONDITIONS.approach;L.polyline(approach.coordinates,{color:TPColors.white,weight:8,opacity:1}).addTo(path.current);const line=L.polyline(approach.coordinates,{color:colorFriendly?TPColors.primary900:style.color,weight:4,dashArray:style.dash}).addTo(path.current);if(approach.estimated)line.bindTooltip('入口及實際通行狀況未確認，虛線僅為位置估算');}
       drawOfficialConditions(path.current,route.officialConditions);
-      const fit=()=>{const height=map.current.getSize().y;map.current.fitBounds(L.latLngBounds(route.coordinates),{animate:false,paddingTopLeft:[24,40],paddingBottomRight:[24,Math.min(height-120,(paddingReader.current?.()||0)+24)]});};
+      const fit=()=>{const height=map.current.getSize().y;map.current.fitBounds(L.latLngBounds(route.coordinates),{animate:false,...routePadding(height)});};
       fit();const timer=setTimeout(fit,350);return ()=>clearTimeout(timer);
     }
   }, [route,sheetSnap,colorFriendly]);
@@ -427,7 +473,7 @@ export default function MapView({
       const point=partialRoute.gap[side];if(!point)continue;bounds.push(point);
       L.circleMarker(point,{radius:9,color:TPColors.white,weight:3,fillColor:TPColors.orange700,fillOpacity:1}).bindTooltip(label,{permanent:true,direction:side==='startSide'?'top':'bottom',offset:side==='startSide'?[0,-8]:[0,8]}).addTo(partialPath.current);
     }
-    if(bounds.length&&!route){const height=map.current.getSize().y;map.current.fitBounds(L.latLngBounds(bounds),{maxZoom:17,animate:false,paddingTopLeft:[24,40],paddingBottomRight:[24,Math.min(height-120,(paddingReader.current?.()||0)+24)]});}
+    if(bounds.length&&!route){const height=map.current.getSize().y;map.current.fitBounds(L.latLngBounds(bounds),{maxZoom:17,animate:false,...routePadding(height)});}
   },[partialRoute,route,sheetSnap,colorFriendly]);
   useEffect(() => {
     if (!blocked.current) return;
@@ -446,7 +492,7 @@ export default function MapView({
       shape.bindTooltip(label).addTo(blocked.current);
       bounds.push(...g.coordinates);
     }
-    if (bounds.length && !route) map.current.fitBounds(L.latLngBounds(bounds), {maxZoom:17, padding:[60,60], animate:false});
+    if (bounds.length && !route) map.current.fitBounds(L.latLngBounds(bounds), {maxZoom:17, ...routePadding(map.current.getSize().y), animate:false});
   }, [constructionConflict, route]);
   useEffect(() => {
     if(!gap.current)return;
@@ -459,7 +505,7 @@ export default function MapView({
     }
     if(!route&&!constructionConflict?.blocked?.length&&!nearbyCandidates?.length){
       const height=map.current.getSize().y;
-      map.current.fitBounds(L.latLngBounds(points.map(([point])=>point)),{maxZoom:17,animate:false,paddingTopLeft:[24,40],paddingBottomRight:[24,Math.min(height-120,(paddingReader.current?.()||0)+24)]});
+      map.current.fitBounds(L.latLngBounds(points.map(([point])=>point)),{maxZoom:17,animate:false,...routePadding(height)});
     }
   },[routeGap,route,constructionConflict,nearbyCandidates]);
   useEffect(() => {
@@ -472,7 +518,7 @@ export default function MapView({
       marker.bindTooltip(`${candidate.side==='start'?'起點':'目的地'}候選 ${index+1}：距原地點直線約 ${candidate.straightMetres} 公尺；不代表建物入口`);
       marker.on('click',event=>{L.DomEvent.stopPropagation(event);cb.current.onNearbySelect?.(candidate);});
     }
-    if(bounds.length&&!route){const height=map.current.getSize().y;map.current.fitBounds(L.latLngBounds(bounds),{maxZoom:17,animate:false,paddingTopLeft:[24,40],paddingBottomRight:[24,Math.min(height-120,(paddingReader.current?.()||0)+24)]});}
+    if(bounds.length&&!route){const height=map.current.getSize().y;map.current.fitBounds(L.latLngBounds(bounds),{maxZoom:17,animate:false,...routePadding(height)});}
   },[nearbyCandidates,route]);
   useEffect(() => {
     if (!ends.current) return;

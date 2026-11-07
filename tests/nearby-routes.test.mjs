@@ -4,7 +4,7 @@ import {createRouter} from '../src/routing.mjs';
 import {createLocalRouteVerifier} from '../src/local-route-verifier.mjs';
 import {planPlaces} from '../src/local-route-verifier.mjs';
 import {createConstructionChecker} from '../src/construction.mjs';
-import {createNearbyRoutes} from '../src/nearby-routes.mjs';
+import {createNearbyRoutes, verifyNearbyRoutes} from '../src/nearby-routes.mjs';
 
 const a=[25,121.5],b=[25,121.501],p=[25+30/111195,121.501];
 const proof={schemaVersion:2,coverage:0,maxUncoveredMetres:100,crossingCoverage:0,roadCrossingVerified:true,crossingVerified:true};
@@ -34,6 +34,14 @@ test('both original endpoints can independently offer unverified candidates',()=
  const router=createRouter(g),verifyLocal=createLocalRouteVerifier(g,[],[poi,second]),checker=createConstructionChecker(snap),find=createNearbyRoutes(g,{router,verifyLocal,facilities:[]});
  const result=find(second,poi,{},snap,checker);assert.equal(result.error,undefined);
  for(const side of ['start','end']){const choices=result.candidates.filter(c=>c.side===side);assert.ok(choices.length);assert.ok(choices.every(c=>c.routeVerified===false&&c.routeDistance===null));}
+ const verified=verifyNearbyRoutes(result,second,poi,{},snap,{router,verifyLocal,facilities:[],checker});
+ assert.ok(verified.candidates.length);
+ for (const candidate of verified.candidates) {
+  assert.ok(candidate.start && candidate.end);
+  assert.equal(candidate.route.geometryVerification,'pedestrian-network-v1');
+  assert.deepEqual(candidate.route.coordinates[0],[candidate.start.point.lat,candidate.start.point.lon]);
+  assert.deepEqual(candidate.route.coordinates.at(-1),[candidate.end.point.lat,candidate.end.point.lon]);
+ }
 });
 test('searches 50m first and widens only when inner candidates are unavailable',()=>{
  const {snap,checker,find}=setup();const inner=find(other,poi,{},snap,checker).candidates.filter(c=>c.side==='end');assert.ok(inner.length);assert.ok(inner.every(c=>c.searchRadius===50&&c.straightMetres<=50));

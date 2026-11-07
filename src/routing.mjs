@@ -5,6 +5,10 @@ import { officialGeometryEvidence } from "./supplemental-evidence.mjs";
 import { crossingEvidence, crossingUncertainty } from "./crossing-evidence.mjs";
 import {edgeTier,edgeCostFactor,edgeCostDetails,ROUTE_TIERS} from "./route-tiers.mjs";
 export const ROUTING_POLICY = "pedestrian-evidence-v4";
+// A Symbol cannot arrive through stored preferences or postMessage. It permits
+// a diagnostic comparison route to identify stairs without ever enabling them
+// in a user-facing route.
+export const STEP_DIAGNOSTIC = Symbol("step-diagnostic");
 // Building entrances sit back from the mapped footway. 50m reaches a sidewalk;
 // the approach is still rejected when it crosses a vehicle way outside a crossing.
 export const SNAP_METRES = 50;
@@ -48,8 +52,10 @@ export function edgeAllowed(way, options = {}, evidence = null) {
   // Safety constraints cannot be relaxed by UI options or old stored preferences.
   if (!way || ['no','private'].includes(way.access) || ['no','private'].includes(way.foot) || way.crossing === 'no') return false;
   const sharedRoad = eligibleSharedRoad(way, evidence);
+  const diagnosticStep =
+    way.highway === "steps" && options.stepDiagnostic === STEP_DIAGNOSTIC;
   if ((way.source === "osm-shared-street" || evidence?.sharedRoad === true) && !sharedRoad) return false;
-  if (!sharedRoad && !["footway", "path", "pedestrian", "corridor"].includes(way.highway))
+  if (!sharedRoad && !diagnosticStep && !["footway", "path", "pedestrian", "corridor"].includes(way.highway))
     return false;
   if (sharedRoad && options.officialOnly) return false;
   if(way.isConnector && (way.source!=='official-polygon-connector' || evidence?.connectorVerified!==true || !Number.isFinite(evidence.connectorLength) || evidence.connectorLength<=0 || evidence.connectorLength>3 || evidence.coverage<.9999 || evidence.maxUncoveredMetres>.0001))return false;
@@ -96,7 +102,7 @@ export function edgeAllowed(way, options = {}, evidence = null) {
   )
     return false;
   if (options.officialOnly && (evidence?.coverage ?? 0) < 0.95) return false;
-  if (options.avoidSteps !== false && way.highway === "steps") return false;
+  if (way.highway === "steps" && !diagnosticStep) return false;
   if (way.width != null && way.width < (options.minWidth ?? 0.8)) return false;
   if (way.slope != null && Math.abs(way.slope) > (options.maxSlope ?? 8))
     return false;

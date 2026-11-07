@@ -1,3 +1,4 @@
+import {planPlaces} from './local-route-verifier.mjs';
 import {edgeAllowed,metres} from './routing.mjs';
 import {constructionFresh} from './construction.mjs';
 import {roadConnectorChecker} from './geometry.mjs';
@@ -18,7 +19,7 @@ export function createNearbyRoutes(graph,{router,verifyLocal,facilities}){
    const key=`${y},${x}`;if(!grid.has(key))grid.set(key,[]);grid.get(key).push(i);
   }
  }
- return function findNearby(startPlace,endPlace,options,snapshot,checker,{radius=80,maxResults=3,maxAttempts=200,maxMs=10000}={}){
+ return function findNearby(startPlace,endPlace,options,snapshot,checker,{radius=80,maxResults=3,maxAttempts=200,maxMs=10000, includeOuter=false}={}){
   if(!constructionFresh(snapshot))return {error:'CONSTRUCTION_UNAVAILABLE'};
   const result=[];let attempts=0,truncated=false;
   for(const side of ['start','end']){
@@ -51,7 +52,8 @@ export function createNearbyRoutes(graph,{router,verifyLocal,facilities}){
    // Search 50m first; only a fully exhausted empty inner radius permits the
    // wider search. Candidates are detached positions, not verified routes.
    for(const limit of [Math.min(50,radius),radius]){
-    if(sideCount||interrupted)break;
+    if((sideCount && !includeOuter)||interrupted)break;
+    let radiusCount = 0;
     for(const item of pool){
      if(item.d>limit||(limit>50&&item.d<=50))continue;
      if(sideAttempts>=maxAttempts||Date.now()-sideStarted>=maxMs){truncated=true;interrupted=true;break;}
@@ -64,7 +66,7 @@ export function createNearbyRoutes(graph,{router,verifyLocal,facilities}){
      // Do not claim that this is an entrance, that the original point can be
      // reached, or that the full route to the other endpoint has been tested.
      result.push({side,point:pointPlace,straightMetres:Math.round(item.d),routeVerified:false,routeDistance:null,searchRadius:limit});
-     accepted.push(coordinate);if(++sideCount>=maxResults)break;
+     accepted.push(coordinate);sideCount++;if(++radiusCount>=maxResults)break;
     }
     if(limit===radius)break;
    }
@@ -72,4 +74,41 @@ export function createNearbyRoutes(graph,{router,verifyLocal,facilities}){
   if(!constructionFresh(snapshot))return {error:'CONSTRUCTION_UNAVAILABLE'};
   return {candidates:result,attempts,truncated,sourceUpdatedAt:snapshot.sourceUpdatedAt};
  };
+}
+
+// Try changing one endpoint first. If neither side alone can connect,
+// try both replacements. Keep the original-to-replacement gaps off the route.
+export function verifyNearbyRoutes(nearby, startPlace, endPlace, options, snapshot, deps) {
+ function replacements(side, original) {
+  const ground = nearby.candidates.filter(candidate => candidate.side === side);
+  const entrances = deps.facilities.filter(point => point.kind === 'metro-elevator' && point.id !== original.id)
+   .map(point => ({ side, point, straightMetres: Math.round(metres([original.lat, original.lon], [point.lat, point.lon])) }))
+   .filter(candidate => candidate.straightMetres > 0 && candidate.straightMetres <= 150)
+   .sort((a,b) => a.straightMetres - b.straightMetres).slice(0, 2);
+  return [...ground, ...entrances];
+ }
+ const starts = replacements('start', startPlace);
+ const ends = replacements('end', endPlace);
+ const singles = [
+  ...starts.map(start => ({ start })),
+  ...ends.map(end => ({ end })),
+ ];
+ const pairs = starts.flatMap(start => ends.map(end => ({ start, end })));
+ const distanceMoved = ({start, end}) => (start?.straightMetres ?? 0) + (end?.straightMetres ?? 0);
+ const candidates = [];
+ const deadline = Date.now() + 12000;
+ let truncated = nearby.truncated;
+ for (const group of [singles, pairs]) {
+  for (const choice of group.sort((a,b) => distanceMoved(a) - distanceMoved(b))) {
+   if (Date.now() >= deadline) { truncated = true; break; }
+   if (!constructionFresh(snapshot)) return { error: 'CONSTRUCTION_UNAVAILABLE' };
+   const route = planPlaces(choice.start?.point || startPlace, choice.end?.point || endPlace, options, snapshot, deps);
+   if (route.error || !Number.isFinite(route.distance)) continue;
+   candidates.push({ ...choice, route });
+   if (candidates.length === 2) break;
+  }
+  if (candidates.length || Date.now() >= deadline) break;
+ }
+ if (!constructionFresh(snapshot)) return { error: 'CONSTRUCTION_UNAVAILABLE' };
+ return { ...nearby, candidates, truncated };
 }

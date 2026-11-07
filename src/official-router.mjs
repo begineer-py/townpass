@@ -75,9 +75,12 @@ export function normalizeOfficialRoute(payload, start, end, options = {}) {
     const geometry = seg.geometry.coordinates;
     if (geometry.some((p) => !Number.isFinite(p[0]) || !Number.isFinite(p[1])))
       return { error: "OFFICIAL_INVALID" };
-    // An explicit absence of a crosswalk must never match the positive crossing tag.
-    if (/尚無行穿|無行穿|未設行穿|沒有行穿|無斑馬線/.test(String(seg.road_type || '')))
-      return {error:'OFFICIAL_CROSSING_UNVERIFIED'};
+    if (
+      /尚無行穿|無行穿|未設行穿|沒有行穿|無斑馬線/.test(
+        String(seg.road_type || ""),
+      )
+    )
+      return { error: "OFFICIAL_CROSSING_UNVERIFIED" };
     if (/階梯|樓梯/.test(String(seg.road_name || '') + ' ' + (seg.road_type || '')))
       return {error:'OFFICIAL_BLOCKED'};
     segmentPaths.push(geometry.map(toLatLon));

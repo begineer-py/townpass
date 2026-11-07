@@ -658,7 +658,7 @@ button.icon-action {
   border: 2px solid currentColor;
   border-radius: 8px;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1;
   letter-spacing: -0.02em;
   background: var(--tp-white);
@@ -1099,7 +1099,7 @@ button.icon-action {
   background: var(--tp-primary700);
   color: var(--tp-white);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1;
   box-shadow: 0 2px 6px color-mix(in srgb, var(--tp-grayscale950) 24%, transparent);
 }
@@ -1183,33 +1183,6 @@ button.icon-action {
   color: var(--tp-grayscale600);
   font-weight: var(--tp-text-bodyRegular-weight);
 }
-.point-tools {
-  display: flex;
-  gap: 2px;
-  flex-shrink: 0;
-}
-.endpoints .point-fields .point-tool {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  min-height: 0;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--tp-primary700);
-}
-.endpoints .point-fields .point-tool:hover {
-  background: var(--tp-primary50);
-}
-.endpoints .point-fields .point-tool[aria-pressed="true"] {
-  background: var(--tp-primary700);
-  color: var(--tp-white);
-}
-.endpoints .point-fields .point-tool:disabled {
-  opacity: 0.5;
-}
 @media (max-width: 700px) {
   .endpoints {
     padding-right: 4px;
@@ -1236,6 +1209,7 @@ button.icon-action {
   display: block;
   width: 100%;
   height: 100%;
+  object-fit: contain;
 }
 
 .recent-caption {
@@ -1462,4 +1436,46 @@ button.icon-action {
 .issue-ring {
   background: var(--tp-white);
   border: 2.5px solid var(--tp-red600);
+}
+
+.route-disclosure {
+  margin-block: 12px;
+}
+
+.route-disclosure > summary {
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.panel[data-tab="plan"] .route-summary h2 {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+}
+
+.panel[data-tab="plan"] .point-main strong,
+.panel[data-tab="plan"] .primary.full,
+.panel[data-tab="plan"] .route-disclosure > summary {
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.panel[data-tab="plan"] .point-main small,
+.panel[data-tab="plan"] .quiet-note,
+.panel[data-tab="plan"] .notice p,
+.panel[data-tab="plan"] .steps small {
+  color: var(--tp-grayscale900);
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.panel[data-tab="plan"] .route-summary h2,
+.panel[data-tab="plan"] .route-disclosure > summary,
+.panel[data-tab="plan"] .endpoints .point-fields strong.placeholder {
+  color: var(--tp-grayscale900);
 }

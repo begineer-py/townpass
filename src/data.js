@@ -23,10 +23,6 @@ export const normalize = (s) =>
     .replace(/臺/g, "台")
     .replace(/[\s・·（）()\-]/g, "")
     .toLowerCase();
-export function isLandmark(p) {
-  const kind = category(p);
-  return kind === "park" || kind === "station";
-}
 export function category(p) {
   return (
     {
@@ -60,7 +56,7 @@ export const labels = {
   bus: "公車站",
   health: "醫療與藥局",
   facility: "無障礙設施",
-  place: "地點",
+  place: "商店與地點",
   road: "道路",
 };
 export function readSaved(key, fallback) {
