@@ -2,7 +2,7 @@ import { pointError } from "../src/route-request.mjs";
 const upstream = "https://tppano.gov.taipei/shortestAccessibleRoute/api/v1/navigation_waypoints/";
 
 export function validPoints(body) {
-  return Array.isArray(body?.points) && body.points.length === 2 &&
+  return Array.isArray(body?.points) && body.points.length >= 2 && body.points.length <= 3 &&
     body.points.every(p => !pointError([p?.lat, p?.lng]));
 }
 
@@ -27,7 +27,7 @@ export default async function handler(req, res) {
       body = JSON.parse(text);
     } else if (typeof body === "string") body = JSON.parse(body);
   } catch { return send(400, { error: "INVALID_POINTS" }); }
-  if (!Array.isArray(body?.points) || body.points.length !== 2)
+  if (!Array.isArray(body?.points) || (body.points.length < 2 || body.points.length > 3))
     return send(400, { error: "INVALID_POINTS" });
   const errors = body.points.map(p => pointError([p?.lat, p?.lng]));
   if (errors.includes("OFFICIAL_INVALID_POINTS")) return send(400, { error: "INVALID_POINTS" });

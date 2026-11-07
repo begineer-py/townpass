@@ -4,7 +4,8 @@ import { validateNetwork } from "./network-contract.mjs";
 import { createOfficialRouteVerifier } from './verify-official-route.mjs';
 import {routeAroundConstruction,resolveVerifiedRoute} from './construction-routing.mjs';
 import {createConstructionChecker} from './construction.mjs';
-let router, verifyOfficial, initialization;
+import {createDetourWaypoints} from './alternative-routes.mjs';
+let router, verifyOfficial, initialization, detourWaypoints;
 self.onmessage = async ({ data }) => {
   try {
     if (data.type === "init") {
@@ -19,6 +20,7 @@ self.onmessage = async ({ data }) => {
       validateNetwork(graph);
       router = createRouter(graph);
       verifyOfficial = createOfficialRouteVerifier(graph);
+      detourWaypoints=createDetourWaypoints(graph);
       })();
       await initialization;
       postMessage({ type: "ready" });
@@ -26,6 +28,7 @@ self.onmessage = async ({ data }) => {
       await initialization;
       if (!verifyOfficial) throw Error('UNVERIFIED_NETWORK');
       const result=resolveVerifiedRoute(data.route,data.start,data.end,data.options,data.construction,{router,verifyOfficial});
+      if(result.error && ['OFFICIAL_PATH_UNVERIFIED','OFFICIAL_ROAD_CONFLICT','OFFICIAL_CROSSING_UNVERIFIED','OFFICIAL_ENTRY_UNVERIFIED','CONSTRUCTION_BLOCKED'].includes(result.error))result.detourWaypoints=detourWaypoints(data.start,data.end,result.detourCenter);
       postMessage({type:'verified-official',id:data.id,result});
     } else if (data.type === "route") {
       if (!router) throw Error("not ready");

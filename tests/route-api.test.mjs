@@ -3,9 +3,10 @@ import assert from 'node:assert/strict';
 import handler, { validPoints } from '../api/accessible-route.js';
 const points = [{ lat: 25.047, lng: 121.517 }, { lat: 25.048, lng: 121.517 }];
 const response = () => ({ headers: {}, setHeader(k,v) { this.headers[k]=v; }, end(v) { this.body=JSON.parse(v); } });
-test('route proxy accepts only two finite Taipei points', () => {
+test('route proxy accepts two endpoints and at most one via point', () => {
   assert.equal(validPoints({ points }), true);
-  for (const p of [[], [...points, points[0]], [{lat: NaN, lng:121.5},points[1]], [{lat:0,lng:0},points[1]]])
+  assert.equal(validPoints({ points: [...points, points[0]] }), true);
+  for (const p of [[], [...points, ...points], [{lat: NaN, lng:121.5},points[1]], [{lat:0,lng:0},points[1]]])
     assert.equal(validPoints({ points: p }), false);
 });
 test('route proxy rejects methods and invalid input without contacting upstream', async () => {

@@ -141,7 +141,7 @@ export function normalizeOfficialRoute(payload, start, end, options = {}) {
   };
 }
 export async function requestOfficialRoute(start, end, options = {}, signal, endpoint = "./api/accessible-route") {
-  const invalid = pointError(start) || pointError(end);
+  const invalid = pointError(start) || pointError(end) || (options.via ? pointError(options.via) : null);
   if (invalid) return { error: invalid };
   let response;
   try { response = await fetch(endpoint, {
@@ -150,6 +150,7 @@ export async function requestOfficialRoute(start, end, options = {}, signal, end
     body: JSON.stringify({
       points: [
         { lat: start[0], lng: start[1] },
+        ...(options.via ? [{lat:options.via[0],lng:options.via[1]}] : []),
         { lat: end[0], lng: end[1] },
       ],
     }),

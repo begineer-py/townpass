@@ -134,7 +134,7 @@ npm run build
 
 ### 路線服務部署
 
-市府端的 CORS 預檢未完整開放 POST JSON，因此瀏覽器透過本站 `POST /api/accessible-route` 查詢；Vite dev/preview 使用同一個 handler，Vercel 使用 `api/accessible-route.js` 函式。其他部署平台必須提供相同 Node API，不能只上傳 dist 到純靜態空間。轉接端只接受兩個臺北範圍座標、固定市府上游、20秒逾時，不轉傳 cookies/身分資料、不快取位置查詢，剔除上游內部路徑欄位。正式上線需依主機平台配置流量限制與位置日誌保存政策。
+市府端的 CORS 預檢未完整開放 POST JSON，因此瀏覽器透過本站 `POST /api/accessible-route` 查詢；Vite dev/preview 使用同一個 handler，Vercel 使用 `api/accessible-route.js` 函式。其他部署平台必須提供相同 Node API，不能只上傳 dist 到純靜態空間。轉接端接受起終點及最多一個途經點（共2–3個臺北範圍座標）、固定市府上游、20秒逾時，不轉傳 cookies/身分資料、不快取位置查詢，剔除上游內部路徑欄位。正式上線需依主機平台配置流量限制與位置日誌保存政策。
 
 
 ### 線上獨立幾何驗證

@@ -44,6 +44,7 @@ import {
 } from "lucide-react";
 import MapView from "./MapView";
 import VoiceSearch from "./VoiceSearch";
+import {searchVerifiedAlternatives} from "./alternative-routes.mjs";
 import {fetchConstruction} from "./construction-client.mjs";
 import {constructionFresh, CONSTRUCTION_MAX_AGE} from "./construction.mjs";
 import { requestOfficialRoute } from "./official-router.mjs";
@@ -268,6 +269,7 @@ export default function App() {
   const pendingVerifications = useRef(new Map());
   const lastConstruction = useRef(null);
   const [constructionConflict,setConstructionConflict] = useState(null);
+  const [routeAttempt,setRouteAttempt]=useState(0);
   function verifyOnlineRoute(route, start, end, id, construction) {
     return new Promise(resolve => {
       const timer=setTimeout(()=>{pendingVerifications.current.delete(id);resolve({error:'UNVERIFIED_NETWORK'});},30000);
@@ -418,6 +420,7 @@ export default function App() {
   };
   function clearRoute() {
     setConstructionConflict(null);
+    setRouteAttempt(0);
     for(const resolve of pendingVerifications.current.values()) resolve({error:'UNVERIFIED_NETWORK'});
     pendingVerifications.current.clear();
     officialRequest.current?.abort();
@@ -480,7 +483,7 @@ export default function App() {
       const id = request.current,
         controller = new AbortController();
       officialRequest.current = controller;
-      const timer = setTimeout(() => controller.abort(), 25000);
+      const timer = setTimeout(() => controller.abort(), 90000);
       try {
         const [result, construction] = await Promise.all([requestOfficialRoute(
           [start.lat, start.lon],
@@ -493,14 +496,23 @@ export default function App() {
         if (result.error) setRouteError(result.error);
         else if(construction.error) setRouteError(construction.error);
         else {
-          const verified=await verifyOnlineRoute(result,[start.lat,start.lon],[end.lat,end.lon],id,construction);
+          let verified=await verifyOnlineRoute(result,[start.lat,start.lon],[end.lat,end.lon],id,construction);
           if(id!==request.current)return;
+          if(verified.error && verified.detourWaypoints?.length){
+            const alternatives=await searchVerifiedAlternatives({start:[start.lat,start.lon],end:[end.lat,end.lon],waypoints:verified.detourWaypoints,signal:controller.signal,
+              onProgress:n=>{if(id===request.current)setRouteAttempt(n);},
+              query:(a,b,via,signal)=>requestOfficialRoute(a,b,{...prefs,via},signal),
+              verify:candidate=>verifyOnlineRoute(candidate,[start.lat,start.lon],[end.lat,end.lon],id,construction)});
+            if(id!==request.current)return;
+            if(alternatives.route)verified={...alternatives.route,alternativeAttempts:alternatives.attempts};
+            else if(alternatives.error==='CONSTRUCTION_UNAVAILABLE')verified=alternatives;
+          }
           setConstructionConflict(verified.construction || null);
           if(verified.error || verified.geometryVerification !== 'official-polygons-and-crossings-v1' || verified.policyVersion !== ROUTING_POLICY) setRouteError(verified.error || 'UNVERIFIED_NETWORK');
           else { setRoute(verified); setStepIndex(0); }
         }
       } catch (error) {
-        if (id === request.current) setRouteError("OFFICIAL_UNAVAILABLE");
+        if (id === request.current) setRouteError(error.name === "AbortError" ? "OFFICIAL_TIMEOUT" : "OFFICIAL_UNAVAILABLE");
       } finally {
         clearTimeout(timer);
         if (id === request.current) setRouting(false);
@@ -918,7 +930,7 @@ export default function App() {
                 >
                   <SlidersHorizontal size={18} /> 通行設定
                 </button>
-                {online && <p className="quiet-note">查詢時會將起終點位置傳給市府路線服務，不傳送身分資料。</p>}
+                {online && <p className="quiet-note">查詢時會將起終點及繞路途經點傳給市府路線服務，不傳送身分資料。</p>}
                 <button
                   className="primary full"
                   onClick={calculate}
@@ -929,7 +941,7 @@ export default function App() {
                   ) : (
                     <Route size={19} />
                   )}{" "}
-                  {routing ? "正在找路線…" : "規劃路線"}
+                  {routing ? (routeAttempt ? `正在嘗試第 ${routeAttempt} 條繞路…` : "正在找路線…") : "規劃路線"}
                   <ArrowRight size={19} />
                 </button>
                 {!graphReady && !online && (

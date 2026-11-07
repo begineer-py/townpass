@@ -18,7 +18,7 @@ export function createOfficialRouteVerifier(graph) {
       return {error:'OFFICIAL_INVALID'};
     // Check every complete segment, including GIS gap bridges; no distance sampling/buffers.
     for(let i=1;i<coords.length;i++) {
-      if(!covered(coords[i-1],coords[i])) return {error:'OFFICIAL_PATH_UNVERIFIED'};
+      if(!covered(coords[i-1],coords[i])) return {error:'OFFICIAL_PATH_UNVERIFIED',detourCenter:coords[i-1].map((x,k)=>(x+coords[i][k])/2)};
       if(!roadAllowed(coords[i-1],coords[i])) return {error:'OFFICIAL_ROAD_CONFLICT'};
     }
     if(!Array.isArray(route.segmentPaths)||!route.segmentPaths.length) return {error:'OFFICIAL_INVALID'};
