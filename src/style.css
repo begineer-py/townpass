@@ -51,7 +51,8 @@
   --gap: 12px;
   --map-inset: calc(var(--panel-w) + var(--gap) * 2);
 
-  font-size: 14px;
+  /* 基準字級 16px：內文 16、小字 14、標題 18（TPTextStyles 依比例放大，給長輩與弱視者閱讀）。 */
+  font-size: 16px;
   font-weight: var(--tp-text-bodyRegular-weight);
 }
 
@@ -1329,7 +1330,7 @@ small {
   top: 8px;
 }
 .large-text {
-  font-size: 18px;
+  font-size: 20px;
 }
 .high-contrast .quiet-note,
 .high-contrast small,
