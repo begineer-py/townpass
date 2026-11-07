@@ -313,6 +313,21 @@ export default function MapView({
         lineCap: "round",
         dashArray: route.requiresEntryConfirmation ? "8 6" : undefined,
       }).addTo(path.current);
+      for (const [index, step] of (route.steps || []).entries()) {
+        if (!Number.isFinite(step.lat) || !Number.isFinite(step.lon)) continue;
+        const marker = L.marker([step.lat, step.lon], {
+          icon: L.divIcon({
+            className: "route-step-pin",
+            html: `<span>${index + 1}</span>`,
+            iconSize: [24, 24],
+            iconAnchor: [12, 12],
+          }),
+          keyboard: false,
+        }).addTo(path.current);
+        const label = document.createElement("span");
+        label.textContent = `第 ${index + 1} 段：${cleanName(step.name) || step.turn || "繼續前進"}`;
+        marker.bindTooltip(label, { direction: "top" });
+      }
       for (const stair of route.avoidedStairs || []) {
         if (!Number.isFinite(stair.lat) || !Number.isFinite(stair.lon)) continue;
         const marker = L.circleMarker([stair.lat, stair.lon], {
@@ -322,9 +337,9 @@ export default function MapView({
           fillColor: TPColors.orange700,
           fillOpacity: 1,
         }).addTo(path.current);
-        marker.bindTooltip(`已避開階梯：${cleanName(stair.name)}`, {
-          direction: "top",
-        });
+        const label = document.createElement("span");
+        label.textContent = `已避開階梯：${cleanName(stair.name)}`;
+        marker.bindTooltip(label, { direction: "top" });
       }
       for (const work of route.construction?.avoidedWorks || []) {
         const geometry = work.geometry;
@@ -352,9 +367,10 @@ export default function MapView({
             weight: 4,
             dashArray: "6 5",
           });
-        layer
-          .addTo(path.current)
-          .bindTooltip(`已避開施工：${work.address}`, { direction: "top" });
+        layer.addTo(path.current);
+        const label = document.createElement("span");
+        label.textContent = `已避開施工：${work.address}`;
+        layer.bindTooltip(label, { direction: "top" });
       }
       map.current.fitBounds(L.latLngBounds(route.coordinates).pad(0.2));
     }

@@ -848,8 +848,14 @@ export default function App() {
       .map((s) => ({ s, name: s["車站名稱"], exits: stationsFor(s["車站名稱"]) }));
   }, [searchFor, query, data]);
   const routeWorks = route?.construction?.nearby?.slice(0,6) || [];
-  const routeToilets = useMemo(
-    () => facilitiesAlongRoute(route, data?.all, "toilet", 100, 6),
+  const routeFacilities = useMemo(
+    () =>
+      ["toilet", "rest", "water", "health"]
+        .flatMap((kind) =>
+          facilitiesAlongRoute(route, data?.all, kind, 100, 4),
+        )
+        .sort((a, b) => a.order - b.order || a.near - b.near)
+        .slice(0, 12),
     [route, data],
   );
   const avoidedWorks = route?.construction?.avoidedWorks || [];
@@ -880,10 +886,13 @@ export default function App() {
       avoidedStairs.length || avoidedWorks.length
         ? `已避開${avoidedStairs.length ? `${avoidedStairs.length}處階梯` : ""}${avoidedStairs.length && avoidedWorks.length ? "與" : ""}${avoidedWorks.length ? `${avoidedWorks.length}處施工` : ""}。`
         : "";
-    const toiletText = routeToilets.length
-      ? `沿途找到${routeToilets.length}處無障礙廁所。`
+    const toiletCount = routeFacilities.filter(
+      ({ place }) => category(place) === "toilet",
+    ).length;
+    const facilityText = routeFacilities.length
+      ? `沿途找到${routeFacilities.length}處設施${toiletCount ? `，其中${toiletCount}處為無障礙廁所` : ""}。`
       : "";
-    const text = `從${start.name}前往${end.name}，路線長約${formatDistance(route.distance)}。${avoidedText}${toiletText}${route.steps.map((s) => `${stepText(s)}約${Math.round(s.distance)}公尺。`).join("")}路況仍需留意現場，這是路線預覽。`;
+    const text = `從${start.name}前往${end.name}，路線長約${formatDistance(route.distance)}。${avoidedText}${facilityText}${route.steps.map((s) => `${stepText(s)}約${Math.round(s.distance)}公尺。`).join("")}路況仍需留意現場，這是路線預覽。`;
     speakText(text);
   }
   function speakText(text) {
@@ -1358,29 +1367,34 @@ export default function App() {
                         </div>
                       </>
                     )}
-                    {routeToilets.length > 0 && (
+                    {routeFacilities.length > 0 && (
                       <>
-                        <h2 className="section-title">沿途無障礙廁所</h2>
+                        <h2 className="section-title">沿途設施</h2>
                         <div
                           className="route-context-list"
-                          aria-label="沿途無障礙廁所"
+                          aria-label="沿途設施"
                         >
-                          {routeToilets.map(({ place, near }) => (
-                            <button
-                              type="button"
-                              key={place.id}
-                              onClick={() => inspect(place)}
-                            >
-                              <Toilet size={19} aria-hidden="true" />
-                              <span>
-                                <b>{cleanName(place.name)}</b>
-                                <small>
-                                  距路線約 {formatDistance(near)}
-                                </small>
-                              </span>
-                              <ChevronRight size={18} aria-hidden="true" />
-                            </button>
-                          ))}
+                          {routeFacilities.map(({ place, near }) => {
+                            const FacilityIcon =
+                              icons[category(place)] || MapPin;
+                            return (
+                              <button
+                                type="button"
+                                key={place.id}
+                                onClick={() => inspect(place)}
+                              >
+                                <FacilityIcon size={19} aria-hidden="true" />
+                                <span>
+                                  <b>{cleanName(place.name)}</b>
+                                  <small>
+                                    {labels[category(place)] || "設施"} ·
+                                    距路線約 {formatDistance(near)}
+                                  </small>
+                                </span>
+                                <ChevronRight size={18} aria-hidden="true" />
+                              </button>
+                            );
+                          })}
                         </div>
                       </>
                     )}
@@ -1599,7 +1613,7 @@ export default function App() {
           <MapView
             items={
               route
-                ? routeToilets.map(({ place }) => place)
+                ? routeFacilities.map(({ place }) => place)
                 : tab === "explore"
                   ? mapItems
                   : []
