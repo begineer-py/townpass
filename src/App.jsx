@@ -105,11 +105,9 @@ const icons = {
   road: Route,
 };
 const filters = [
-  ["all", "常用設施", Layers],
   ["toilet", "無障礙廁所", Toilet],
   ["rest", "歇歇腳", Armchair],
   ["water", "飲水處", GlassWater],
-  ["health", "醫療", Hospital],
 ];
 const sidewalkStatusText = {
   idle: "放大後顯示；首次開啟需載入官方資料",
@@ -214,7 +212,7 @@ export default function App() {
     [loading, setLoading] = useState(false),
     [loadError, setLoadError] = useState(false);
   const [tab, setTab] = useState("plan"),
-    [filter, setFilter] = useState("all"),
+    [filter, setFilter] = useState("toilet"),
     [viewport, setViewport] = useState({
       lat: 25.0478,
       lon: 121.517,
@@ -754,17 +752,8 @@ export default function App() {
   function report1999() {
     if (!postToTownPass("1999agree", true)) window.location.href = "tel:1999";
   }
-  const essential = new Set([
-    "toilet",
-    "rest",
-    "water",
-    "health",
-  ]);
   const facilities = useMemo(
-    () =>
-      data?.all.filter((p) =>
-        filter === "all" ? essential.has(category(p)) : category(p) === filter,
-      ) || [],
+    () => data?.all.filter((p) => category(p) === filter) || [],
     [data, filter],
   );
   const nearby = useMemo(
@@ -1032,19 +1021,6 @@ export default function App() {
               ["展開面板", "面板放到最大", "收合面板，顯示更多地圖"][sheetSnap]
             }
           />
-          <div className="omnibox-wrap">
-            <button className="omnibox" onClick={() => openSearch("explore")}>
-              <Search size={20} />
-              <span>搜尋地點、捷運站或路名</span>
-            </button>
-            <button
-              className="omnibox-settings"
-              aria-label="設定"
-              onClick={() => setModal("prefs")}
-            >
-              <SlidersHorizontal size={21} />
-            </button>
-          </div>
           <nav className="main-nav" aria-label="主要功能">
             {[
               ["explore", "找設施", Compass],
@@ -1066,6 +1042,13 @@ export default function App() {
                 <span>{label}</span>
               </button>
             ))}
+            <button
+              className="nav-utility"
+              aria-label="設定"
+              onClick={() => setModal("prefs")}
+            >
+              <SlidersHorizontal size={22} aria-hidden="true" />
+            </button>
           </nav>
           <div className="panel-scroll" ref={panelScroll}>
             {waitingForData && (

@@ -920,3 +920,19 @@ button.icon-action {
 .map-dock.open {
   z-index: 470;
 }
+.main-nav .nav-utility {
+  flex: 0 0 48px;
+  width: 48px;
+  max-width: 48px;
+  padding: 0;
+  border-radius: 50%;
+}
+@media (max-width: 700px) {
+  .main-nav button:not(.nav-utility) {
+    gap: 4px;
+    padding: 6px 2px;
+  }
+  .main-nav button span {
+    white-space: nowrap;
+  }
+}
