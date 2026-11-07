@@ -1,6 +1,5 @@
 # 部署
 
-<<<<<<<< HEAD:deployment/README.md
 本專案是 Vite 網站，路線驗證在瀏覽器的 Web Worker 執行，地圖資料隨網站一併發布。根目錄 `api/accessible-route.js` 與 `api/construction.js` 會由 Vercel 建立成 Node 函式，負責轉接市府路線查詢與施工資料，所以不能只上傳 `dist`。部署不需要資料庫、環境變數或 Flutter 專案。
 
 ## 以 Git 儲存庫部署
@@ -39,6 +38,3 @@ npm run preview
 ```
 
 Vite 會先驗證路網資料，再將靜態成品輸出至 `dist/`。Vercel 的 Vite 設定與輸出目錄可參考[官方建置設定說明](https://vercel.com/docs/builds/configure-a-build)；Git 連接與自動部署方式請參考[官方 Git 部署說明](https://vercel.com/docs/git)。
-========
-Vercel 設定與發布流程集中於 [deployment/README.md](deployment/README.md)。
->>>>>>>> origin/codex/accessibility-map-dev:DEPLOYMENT.md

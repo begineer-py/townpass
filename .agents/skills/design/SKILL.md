@@ -1,5 +1,5 @@
-# 設計指南 
-## KISS原則 
+# 設計指南
+## KISS原則
 - 使用者只需要看到夠用的資訊,不要無關標語,一個搜尋框預設界面
 ## 界面風格
 - 使用.agents\skills\townpass-web-design設計
@@ -37,7 +37,7 @@ fronted.md
 apis/
     {endpoint...}.md
 ```
-- 人類把需要更改的下個方向放在/plan內 不的在plan內產生修改任何檔案 
+- 人類把需要更改的下個方向放在/plan內 不的在plan內產生修改任何檔案
 - 設計.vscode自動排除人類不需要看的
 - Readme.md不應提到部屬方式 而是鏈接到/deployment
 ## 自動審查

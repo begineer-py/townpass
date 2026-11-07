@@ -1,0 +1,858 @@
+/* ==========================================================================
+   Refinement layer（載入順序在 style.css 之後）
+   目標：接近 Apple 地圖的質感，同時守住台北通色票與無障礙對比。
+   - 顏色只用 TPColors token；文字與按鈕底色都達 4.5:1 以上。
+   - 動態效果一律尊重 prefers-reduced-motion。
+   ========================================================================== */
+
+:root {
+  /* 主要按鈕：primary700 配白字 5.89:1（台北通原本 primary500 配白字只有 2.39:1）。 */
+  --action: var(--tp-primary700);
+  --action-hover: var(--tp-primary800);
+  --action-press: var(--tp-primary800);
+  --action-text: var(--tp-primary700);
+
+  /* Apple 式的彈簧曲線與時間。 */
+  --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --t-fast: 120ms;
+  --t-mid: 240ms;
+  --t-slow: 360ms;
+
+  /* 半透明材質：地圖上的浮動元件。沒有 backdrop-filter 時退回實色白。 */
+  --material: color-mix(in srgb, var(--tp-white) 82%, transparent);
+  --material-strong: color-mix(in srgb, var(--tp-white) 92%, transparent);
+  --hairline: color-mix(in srgb, var(--tp-grayscale950) 10%, transparent);
+
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* 數字對齊：距離、時間、人數不跳動。 */
+.route-summary,
+.facility-copy small,
+.trip-card,
+.cluster-pin,
+.main-nav {
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- 按壓回饋：輕微縮小，放開回彈 --------------------------------------- */
+button,
+.primary,
+.secondary,
+.map-fab,
+.dock-group button,
+.omnibox {
+  transition:
+    transform var(--t-fast) var(--ease-out),
+    background-color var(--t-fast) linear,
+    box-shadow var(--t-fast) linear,
+    color var(--t-fast) linear;
+}
+button:active:not(:disabled),
+.omnibox:active {
+  transform: scale(0.97);
+}
+.map-fab:active:not(:disabled),
+.dock-group button:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+/* 能由常見圖示辨識的操作不顯示文字，名稱仍由 aria-label 提供。 */
+button.icon-action {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 48px;
+  width: 48px;
+  min-width: 48px;
+  height: 48px;
+  min-height: 48px;
+  padding: 0;
+  border-radius: 50%;
+}
+.filter-grid .filter-action {
+  flex: 0 0 48px;
+  padding: 0;
+  justify-content: center;
+  border-radius: 50%;
+}
+.icon-actions {
+  justify-content: flex-start;
+  gap: 10px;
+}
+.route-tools.icon-actions .icon-action {
+  flex: 0 0 48px;
+}
+.route-tools.icon-actions .emergency-action {
+  display: inline-flex;
+  width: auto;
+  flex-basis: auto;
+  gap: 6px;
+  padding: 0 14px;
+  border-radius: var(--r-pill);
+}
+.detail-primary {
+  margin: 0 0 10px;
+}
+.detail-actions.icon-actions {
+  justify-content: flex-start;
+}
+.load-more.icon-action {
+  margin: 12px auto;
+}
+.icon-caption {
+  min-height: 24px;
+  align-items: center;
+  color: var(--tp-grayscale600);
+}
+
+/* 放大主要資訊，同時壓縮純留白；觸控目標仍維持至少 44px。 */
+.panel-scroll {
+  padding-top: 6px;
+}
+.omnibox {
+  font-size: 18px;
+}
+.filter-grid {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  margin: 0 -4px 2px;
+  padding: 2px 4px 5px;
+  scrollbar-width: none;
+}
+.filter-grid::-webkit-scrollbar {
+  display: none;
+}
+.list-caption {
+  margin: 8px 0 4px;
+}
+.facility-row {
+  min-height: 66px;
+}
+.facility-copy strong {
+  font-size: 17px;
+  line-height: 1.45;
+}
+.facility-copy > span,
+.distance,
+.quiet-note,
+.notice,
+.trip-card small {
+  font-size: 15px;
+}
+.point-fields button {
+  padding-block: 8px;
+}
+.point-fields small {
+  font-size: 15px;
+}
+.point-fields strong {
+  font-size: 20px;
+  line-height: 1.35;
+}
+.preference-bar,
+.mode-tabs button,
+.route-tools button,
+.steps button,
+.settings-row {
+  font-size: 16px;
+}
+.section-title,
+.section-top h2 {
+  font-size: 20px;
+}
+@media (max-width: 700px) {
+  :root {
+    --nav-h: calc(56px + env(safe-area-inset-bottom));
+  }
+  .main-nav {
+    height: var(--nav-h);
+  }
+  .main-nav button {
+    min-height: 52px;
+    padding: 4px 3px;
+  }
+  .panel-scroll {
+    padding: 4px 14px 10px;
+  }
+}
+
+/* 分頁與清單內容：短距離淡入，避免切換時畫面硬跳。 */
+.panel-scroll > :not(.sr-only),
+.sheet-body > :not(.sheet-head) {
+  animation: content-in var(--t-mid) var(--ease-out) both;
+}
+.facility-row,
+.trip-card,
+.station-group,
+.route-summary,
+.notice,
+.empty-card {
+  animation: content-in var(--t-mid) var(--ease-out) both;
+}
+@keyframes content-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* --- 主要、次要按鈕 ------------------------------------------------------ */
+.primary {
+  background: var(--action);
+  color: var(--tp-white);
+  border-radius: var(--tp-radius-btn);
+  box-shadow: none;
+  min-height: 50px;
+  font-weight: var(--tp-text-h3SemiBold-weight);
+  letter-spacing: 0.02em;
+}
+.primary:hover {
+  background: var(--action-hover);
+}
+.primary:active {
+  background: var(--action-press);
+}
+.primary:disabled {
+  background: var(--tp-grayscale100);
+  color: var(--tp-grayscale600);
+}
+.secondary {
+  color: var(--action-text);
+  border-color: var(--action-text);
+}
+
+/* --- 地圖上的浮動控制：白色材質、單一柔和陰影 --------------------------- */
+.map-fab,
+.dock-group button {
+  background: var(--material-strong);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  box-shadow:
+    0 0 0 0.5px var(--hairline),
+    0 4px 14px color-mix(in srgb, var(--tp-grayscale950) 14%, transparent);
+  color: var(--tp-grayscale900);
+}
+.map-fab:hover,
+.dock-group button:hover {
+  background: var(--tp-white);
+}
+
+/* 地圖標記只在加入地圖時回彈一次，不持續漂浮。 */
+.fac-pin span,
+.cluster-pin span {
+  animation: pin-in var(--t-slow) var(--ease-spring) both;
+  transform-origin: 50% 100%;
+}
+@keyframes pin-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.72);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* 圖資標示：小字、半透明，不搶視線（OpenStreetMap 授權仍保留文字）。 */
+.leaflet-control-attribution {
+  background: var(--material) !important;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  color: var(--tp-grayscale700) !important;
+  font-size: 10px !important;
+  font-weight: 400 !important;
+  padding: 2px 8px !important;
+  border-radius: 0 0 0 var(--r-sm) !important;
+}
+.leaflet-control-attribution a {
+  color: var(--tp-grayscale800);
+}
+
+/* --- 地圖標記：白框彩色圓點＋文字代號；群組為白色膠囊 ----------------- */
+.fac-pin,
+.cluster-pin {
+  background: none;
+  border: 0;
+}
+.fac-pin span {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--tp-white);
+  background: var(--pin, var(--tp-primary700));
+  color: var(--tp-white);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--tp-grayscale950) 28%, transparent);
+}
+.cluster-pin span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: var(--r-pill);
+  background: var(--material-strong);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  color: var(--tp-grayscale900);
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow:
+    inset 0 0 0 2px var(--pin, var(--tp-primary700)),
+    0 2px 8px color-mix(in srgb, var(--tp-grayscale950) 22%, transparent);
+}
+.color-friendly .fac-pin span {
+  background: var(--tp-primary900);
+}
+
+/* --- 底部抽屜：較深的材質陰影與細把手 ---------------------------------- */
+@media (max-width: 700px) {
+  .panel {
+    box-shadow:
+      0 -0.5px 0 var(--hairline),
+      0 -8px 30px color-mix(in srgb, var(--tp-grayscale950) 12%, transparent);
+  }
+  .sheet-grip:after {
+    width: 36px;
+    height: 5px;
+    background: var(--tp-grayscale300);
+  }
+
+  /* 分頁列：iOS 式半透明材質，選中只改顏色與字重，不加指示條。 */
+  .main-nav {
+    background: var(--material-strong);
+    -webkit-backdrop-filter: saturate(180%) blur(24px);
+    backdrop-filter: saturate(180%) blur(24px);
+    box-shadow: 0 -0.5px 0 var(--hairline);
+  }
+  .main-nav button {
+    gap: 3px;
+    font-size: var(--tp-text-bodyRegular-size);
+    font-weight: 400;
+    color: var(--tp-grayscale600);
+  }
+  .main-nav button.active {
+    color: var(--tp-primary700);
+    font-weight: 600;
+    background: transparent;
+  }
+  .main-nav button svg {
+    transition: transform var(--t-mid) var(--ease-spring);
+  }
+  .main-nav button.active svg {
+    transform: translateY(-1px) scale(1.08);
+  }
+  .main-nav button.active:after {
+    display: none;
+  }
+}
+/* 舊規則把選中分頁設為 primary500（2.39:1），這裡改回可讀的顏色。 */
+.main-nav button.active {
+  color: var(--tp-primary700);
+}
+.high-contrast .main-nav button.active {
+  color: var(--tp-primary900);
+}
+
+/* --- 起訖點卡片：iOS 分組清單 ----------------------------------------- */
+.endpoints {
+  background: var(--surface-sunken);
+  border: 0;
+  border-radius: var(--r-md);
+}
+.endpoints .point-fields button + button,
+.point-fields hr {
+  border-color: color-mix(in srgb, var(--tp-grayscale950) 8%, transparent);
+}
+.swap {
+  background: var(--tp-white);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 0.5px var(--hairline),
+    0 2px 6px color-mix(in srgb, var(--tp-grayscale950) 12%, transparent);
+}
+
+/* 搜尋欄：iOS 搜尋框，填色、無邊框，聚焦時才出現外框。 */
+.omnibox {
+  background: color-mix(in srgb, var(--tp-grayscale100) 70%, var(--tp-white));
+  border-color: transparent;
+  color: var(--tp-grayscale600);
+}
+.omnibox svg {
+  color: var(--tp-grayscale600);
+}
+.omnibox:hover {
+  background: var(--tp-grayscale100);
+  border-color: transparent;
+}
+.omnibox:focus-visible {
+  background: var(--tp-white);
+  border-color: var(--tp-primary700);
+}
+.omnibox-settings {
+  background: color-mix(in srgb, var(--tp-grayscale100) 70%, var(--tp-white));
+}
+
+/* 分段選擇器（路線偏好）：iOS segmented control。 */
+.mode-tabs {
+  background: color-mix(in srgb, var(--tp-grayscale100) 80%, var(--tp-white));
+  border-radius: 9px;
+  padding: 2px;
+}
+.mode-tabs button {
+  border-radius: 7px;
+}
+.mode-tabs button.active {
+  box-shadow:
+    0 0 0 0.5px var(--hairline),
+    0 3px 8px color-mix(in srgb, var(--tp-grayscale950) 12%, transparent);
+}
+
+/* 選項切換時讓選中狀態自然浮起。 */
+.filter-grid button,
+.mode-tabs button,
+.segmented button {
+  transition:
+    transform var(--t-fast) var(--ease-out),
+    background-color var(--t-mid) var(--ease-out),
+    color var(--t-mid) linear,
+    box-shadow var(--t-mid) var(--ease-out);
+}
+.filter-grid button.selected,
+.mode-tabs button.active,
+.segmented button.active {
+  transform: translateY(-1px);
+}
+
+/* --- 提示訊息：從上方滑入的橫幅，不再蓋住抽屜與分頁列 ------------------ */
+.toast {
+  top: calc(env(safe-area-inset-top) + 10px);
+  bottom: auto;
+  background: var(--material-strong);
+  -webkit-backdrop-filter: saturate(180%) blur(24px);
+  backdrop-filter: saturate(180%) blur(24px);
+  color: var(--tp-grayscale900);
+  border-radius: 16px;
+  box-shadow:
+    0 0 0 0.5px var(--hairline),
+    0 10px 30px color-mix(in srgb, var(--tp-grayscale950) 18%, transparent);
+  font-size: var(--tp-text-bodyRegular-size);
+  line-height: 1.6;
+  padding: 12px 14px 12px 16px;
+}
+.toast svg {
+  color: var(--tp-primary700);
+}
+.toast button {
+  color: var(--tp-grayscale700);
+}
+.toast.visible {
+  animation: toast-in var(--t-mid) var(--ease-spring);
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -16px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+
+/* --- 卡片與清單 ------------------------------------------------------- */
+.trip-card,
+.station-card {
+  box-shadow:
+    0 0 0 0.5px var(--hairline),
+    0 2px 10px color-mix(in srgb, var(--tp-grayscale950) 6%, transparent);
+}
+.sheet-dialog {
+  border-radius: 16px;
+}
+.sheet-dialog[open] {
+  animation: dialog-in var(--t-slow) var(--ease-spring) both;
+}
+.sheet-dialog[open]::backdrop {
+  animation: backdrop-in var(--t-mid) ease-out both;
+}
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* 沒有半透明支援時，材質改成實色，維持文字對比。 */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root {
+    --material: var(--tp-white);
+    --material-strong: var(--tp-white);
+  }
+}
+/* 高對比：材質全部改成實色白，細線加深。 */
+.high-contrast {
+  --material: var(--tp-white);
+  --material-strong: var(--tp-white);
+  --hairline: var(--tp-grayscale700);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel-scroll > :not(.sr-only),
+  .sheet-body > :not(.sheet-head),
+  .facility-row,
+  .trip-card,
+  .station-group,
+  .route-summary,
+  .notice,
+  .empty-card,
+  .fac-pin span,
+  .cluster-pin span,
+  .sheet-dialog[open],
+  .sheet-dialog[open]::backdrop {
+    animation: none;
+  }
+  button:active:not(:disabled),
+  .omnibox:active,
+  .map-fab:active:not(:disabled),
+  .dock-group button:active:not(:disabled) {
+    transform: none;
+  }
+  .toast.visible {
+    animation: none;
+  }
+  .main-nav button svg,
+  .filter-grid button,
+  .mode-tabs button,
+  .segmented button {
+    transition: none;
+  }
+  .main-nav button.active svg,
+  .filter-grid button.selected,
+  .mode-tabs button.active,
+  .segmented button.active {
+    transform: none;
+  }
+}
+
+/* --- 搜尋結果裡的捷運站：車站標題＋電梯出口，iOS 分組清單 ------------- */
+.station-group {
+  margin: 4px 0 16px;
+  padding: 12px 12px 8px;
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--tp-primary50) 70%, var(--tp-white));
+  box-shadow: inset 0 0 0 0.5px var(--hairline);
+}
+.station-group-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+.station-group-head strong {
+  display: block;
+  font-size: var(--tp-text-h3SemiBold-size);
+  color: var(--tp-grayscale900);
+}
+.station-group-head small {
+  color: var(--tp-grayscale700);
+}
+.station-group .facility-row {
+  background: transparent;
+}
+.station-group .quiet-note {
+  margin: 6px 4px 2px;
+}
+.station-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 44px;
+  padding: 0 4px;
+  color: var(--action-text);
+  font-weight: var(--tp-text-bodySemiBold-weight);
+}
+.facility-note {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--tp-text-caption-size);
+  font-weight: var(--tp-text-caption-weight);
+  color: var(--tp-red700);
+}
+
+/* 搜尋框：右側只放麥克風圖示，不放文字。 */
+.search-with-voice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-right: 6px;
+}
+.search-with-voice input {
+  flex: 1;
+  min-width: 0;
+}
+.voice-button {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--action-text);
+}
+.voice-button:hover {
+  background: var(--tp-primary50);
+}
+.voice-button.listening {
+  background: var(--tp-red700);
+  color: var(--tp-white);
+}
+
+/* --- 設定：iOS 設定 App 式的分組清單 ---------------------------------- */
+.settings-group {
+  margin: 0 0 20px;
+}
+.settings-group > h3 {
+  margin: 0 4px 6px;
+  font-size: var(--tp-text-bodySemiBold-size);
+  font-weight: var(--tp-text-bodySemiBold-weight);
+  color: var(--tp-grayscale700);
+}
+.settings-list {
+  overflow: hidden;
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--tp-grayscale100) 55%, var(--tp-white));
+  box-shadow: inset 0 0 0 0.5px var(--hairline);
+}
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 52px;
+  padding: 10px 16px;
+  border: 0;
+  background: transparent;
+  color: var(--tp-grayscale900);
+  font: inherit;
+  font-size: var(--tp-text-h3Regular-size);
+  text-align: left;
+}
+.settings-entry {
+  justify-content: flex-start;
+}
+.settings-entry > span {
+  flex: 1;
+}
+.settings-entry > svg:first-child {
+  color: var(--tp-primary700);
+}
+.settings-entry > svg:last-child {
+  color: var(--tp-grayscale600);
+}
+.settings-row + .settings-row,
+.settings-list > * + * {
+  border-top: 0.5px solid color-mix(in srgb, var(--tp-grayscale950) 10%, transparent);
+}
+.settings-row--stack {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+.settings-row b {
+  margin-left: 8px;
+  font-weight: var(--tp-text-bodySemiBold-weight);
+  color: var(--tp-primary700);
+}
+.settings-row select {
+  min-height: 40px;
+  max-width: 55%;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: var(--tp-radius-btn);
+  background: var(--tp-white);
+  color: var(--tp-primary700);
+  font: inherit;
+  font-weight: var(--tp-text-bodySemiBold-weight);
+}
+.settings-row input[type="range"] {
+  width: 100%;
+  accent-color: var(--tp-primary700);
+}
+.settings-inline {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.settings-inline input[type="range"] {
+  flex: 1;
+}
+.settings-play {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--tp-white);
+  color: var(--tp-primary700);
+}
+
+/* iOS 式開關：原生 checkbox，報讀器仍當作勾選框 */
+.switch {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  flex-shrink: 0;
+  width: 51px;
+  height: 31px;
+  margin: 0;
+  border-radius: 999px;
+  /* 關閉時的底色也要和背景有 3:1 以上的對比，弱視者才看得出開關的範圍。 */
+  background: var(--tp-grayscale500);
+  cursor: pointer;
+  transition: background var(--t-mid) var(--ease-out);
+}
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 27px;
+  height: 27px;
+  border-radius: 50%;
+  background: var(--tp-white);
+  box-shadow: 0 2px 4px color-mix(in srgb, var(--tp-grayscale950) 25%, transparent);
+  transition: transform var(--t-mid) var(--ease-spring);
+}
+.switch:checked {
+  background: var(--tp-primary700);
+}
+.switch:checked::after {
+  transform: translateX(20px);
+}
+.switch:focus-visible {
+  outline: 3px solid var(--tp-primary700);
+  outline-offset: 2px;
+}
+.high-contrast .switch {
+  background: var(--tp-grayscale700);
+}
+
+/* 路線偏好：分段切換 */
+.segmented {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+  padding: 2px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--tp-grayscale200) 60%, var(--tp-white));
+}
+.segmented button {
+  min-height: 40px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--tp-grayscale800);
+  font: inherit;
+  font-size: var(--tp-text-bodyRegular-size);
+}
+.segmented button.active {
+  background: var(--tp-white);
+  color: var(--tp-primary700);
+  font-weight: var(--tp-text-bodySemiBold-weight);
+  box-shadow:
+    0 0 0 0.5px var(--hairline),
+    0 3px 8px color-mix(in srgb, var(--tp-grayscale950) 12%, transparent);
+}
+
+/* 進階：預設收合 */
+.settings-advanced > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 52px;
+  padding: 10px 16px;
+  font-size: var(--tp-text-h3Regular-size);
+  color: var(--tp-grayscale900);
+  cursor: pointer;
+  list-style: none;
+}
+.settings-advanced > summary::-webkit-details-marker {
+  display: none;
+}
+.settings-advanced > summary::after {
+  content: "";
+  width: 9px;
+  height: 9px;
+  border-right: 2px solid var(--tp-grayscale600);
+  border-bottom: 2px solid var(--tp-grayscale600);
+  transform: rotate(45deg);
+  transition: transform var(--t-mid) var(--ease-out);
+}
+.settings-advanced[open] > summary::after {
+  transform: rotate(-135deg);
+}
+.settings-advanced > .settings-row {
+  border-top: 0.5px solid color-mix(in srgb, var(--tp-grayscale950) 10%, transparent);
+}
+.settings-link {
+  display: block;
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 16px;
+  border: 0;
+  border-top: 0.5px solid color-mix(in srgb, var(--tp-grayscale950) 10%, transparent);
+  background: transparent;
+  color: var(--tp-primary700);
+  font: inherit;
+  text-align: left;
+}
+
+/* 資料：清除 */
+.settings-danger {
+  justify-content: center;
+  color: var(--tp-red700);
+  font-weight: var(--tp-text-bodySemiBold-weight);
+}
+.settings-confirm span {
+  color: var(--tp-grayscale900);
+}
+.settings-confirm .settings-inline > button {
+  flex: 1;
+  min-height: 48px;
+  border-radius: var(--tp-radius-btn);
+  font: inherit;
+  font-weight: var(--tp-text-bodySemiBold-weight);
+}
+.danger-solid {
+  border: 0;
+  background: var(--tp-red700);
+  color: var(--tp-white);
+}

@@ -57,7 +57,7 @@ export function createConstructionChecker(snapshot,now=Date.now()){
  const unmapped=active.filter(w=>w.impact!=='clear'&&!w.geometries.length).length;
  const shapes=active.flatMap(w=>w.geometries.map(g=>{
   if(!['Point','LineString','Polygon'].includes(g.type)||!g.coordinates?.length||g.coordinates.some(p=>!valid(p)))throw Error('CONSTRUCTION_INVALID');
-  const coords=g.coordinates.map(xy),xs=coords.map(p=>p[0]),ys=coords.map(p=>p[1]);return {w,type:g.type,coords,box:[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)]};
+  const coords=g.coordinates.map(xy),xs=coords.map(p=>p[0]),ys=coords.map(p=>p[1]);return {w,type:g.type,coords,geometry:{type:g.type,coordinates:g.coordinates},box:[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)]};
  }));
  function inspect(line){
   if(!Array.isArray(line)||!line.length||line.some(p=>!valid(p.slice(0,2))))throw Error('CONSTRUCTION_INVALID_ROUTE');
@@ -71,7 +71,7 @@ export function createConstructionChecker(snapshot,now=Date.now()){
     if(d>70)continue;
     // A point/line is not an exact work-zone boundary: avoid a conservative 10m vicinity, labelled as such.
     const blocked=g.w.impact!=='clear'&&(g.type==='Polygon'?d<0.05:d<=10);
-    const old=hits.get(g.w.id);if(!old||d<old.distanceM||blocked&&!old.blocked)hits.set(g.w.id,{...g.w,geometries:undefined,distanceM:Math.round(d),blocked,match:g.type==='Polygon'?'area':'vicinity'});
+    const old=hits.get(g.w.id);if(!old||blocked&&!old.blocked||(blocked===old.blocked&&d<old.distanceM))hits.set(g.w.id,{id:g.w.id,address:g.w.address,start:g.w.start,end:g.w.end,hours:g.w.hours,longTerm:g.w.longTerm,impact:g.w.impact,plan:g.w.plan,geometry:g.geometry,distanceM:Math.round(d),blocked,match:g.type==='Polygon'?'area':'vicinity'});
    }
   }
   return {blocked:[...hits.values()].filter(w=>w.blocked),nearby:[...hits.values()],unmapped,sourceUpdatedAt:snapshot.sourceUpdatedAt,checkedAt:new Date(now).toISOString()};

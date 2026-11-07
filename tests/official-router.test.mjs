@@ -103,3 +103,12 @@ test('tiny staircase segment is rejected before instruction filtering',()=>{
  const d=base();d.segments[0].length=0.01;d.segments[0].road_type='樓梯';
  assert.equal(normalizeOfficialRoute(d,a,b).error,'OFFICIAL_BLOCKED');
 });
+
+test("an explicit missing-crosswalk label is never parsed as a marked crossing", () => {
+  const d = base();
+  d.segments[0].road_type = "尚無行穿線";
+  assert.equal(
+    normalizeOfficialRoute(d, a, b).error,
+    "OFFICIAL_CROSSING_UNVERIFIED",
+  );
+});
