@@ -135,14 +135,6 @@ button:active:not(:disabled),
   line-height: 1;
   box-shadow: 0 2px 6px color-mix(in srgb, var(--tp-grayscale950) 28%, transparent);
 }
-.fac-pin.landmark span {
-  width: 24px;
-  height: 24px;
-  font-size: 12px;
-  background: var(--tp-white);
-  color: var(--pin, var(--tp-primary800));
-  border: 2px solid var(--pin, var(--tp-primary700));
-}
 .cluster-pin span {
   display: inline-flex;
   align-items: center;

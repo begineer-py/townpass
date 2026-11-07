@@ -205,7 +205,7 @@ export default function MapView({
         face.textContent = glyphs[category(p)] || "點";
         marker = L.marker([p.lat, p.lon], {
           icon: L.divIcon({
-            className: `fac-pin${p.landmark ? " landmark" : ""}`,
+            className: "fac-pin",
             html: face,
             iconSize: [28, 28],
             iconAnchor: [14, 14],

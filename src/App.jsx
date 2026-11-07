@@ -73,7 +73,6 @@ import {
   normalize,
   readSaved,
   saveLocal,
-  isLandmark,
 } from "./data";
 import { getLocation, locationErrorText } from "./location";
 import { installTownPassLinks, postToTownPass, townPassUserKey } from "./townpass-bridge";
@@ -748,32 +747,6 @@ export default function App() {
     [facilities, viewport],
   );
   const avoidPoints = useMemo(() => activeElevatorStops(data), [data]);
-  const landmarks = useMemo(() => {
-    // 公園與捷運站只在放大到街區時顯示，避免整張地圖都是標記。
-    if (!data || (viewport.zoom ?? 15) < 16) return [];
-    return data.all
-      .filter(
-        (p) =>
-          isLandmark(p) &&
-          p.lat >= viewport.bounds[0] &&
-          p.lat <= viewport.bounds[2] &&
-          p.lon >= viewport.bounds[1] &&
-          p.lon <= viewport.bounds[3],
-      )
-      .sort((a, b) => distance(viewport, a) - distance(viewport, b))
-      .slice(0, 40)
-      .map((p) => ({ ...p, landmark: true }));
-  }, [data, viewport]);
-  const mapPins = useMemo(() => {
-    const seen = new Set();
-    const pins = [];
-    for (const p of [...(showMapFacilities ? mapItems : []), ...landmarks]) {
-      if (seen.has(p.id)) continue;
-      seen.add(p.id);
-      pins.push(p);
-    }
-    return pins;
-  }, [showMapFacilities, mapItems, landmarks]);
   const searchResults = useMemo(() => {
     if (!searchFor || !data || !profileReady) return [];
     const q = normalize(query);
@@ -1478,7 +1451,7 @@ export default function App() {
         </aside>
         <main className="map-area" aria-label="地圖與設施">
           <MapView
-            items={mapPins}
+            items={showMapFacilities ? mapItems : []}
             basemap={basemap}
             colorFriendly={prefs.colorFriendly}
             onBasemapStatus={setBasemapStatus}
