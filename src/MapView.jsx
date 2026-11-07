@@ -70,6 +70,7 @@ export default function MapView({
   pick,
   basemap = "street",
   showOfficialSidewalk = true,
+  hideMapIcons = false,
   colorFriendly = false,
   onBasemapStatus,
   onOfficialSidewalkStatus,
@@ -93,9 +94,9 @@ export default function MapView({
     nearby = useRef(),
     ends = useRef();
   const baseLayers = useRef([]);
-  const markerData = useRef({ items, recentPlaces, colorFriendly });
+  const markerData = useRef({ items, recentPlaces, colorFriendly, hideMapIcons });
   const markerRedraw = useRef();
-  markerData.current = { items, recentPlaces, colorFriendly };
+  markerData.current = { items, recentPlaces, colorFriendly, hideMapIcons };
   const paddingReader=useRef(getBottomInset);paddingReader.current=getBottomInset;
   const fitPaddingReader=useRef(fitPadding);fitPaddingReader.current=fitPadding;
   const routePadding = (height) => fitPaddingReader.current?.() || {paddingTopLeft:[24,40],paddingBottomRight:[24,Math.min(height-120,(paddingReader.current?.()||0)+24)]};
@@ -160,10 +161,10 @@ export default function MapView({
       m.remove();
     };
   }, []);
-  useSidewalkLayer(map, location, showOfficialSidewalk, onOfficialSidewalkStatus);
+  useSidewalkLayer(map, location, showOfficialSidewalk && !hideMapIcons, onOfficialSidewalkStatus);
   useEffect(() => {
     const m = map.current;
-    if (!m || !showOfficialSidewalk) return;
+    if (!m || !showOfficialSidewalk || hideMapIcons) return;
     const pane = m.getPane("sidewalk-issues") || m.createPane("sidewalk-issues", m.getPane("rotatePane") || undefined);
     pane.style.zIndex = "351";
     // The issue canvas covers the map. Leave it transparent to pointer events
@@ -218,7 +219,7 @@ export default function MapView({
     for (const img of noWalkImages) if (!img.complete) img.addEventListener("load", draw, {once:true});
     m.on("moveend", schedule);
     return () => {active=false; clearTimeout(timer); cancelAnimationFrame(hoverFrame); container.removeEventListener('mousemove',hover,true);container.removeEventListener('click',click,true);container.removeEventListener('mouseleave',leave);tooltip.remove();popup.remove();m.off("moveend", schedule);layer.remove();renderer.remove();};
-  }, [showOfficialSidewalk]);
+  }, [showOfficialSidewalk, hideMapIcons]);
   useEffect(() => {
     if (!map.current) return;
     const m = map.current,
@@ -248,8 +249,8 @@ export default function MapView({
       baseLayers.current.push(layer);
     };
     // spec.close：放大到 minZoom 以上改用另一組圖磚（例如不印店名的底圖）。
-    const close = spec.close;
-    watch(
+    const close = spec.close && hideMapIcons ? {...spec.close, minZoom: 11} : spec.close;
+    if (!close || close.minZoom > 11) watch(
       L.tileLayer(spec.url, {
         maxZoom: close ? close.minZoom - 1 : 19,
         maxNativeZoom: 19,
@@ -258,7 +259,7 @@ export default function MapView({
       }),
     );
     if (close) {
-      watch(
+      if (!hideMapIcons) watch(
         L.tileLayer(close.url, {
           minZoom: close.minZoom,
           maxZoom: 19,
@@ -273,6 +274,7 @@ export default function MapView({
           maxZoom: 19,
           maxNativeZoom: 19,
           zIndex: 2,
+          attribution: hideMapIcons ? close.attribution : undefined,
         });
         roads.addTo(m);
         baseLayers.current.push(roads);
@@ -295,7 +297,7 @@ export default function MapView({
       }
       baseLayers.current = [];
     };
-  }, [basemap]);
+  }, [basemap, hideMapIcons]);
   useEffect(() => {
     const m = map.current;
     if (!m || !marks.current) return;
@@ -306,6 +308,7 @@ export default function MapView({
     const renderMarkers = () => {
       // The popup can pan the map. Keep its source marker until the user
       // chooses or closes it, then draw the new viewport.
+      if (openPopup && markerData.current.hideMapIcons) m.closePopup(openPopup);
       if (openPopup) { redrawPending = true; return; }
       marks.current.clearLayers();
       const bounds = m.getBounds();
@@ -452,7 +455,7 @@ export default function MapView({
       m.off("popupclose", close);
     };
   }, []);
-  useEffect(() => { markerRedraw.current?.(); }, [items, recentPlaces, colorFriendly]);
+  useEffect(() => { markerRedraw.current?.(); }, [items, recentPlaces, colorFriendly, hideMapIcons]);
   useEffect(() => {
     if (!path.current) return;
     path.current.clearLayers();
@@ -476,18 +479,18 @@ export default function MapView({
           .bindTooltip('OSM 過街位置，官方資料未完整確認').addTo(path.current);
       }
       for(const approach of route.approaches || []) {const style=ROUTE_CONDITIONS.approach;L.polyline(approach.coordinates,{color:TPColors.white,weight:8,opacity:1}).addTo(path.current);const line=L.polyline(approach.coordinates,{color:colorFriendly?TPColors.primary900:style.color,weight:4,dashArray:style.dash}).addTo(path.current);if(approach.estimated)line.bindTooltip('入口及實際通行狀況未確認，虛線僅為位置估算');}
-      drawOfficialConditions(path.current,route.officialConditions);
+      if (!hideMapIcons) drawOfficialConditions(path.current,route.officialConditions);
       const fit=()=>{const height=map.current.getSize().y;map.current.fitBounds(L.latLngBounds(route.coordinates),{animate:false,...routePadding(height)});};
       fit();const timer=setTimeout(fit,350);return ()=>clearTimeout(timer);
     }
-  }, [route,sheetSnap,colorFriendly]);
+  }, [route,sheetSnap,colorFriendly,hideMapIcons]);
   useEffect(() => {
     if(!partialPath.current)return;
     partialPath.current.clearLayers();
     if(!partialRoute)return;
     const bounds=[];
     for(const segment of partialRoute.segments){
-      drawOfficialConditions(partialPath.current,segment.officialConditions);
+      if (!hideMapIcons) drawOfficialConditions(partialPath.current,segment.officialConditions);
       bounds.push(...segment.coordinates);
       L.polyline(segment.networkCoordinates,{color:TPColors.white,weight:10,opacity:1}).addTo(partialPath.current);
       if(segment.tierSegments.length){
@@ -500,10 +503,10 @@ export default function MapView({
     }
     for(const [side,label] of [['startSide','起點側路段到此'],['endSide','目的地側路段由此開始']]){
       const point=partialRoute.gap[side];if(!point)continue;bounds.push(point);
-      L.circleMarker(point,{radius:9,color:TPColors.white,weight:3,fillColor:TPColors.orange700,fillOpacity:1}).bindTooltip(label,{permanent:true,direction:side==='startSide'?'top':'bottom',offset:side==='startSide'?[0,-8]:[0,8]}).addTo(partialPath.current);
+      if (!hideMapIcons) L.circleMarker(point,{radius:9,color:TPColors.white,weight:3,fillColor:TPColors.orange700,fillOpacity:1}).bindTooltip(label,{permanent:true,direction:side==='startSide'?'top':'bottom',offset:side==='startSide'?[0,-8]:[0,8]}).addTo(partialPath.current);
     }
     if(bounds.length&&!route){const height=map.current.getSize().y;map.current.fitBounds(L.latLngBounds(bounds),{maxZoom:17,animate:false,...routePadding(height)});}
-  },[partialRoute,route,sheetSnap,colorFriendly]);
+  },[partialRoute,route,sheetSnap,colorFriendly,hideMapIcons]);
   useEffect(() => {
     if (!blocked.current) return;
     blocked.current.clearLayers();

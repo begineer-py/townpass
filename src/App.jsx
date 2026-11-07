@@ -166,6 +166,7 @@ const basePrefs = {
   colorFriendly: false,
   voiceRate: 0.9,
 };
+const NO_MAP_ICONS = [];
 function RouteLegend({ segments, colorFriendly }) {
   const keys = [...new Set(segments.flatMap(route => [
     ...(route.tierSegments?.length ? route.tierSegments.map(conditionForSegment) : [fallbackRouteCondition(route)]),
@@ -379,8 +380,10 @@ export default function App() {
   });
   const [basemapStatus, setBasemapStatus] = useState("loading");
   const [showOfficialSidewalk, setShowOfficialSidewalk] = useState(() => readSaved("hhz-show-sidewalk", true));
+  const [hideMapIcons, setHideMapIcons] = useState(() => readSaved("hhz-hide-map-icons", false));
   const [sidewalkStatus, setSidewalkStatus] = useState("idle");
   useEffect(() => { saveLocal("hhz-show-sidewalk", showOfficialSidewalk); }, [showOfficialSidewalk]);
+  useEffect(() => { saveLocal("hhz-hide-map-icons", hideMapIcons); }, [hideMapIcons]);
   const [layersOpen, setLayersOpen] = useState(false),
     layersRef = useRef();
   useEffect(() => {
@@ -2138,22 +2141,23 @@ export default function App() {
         </aside>
         <main className="map-area" aria-label="地圖與設施">
           <MapView
-            items={mapPins}
-            recentPlaces={recentPlaces}
+            items={hideMapIcons ? NO_MAP_ICONS : mapPins}
+            recentPlaces={hideMapIcons ? NO_MAP_ICONS : recentPlaces}
             basemap={basemap}
             showOfficialSidewalk={showOfficialSidewalk}
+            hideMapIcons={hideMapIcons}
             onOfficialSidewalkStatus={setSidewalkStatus}
             colorFriendly={prefs.colorFriendly}
             onBasemapStatus={setBasemapStatus}
             route={tab ? route : null}
             partialRoute={tab==='plan' ? partialRoute : null}
-            constructionConflict={tab ? constructionConflict : null}
-            routeGap={tab ? routeGapView : null}
-            nearbyCandidates={tab==='plan' ? nearbyState.candidates : []}
+            constructionConflict={tab && !hideMapIcons ? constructionConflict : null}
+            routeGap={tab && !hideMapIcons ? routeGapView : null}
+            nearbyCandidates={tab==='plan' && !hideMapIcons ? nearbyState.candidates : NO_MAP_ICONS}
             onNearbySelect={chooseNearby}
-            start={tab ? start : null}
-            end={tab ? end : null}
-            location={currentLocation}
+            start={tab && !hideMapIcons ? start : null}
+            end={tab && !hideMapIcons ? end : null}
+            location={hideMapIcons ? null : currentLocation}
             focus={focus}
             pick={pick}
             onPick={selectPoint}
@@ -2240,6 +2244,10 @@ export default function App() {
                     </button>
                   ))}
                 </div>
+                <label className="toggle-row layers-toggle">
+                  <b>隱藏地圖圖標</b>
+                  <input type="checkbox" checked={hideMapIcons} onChange={(e) => setHideMapIcons(e.target.checked)} />
+                </label>
                 <label className="toggle-row layers-toggle">
                   <span><b>人行道</b>{sidewalkStatus === "loading" && <small>載入中…</small>}{sidewalkStatus === "zoom" && <small>請放大地圖</small>}{sidewalkStatus === "error" && <small>暫時無法載入</small>}</span>
                   <input type="checkbox" checked={showOfficialSidewalk} onChange={(e) => setShowOfficialSidewalk(e.target.checked)} />
