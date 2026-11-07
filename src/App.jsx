@@ -71,7 +71,7 @@ import {createTripAlertLedger} from "./trip-alert-ledger.mjs";
 import {canFallbackAfterVerification, startLocalFallback} from "./local-fallback.mjs";
 import {constructionFresh, CONSTRUCTION_MAX_AGE} from "./construction.mjs";
 import {groupConstructionNotices} from "./construction-display.mjs";
-import {nearbyReplacement,nearbyWarnings,verifiedNearbyChoice} from "./nearby-presentation.mjs";
+import {nearbyReplacement,nearbyWarnings,verifiedNearbyChoice,preservesGpsOrigin} from "./nearby-presentation.mjs";
 import {isVerifiedNavigationRoute} from "./route-trust.mjs";
 import {createNearbySearch,shouldAutoSearchNearby} from "./nearby-search.mjs";
 import {createRouteWorkerLifecycle} from "./route-worker-lifecycle.mjs";
@@ -944,7 +944,6 @@ export default function App() {
       }
       setCurrentLocation(p);
       setFocus({ ...p, token: Date.now() });
-      if(p.needsConfirmation){announce(p.accuracy == null ? "已取得大致位置，精度暫時不明；請在地圖確認出發地。" : `已取得大致位置，誤差約 ${Math.round(p.accuracy)} 公尺；請在地圖確認出發地。`);return;}
       if (useAsStart) { cancelNearby(); setStart(p); }
       if (which) changePoint(which, p);
       else if (!useAsStart) announce("已找到你的位置，可以看看附近有哪些設施。");
@@ -964,10 +963,10 @@ export default function App() {
     if (closeSheet) setModal(null);
   }
   useEffect(() => {
-    if (!profileReady || !travelProfile || autoLocated.current) return;
+    if (!profileReady || autoLocated.current || start) return;
     autoLocated.current = true;
     locate(null, true);
-  }, [profileReady, travelProfile]);
+  }, [profileReady, start]);
   async function navigateTo(place) {
     rememberPlace(place);
     stopFollowing();
@@ -1006,7 +1005,6 @@ export default function App() {
         if(locationId===locationRequest.current)setLocating(false);
       }
     }
-    if(from.needsConfirmation){setCurrentLocation(from);setEnd(place);announce('目前位置精度較低，請先確認出發地。');return;}
     setStart(from);
     setEnd(place);
     wantedStop.current = null;
@@ -1428,10 +1426,10 @@ export default function App() {
   },[routeError,routing,graphReady,tab,start,end,prefs,avoidPoints,partialRoute,referenceState.status]);
   useEffect(()=>{
     if(nearbyState.status!=='ready'||!routeError||nearbyState.startPlace!==start||nearbyState.endPlace!==end||nearbyState.constructionSourceUpdatedAt!==lastConstruction.current?.sourceUpdatedAt)return;
-    const choice=(nearbyState.verifiedCandidates||[]).map(candidate=>verifiedNearbyChoice(candidate,start,end,lastConstruction.current)).find(Boolean);
+    const choice=(nearbyState.verifiedCandidates||[]).map(candidate=>verifiedNearbyChoice(candidate,start,end,lastConstruction.current)).find(choice=>preservesGpsOrigin(choice,start));
     if(!choice)return;
     stopFollowing();
-    setStart(choice.start);setEnd(choice.end);setRoute(nearbyState.searchStatus==='projection-limit'?{...choice.route,routeSearchStatus:'projection-limit'}:choice.route);
+    setStart(start.originKind==='gps'?start:choice.start);setEnd(choice.end);setRoute(nearbyState.searchStatus==='projection-limit'?{...choice.route,routeSearchStatus:'projection-limit'}:choice.route);
     setRouteCandidates([]);setSelectedRouteCandidate(null);setStepIndex(0);
     setConstructionConflict(null);setRouteGap(null);setPartialRoute(null);setRouteError('');
     cancelNearby();
@@ -1653,6 +1651,7 @@ export default function App() {
                           aria-label={point ? `${noun}：${point.name}，點一下重新選擇` : placeholder}>
                           <small>{label}</small>
                           <strong className={point ? "" : "placeholder"}>{point?.name || placeholder}</strong>
+                          {which === "start" && point?.originKind === "gps" && point.needsConfirmation && <small>{point.accuracy == null ? "定位精度未知" : `定位誤差約 ${Math.round(point.accuracy)} 公尺`}</small>}
                         </button>
                         {which === "start" && <button type="button" className="point-shortcut" onClick={() => locate("start")} disabled={locating} aria-label={locating ? "正在定位出發地" : "使用目前位置作為出發地"}>
                           {locating ? <LoaderCircle className="spin" size={18} aria-hidden="true" /> : <LocateFixed size={18} aria-hidden="true" />}

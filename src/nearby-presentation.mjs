@@ -27,3 +27,9 @@ export function verifiedNearbyChoice(choice,start,end,snapshot){
  if(!resolvedStart||!resolvedEnd||(!choice.start&&!choice.end))return null;
  return {start:resolvedStart,end:resolvedEnd,route:{...route,resolvedStart,resolvedEnd}};
 }
+
+// Automatic alternatives must keep the position returned by the device.
+// A user can still explicitly choose a different nearby point.
+export function preservesGpsOrigin(choice,start){
+ return !!choice && (start?.originKind!=='gps' || (choice.start?.lat===start.lat && choice.start?.lon===start.lon));
+}

@@ -83,7 +83,7 @@ export function createLocalRouteVerifier(graph,facilities=[],places=[]){
   if(!['start','end'].includes(side)||!place||!same(point,[place.lat,place.lon]))return null;
   if(place.originKind==='map'&&place.kind==null&&place.sourceId==null&&/^point-\d+$/.test(String(place.id||'')))return 'map';
   if(side==='start'&&place.originKind==='gps'&&place.kind==null&&place.sourceId==null&&place.id==='my-location'&&['browser','townpass'].includes(place.locationSource)&&
-     Number.isFinite(place.accuracy)&&place.accuracy>=0&&place.accuracy<=100&&place.needsConfirmation===false)return 'gps';
+     (place.accuracy===null||(Number.isFinite(place.accuracy)&&place.accuracy>=0)))return 'gps';
   // User-selected search results can be positional estimates even when the
   // search provider has no registered POI record. Do not use this path to
   // bypass an ambiguous/registered ID or an unverified OSM object identity.

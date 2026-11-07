@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {verifiedNearbyChoice,nearbyWarnings} from '../src/nearby-presentation.mjs';
+import {verifiedNearbyChoice,nearbyWarnings,preservesGpsOrigin} from '../src/nearby-presentation.mjs';
 import {ROUTING_POLICY} from '../src/routing.mjs';
 
 test('verified alternative keeps both original gaps explicit and rejects stale or mismatched results',()=>{
@@ -16,4 +16,12 @@ test('verified alternative keeps both original gaps explicit and rejects stale o
  assert.equal(verifiedNearbyChoice({...choice,route:{...route,construction:{sourceUpdatedAt:'old'}}},start,end,snapshot),null);
  assert.equal(verifiedNearbyChoice({...choice,start:{point:{...a,lat:26}}},start,end,snapshot),null);
  assert.equal(verifiedNearbyChoice({...choice,route:{...route,construction:{sourceUpdatedAt:stamp,blocked:[{}]}}},start,end,snapshot),null);
+});
+
+test('automatic alternatives retain a GPS centre, but can still adjust the destination',()=>{
+ const gps={originKind:'gps',lat:25,lon:121.5},end={lat:25.01,lon:121.51};
+ assert.equal(preservesGpsOrigin({start:{lat:25,lon:121.5},end},gps),true);
+ assert.equal(preservesGpsOrigin({start:{lat:25.0001,lon:121.5},end},gps),false);
+ assert.equal(preservesGpsOrigin({start:{lat:25.0001,lon:121.5},end},{...gps,originKind:'map'}),true);
+ assert.equal(preservesGpsOrigin(null,gps),false);
 });

@@ -82,7 +82,9 @@ test('OSM POI estimate requires a verified source match; non-OSM sources remain 
 test('explicit GPS and map starts may connect with a machine-readable unconfirmed estimate',()=>{
  const g=base(),p=[25+30/111195,121.5],candidate=createRouter(g)(a,b),v=createLocalRouteVerifier(g);
  const sources=[{id:'point-123',originKind:'map',lat:p[0],lon:p[1]},
-  {id:'my-location',originKind:'gps',locationSource:'browser',accuracy:20,needsConfirmation:false,lat:p[0],lon:p[1]}];
+  {id:'my-location',originKind:'gps',locationSource:'browser',accuracy:20,needsConfirmation:false,lat:p[0],lon:p[1]},
+  {id:'my-location',originKind:'gps',locationSource:'browser',accuracy:800,needsConfirmation:true,lat:p[0],lon:p[1]},
+  {id:'my-location',originKind:'gps',locationSource:'townpass',accuracy:null,needsConfirmation:true,lat:p[0],lon:p[1]}];
  for(const place of sources){const result=v(candidate,p,b,{startPlace:place});assert.equal(result.error,undefined);assert.equal(result.approaches[0].estimated,true);assert.equal(result.approaches[0].unconfirmed,true);assert.equal(result.approaches[0].entryStatus,'unconfirmed');assert.equal(result.approaches[0].originKind,place.originKind);assert.equal(result.approaches[0].distance,30);}
 });
 test('map estimate is symmetric, GPS is start-only, and restrictions are retained',()=>{
@@ -91,7 +93,7 @@ test('map estimate is symmetric, GPS is start-only, and restrictions are retaine
  assert.equal(v.approachAllowed(p,a,map,{knownOnly:true},'start'),false);
  const covered=base();covered.officialAreas=[{type:'Polygon',coordinates:[[[121.49,24.99],[121.51,24.99],[121.51,25.01],[121.49,25.01],[121.49,24.99]]]}];
  assert.equal(createLocalRouteVerifier(covered).approachAllowed(p,a,map,{knownOnly:true},'start'),false);
- for(const bad of [{...gps,accuracy:null},{...gps,accuracy:101},{...gps,needsConfirmation:true},{...gps,locationSource:'invented'},{...gps,id:'osm-n123'},{...map,kind:'place'},{...map,sourceId:'osm'},{...map,id:'osm-n123'},{...map,foot:'no'},{...map,level:'2'}])assert.equal(v.approachAllowed(p,a,bad,{},'start'),false,JSON.stringify(bad));
+ for(const bad of [{...gps,accuracy:-1},{...gps,accuracy:NaN},{...gps,locationSource:'invented'},{...gps,id:'osm-n123'},{...map,kind:'place'},{...map,sourceId:'osm'},{...map,id:'osm-n123'},{...map,foot:'no'},{...map,level:'2'}])assert.equal(v.approachAllowed(p,a,bad,{},'start'),false,JSON.stringify(bad));
  const far={...map,lat:25+51/111195};assert.equal(v.approachAllowed([far.lat,far.lon],a,far,{},'start'),false);
 });
 test('GPS and map starts cannot bypass recorded prohibited, upstairs or unmatched OSM points',()=>{

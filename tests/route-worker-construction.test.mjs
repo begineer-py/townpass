@@ -134,7 +134,7 @@ test('worker routes map points on both ends and GPS only as start',async()=>{
   globalThis.fetch=async url=>({ok:true,arrayBuffer:async()=>new TextEncoder().encode(JSON.stringify(/facilities|places/.test(String(url))?[]:graph)).buffer});
   await import('../src/route-worker.js?user-start-test');await self.onmessage({data:{type:'init',url:'https://example.test/graph.json'}});
   const stamp=new Date().toISOString(),construction={schemaVersion:1,fetchedAt:stamp,sourceUpdatedAt:stamp,works:[]},endPlace={lat:b[0],lon:b[1]};
-  const starts=[{id:'point-123',originKind:'map',lat:p[0],lon:p[1]},{id:'my-location',originKind:'gps',locationSource:'browser',accuracy:12,needsConfirmation:false,lat:p[0],lon:p[1]}];
+  const starts=[{id:'point-123',originKind:'map',lat:p[0],lon:p[1]},{id:'my-location',originKind:'gps',locationSource:'browser',accuracy:12,needsConfirmation:false,lat:p[0],lon:p[1]},{id:'my-location',originKind:'gps',locationSource:'browser',accuracy:800,needsConfirmation:true,lat:p[0],lon:p[1]},{id:'my-location',originKind:'gps',locationSource:'townpass',accuracy:null,needsConfirmation:true,lat:p[0],lon:p[1]}];
   for(const [i,startPlace] of starts.entries()){
    await self.onmessage({data:{type:'plan-places',id:60+i,startPlace,endPlace,options:{},construction}});
    const result=replies.find(m=>m.id===60+i)?.result;assert.equal(result.error,undefined);assert.equal(result.approaches[0].estimated,true);assert.equal(result.approaches[0].entryStatus,'unconfirmed');assert.equal(result.approaches[0].originKind,startPlace.originKind);
