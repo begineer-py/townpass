@@ -71,7 +71,8 @@ export function edgeAllowed(way, options = {}, evidence = null) {
     evidence.crossingVerified !== true
   )
     return false;
-  const mappedBridge = evidence.gradeSeparatedPedestrian === true && way.gradeSeparatedPedestrian === true && way.highway === 'footway' && way.bridge === 'yes' && (way.footway === 'sidewalk' || way.wheelchair === 'yes');
+  const audit=evidence?.gradeCrossingAudit;
+  const mappedBridge = evidence.gradeSeparatedPedestrian === true && way.gradeSeparatedPedestrian === true && way.highway === 'footway' && way.bridge === 'yes' && (way.footway === 'sidewalk' || way.wheelchair === 'yes') && audit?.schemaVersion === 1 && audit.sourceVerified === true && Array.isArray(audit.conflicts) && audit.conflicts.length === 0;
   if ((way.bridge && way.bridge !== 'no' && !mappedBridge) || (way.tunnel && way.tunnel !== 'no') ||
       (way.layer != null && !((mappedBridge?['0','1']:['0']).includes(String(way.layer)))) ||
       (way.level != null && !((mappedBridge?['0','1']:['0']).includes(String(way.level))))) return false;
