@@ -74,7 +74,7 @@ export default function MapView({
     });
     viewport();
     onMapReady(m);
-    const observer = new ResizeObserver(() => m.invalidateSize());
+    const observer = new ResizeObserver(() => m.invalidateSize({pan:false, debounceMoveend:true}));
     observer.observe(root.current);
     return () => {
       observer.disconnect();
