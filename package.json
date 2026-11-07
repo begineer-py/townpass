@@ -16,6 +16,7 @@
   "dependencies": {
     "fflate": "^0.8.3",
     "leaflet": "1.9.4",
+    "leaflet-rotate": "0.2.8",
     "lucide-react": "^0.468.0",
     "proj4": "^2.22.0",
     "react": "^19.0.0",

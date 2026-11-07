@@ -1,5 +1,7 @@
 import { useEffect, useRef } from "react";
 import L from "leaflet";
+// 讓 Leaflet 地圖可以旋轉（GPL-3.0，與本專案 AGPL-3.0 相容）。固定 0.2.8，0.3 之後是近期才發布的版本。
+import "leaflet-rotate";
 import { category, cleanName } from "./data";
 import { BASEMAPS } from "./basemaps.mjs";
 import { TPColors } from "./tp-colors.mjs";
@@ -46,6 +48,7 @@ export default function MapView({
   onViewport,
   onMapReady,
   onGesture,
+  onBearing,
 }) {
   const root = useRef(),
     map = useRef(),
@@ -53,8 +56,8 @@ export default function MapView({
     path = useRef(),
     ends = useRef();
   const baseLayers = useRef([]);
-  const cb = useRef({ onPick, onSelect, onViewport, onGesture, pick });
-  cb.current = { onPick, onSelect, onViewport, onGesture, pick };
+  const cb = useRef({ onPick, onSelect, onViewport, onGesture, pick, onBearing });
+  cb.current = { onPick, onSelect, onViewport, onGesture, pick, onBearing };
   useEffect(() => {
     const m = L.map(root.current, {
       zoomControl: false,
@@ -62,8 +65,16 @@ export default function MapView({
       minZoom: 11,
       maxZoom: 19,
       zoomAnimation: !matchMedia("(prefers-reduced-motion: reduce)").matches,
+      // 雙指旋轉；電腦上按住 Shift 拖曳旋轉。指南針按鈕在 App 裡，這裡不用套件內建的控制項。
+      rotate: true,
+      touchRotate: true,
+      shiftKeyRotate: true,
+      rotateControl: false,
+      bearing: 0,
     }).setView([25.0478, 121.517], 15);
     map.current = m;
+    // 開發時方便在主控台測試（例如旋轉）；正式建置不含。
+    if (import.meta.env.DEV) window.__haohaoMap = m;
     m.attributionControl?.setPrefix(false);
     marks.current = L.layerGroup().addTo(m);
     path.current = L.layerGroup().addTo(m);
@@ -79,6 +90,7 @@ export default function MapView({
       });
     };
     m.on("moveend", viewport);
+    m.on("rotate", () => cb.current.onBearing?.(m.getBearing()));
     m.on("click", (e) => {
       if (cb.current.pick)
         cb.current.onPick({

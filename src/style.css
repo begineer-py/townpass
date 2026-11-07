@@ -1895,6 +1895,27 @@ small {
   right: 14px;
   z-index: 460;
 }
+.map-compass {
+  position: absolute;
+  top: 68px;
+  right: 14px;
+  z-index: 460;
+}
+.compass-rose {
+  transform-origin: 12px 12px;
+  transition: transform 0.2s linear;
+}
+.compass-north {
+  fill: var(--tp-red600);
+}
+.compass-south {
+  fill: var(--tp-grayscale500);
+}
+.compass-hub {
+  fill: var(--tp-white);
+  stroke: var(--ink-strong);
+  stroke-width: 1;
+}
 .map-locate {
   position: absolute;
   right: 14px;
@@ -2254,11 +2275,15 @@ small {
     font-size: var(--tp-text-bodyRegular-size);
   }
   /* Map chrome sits in the strip of map left visible above the sheet. */
-  .map-dock {
+  .map-dock,
+  .map-compass {
     right: 10px;
   }
   .map-dock {
     top: 10px;
+  }
+  .map-compass {
+    top: 62px;
   }
   .map-zoom {
     display: none;
