@@ -84,3 +84,17 @@ test('nearby search includes eligible shared streets while preserving road and c
  const blockedFind=createNearbyRoutes(g,{router,verifyLocal,facilities:[]});
  assert.equal(blockedFind(other,original,{},snap,checker).candidates.filter(c=>c.side==='end').length,0);
 });
+test('projection capacity preserves already verified nearby route without inventing original connections',()=>{
+ const snap=snapshot([]),limit=Object.assign(new Error('limit'),{code:'PROJECTION_LIMIT'}),candidates=[
+  {side:'start',point:{id:'x',lat:a[0],lon:a[1]},straightMetres:30},
+  {side:'start',point:{id:'y',lat:b[0],lon:b[1]},straightMetres:40},
+ ];
+ let calls=0;const verifyLocal=r=>r;verifyLocal.approachAllowed=()=>true;
+ const deps={facilities:[],verifyLocal,checker:{allowed:()=>true,inspect:()=>({blocked:[]})},router:(from,to)=>{if(++calls>1)throw limit;return {distance:100,weightedCost:100,coordinates:[from,to],geometryVerification:'pedestrian-network-v1'};}};
+ const result=verifyNearbyRoutes({candidates,truncated:false},poi,other,{},snap,deps);
+ assert.equal(result.candidates.length,1);assert.equal(result.truncated,true);assert.equal(result.searchStatus,'projection-limit');
+ assert.deepEqual(result.candidates[0].route.coordinates[0],[a[0],a[1]]);assert.notDeepEqual(result.candidates[0].route.coordinates[0],[poi.lat,poi.lon]);
+ calls=1;assert.throws(()=>verifyNearbyRoutes({candidates},poi,other,{},snap,deps),error=>error===limit);
+ calls=0;deps.router=(from,to)=>{if(++calls>1){snap.sourceUpdatedAt='2000-01-01T00:00:00Z';throw limit;}return {distance:100,weightedCost:100,coordinates:[from,to]};};
+ assert.equal(verifyNearbyRoutes({candidates},poi,other,{},snap,deps).error,'CONSTRUCTION_UNAVAILABLE');
+});

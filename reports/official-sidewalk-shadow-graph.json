@@ -1,0 +1,160 @@
+{
+  "checkedAt": "2026-11-07T21:37:16.445Z",
+  "elapsedMs": 3406,
+  "sourceSha256": "141f05563007a71bb9247065d38eea831b03f8f8992a4f137e7d21b8ec975581",
+  "sourceKind": "live-api",
+  "sourceVerified": true,
+  "sourceCapturedAt": "2026-11-07T21:33:23.815Z",
+  "sidecarSha256": "9bae6f4b5935dfaec2757487378a4776072144570e7059ef325de1b0c32b003c",
+  "graphSha256": "bb211a0e906221556b5eb7621921733dd6586bb3649ba3dbf988907e22552f2d",
+  "codeHashes": {
+    "scripts/audit-official-sidewalk-shadow-graph.mjs": "e43e0a9953f6d00538104f242625bdb3a85e7adf0b858ddbf56a9b6a4f8a38d1",
+    "scripts/sidewalk-shadow-graph.mjs": "c942051bd65c036694c5078b82d98e3daa1b4495dda31d27278fc232e055126c",
+    "scripts/sidewalk-endpoint-audit-lib.mjs": "8737387b28fa7af350b0dfd9cf9b2541b90ab878f4d53614031b6751f72e404d",
+    "src/geometry.mjs": "27264e6113326d681465dc4694eb2c394e57b9d886ce48eba3be499c46d02138",
+    "src/supplemental-evidence.mjs": "86b90ff2314cfe78db9f9b137835dba9544cd73ac06334bbaa25671d842dc029"
+  },
+  "parts": 60180,
+  "sourceRecords": 60180,
+  "method": "Source graph connects distinct parts only at exactly equal original TWD97 decimal endpoints. Interior vertices remain private to each source part. Shadow graph retains each original segment only when its complete geometry passes the existing polygon coverage and independent road-crossing geometry checks; segment boundaries split disallowed portions. Zero-length duplicate vertices join only within their own part. Distances are TWD97 Euclidean metres.",
+  "limitations": "No endpoint node identities or source-level grade, accessibility, physical barriers, construction, timing, or actual road area coverage. Crossing and area sources may be incomplete. Exact coordinate equality does not establish same level or walkable connections. This geometry-only shadow is not verified navigation and is not a production graph.",
+  "officialAreaCount": 54028,
+  "officialCrossingAreaCount": 20179,
+  "roadLines": 62805,
+  "source": {
+    "nodes": 65092,
+    "edges": 60180,
+    "components": 7922,
+    "nodeDegrees": {
+      "1": 23913,
+      "2": 29286,
+      "3": 9775,
+      "4": 2040,
+      "5": 78
+    },
+    "largestByLength": [
+      {
+        "nodes": 19880,
+        "edges": 21349,
+        "metres": 632090.1699757056
+      },
+      {
+        "nodes": 2801,
+        "edges": 2994,
+        "metres": 90891.46940207938
+      },
+      {
+        "nodes": 2560,
+        "edges": 2746,
+        "metres": 84008.1522760066
+      },
+      {
+        "nodes": 1757,
+        "edges": 1846,
+        "metres": 49021.44294490055
+      },
+      {
+        "nodes": 1270,
+        "edges": 1390,
+        "metres": 48386.907827982825
+      },
+      {
+        "nodes": 1218,
+        "edges": 1298,
+        "metres": 35057.410978242704
+      },
+      {
+        "nodes": 724,
+        "edges": 790,
+        "metres": 26029.77848433688
+      },
+      {
+        "nodes": 343,
+        "edges": 373,
+        "metres": 16287.895968623192
+      },
+      {
+        "nodes": 547,
+        "edges": 584,
+        "metres": 14015.415246164213
+      },
+      {
+        "nodes": 583,
+        "edges": 620,
+        "metres": 13521.233481486246
+      }
+    ],
+    "totalMetres": 1682373.8630579542
+  },
+  "shadow": {
+    "nodes": 112022,
+    "edges": 90843,
+    "components": 21202,
+    "nodeDegrees": {
+      "1": 46562,
+      "2": 61730,
+      "3": 3274,
+      "4": 438,
+      "5": 18
+    },
+    "largestByLength": [
+      {
+        "nodes": 50,
+        "edges": 49,
+        "metres": 1707.2194696524236
+      },
+      {
+        "nodes": 40,
+        "edges": 39,
+        "metres": 1258.5003047661592
+      },
+      {
+        "nodes": 79,
+        "edges": 78,
+        "metres": 1175.721422854175
+      },
+      {
+        "nodes": 49,
+        "edges": 48,
+        "metres": 1104.8319631819918
+      },
+      {
+        "nodes": 33,
+        "edges": 32,
+        "metres": 1029.0093198851341
+      },
+      {
+        "nodes": 46,
+        "edges": 45,
+        "metres": 897.8471306349668
+      },
+      {
+        "nodes": 33,
+        "edges": 32,
+        "metres": 833.2904349408384
+      },
+      {
+        "nodes": 20,
+        "edges": 19,
+        "metres": 819.7722581178585
+      },
+      {
+        "nodes": 57,
+        "edges": 56,
+        "metres": 782.6416614189815
+      },
+      {
+        "nodes": 19,
+        "edges": 18,
+        "metres": 768.348508005557
+      }
+    ],
+    "totalMetres": 907703.4418962342
+  },
+  "segments": 184399,
+  "accepted": 90843,
+  "areaRejected": 92455,
+  "roadRejected": 10952,
+  "bothRejected": 9851,
+  "zeroSegments": 0
+}

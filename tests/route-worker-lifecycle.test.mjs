@@ -52,3 +52,7 @@ test('cancelling the main worker does not terminate independent nearby or live-f
  await nearby.start(args);await live.start(args);main.lifecycle.cancel();
  assert.equal(m.terminated,true);assert.equal(aux.length,2);assert.ok(aux.every(w=>!w.terminated));nearby.cancel();live.cancel();
 });
+test('optional reference work does not displace normal work and reports failed active identity',()=>{
+ let worker,failed,dropped=[];const lifecycle=createRouteWorkerLifecycle({createWorker:()=>worker={postMessage(){},terminate(){},emit(data){this.onmessage({data});},fail(){this.onerror(new Error('broken'));}},initMessage:{type:'init'},onDropped:x=>dropped.push(x),onError:(e,m)=>failed=m});
+ lifecycle.start();worker.emit({type:'ready'});const normal={type:'route',id:1};lifecycle.postMessage(normal);assert.equal(lifecycle.postMessage({type:'reference-route',id:2}),false);worker.emit({type:'route',id:1});const ref={type:'reference-route',id:3};assert.equal(lifecycle.postMessage(ref),true);worker.fail();assert.deepEqual(failed,ref);assert.deepEqual(dropped,[ref]);
+});

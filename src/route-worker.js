@@ -1,7 +1,7 @@
-import { metres } from "./routing.mjs";
+import { metres, ROUTING_POLICY } from "./routing.mjs";
 import {verifiedPartialRoute} from "./partial-route.mjs";
 import { gunzipSync } from "fflate";
-import {createOfficialConditionIndex} from './official-conditions.mjs';
+import {createOfficialConditionIndex,officialConditionMetrics,officialConditionScore} from './official-conditions.mjs';
 import { validateNetwork } from "./network-contract.mjs";
 import { createOfficialRouteVerifier } from './verify-official-route.mjs';
 import {routeAroundConstruction,resolveVerifiedRoute} from './construction-routing.mjs';
@@ -16,7 +16,14 @@ import {compareOfficialAndLocal} from './cross-source-candidates.mjs';
 import {planConditionDetour} from './official-condition-detour.mjs';
 import {diagnoseAvoidedStairs} from './route-avoidance.mjs';
 import {createNearbyConditionAnnotator} from './route-nearby-conditions.mjs';
-let router, verifyOfficial, verifyLocal, facilities, initialization, detourWaypoints, nearbyRoutes, routeGraph;
+import {projectionLimitResponse} from './route-worker-errors.mjs';
+import {createProvisionalNetwork} from './provisional-network.mjs';
+import {selectReferenceRegion} from './reference-region.mjs';
+import {decodeReferenceAsset} from './reference-integrity.mjs';
+import {verifyOfficialReferenceRoute} from './official-reference-validator.mjs';
+let router, verifyOfficial, verifyLocal, facilities, routePlaces, initialization, detourWaypoints, nearbyRoutes, routeGraph;
+let routeGraphUrl, referenceAsset;
+function prepareTask(){if(router?.resetProjectionsIfNeeded?.())nearbyRoutes=null;}
 function avoidance(start,end,prefs,checker,known=[]){
   const avoidedStairs=diagnoseAvoidedStairs(router,start,end,prefs);
   let avoidedWorks=known;
@@ -33,7 +40,15 @@ function avoidance(start,end,prefs,checker,known=[]){
 }
 function annotateAvoidance(result,start,end,prefs,checker){
   if(result?.error)return result;
-  const {avoidedStairs,avoidedWorks}=avoidance(start,end,prefs,checker,result.construction?.avoidedWorks||[]);
+  let diagnostic;
+  try{diagnostic=avoidance(start,end,prefs,checker,result.construction?.avoidedWorks||[]);}
+  catch(error){
+    if(error?.code!=='PROJECTION_LIMIT')throw error;
+    if(!['pedestrian-network-v1','official-polygons-and-crossings-v1'].includes(result.geometryVerification)||result.policyVersion!==ROUTING_POLICY)throw error;
+    const work=checker.inspect(result.coordinates);if(work.blocked.length)return {error:'CONSTRUCTION_BLOCKED',construction:work};
+    return {...result,avoidanceStatus:'projection-limit'};
+  }
+  const {avoidedStairs,avoidedWorks}=diagnostic;
   const construction=result.construction
     ? {...result.construction,avoided:avoidedWorks.length,avoidedWorks}
     : result.construction;
@@ -45,7 +60,17 @@ function withCandidates(base,startPlace,endPlace,options,snapshot,checker){
   if(!Number.isFinite(a?.lat)||!Number.isFinite(a?.lon)||!Number.isFinite(b?.lat)||!Number.isFinite(b?.lon))
     return {...base,routeCandidates:{status:'missing-endpoints',candidates:[]}};
   const prefs={...options,startPlace:a,endPlace:b};
-  const choices=findRouteCandidates(base,[a.lat,a.lon],[b.lat,b.lon],prefs,snapshot,{graph:routeGraph,router,verifyLocal,checker});
+  let choices;
+  try{choices=findRouteCandidates(base,[a.lat,a.lon],[b.lat,b.lon],prefs,snapshot,{graph:routeGraph,router,verifyLocal,checker});}
+  catch(error){
+    if(error?.code!=='PROJECTION_LIMIT')throw error;
+    if(!constructionFresh(snapshot))return {error:'CONSTRUCTION_UNAVAILABLE'};
+    const checked=verifyLocal({...base,coordinates:base.networkCoordinates||base.coordinates},[a.lat,a.lon],[b.lat,b.lon],prefs);
+    if(checked.error||checked.geometryVerification!=='pedestrian-network-v1'||checked.policyVersion!==ROUTING_POLICY)throw error;
+    const work=checker.inspect(checked.coordinates);if(work.blocked.length)return {error:'CONSTRUCTION_BLOCKED',construction:work};
+    if(!constructionFresh(snapshot))return {error:'CONSTRUCTION_UNAVAILABLE'};
+    return {...base,...checked,construction:work,routeCandidates:{status:'projection-limit',candidates:[]}};
+  }
   if(choices.error)return choices.error==='CONSTRUCTION_UNAVAILABLE'?choices:{...base,routeCandidates:{status:choices.error,candidates:[]}};
   const selected=choices.candidates?.[0];
   return selected?{...selected.route,routeCandidates:choices,selectedCandidateId:selected.id}:{...base,routeCandidates:choices};
@@ -91,6 +116,7 @@ function combineRoutes(a, b, viaName) {
 self.onmessage = async ({ data }) => {
   try {
     if (data.type === "init") {
+      routeGraphUrl=data.url;referenceAsset=null;
       initialization = (async () => {
       const r = await fetch(data.url);
       if (!r.ok) throw Error("graph");
@@ -124,6 +150,7 @@ self.onmessage = async ({ data }) => {
       const pr=await fetch(new URL('./places.json.gz',data.url));if(!pr.ok)throw Error('places');
       const pb=new Uint8Array(await pr.arrayBuffer()),places=JSON.parse(new TextDecoder().decode(pb[0]===31&&pb[1]===139?gunzipSync(pb):pb));
       if(!Array.isArray(facilities)||!Array.isArray(places))throw Error('places');
+      routePlaces=places;
       const rawVerifyLocal=createLocalRouteVerifier(graph,facilities,places);
       verifyLocal=Object.assign((...args)=>annotateNearbyConditions(rawVerifyLocal(...args)),rawVerifyLocal);
       router=createVerifiedRouter(graph,verifyLocal);
@@ -131,22 +158,56 @@ self.onmessage = async ({ data }) => {
       })();
       await initialization;
       postMessage({ type: "ready" });
+    } else if(data.type==='reference-route'){
+      await initialization;
+      if(!constructionFresh(data.construction)){postMessage({type:'reference-route',id:data.id,result:{error:'CONSTRUCTION_UNAVAILABLE'}});return;}
+      if(!referenceAsset){
+        const [response,metadata]=await Promise.all([fetch(new URL('./official-sidewalk-reference.json.gz',routeGraphUrl)),fetch(new URL('./official-sidewalk-reference.meta.json',routeGraphUrl))]);
+        if(!response.ok||!metadata.ok)throw Error('REFERENCE_DATA_UNAVAILABLE');
+        referenceAsset=await decodeReferenceAsset(new Uint8Array(await response.arrayBuffer()),await metadata.json());
+      }
+      const region=selectReferenceRegion(referenceAsset,routeGraph,data.start,data.end);
+      if(region.parts.length>10000||region.osmEdgeIds.length>50000){postMessage({type:'reference-route',id:data.id,result:{error:'PROVISIONAL_SEARCH_LIMIT'}});return;}
+      const network=createProvisionalNetwork({...region,graph:routeGraph,facilities,places:routePlaces,snapshot:data.construction,routingOptions:data.options||{}});
+      const comparison=network.error?network:network.findCandidates(data.start,data.end,{startPlace:data.startPlace,endPlace:data.endPlace});
+      let result=comparison;
+      if(!comparison.error){
+        const checked=[];
+        for(const candidate of comparison.candidates){
+          const route=verifyOfficialReferenceRoute({route:candidate.route,parts:region.parts,sourceHash:region.sourceHash,graph:routeGraph,snapshot:data.construction,verifyLocal,start:data.start,end:data.end,startPlace:data.startPlace,endPlace:data.endPlace,options:data.options||{}});
+          if(!route.error)checked.push(route);
+        }
+        if(!checked.length)result={error:'REFERENCE_VALIDATION_FAILED'};
+        else {
+          const shortest=Math.min(...checked.map(x=>x.distanceMetres)),candidates=checked.filter(x=>x.distanceMetres<=Math.min(shortest*1.3,shortest+300)+.00001).map((route,i)=>{
+            let area=0,sidewalk=0,unknown=0,approach=0,joins=0;
+            for(const segment of route.segments){const d=segment.distanceMetres;if(segment.officialAreaCovered)area+=d;if(segment.explicitSidewalk)sidewalk+=d;if(segment.kind!=='osm'||segment.unknownDimensions)unknown+=d;if(segment.kind==='endpoint-approach')approach+=d;if(segment.kind.endsWith('join'))joins++;}
+            const conditionMetrics=officialConditionMetrics(route.officialConditions);const total=route.distanceMetres||1,scoreBreakdown={officialConditions:officialConditionScore(conditionMetrics.officialConditionWeight),officialArea:10*area/total,sidewalk:20*sidewalk/total,unknown:-12*unknown/total,estimatedApproach:-15*approach/total,joins:-Math.min(10,joins*2),detour:-20*Math.max(0,route.distanceMetres-shortest)/(shortest||1)};
+            return {id:`official-${i}`,route,coverage:{officialAreaMetres:area,explicitSidewalkMetres:sidewalk,unknownMetres:unknown,estimatedApproachMetres:approach,unconfirmedJoinCount:joins,...conditionMetrics},scoreBreakdown,score:Math.max(0,Math.min(100,50+Object.values(scoreBreakdown).reduce((a,b)=>a+b,0)))};
+          }).sort((a,b)=>b.score-a.score||a.route.distanceMetres-b.route.distanceMetres);
+          result={kind:'official-passageway-comparison',sourceHash:region.sourceHash,constructionSourceUpdatedAt:data.construction.sourceUpdatedAt,status:comparison.status,candidates,recommendedCandidateId:candidates[0].id};
+        }
+      }
+      postMessage({type:'reference-route',id:data.id,result});
     } else if(data.type==='nearby-positions'){
       await initialization;
+      prepareTask();
       let checker;try{checker=createConstructionChecker(data.construction);}catch{postMessage({type:'nearby-positions',id:data.id,result:{error:'CONSTRUCTION_UNAVAILABLE'}});return;}
       if(!nearbyRoutes)nearbyRoutes=createNearbyRoutes(routeGraph,{router,verifyLocal,facilities});
       const result=nearbyRoutes(data.startPlace,data.endPlace,data.options||{},data.construction,checker,{radius:120,includeOuter:true});
       if(result.error){postMessage({type:'nearby-positions',id:data.id,result});return;}
       const verified=verifyNearbyRoutes(result,data.startPlace,data.endPlace,data.options||{},data.construction,{graph:routeGraph,router,verifyLocal,facilities,checker});
       if(verified.error){postMessage({type:'nearby-positions',id:data.id,result:verified});return;}
-      postMessage({type:'nearby-positions',id:data.id,result:{...result,verifiedCandidates:verified.candidates,truncated:verified.truncated}});
+      postMessage({type:'nearby-positions',id:data.id,result:{...result,verifiedCandidates:verified.candidates,truncated:verified.truncated,searchStatus:verified.searchStatus}});
     } else if(data.type==='avoid-official-condition'){
       await initialization;
+      prepareTask();
       let checker;try{checker=createConstructionChecker(data.construction);}catch{postMessage({type:'avoid-official-condition',id:data.id,result:{error:'CONSTRUCTION_UNAVAILABLE'}});return;}
       const result=planConditionDetour(data.startPlace,data.endPlace,data.options||{},data.construction,{graph:routeGraph,router,verifyLocal,facilities,checker},data.targets);
       postMessage({type:'avoid-official-condition',id:data.id,result});
     } else if(data.type==='plan-places'){
       await initialization;
+      prepareTask();
       let checker;try{checker=createConstructionChecker(data.construction);}catch{postMessage({type:'route',id:data.id,result:{error:'CONSTRUCTION_UNAVAILABLE'}});return;}
       let result=planImprovedPlaces(data.startPlace,data.endPlace,data.options||{},data.construction,{graph:routeGraph,router,verifyLocal,facilities,checker});
       if(!result.error)result=withCandidates(result,data.startPlace,data.endPlace,data.options||{},data.construction,checker);
@@ -168,6 +229,7 @@ self.onmessage = async ({ data }) => {
       postMessage({type:'route',id:data.id,result});
     } else if (data.type === 'verify-official') {
       await initialization;
+      prepareTask();
       if (!verifyOfficial) throw Error('UNVERIFIED_NETWORK');
       if(!verifyLocal.endpointAllowed(data.start,data.options?.startPlace,'start')||!verifyLocal.endpointAllowed(data.end,data.options?.endPlace,'end')){
         postMessage({type:'verified-official',id:data.id,result:{error:'OFFICIAL_ENTRY_UNVERIFIED'}});return;
@@ -191,6 +253,7 @@ self.onmessage = async ({ data }) => {
       if(!result.error&&result.provider==='taipei-official'){
         let checker;try{checker=createConstructionChecker(data.construction);}catch{result={error:'CONSTRUCTION_UNAVAILABLE'};}
         if(checker){
+          try{
           const opts=data.options||{},startPlace=opts.startPlace||{lat:data.start[0],lon:data.start[1]},endPlace=opts.endPlace||{lat:data.end[0],lon:data.end[1]},deps={graph:routeGraph,router,verifyLocal,facilities,checker};
           const local=planImprovedPlaces(startPlace,endPlace,opts,data.construction,deps);
           let localCandidates=[];
@@ -203,16 +266,23 @@ self.onmessage = async ({ data }) => {
           if(!result.error){const compared=compareOfficialAndLocal(result,data.start,data.end,opts,data.construction,{graph:routeGraph,verifyOfficial,verifyLocal,checker},{localCandidates});
             if(compared.error)result=compared;else{const ordered=[...compared.candidates].sort((a,b)=>b.score-a.score||a.metrics.distanceMetres-b.metrics.distanceMetres||a.id.localeCompare(b.id)),selected=ordered[0];
               result=selected?{...selected.route,routeCandidates:compared,selectedCandidateId:selected.id}:result;}}
+          }catch(error){
+            if(error?.code!=='PROJECTION_LIMIT')throw error;
+            if(!constructionFresh(data.construction))result={error:'CONSTRUCTION_UNAVAILABLE'};
+            else if(result?.geometryVerification!=='official-polygons-and-crossings-v1'||result.policyVersion!==ROUTING_POLICY)throw error;
+            else {const work=checker.inspect(result.coordinates);result=work.blocked.length?{error:'CONSTRUCTION_BLOCKED',construction:work}:{...result,construction:work,routeCandidates:{status:'projection-limit',candidates:[]}};}
+          }
         }
       }
       if(!result.error){
-        try{const checker=createConstructionChecker(data.construction);result=annotateAvoidance(result,data.start,data.end,{...data.options,lineAllowed:checker.allowed},checker);}catch{}
+        try{const checker=createConstructionChecker(data.construction);result=annotateAvoidance(result,data.start,data.end,{...data.options,lineAllowed:checker.allowed},checker);}catch(error){if(error?.code==='PROJECTION_LIMIT')throw error;}
       }
       if(!constructionFresh(data.construction))result={error:'CONSTRUCTION_UNAVAILABLE'};
       if(result.error && ['OFFICIAL_PATH_UNVERIFIED','OFFICIAL_ROAD_CONFLICT','OFFICIAL_CROSSING_UNVERIFIED','OFFICIAL_ENTRY_UNVERIFIED','CONSTRUCTION_BLOCKED'].includes(result.error))result.detourWaypoints=detourWaypoints(data.start,data.end,result.detourCenter);
       postMessage({type:'verified-official',id:data.id,result});
     } else if (data.type === "route") {
       await initialization;
+      prepareTask();
       if (!router) throw Error("not ready");
       let checker;try{checker=createConstructionChecker(data.construction);}catch{postMessage({type:'route',id:data.id,result:{error:'CONSTRUCTION_UNAVAILABLE'}});return;}
       function leg(start,end,legOptions=data.options||{}){
@@ -267,6 +337,9 @@ self.onmessage = async ({ data }) => {
       postMessage({type:'route',id:data.id,result});
     }
   } catch (e) {
+    if(e?.code==='PROJECTION_LIMIT'){
+      postMessage(projectionLimitResponse(data.type,data.id));return;
+    }
     postMessage({ type: "error", id: data.id, message: e.message });
   }
 };

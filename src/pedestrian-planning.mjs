@@ -4,7 +4,9 @@ import {createRouter} from './routing.mjs';
 
 export function createVerifiedRouter(graph,verifyLocal){
  const base=createRouter(graph);
- return (a,b,options={})=>base(a,b,{...options,approachAllowed:(p,n,side)=>verifyLocal.approachAllowed(p,n,side==='start'?options.startPlace:options.endPlace,options,side)});
+ const router=(a,b,options={})=>base(a,b,{...options,approachAllowed:(p,n,side)=>verifyLocal.approachAllowed(p,n,side==='start'?options.startPlace:options.endPlace,options,side)});
+ router.resetProjectionsIfNeeded=base.resetProjectionsIfNeeded;
+ return router;
 }
 
 // Shared product/benchmark entry point: resolve station exits and verify the

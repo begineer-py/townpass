@@ -102,6 +102,8 @@ export function createLocalRouteVerifier(graph,facilities=[],places=[]){
  const verify=(route,start,end,options={})=>{
   if(route.error)return route;
   if(!Array.isArray(route.edgeIds)||!route.edgeIds.length||route.nodeIds?.length!==route.edgeIds.length+1)return {error:'UNVERIFIED_NETWORK'};
+  const projection=graph._routeProjectionState;
+  if(projection&&(route.edgeIds.some(id=>id>=projection.baseEdges||graph.edges[id]?.[5]?.derivedFrom!=null)||route.nodeIds.some(id=>id>=projection.baseNodes))&&route.projectionEpoch!==projection.epoch)return {error:'UNVERIFIED_NETWORK'};
   const coordinates=[graph.nodes[route.nodeIds[0]]?.slice(0,2)],tierSegments=[],crossingUncertainties=[],verifiedSegments=[];
   let networkDistance=0;
   for(let i=0;i<route.edgeIds.length;i++){
@@ -186,20 +188,29 @@ export function planPlaces(startPlace,endPlace,options,snapshot,{router,verifyLo
  let bestCost=Infinity;
  const attempts=[],failures=[];
  function failed(result){last=result;failures.push(result);}
- for(const a of stationEntrances(startPlace,facilities))for(const b of stationEntrances(endPlace,facilities)){
+ attemptsLoop: for(const a of stationEntrances(startPlace,facilities))for(const b of stationEntrances(endPlace,facilities)){
   const start=[a.lat,a.lon],end=[b.lat,b.lon],prefs={...options,_ignoreOfficialConditions:false,startPlace:a,endPlace:b,lineAllowed:checker.allowed,approachAllowed:(p,n,side)=>verifyLocal.approachAllowed(p,n,side==='start'?a:b,options,side)};
   attempts.push({start,end,prefs});
-  const candidate=router(start,end,prefs);if(candidate.error){failed(['NO_ROUTE','NO_CONNECTION'].includes(candidate.error)?{...candidate,failedPair:{start:a,end:b}}:candidate);continue;}
+  let candidate;
+  try{candidate=router(start,end,prefs);}catch(error){
+   if(error?.code!=='PROJECTION_LIMIT'||!best)throw error;
+   return constructionFresh(snapshot)?{...best,routeSearchStatus:'projection-limit'}:{error:'CONSTRUCTION_UNAVAILABLE'};
+  }
+  if(candidate.error){failed(['NO_ROUTE','NO_CONNECTION'].includes(candidate.error)?{...candidate,failedPair:{start:a,end:b}}:candidate);continue;}
   const checked=verifyLocal(candidate,start,end,prefs);if(checked.error){failed(checked);continue;}
   const work=checker.inspect(checked.coordinates);if(work.blocked.length){blocked={error:'CONSTRUCTION_BLOCKED',construction:work};continue;}
-  let chosen=checked,chosenWork=work,conditionDetourLimit;
+  let chosen=checked,chosenWork=work,conditionDetourLimit,capacityExhausted=false;
   // Compare only routes for the same resolved endpoints, with the same
   // restrictions and construction snapshot. This preference may not turn a
   // nearby map observation into an unbounded detour.
   if(graph?.officialConditionIndex){
    if(!constructionFresh(snapshot))return {error:'CONSTRUCTION_UNAVAILABLE'};
    const baselinePrefs={...prefs,_ignoreOfficialConditions:true};
-   const baselineCandidate=router(start,end,baselinePrefs);
+   let baselineCandidate;
+   try{baselineCandidate=router(start,end,baselinePrefs);}catch(error){
+    if(error?.code!=='PROJECTION_LIMIT')throw error;
+    capacityExhausted=true;baselineCandidate={error:'PROJECTION_LIMIT'};
+   }
    const withinDeadline=()=>!Number.isFinite(prefs._optimizeDeadline)||Date.now()<=prefs._optimizeDeadline;
    if(!constructionFresh(snapshot))return {error:'CONSTRUCTION_UNAVAILABLE'};
    if(!baselineCandidate.error&&withinDeadline()){
@@ -220,7 +231,8 @@ export function planPlaces(startPlace,endPlace,options,snapshot,{router,verifyLo
    }
    if(!constructionFresh(snapshot))return {error:'CONSTRUCTION_UNAVAILABLE'};
   }
-  if(!best||chosen.weightedCost<bestCost){bestCost=chosen.weightedCost;best={...chosen,construction:chosenWork,resolvedStart:a,resolvedEnd:b,...(conditionDetourLimit?{conditionDetourLimit}:{})};}
+  if(!best||chosen.weightedCost<bestCost){bestCost=chosen.weightedCost;best={...chosen,construction:chosenWork,resolvedStart:a,resolvedEnd:b,...(conditionDetourLimit?{conditionDetourLimit}:{}),...(capacityExhausted?{conditionDetourComparison:'projection-limit'}:{})};}
+  if(capacityExhausted){best={...best,routeSearchStatus:'projection-limit'};break attemptsLoop;}
  }
  if(best)return best;
  if(blocked)return blocked;

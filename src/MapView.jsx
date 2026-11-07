@@ -14,6 +14,7 @@ import { groupVisibleIssues, hitIssueGroup, issueGroupLabel, routeIssueLabel } f
 import { metroStationCodes, metroStationIconUrl } from "./metro-station-icons.mjs";
 import { mapIconElement } from "./map-icons.mjs";
 import { mapPickPoint } from "./location.js";
+import { REFERENCE_STYLES, referenceRouteLines } from "./reference-route-presentation.mjs";
 const colors = {
   place: TPColors.orange700,
   bus: TPColors.primary900,
@@ -58,6 +59,7 @@ export default function MapView({
   items,
   recentPlaces = [],
   route,
+  referenceRoute,
   partialRoute,
   constructionConflict,
   routeGap,
@@ -88,6 +90,8 @@ export default function MapView({
     map = useRef(),
     marks = useRef(),
     path = useRef(),
+    referencePath = useRef(),
+    referenceRenderer = useRef(),
     partialPath = useRef(),
     blocked = useRef(),
     gap = useRef(),
@@ -115,6 +119,10 @@ export default function MapView({
     if (import.meta.env.DEV) window.__haohaoMap = m;
     m.attributionControl?.setPrefix(false);
     marks.current = L.layerGroup().addTo(m);
+    const referencePane=m.getPane('reference-route')||m.createPane('reference-route',m.getPane('rotatePane')||undefined);
+    referencePane.style.zIndex='390';referencePane.style.pointerEvents='none';
+    referenceRenderer.current=L.canvas({pane:'reference-route',padding:.25});
+    referencePath.current=L.layerGroup().addTo(m);
     path.current = L.layerGroup().addTo(m);
     partialPath.current = L.layerGroup().addTo(m);
     blocked.current = L.layerGroup().addTo(m);
@@ -459,9 +467,21 @@ export default function MapView({
   }, []);
   useEffect(() => { markerRedraw.current?.(); }, [items, recentPlaces, colorFriendly, hideMapIcons]);
   useEffect(() => {
+    if(!referencePath.current||!referenceRenderer.current)return;
+    referencePath.current.clearLayers();
+    const lines=referenceRouteLines(route?.kind==='official-passageway'?route:referenceRoute,{start,end});
+    for(const line of lines){
+      const style=REFERENCE_STYLES[line.kind],options={pane:'reference-route',renderer:referenceRenderer.current,interactive:false};
+      L.polyline(line.coordinates,{...options,color:TPColors.white,weight:10,opacity:1}).addTo(referencePath.current);
+      L.polyline(line.coordinates,{...options,color:style.color,weight:style.weight,dashArray:style.dashArray,opacity:1}).addTo(referencePath.current);
+    }
+    if(lines.length&&route?.kind==='official-passageway'&&!hideMapIcons) drawOfficialConditions(referencePath.current,route.officialConditions);
+    if(lines.length&&(!route||route.kind==='official-passageway')&&!partialRoute&&map.current){const points=lines.flatMap(line=>line.coordinates),height=map.current.getSize().y;map.current.fitBounds(L.latLngBounds(points),{animate:false,...routePadding(height)});}
+  },[referenceRoute,route,partialRoute,start,end,hideMapIcons]);
+  useEffect(() => {
     if (!path.current) return;
     path.current.clearLayers();
-    if (route?.coordinates) {
+    if (route?.coordinates && route.kind!=='official-passageway') {
       L.polyline(route.networkCoordinates || route.coordinates, {
         color: TPColors.white,
         weight: 13,

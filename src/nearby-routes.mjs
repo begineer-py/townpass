@@ -105,7 +105,13 @@ export function verifyNearbyRoutes(nearby, startPlace, endPlace, options, snapsh
   for (const choice of group.sort((a,b) => distanceMoved(a) - distanceMoved(b))) {
    if (Date.now() >= deadline) { truncated = true; break; }
    if (!constructionFresh(snapshot)) return { error: 'CONSTRUCTION_UNAVAILABLE' };
-   const route = planPlaces(choice.start?.point || startPlace, choice.end?.point || endPlace, options, snapshot, deps);
+   let route;
+   try{route=planPlaces(choice.start?.point || startPlace, choice.end?.point || endPlace, options, snapshot, deps);}
+   catch(error){
+    if(error?.code!=='PROJECTION_LIMIT'||!candidates.length)throw error;
+    if(!constructionFresh(snapshot))return {error:'CONSTRUCTION_UNAVAILABLE'};
+    return {...nearby,candidates,truncated:true,searchStatus:'projection-limit'};
+   }
    if (route.error || !Number.isFinite(route.distance)) continue;
    candidates.push({ ...choice, route });
    if (candidates.length === 2) break;

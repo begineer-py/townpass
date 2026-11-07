@@ -56,6 +56,8 @@ import {
 import MapView from "./MapView";
 import { routeFitPadding } from "./route-fit.mjs";
 import OfficialConditions from "./OfficialConditions";
+import ReferenceRouteResult from "./ReferenceRouteResult";
+import {createReferenceSearch} from "./reference-search.mjs";
 import {createConditionDetourSearch} from "./condition-detour-search.mjs";
 import {presentRouteCandidates, sortRouteCandidates} from "./route-candidates-presentation.mjs";
 import {ROUTE_CONDITIONS, conditionForSegment, fallbackRouteCondition} from "./route-conditions.mjs";
@@ -70,6 +72,7 @@ import {canFallbackAfterVerification, startLocalFallback} from "./local-fallback
 import {constructionFresh, CONSTRUCTION_MAX_AGE} from "./construction.mjs";
 import {groupConstructionNotices} from "./construction-display.mjs";
 import {nearbyReplacement,nearbyWarnings,verifiedNearbyChoice} from "./nearby-presentation.mjs";
+import {isVerifiedNavigationRoute} from "./route-trust.mjs";
 import {createNearbySearch,shouldAutoSearchNearby} from "./nearby-search.mjs";
 import {createRouteWorkerLifecycle} from "./route-worker-lifecycle.mjs";
 import {createLiveFollow,displayedRouteCoordinates} from "./live-follow.mjs";
@@ -448,6 +451,10 @@ export default function App() {
   const [nearbyState,setNearbyState]=useState({status:'idle',candidates:[]});
   const nearbySearch=useRef(null);
   if(!nearbySearch.current)nearbySearch.current=createNearbySearch({fetchSnapshot:fetchConstruction,createWorker:()=>new Worker(new URL('./route-worker.js',import.meta.url),{type:'module'}),onState:setNearbyState,onSnapshot:s=>{lastConstruction.current=s;}});
+  const [referenceState,setReferenceState]=useState({status:'idle'});
+  const referenceSnapshot=useRef(null),referenceAutoAttempt=useRef(null),referenceSearch=useRef(null);
+  if(!referenceSearch.current)referenceSearch.current=createReferenceSearch({fetchSnapshot:fetchConstruction,getLifecycle:()=>worker.current,onState:setReferenceState,onSnapshot:s=>{referenceSnapshot.current=s;}});
+  useEffect(()=>()=>referenceSearch.current?.cancel(false),[]);
   const [conditionDetourState,setConditionDetourState]=useState({status:'idle'});
   const conditionDetourSearch=useRef(null);
   if(!conditionDetourSearch.current)conditionDetourSearch.current=createConditionDetourSearch({fetchSnapshot:fetchConstruction,createWorker:()=>new Worker(new URL('./route-worker.js',import.meta.url),{type:'module'}),onState:setConditionDetourState,onSnapshot:s=>{lastConstruction.current=s;}});
@@ -665,8 +672,9 @@ export default function App() {
       createWorker:()=>new Worker(new URL("./route-worker.js",import.meta.url),{type:'module'}),
       initMessage:{type:'init',url:new URL(dataUrl('graph')+'?policy='+ROUTING_POLICY,location.href).href},
       onReady:ready=>{graphReadyRef.current=ready;setGraphReady(ready);if(ready){wasReady=true;setGraphError(false);}else if(wasReady)announce('正在重新準備路線資料。');},
-      onDropped:message=>{if(message.type==='verify-official')pendingVerifications.current.get(message.id)?.({error:'CANCELLED'});},
+      onDropped:message=>{if(referenceSearch.current.handleDropped(message))return;if(message.type==='verify-official')pendingVerifications.current.get(message.id)?.({error:'CANCELLED'});},
       onMessage:d=>{
+      if(referenceSearch.current.handleMessage(d))return;
       if (d.type === 'verified-official') {
         pendingVerifications.current.get(d.id)?.(d.result);
         pendingVerifications.current.delete(d.id);
@@ -695,8 +703,9 @@ export default function App() {
         }
       }
       },
-      onError:d=>{
+      onError:(d,failedMessage)=>{
         graphReadyRef.current=false;
+        if(failedMessage?.type==='reference-route'){lifecycle.start();return;}
         for(const resolve of pendingVerifications.current.values()) resolve({error:'UNVERIFIED_NETWORK'});
         pendingVerifications.current.clear();
         if (d?.id != null && d.id !== request.current) return;
@@ -726,9 +735,11 @@ export default function App() {
     setFocus({ ...p, token: Date.now() });
   };
   function clearRoute() {
+    stopFollowing();
     dataGate.current.cancel();
     conditionDetourSearch.current.cancel();
     cancelNearby();
+    referenceSearch.current.cancel();referenceSnapshot.current=null;
     pendingRoute.current=null;
     worker.current?.cancel();
     setConstructionConflict(null);
@@ -746,8 +757,18 @@ export default function App() {
     setRouteCandidates([]);
     setSelectedRouteCandidate(null);
   }
+  function isCurrentOfficialRoute(candidate) {
+    return !!candidate && referenceState.status==='ready' && referenceState.startPlace===start && referenceState.endPlace===end && constructionFresh(referenceSnapshot.current) && candidate.kind==='official-passageway' && candidate.verification==='official-source-screened-v1' && candidate.navigationAllowed===true && candidate.constructionSourceUpdatedAt===referenceSnapshot.current?.sourceUpdatedAt && referenceState.candidates?.some(item=>item.route===candidate);
+  }
+  function selectOfficialCandidate(candidate) {
+    if(!isCurrentOfficialRoute(candidate?.route)) { announce('路線資料已過期，請重新規劃。'); return; }
+    stopFollowing(); conditionDetourSearch.current.cancel();
+    lastConstruction.current=referenceSnapshot.current;
+    setRoute(candidate.route); setRouteCandidates([]); setSelectedRouteCandidate(candidate.id);
+    setConstructionConflict(null); setRouteGap(null); setPartialRoute(null); setRouteError(''); setStepIndex(0);
+  }
   function selectRouteCandidate(candidate) {
-    if (!constructionFresh(lastConstruction.current) || candidate.route.construction?.sourceUpdatedAt !== lastConstruction.current?.sourceUpdatedAt) {
+    if (!isVerifiedNavigationRoute(candidate?.route) || !constructionFresh(lastConstruction.current) || candidate.route.construction?.sourceUpdatedAt !== lastConstruction.current?.sourceUpdatedAt) {
       clearRoute(); setRouteError("CONSTRUCTION_UNAVAILABLE"); return;
     }
     conditionDetourSearch.current.cancel();stopFollowing();
@@ -775,6 +796,12 @@ export default function App() {
   function findNearbyPositions(){
     if(!start||!end||!graphReady)return;
     void nearbySearch.current.start({startPlace:start,endPlace:end,options:{...prefs,avoidPoints},url:new URL(dataUrl('graph')+'?policy='+ROUTING_POLICY,location.href).href,online:navigator.onLine,offlineSnapshot:lastConstruction.current});
+  }
+  function findReferenceRoute(){
+    if(!start||!end)return;
+    referenceAutoAttempt.current=request.current;
+    referenceSnapshot.current=null;
+    void referenceSearch.current.start({startPlace:start,endPlace:end,options:{...prefs,avoidPoints},url:new URL(dataUrl('graph')+'?policy='+ROUTING_POLICY,location.href).href,online:navigator.onLine,offlineSnapshot:lastConstruction.current});
   }
   function chooseNearby(candidate){
     stopFollowing();
@@ -805,7 +832,7 @@ export default function App() {
     setFollowState({active:false,status:'idle',message:''});
   }
   function startFollowing() {
-    if(!route||!end||route.requiresEntryConfirmation||route.viaName){
+    if(!(isVerifiedNavigationRoute(route)||isCurrentOfficialRoute(route))||!end||route.requiresEntryConfirmation||route.viaName){
       announce(route?.viaName?'順路停靠的行程暫不支援位置跟隨。':'請先規劃路線，再開始位置跟隨。');
       return;
     }
@@ -1000,6 +1027,9 @@ export default function App() {
     () => activeElevatorStops(data),
     [data],
   );
+  useEffect(()=>{
+    referenceSearch.current.cancel(false);referenceSnapshot.current=null;setReferenceState({status:'idle'});
+  },[start,end,prefs,avoidPoints]);
   async function calculate(points) {
     stopFollowing();
     const fromPoint=points?.start||start,toPoint=points?.end||end;
@@ -1348,12 +1378,12 @@ export default function App() {
       return;
     }
     if (
-      !route ||
+      !(isVerifiedNavigationRoute(route)||isCurrentOfficialRoute(route)) ||
       route.requiresEntryConfirmation ||
       route.policyVersion !== ROUTING_POLICY
     )
       return;
-    const text = `從${start.name}前往${end.name}，路線長約${formatDistance(route.distance)}。${destinationNotice}${nearbyWarnings(start,end).join(' ')}${route.approaches?.some(p=>p.estimated) ? "起終點銜接為直線位置估算，入口與實際通行狀況未確認，請先確認現場。" : ""}${route.steps.map((s) => `${stepText(s)}約${Math.round(s.distance)}公尺。${stepConditions(s) ? stepConditions(s)+'。' : ''}`).join("")}路況仍需留意現場，這是路線預覽。`;
+    const text = `從${start.name}前往${end.name}，路線長約${formatDistance(route.distance)}。${destinationNotice}${nearbyWarnings(start,end).join(' ')}${route.kind==='official-passageway' ? '銜接與樓層未確認。' : ''}${route.approaches?.some(p=>p.estimated) ? "起終點銜接為直線位置估算，入口與實際通行狀況未確認，請先確認現場。" : ""}${route.steps.map((s) => `${stepText(s)}約${Math.round(s.distance)}公尺。${stepConditions(s) ? stepConditions(s)+'。' : ''}`).join("")}路況仍需留意現場，這是路線預覽。`;
     speakText(text);
   }
   function speakText(text) {
@@ -1370,7 +1400,7 @@ export default function App() {
   }
   async function saveTrip() {
     if (
-      !route ||
+      !isVerifiedNavigationRoute(route) ||
       route.requiresEntryConfirmation ||
       route.policyVersion !== ROUTING_POLICY
     )
@@ -1391,7 +1421,7 @@ export default function App() {
   }
   async function share() {
     if (
-      !route ||
+      !(isVerifiedNavigationRoute(route)||isCurrentOfficialRoute(route)) ||
       route.requiresEntryConfirmation ||
       route.policyVersion !== ROUTING_POLICY
     )
@@ -1399,7 +1429,7 @@ export default function App() {
     const text = `好好走｜${start.name} → ${end.name}\n約 ${formatDistance(route.distance)}\n${route.steps
       .slice(0, 20)
       .map((s) => `${s.name} ${Math.round(s.distance)}公尺${stepConditions(s) ? `（${stepConditions(s)}）` : ''}`)
-      .join("\n")}\n${destinationNotice ? destinationNotice+'\n' : ''}${nearbyWarnings(start,end).join('\n')}${nearbyWarnings(start,end).length?'\n':''}${route.approaches?.some(p=>p.estimated) ? '起終點入口與實際通行狀況未確認，銜接為直線位置估算。\n' : ''}路線依公開路網規劃，部分通行條件尚未確認，請留意現場。`;
+      .join("\n")}\n${destinationNotice ? destinationNotice+'\n' : ''}${nearbyWarnings(start,end).join('\n')}${nearbyWarnings(start,end).length?'\n':''}${route.kind==='official-passageway' ? '銜接與樓層未確認。\n' : ''}${route.approaches?.some(p=>p.estimated) ? '起終點入口與實際通行狀況未確認，銜接為直線位置估算。\n' : ''}路線依公開路網規劃，部分通行條件尚未確認，請留意現場。`;
     try {
       if (navigator.share)
         await navigator.share({ title: "好好走・行程", text });
@@ -1442,28 +1472,47 @@ export default function App() {
   };
   const retryWithEntrance = ['OFFICIAL_PATH_UNVERIFIED','OFFICIAL_ROAD_CONFLICT','OFFICIAL_CROSSING_UNVERIFIED','OFFICIAL_ENTRY_UNVERIFIED','OFFICIAL_NO_ROUTE','OFFICIAL_GAP','NO_CONNECTION','NO_ROUTE'].includes(routeError);
   useEffect(()=>{
+    if(['NO_ROUTE','NO_CONNECTION'].includes(routeError) && referenceState.status!=='error')return;
     if(!shouldAutoSearchNearby({error:routeError,routing,graphReady,tab,start,end}))return;
     findNearbyPositions();
     // A new route request, changed endpoint or changed preference invalidates
     // the search. Nearby status is deliberately not a dependency: cancel or
     // completion must never restart the lookup by itself.
     return ()=>nearbySearch.current?.cancel(false);
-  },[routeError,routing,graphReady,tab,start,end,prefs,avoidPoints,partialRoute]);
+  },[routeError,routing,graphReady,tab,start,end,prefs,avoidPoints,partialRoute,referenceState.status]);
   useEffect(()=>{
     if(nearbyState.status!=='ready'||!routeError||nearbyState.startPlace!==start||nearbyState.endPlace!==end||nearbyState.constructionSourceUpdatedAt!==lastConstruction.current?.sourceUpdatedAt)return;
     const choice=(nearbyState.verifiedCandidates||[]).map(candidate=>verifiedNearbyChoice(candidate,start,end,lastConstruction.current)).find(Boolean);
     if(!choice)return;
     stopFollowing();
-    setStart(choice.start);setEnd(choice.end);setRoute(choice.route);
+    setStart(choice.start);setEnd(choice.end);setRoute(nearbyState.searchStatus==='projection-limit'?{...choice.route,routeSearchStatus:'projection-limit'}:choice.route);
     setRouteCandidates([]);setSelectedRouteCandidate(null);setStepIndex(0);
     setConstructionConflict(null);setRouteGap(null);setPartialRoute(null);setRouteError('');
     cancelNearby();
   },[nearbyState,routeError,start,end]);
+  useEffect(()=>{
+    if(tab!=='plan'||!start||!end||!graphReady||!['NO_ROUTE','NO_CONNECTION'].includes(routeError)||referenceAutoAttempt.current===request.current)return;
+    referenceAutoAttempt.current=request.current;
+    findReferenceRoute();
+  },[tab,start,end,graphReady,routeError]);
+  useEffect(()=>{
+    if(referenceState.status!=='ready'||!['NO_ROUTE','NO_CONNECTION'].includes(routeError))return;
+    const recommended=referenceState.candidates?.find(candidate=>candidate.route===referenceState.route);
+    if(recommended)selectOfficialCandidate(recommended);
+  },[referenceState,routeError]);
+  const referenceRoute=referenceState.status==='ready'&&referenceState.startPlace===start&&referenceState.endPlace===end&&constructionFresh(referenceSnapshot.current)&&referenceState.constructionSourceUpdatedAt===referenceSnapshot.current?.sourceUpdatedAt?referenceState.route:null;
+  useEffect(()=>{
+    if(referenceState.status!=='ready'||!referenceSnapshot.current)return;
+    const s=referenceSnapshot.current,expires=Math.min(Date.parse(s.fetchedAt),Date.parse(s.sourceUpdatedAt))+CONSTRUCTION_MAX_AGE-Date.now();
+    const timer=setTimeout(()=>{if(route?.kind==='official-passageway')clearRoute();else {referenceSearch.current.cancel();referenceSnapshot.current=null;}},Math.max(0,expires));
+    return ()=>clearTimeout(timer);
+  },[referenceState,route]);
   const entranceChoices = useMemo(() => {
     if (!retryWithEntrance) return [];
     return nearbyEntranceChoices(start, end, data?.fac);
   }, [retryWithEntrance, data, start, end]);
   const errorText = {
+    PROJECTION_LIMIT: '這次路線計算已達上限，請重新規劃。',
     CONSTRUCTION_UNAVAILABLE: '施工資料暫時無法更新。請確認網路或稍後再試，附近設施仍可查看。',
     CONSTRUCTION_BLOCKED: '路線或入口遇到影響通行的施工通報，目前沒有找到通過檢查的替代路線。可以換個出入口再試。',
 
@@ -1803,12 +1852,15 @@ export default function App() {
                     </div>
                   </div>
                 )}
+                {(route || routeError) && start && end && referenceState.status==='idle' && <button type="button" onClick={findReferenceRoute}>找官方人行路線</button>}
+                <ReferenceRouteResult status={referenceState.status} route={referenceRoute} candidates={referenceState.candidates||[]} selected={selectedRouteCandidate} onSelect={selectOfficialCandidate} comparisonStatus={referenceState.comparisonStatus} start={start} end={end} message={referenceState.message} onClose={()=>{if(route?.kind==='official-passageway')clearRoute();else {referenceSearch.current.cancel();referenceSnapshot.current=null;}}} />
                 {route && (
                   <>
                     <div className="route-summary"><h2>{start?.nearbyOriginal||end?.nearbyOriginal?'路網路線':'全程'} {formatDistance(route.distance)}</h2></div>
+                    {(route.routeSearchStatus==='projection-limit'||route.conditionDetourComparison==='projection-limit'||route.pedestrianImprovement?.status==='projection-limit'||route.routeCandidates?.status==='projection-limit'||route.avoidanceStatus==='projection-limit') && <p role="status">部分比較未完成，路線仍可查看；可重新規劃。</p>}
                     {route.officialConditions?.status === "unavailable" && <p className="quiet-note" role="note">目前查不到沿途通行問題紀錄。</p>}
                     {routeWorks.length > 0 && <p className="quiet-note" role="note">附近有施工，請留意現場指引。</p>}
-                    <RouteLegend segments={[route]} colorFriendly={prefs.colorFriendly}/>
+                    {route.kind!=='official-passageway' && <RouteLegend segments={[route]} colorFriendly={prefs.colorFriendly}/>}
                     <OfficialConditions conditions={route.officialConditions} onAvoid={avoidOfficialCondition} avoiding={conditionDetourState.status==='loading'}/>
                     {conditionDetourState.status==='loading'&&<p role="status">正在尋找繞路… <button type="button" onClick={()=>conditionDetourSearch.current.cancel()}>取消</button></p>}
                     {conditionDetourState.status==='error'&&<p role="status">{conditionDetourState.message}</p>}
@@ -1926,7 +1978,7 @@ export default function App() {
                         <AlertTriangle size={17} />
                         回報路障
                       </button>
-                      <button onClick={saveTrip} disabled={route.requiresEntryConfirmation}>
+                      <button onClick={saveTrip} disabled={route.requiresEntryConfirmation || !isVerifiedNavigationRoute(route)}>
                         <Bookmark size={17} />
                         存下行程
                       </button>
@@ -2144,6 +2196,7 @@ export default function App() {
             colorFriendly={prefs.colorFriendly}
             onBasemapStatus={setBasemapStatus}
             route={tab ? route : null}
+            referenceRoute={tab==='plan' ? referenceRoute : null}
             partialRoute={tab==='plan' ? partialRoute : null}
             constructionConflict={tab && !hideMapIcons ? constructionConflict : null}
             routeGap={tab ? routeGapView : null}

@@ -111,9 +111,22 @@ export function edgeAllowed(way, options = {}, evidence = null) {
     return false;
   return true;
 }
+// One router owns each mutable graph and its projection IDs. A new router may
+// be built when no projections exist, so updated source geometry is reindexed.
+const graphRouters = new WeakMap();
+const projectionArrayOwners = new WeakMap();
 export function createRouter(graph) {
   if (graph.officialPathEvidence?.schemaVersion !== 2)
     return () => ({ error: "UNVERIFIED_NETWORK" });
+  for(const array of [graph.nodes,graph.edges]){
+    const owner=projectionArrayOwners.get(array);
+    if(owner&&owner.graph!==graph&&owner.hasProjections())throw new Error('Cannot share graph arrays while derived projections exist');
+  }
+  const existing=graphRouters.get(graph);
+  if(existing){
+    if(existing.hasProjections())throw new Error('Cannot create another router while derived projections exist');
+  }
+  const routerGroup=existing?.group||{current:null};
   const connectorRoadVerified =
     Array.isArray(graph.roadGeometries) &&
     Array.isArray(graph.officialCrossingAreas)
@@ -124,8 +137,10 @@ export function createRouter(graph) {
   heuristicScale=Math.max(0,heuristicScale*.999);
   const adjacency = Array.from({ length: graph.nodes.length }, () => []);
   const conditionCosts = new Map();
+  let conditionIndex=graph.officialConditionIndex;
   function officialConditionPenalty(index,options={}) {
     if (options._ignoreOfficialConditions === true) return 0;
+    if(conditionIndex!==graph.officialConditionIndex){conditionCosts.clear();conditionIndex=graph.officialConditionIndex;}
     if (!graph.officialConditionIndex) return 0;
     if (!conditionCosts.has(index)) {
       const edge=graph.edges[index], way=graph.ways[edge[3]];
@@ -144,7 +159,27 @@ export function createRouter(graph) {
     adjacency[e[1]].push([e[0], i]);
   });
   // Project onto actual mapped ground-level segments, never create a free-space shortcut.
-  const edgeGrid=new Map(),cellSize=.001,originalEdges=graph.edges.length,derived=new Map(),edgeProjections=new Map();
+  const edgeGrid=new Map(),cellSize=.001,originalEdges=graph.edges.length,originalNodes=graph.nodes.length,derived=new Map(),edgeProjections=new Map(),touchedNodes=new Set();
+  const projectionLimit=2048,projectionEdgeLimit=16384,resetAt=1024;
+  const newEpoch=()=>globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`;
+  const projectionState={baseEdges:originalEdges,baseNodes:originalNodes,epoch:newEpoch()};
+  let derivedEdgeCount=0;
+  const nodeArray=graph.nodes,edgeArray=graph.edges;
+  const owner={graph,hasProjections:()=>derived.size>0};
+  function claimProjectionArrays(){
+    for(const array of [nodeArray,edgeArray]){
+      const previous=projectionArrayOwners.get(array);
+      if(previous&&previous!==owner&&previous.hasProjections())throw new Error('Cannot share graph arrays while derived projections exist');
+    }
+    projectionArrayOwners.set(nodeArray,owner);projectionArrayOwners.set(edgeArray,owner);
+  }
+  const graphIntact=()=>graph.nodes===nodeArray&&graph.edges===edgeArray&&graph.nodes.length===originalNodes+derived.size&&graph.edges.length===originalEdges+derivedEdgeCount;
+  Object.defineProperty(graph,'_routeProjectionState',{value:projectionState,configurable:true});
+  function addProjectionEdge(a,b,length,way,line,proof){
+    const id=graph.edges.length;graph.edges.push([a,b,length,way,line,proof]);derivedEdgeCount++;adjacency[a].push([b,id]);adjacency[b].push([a,id]);
+    if(a<originalNodes)touchedNodes.add(a);if(b<originalNodes)touchedNodes.add(b);
+  }
+  function projectionCapacityError(){const error=new Error('PROJECTION_LIMIT');error.code='PROJECTION_LIMIT';return error;}
   function groundEdge(e,options){const w=graph.ways[e[3]];return edgeAllowed(w,options,e[5])&&(!w.bridge||w.bridge==='no')&&(w.layer==null||String(w.layer)==='0')&&(w.level==null||String(w.level)==='0');}
   function edgeGeometry(e){return [graph.nodes[e[0]].slice(0,2),...(e[4]||[]),graph.nodes[e[1]].slice(0,2)];}
   for(let ei=0;ei<originalEdges;ei++){
@@ -168,20 +203,22 @@ export function createRouter(graph) {
           (!options.lineAllowed || options.lineAllowed([point,f.p])) &&
           (!options.approachAllowed || options.approachAllowed(point,f.p,side)))) continue;
       if (++eligible > 12) break;
-      const key=f.ei+':'+f.p.map(v=>v.toFixed(10)).join(',');if(derived.has(key)||derived.size>=2048)continue;
-      const e=graph.edges[f.ei],index=graph.nodes.length;graph.nodes.push([...f.p,0]);adjacency.push([]);derived.set(key,index);
+      const key=f.ei+':'+f.p.map(v=>v.toFixed(10)).join(',');if(derived.has(key))continue;
       const previous=edgeProjections.get(f.ei)||[];
+      if(derived.size>=projectionLimit || graph.edges.length-originalEdges+previous.length+2>projectionEdgeLimit)throw projectionCapacityError();
+      claimProjectionArrays();
+      const e=graph.edges[f.ei],index=graph.nodes.length;graph.nodes.push([...f.p,0]);adjacency.push([]);derived.set(key,index);
       const position={index,p:f.p,j:f.j,along:metres(f.line[f.j],f.p)};
       for(const prior of previous){
         let a=prior,b=position;if(a.j>b.j||(a.j===b.j&&a.along>b.along))[a,b]=[b,a];
         const line=[a.p,...f.line.slice(a.j+1,b.j+1),b.p],length=line.slice(1).reduce((n,p,i)=>n+metres(line[i],p),0);
-        if(length>.001){const id=graph.edges.length;graph.edges.push([a.index,b.index,length,e[3],line.slice(1,-1),{...e[5],derivedFrom:f.ei}]);adjacency[a.index].push([b.index,id]);adjacency[b.index].push([a.index,id]);}
+        if(length>.001)addProjectionEdge(a.index,b.index,length,e[3],line.slice(1,-1),{...e[5],derivedFrom:f.ei});
       }
       previous.push(position);edgeProjections.set(f.ei,previous);
       const left=[...f.line.slice(0,f.j+1),f.p],right=[f.p,...f.line.slice(f.j+1)];
       for(const [a,b,line]of [[e[0],index,left],[index,e[1],right]]){
         const length=line.slice(1).reduce((n,p,i)=>n+metres(line[i],p),0);if(length<.001)continue;
-        const id=graph.edges.length;graph.edges.push([a,b,length,e[3],line.slice(1,-1),{...e[5],derivedFrom:f.ei}]);adjacency[a].push([b,id]);adjacency[b].push([a,id]);
+        addProjectionEdge(a,b,length,e[3],line.slice(1,-1),{...e[5],derivedFrom:f.ei});
       }
     }
   }
@@ -225,7 +262,9 @@ export function createRouter(graph) {
     }
     return { chosen, nearestDist };
   }
-  return function route(start, end, options = {}) {
+  function route(start, end, options = {}) {
+    if(routerGroup.current&&routerGroup.current!==route)return routerGroup.current(start,end,options);
+    if(!graphIntact())return {error:'UNVERIFIED_NETWORK'};
     if(options._partialForceStartNode==null)projectPoint(start,options,'start');
     if(options._partialForceEndNode==null)projectPoint(end,options,'end');
     const starts=endpoints(start,options,'start'),ends=endpoints(end,options,'end');
@@ -441,6 +480,7 @@ export function createRouter(graph) {
     });
     return {
       policyVersion: ROUTING_POLICY,
+      projectionEpoch: projectionState.epoch,
       weightedCost:bestTotal,
       costBreakdown,
       unknownWidthMetres:unknownWidth,
@@ -463,5 +503,20 @@ export function createRouter(graph) {
       endGap: Math.round(t.distance),
       visited,
     };
+  }
+  // Called only at a worker task boundary, after every verifier and candidate
+  // comparison using the preceding task's derived IDs has finished.
+  route.resetProjectionsIfNeeded=()=>{
+    if(routerGroup.current&&routerGroup.current!==route)return routerGroup.current.resetProjectionsIfNeeded();
+    if(!graphIntact())throw new Error('Router graph was replaced');
+    if(derived.size<resetAt && graph.edges.length-originalEdges<projectionEdgeLimit/2)return false;
+    for(const i of touchedNodes)adjacency[i]=adjacency[i].filter(([,edge])=>edge<originalEdges);
+    touchedNodes.clear();adjacency.length=originalNodes;graph.nodes.length=originalNodes;graph.edges.length=originalEdges;derivedEdgeCount=0;
+    derived.clear();edgeProjections.clear();
+    for(const key of conditionCosts.keys())if(key>=originalEdges)conditionCosts.delete(key);
+    projectionState.epoch=newEpoch();return true;
   };
+  routerGroup.current=route;
+  graphRouters.set(graph,{route,group:routerGroup,hasProjections:()=>derived.size>0});
+  return route;
 }

@@ -1,5 +1,5 @@
 import {constructionFresh} from './construction.mjs';
-import {metres} from './routing.mjs';
+import {metres,ROUTING_POLICY} from './routing.mjs';
 
 const pedestrian=new Set(['footway','path','pedestrian','corridor']);
 const xy=p=>[p[1]*100700,p[0]*111195];
@@ -123,7 +123,7 @@ export function hasNewSidewalkNearReplaced(graph,current,candidate,options){
  return nearReplaced(graph,current,candidate,(w,e)=>sharedEdge(w)||(groundPedestrian(w,e)&&!explicitSidewalk(w,e)),explicitSidewalk,options);
 }
 
-export function improvePedestrianRoute(base,start,end,options,snapshot,{graph,router,verifyLocal,checker},config={}){
+function improvePedestrianRouteInner(base,start,end,options,snapshot,{graph,router,verifyLocal,checker},config={}){
  const maxIterations=config.maxIterations??3,totalMs=config.totalMs??4000,maxVisited=config.maxVisited??40000;
  const penalties=config.penalties??[0,6,12],sidewalkPenalties=config.sidewalkPenalties??[0,2,6],radius=50,minimumReduction=1;
  if(!constructionFresh(snapshot))return {error:'CONSTRUCTION_UNAVAILABLE'};
@@ -192,4 +192,18 @@ export function improvePedestrianRoute(base,start,end,options,snapshot,{graph,ro
  if(status==='time-limit'||Date.now()>deadline){status='time-limit';rolledBack=current!==base;current=base;currentParts=original;currentDistance=originalDistance;}
  if(rolledBack)for(const iteration of iterations)if(iteration.result==='improved')iteration.rolledBack=true;
  return {...current,pedestrianImprovement:{status,rolledBack,originalDistanceMetres:originalDistance,maxDistanceMetres:maxDistance,originalSharedMetres:original.shared,sharedMetres:currentParts.shared,originalFootwayMetres:original.footway,footwayMetres:currentParts.footway,originalExplicitSidewalkMetres:original.sidewalk,explicitSidewalkMetres:currentParts.sidewalk,originalSidewalkShare:(original.sidewalk+otherSidewalk)/(originalDistance+(hasParent?other:0)),sidewalkShare:(currentParts.sidewalk+otherSidewalk)/(currentDistance+(hasParent?other:0)),radiusMetres:radius,minimumReductionMetres:minimumReduction,searchLimits:{maxIterations,totalMs,maxVisited,maxComparisons:config.maxComparisons??100000},iterations}};
+}
+
+export function improvePedestrianRoute(base,start,end,options,snapshot,deps,config={}){
+ try{return improvePedestrianRouteInner(base,start,end,options,snapshot,deps,config);}
+ catch(error){
+  if(error?.code!=='PROJECTION_LIMIT')throw error;
+  if(!constructionFresh(snapshot))return {error:'CONSTRUCTION_UNAVAILABLE'};
+  const checked=deps.verifyLocal({...base,coordinates:base.networkCoordinates||base.coordinates},start,end,options);
+  if(checked.error||checked.geometryVerification!=='pedestrian-network-v1'||checked.policyVersion!==ROUTING_POLICY)throw error;
+  const work=deps.checker.inspect(checked.coordinates);
+  if(work.blocked.length)return {error:'CONSTRUCTION_BLOCKED',construction:work};
+  if(!constructionFresh(snapshot))return {error:'CONSTRUCTION_UNAVAILABLE'};
+  return {...base,...checked,construction:work,pedestrianImprovement:{status:'projection-limit',iterations:[]}};
+ }
 }

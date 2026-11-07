@@ -82,6 +82,15 @@ test('retains the official-condition baseline when an improved route is selected
  const result=improvePlannedRoute({...x.base,conditionDetourLimit:limit},{lat:x.start[0],lon:x.start[1]},{lat:x.end[0],lon:x.end[1]},x.options,x.snap,{graph:x.g,router:x.router,verifyLocal:x.verifyLocal,checker:x.checker});
  assert.equal(result.pedestrianImprovement.status,'improved');assert.equal(result.roadPct,0);assert.deepEqual(result.conditionDetourLimit,limit);
 });
+test('projection capacity during optional improvement returns only a reverified fresh route',()=>{
+ const x=setup(),limit=Object.assign(new Error('limit'),{code:'PROJECTION_LIMIT'}),deps={graph:x.g,router:()=>{throw limit;},verifyLocal:x.verifyLocal,checker:x.checker};
+ const result=improvePedestrianRoute(x.base,x.start,x.end,x.options,x.snap,deps);
+ assert.equal(result.error,undefined);assert.equal(result.pedestrianImprovement.status,'projection-limit');assert.deepEqual(result.edgeIds,x.base.edgeIds);
+ const stale={...x.snap,sourceUpdatedAt:'2000-01-01T00:00:00Z'};
+ assert.equal(improvePedestrianRoute(x.base,x.start,x.end,x.options,stale,deps).error,'CONSTRUCTION_UNAVAILABLE');
+ assert.throws(()=>improvePedestrianRoute(x.base,x.start,x.end,x.options,x.snap,{...deps,verifyLocal:()=>({error:'UNVERIFIED_NETWORK'})}),error=>error===limit);
+ assert.throws(()=>improvePedestrianRoute(x.base,x.start,x.end,x.options,x.snap,{...deps,router:()=>{throw new Error('unexpected');}}),/unexpected/);
+});
 test('a route with no shared road can improve its explicit sidewalk share',()=>{
  const g=graph();g.ways[0]={...g.ways[0],highway:'path',source:undefined,width:1.5,slope:0};g.edges[0][5]=proof;
  g.ways.push({...g.ways[1],footway:'sidewalk'});for(const e of g.edges.slice(2))e[3]=2;

@@ -38,6 +38,15 @@ test('never substitute an unverified, blocked, missing or expired baseline',()=>
  const t=setup(),old={...fresh(),sourceUpdatedAt:'2020-01-01T00:00:00Z'};assert.equal(planPlaces(start,end,{},old,t.deps).error,'CONSTRUCTION_UNAVAILABLE');
  const expired=setup();assert.equal(planPlaces(start,end,{_optimizeDeadline:Date.now()-1},fresh(),expired.deps).routeKind,'normal');assert.equal(expired.checks.length,1);
 });
+test('capacity reached during optional baseline search keeps only the independently verified fresh route',()=>{
+ const s=setup(),ordinary=s.deps.router,limit=Object.assign(new Error('limit'),{code:'PROJECTION_LIMIT'});
+ s.deps.router=(a,b,prefs)=>{if(prefs._ignoreOfficialConditions)throw limit;return ordinary(a,b,prefs);};
+ const result=planPlaces(start,end,{},fresh(),s.deps);
+ assert.equal(result.routeKind,'normal');assert.equal(result.conditionDetourComparison,'projection-limit');assert.equal(result.routeSearchStatus,'projection-limit');assert.equal(s.checks.length,1);
+ const unverified=setup();unverified.deps.verifyLocal=()=>({error:'UNVERIFIED_NETWORK'});unverified.deps.verifyLocal.approachAllowed=()=>true;
+ assert.equal(planPlaces(start,end,{},fresh(),unverified.deps).error,'UNVERIFIED_NETWORK');
+ const broken=setup();broken.deps.router=()=>{throw new Error('unexpected');};assert.throws(()=>planPlaces(start,end,{},fresh(),broken.deps),/unexpected/);
+});
 test('real router keeps verified short road when observations would cause a detour over the cap',()=>{
  const node=(x,y)=>[25+y/111195,121.5+x/100700,0];
  const a=node(0,0),b=node(100,0),via=node(50,45),now=fresh();
