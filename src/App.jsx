@@ -84,6 +84,7 @@ import {
 import { travelProfiles } from "./travel-profiles";
 import { clearLocalData, loadProfile, loadTrips, saveProfile, saveTrips } from "./local-database";
 import { addressSearch } from "./address-search";
+import { nearestSheetSnapIndex } from "./sheet-snap.mjs";
 import {
   maintenanceText,
   sourceCountLabel,
@@ -366,6 +367,7 @@ export default function App() {
   function gripDown(e) {
     const el = panelEl.current;
     if (!el || e.button > 0) return;
+    e.currentTarget.setPointerCapture?.(e.pointerId);
     const startY = e.clientY,
       startH = el.getBoundingClientRect().height;
     gripDragged.current = false;
@@ -381,14 +383,19 @@ export default function App() {
       window.removeEventListener("pointerup", up);
       window.removeEventListener("pointercancel", up);
       el.classList.remove("dragging");
-      const f = el.getBoundingClientRect().height / window.innerHeight;
+      const height = el.getBoundingClientRect().height;
+      const max =
+        parseFloat(el.style.getPropertyValue("--sheet-max")) || Infinity;
       el.style.removeProperty("--sheet-h");
       if (!gripDragged.current) return;
-      let best = 0;
-      SHEET_SNAPS.forEach((v, i) => {
-        if (Math.abs(v - f) < Math.abs(SHEET_SNAPS[best] - f)) best = i;
-      });
-      setSheetSnap(best);
+      setSheetSnap(
+        nearestSheetSnapIndex(
+          height,
+          max,
+          window.innerHeight,
+          SHEET_SNAPS,
+        ),
+      );
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
