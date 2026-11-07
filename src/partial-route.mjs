@@ -24,4 +24,3 @@ export function verifiedPartialRoute(diagnostic,start,end,options,snapshot,{veri
   straightMetres:Math.round(metres(startSide||start,endSide||end))};
  return {complete:false,policyVersion:ROUTING_POLICY,constructionSourceUpdatedAt:snapshot.sourceUpdatedAt,segments,gap,resolvedStart,resolvedEnd};
 }
-

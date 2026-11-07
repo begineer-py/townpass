@@ -26,4 +26,3 @@ test('real construction geometry excludes affected edges and cannot be returned 
  const {diagnostic,partial}=run(points[0],points[3],{},[work]);
  assert.equal(diagnostic.error,'NO_ROUTE');assert.ok(!partial||partial.segments.every(s=>s.side==='end'));
 });
-
