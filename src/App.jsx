@@ -106,19 +106,11 @@ const icons = {
 };
 const filters = [
   ["all", "常用設施", Layers],
-  ["elevator", "電梯出口", ArrowUpFromLine],
   ["toilet", "無障礙廁所", Toilet],
-  ["ramp", "坡道", Accessibility],
   ["rest", "歇歇腳", Armchair],
   ["water", "飲水處", GlassWater],
-  ["park", "公園", TreePine],
-  ["friendly", "友善店家", Store],
-  ["bus", "公車站", BusFront],
-  ["parking", "停車設施", Car],
-  ["health", "醫療與藥局", Hospital],
+  ["health", "醫療", Hospital],
 ];
-// Shown before 更多: the four a wheelchair or low-vision user reaches for first.
-const MAIN_FILTERS = 4;
 const routeModes = {
   balanced: "均衡走法",
   gentle: "偏好平緩",
@@ -214,7 +206,6 @@ export default function App() {
   const [data, setData] = useState(null),
     [loading, setLoading] = useState(false),
     [loadError, setLoadError] = useState(false);
-  const [allFilters, setAllFilters] = useState(false);
   const [tab, setTab] = useState("plan"),
     [filter, setFilter] = useState("all"),
     [viewport, setViewport] = useState({
@@ -755,12 +746,10 @@ export default function App() {
     if (!postToTownPass("1999agree", true)) window.location.href = "tel:1999";
   }
   const essential = new Set([
-    "elevator",
     "toilet",
     "rest",
     "water",
-    "park",
-    "friendly",
+    "health",
   ]);
   const facilities = useMemo(
     () =>
@@ -1089,11 +1078,7 @@ export default function App() {
               <>
                 <h1 className="sr-only">找設施</h1>
                 <div className="filter-grid" aria-label="設施類別">
-                  {(allFilters ||
-                  filters.findIndex(([id]) => id === filter) >= MAIN_FILTERS
-                    ? filters
-                    : filters.slice(0, MAIN_FILTERS)
-                  ).map(([id, label, C]) => (
+                  {filters.map(([id, label, C]) => (
                     <button
                       key={id}
                       className={`icon-action filter-action ${filter === id ? "selected" : ""}`}
@@ -1108,17 +1093,6 @@ export default function App() {
                       <span>{label}</span>
                     </button>
                   ))}
-                  {!allFilters &&
-                    filters.findIndex(([id]) => id === filter) <
-                      MAIN_FILTERS && (
-                      <button
-                        className="icon-action filter-action"
-                        aria-label="顯示更多設施類別"
-                        onClick={() => setAllFilters(true)}
-                      >
-                        <Plus size={20} aria-hidden="true" />
-                      </button>
-                    )}
                 </div>
                 <p className="list-caption icon-caption">
                   <Navigation size={18} aria-hidden="true" />
@@ -1340,6 +1314,22 @@ export default function App() {
                         >
                           <Armchair size={20} aria-hidden="true" />
                           歇腳
+                        </button>
+                        <button
+                          type="button"
+                          aria-label="順路找飲水處"
+                          onClick={() => addStop("water")}
+                        >
+                          <GlassWater size={20} aria-hidden="true" />
+                          飲水
+                        </button>
+                        <button
+                          type="button"
+                          aria-label="順路找醫療設施"
+                          onClick={() => addStop("health")}
+                        >
+                          <Hospital size={20} aria-hidden="true" />
+                          醫療
                         </button>
                       </div>
                     )}
