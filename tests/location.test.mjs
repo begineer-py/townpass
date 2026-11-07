@@ -6,7 +6,7 @@ test('native bridge exception actually falls back to browser geolocation',async 
 test('native onmessage-only bridge works and restores the listener',async t=>{const bridge={postMessage(){this.onmessage({data:JSON.stringify({name:'location',data:coords})});}};environment(t,bridge,()=>{throw Error('unexpected fallback');});const p=await getLocation();assert.equal(p.locationSource,'townpass');assert.equal(bridge.onmessage,undefined);});
 test('permission denial is not retried or disguised as timeout',async t=>{let n=0;environment(t,null,(_,fail)=>{n++;fail({code:1});});await assert.rejects(getLocation(),e=>locationError(e)==='LOCATION_DENIED');assert.equal(n,1);});
 test('unavailable first source tries high accuracy rather than giving up',async t=>{const flags=[];environment(t,null,(ok,fail,opts)=>{flags.push(opts.enableHighAccuracy);flags.length===1?fail({code:2}):ok({coords});});assert.equal((await getLocation()).lat,25.04);assert.deepEqual(flags,[false,true]);});
-test('coarse position is explicitly approximate if refinement times out',async t=>{let n=0;environment(t,null,(ok,fail)=>{++n===1?ok({coords:{...coords,accuracy:800}}):fail({code:3});});const p=await getLocation();assert.equal(p.needsConfirmation,true);assert.equal(p.accuracy,800);});
+test('coarse position is used immediately with its actual accuracy',async t=>{let n=0;environment(t,null,ok=>{n++;ok({coords:{...coords,accuracy:800}});});const p=await getLocation();assert.equal(n,1);assert.equal(p.needsConfirmation,true);assert.equal(p.accuracy,800);assert.equal(p.lat,coords.latitude);assert.equal(p.lon,coords.longitude);});
 test('missing accuracy is never reported as zero-metre precision',async t=>{environment(t,null,ok=>ok({coords:{latitude:25.04,longitude:121.52}}));const p=await getLocation();assert.equal(p.accuracy,null);assert.equal(p.needsConfirmation,true);});
 test('user-started location watch forwards source timestamp and cleans up',t=>{
  const old={window:globalThis.window,navigator:Object.getOwnPropertyDescriptor(globalThis,'navigator')};let success,cleared;
@@ -27,6 +27,8 @@ test('map and GPS origin exception never leak to destination',()=>{
  assert.equal(start.originKind,'map');assert.equal(start.id,'point-123');assert.equal(end.originKind,'map');
  const gps={id:'my-location',lat:25,lon:121.5,originKind:'gps',locationSource:'browser'};
  assert.equal(destinationPoint(gps).originKind,undefined);assert.equal(gps.originKind,'gps');
+ assert.equal(swappedOrigin({...gps,accuracy:800,needsConfirmation:true}).originKind,'gps');
+ assert.equal(swappedOrigin({...gps,accuracy:null,needsConfirmation:true}).originKind,'gps');
  assert.equal(swappedOrigin(end).originKind,'map');
  assert.equal(destinationPoint(start).originKind,'map');
  assert.equal(swappedOrigin({...end,kind:'place',sourceId:'osm'}).originKind,undefined);

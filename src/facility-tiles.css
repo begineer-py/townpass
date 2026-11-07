@@ -1,0 +1,17 @@
+.facility-load-error {
+  position: absolute;
+  z-index: 460;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100% - 24px);
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--tp-white);
+  color: var(--tp-grayscale900);
+  box-shadow: var(--shadow);
+}
+.facility-load-error button { min-height: 44px; color: var(--tp-primary700); white-space: nowrap; }

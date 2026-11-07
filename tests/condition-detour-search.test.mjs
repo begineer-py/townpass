@@ -17,3 +17,11 @@ test('failed detour does not replace the original route or refresh its construct
  w.onmessage({data:{type:'ready'}});const id=messages.at(-1).id;w.onmessage({data:{type:'avoid-official-condition',id,result:{error:'NO_CONDITION_DETOUR'}}});
  assert.equal(states.at(-1).status,'error');assert.match(states.at(-1).message,/原路線仍可查看/);assert.equal(snapshots.length,0);
 });
+test('projection exhaustion keeps the original route and asks for retry',async()=>{
+ const states=[],messages=[],w={postMessage:m=>messages.push(m),terminate(){}};
+ const search=createConditionDetourSearch({fetchSnapshot:async()=>snapshot(),createWorker:()=>w,onState:s=>states.push(s)});
+ await search.start({startPlace:{},endPlace:{},options:{},url:'http://test/graph',targets:[],online:true});
+ w.onmessage({data:{type:'ready'}});const id=messages.at(-1).id;
+ w.onmessage({data:{type:'avoid-official-condition',id,result:{error:'PROJECTION_LIMIT'}}});
+ assert.equal(states.at(-1).status,'error');assert.match(states.at(-1).message,/上限.*重試.*原路線/);
+});

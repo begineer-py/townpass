@@ -28,9 +28,11 @@ test("messages use the Town Pass handler names and JSON shape", () => {
   globalThis.window = { flutterObject: bridge };
   assert.equal(postToTownPass("1999agree", true), true);
   assert.equal(postToTownPass("open_link", "https://www.metro.taipei/"), true);
+  assert.equal(postToTownPass("phone_call", "1999"), true);
   assert.deepEqual(bridge.sent, [
     { name: "1999agree", data: true },
     { name: "open_link", data: "https://www.metro.taipei/" },
+    { name: "phone_call", data: "1999" },
   ]);
 });
 
@@ -39,7 +41,6 @@ test("hooks this service does not use are not sent", async () => {
   globalThis.window = { flutterObject: bridge };
   assert.equal(postToTownPass("agree1999", true), false);
   assert.equal(await sendToTownPass("launch_map", "https://example.com"), null);
-  assert.equal(await sendToTownPass("phone_call", "1999"), null);
   assert.equal(bridge.sent.length, 0);
 });
 
@@ -83,20 +84,20 @@ test("location failures explain the cause", async () => {
   assert.match(locationErrorText({ code: 3 }), /逾時/);
 });
 
-test("browser location comes first; Town Pass location is the fallback", async () => {
+test("Town Pass location comes first; browser location is the fallback", async () => {
   const { getLocation } = await import("../src/location.js");
   const bridge = fakeBridge(() => ({ name: "location", data: { latitude: 25.05, longitude: 121.52, accuracy: 8 } }));
   globalThis.isSecureContext = true;
   globalThis.window = { flutterObject: bridge };
   const geo = { getCurrentPosition: (ok) => ok({ coords: { latitude: 25.03, longitude: 121.56, accuracy: 20 } }) };
   Object.defineProperty(globalThis, "navigator", { value: { geolocation: geo }, configurable: true });
-  assert.equal((await getLocation()).lat, 25.03);
-  assert.equal(bridge.sent.length, 0);
-
-  geo.getCurrentPosition = (_, fail) => fail({ code: 1 });
   assert.equal((await getLocation()).lat, 25.05);
   assert.deepEqual(bridge.sent, [{ name: "location", data: null }]);
 
+  globalThis.window = { flutterObject: fakeBridge(() => ({ name: "location", data: [] })) };
+  assert.equal((await getLocation()).lat, 25.03);
+
   globalThis.window = {};
+  geo.getCurrentPosition = (_, fail) => fail({ code: 1 });
   await assert.rejects(getLocation(), (e) => e.code === 1);
 });

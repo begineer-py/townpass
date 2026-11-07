@@ -5,8 +5,9 @@
 // - userinfo：回傳整份帳號資料（含身分證字號、姓名、生日、地址）；只取 id 計算雜湊鍵，其他欄位不保存。
 // - location：回傳 Position.toJson()，沒有權限時回傳 []。
 // - open_link：在台北通另開 WebView 頁面。台北通 WebView 不支援新視窗，target="_blank" 的連結必須改走這裡。不回覆。
+// - phone_call：開啟電話撥號介面。
 // - 1999agree：開啟 1999 語音通報（使用者需先同意條款）。成功時不回覆。
-const HOOKS = new Set(["userinfo", "location", "open_link", "1999agree"]);
+const HOOKS = new Set(["userinfo", "location", "open_link", "phone_call", "1999agree"]);
 
 function bridgeObject() {
   return typeof window === "undefined" ? null : window.flutterObject;
@@ -16,7 +17,7 @@ export function hasTownPass() {
   return Boolean(bridgeObject()?.postMessage);
 }
 
-// 不需要回覆的 hook（open_link、1999agree）：送出就好，不等待。
+// 不需要回覆的 hook（open_link、phone_call、1999agree）：送出就好，不等待。
 export function postToTownPass(name, data = null) {
   const bridge = bridgeObject();
   if (!HOOKS.has(name) || !bridge?.postMessage) return false;

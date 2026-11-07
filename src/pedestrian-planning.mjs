@@ -4,7 +4,10 @@ import {createRouter} from './routing.mjs';
 
 export function createVerifiedRouter(graph,verifyLocal){
  const base=createRouter(graph);
- return (a,b,options={})=>base(a,b,{...options,approachAllowed:(p,n,side)=>verifyLocal.approachAllowed(p,n,side==='start'?options.startPlace:options.endPlace,options,side)});
+ const router=(a,b,options={})=>base(a,b,{...options,approachAllowed:(p,n,side)=>verifyLocal.approachAllowed(p,n,side==='start'?options.startPlace:options.endPlace,options,side)});
+ router.resetProjectionsIfNeeded=base.resetProjectionsIfNeeded;
+ router.mapSnapCandidates=(point,options={},side='end',radius=30)=>base.mapSnapCandidates(point,{...options,approachAllowed:(p,n,which)=>verifyLocal.approachAllowed(p,n,which==='start'?options.startPlace:options.endPlace,options,which)},side,radius);
+ return router;
 }
 
 // Shared product/benchmark entry point: resolve station exits and verify the
@@ -18,5 +21,6 @@ export function improvePlannedRoute(base,startPlace,endPlace,options,snapshot,de
  if(base.error)return base;
  const start=base.resolvedStart||startPlace,end=base.resolvedEnd||endPlace;
  if(!Number.isFinite(start?.lat)||!Number.isFinite(start?.lon)||!Number.isFinite(end?.lat)||!Number.isFinite(end?.lon))return {...base,pedestrianImprovement:{status:'missing-endpoints',iterations:[]}};
- return improvePedestrianRoute(base,[start.lat,start.lon],[end.lat,end.lon],{...options,startPlace:start,endPlace:end},snapshot,deps,config);
+ const result=improvePedestrianRoute(base,[start.lat,start.lon],[end.lat,end.lon],{...options,startPlace:start,endPlace:end},snapshot,deps,config);
+ return result.error||!base.conditionDetourLimit?result:{...result,conditionDetourLimit:base.conditionDetourLimit};
 }

@@ -4,6 +4,26 @@ export const OFFICIAL_CONDITION_TYPES=Object.freeze({
  missing_noCurbSlope:'官方記錄：淨寬不足',
  missing_crosswalkNoRamp:'官方記錄：行穿線未設路緣斜坡',
 });
+// Activity-area classification is not a measurement of barrier severity.
+// It is used only as a small, explicit route-ranking preference. Missing or
+// unrecognised classes retain a middle weight, never the low-class weight.
+export function officialConditionClass(point){
+ const match=point?.type==='missing_noCurbSlope' && /^活動區域分類-(高|中|低)$/.exec(String(point.activity||''));
+ return match ? ({高:'high',中:'medium',低:'low'})[match[1]] : 'unknown';
+}
+export function officialConditionWeight(point){
+ return ({high:3,medium:2,low:1,unknown:2})[officialConditionClass(point)];
+}
+export function officialConditionMetrics(conditions){
+ if(conditions?.status!=='available'||!Array.isArray(conditions.points))return {officialConditionCount:null,officialConditionWeight:null,officialConditionClasses:null};
+ const nearby=conditions.points.filter(p=>Number.isFinite(p.distanceMetres)&&p.distanceMetres<=2);
+ const classes={high:0,medium:0,low:0,unknown:0};
+ for(const point of nearby)classes[officialConditionClass(point)]++;
+ return {officialConditionCount:nearby.length,officialConditionWeight:nearby.reduce((sum,p)=>sum+officialConditionWeight(p),0),officialConditionClasses:classes};
+}
+// A missing dataset is uncertainty, not a clean route. The fixed uncertainty
+// penalty equals one unclassified observation, not an invented count.
+export const officialConditionScore = weight => weight===0 ? 0 : -Math.min(20, weight==null ? 2 : weight);
 const metresXY=p=>[p[1]*100700,p[0]*111195];
 function distance(p,a,b){
  const [x,y]=metresXY(p),[ax,ay]=metresXY(a),[bx,by]=metresXY(b),dx=bx-ax,dy=by-ay;

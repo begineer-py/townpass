@@ -32,6 +32,22 @@ test('wrong request id is ignored and expired construction cannot publish a resu
  snapshot.sourceUpdatedAt='2020-01-01T00:00:00Z';w.onmessage({data:{type:'nearby-positions',id,result:{candidates:[{}]}}});
  assert.equal(states.at(-1).status,'error');assert.deepEqual(states.at(-1).candidates,[]);assert.equal(w.terminated,true);
 });
+test('publishes verified route alternatives alongside legacy unverified positions',async()=>{
+ const snapshot=fresh(),w=fakeWorker(),states=[],search=createNearbySearch({fetchSnapshot:async()=>snapshot,createWorker:()=>w,onState:s=>states.push(s)});
+ await search.start(args);w.onmessage({data:{type:'ready'}});const id=w.sent.at(-1).id;
+ const candidates=[{side:'end',point:{lat:25.01,lon:121.5},routeVerified:false}];
+ const verifiedCandidates=[{end:candidates[0],route:{geometryVerification:'pedestrian-network-v1',construction:{sourceUpdatedAt:snapshot.sourceUpdatedAt}}}];
+ w.onmessage({data:{type:'nearby-positions',id,result:{candidates,verifiedCandidates,truncated:true,searchStatus:'projection-limit'}}});
+ assert.equal(states.at(-1).status,'ready');assert.deepEqual(states.at(-1).candidates,candidates);assert.deepEqual(states.at(-1).verifiedCandidates,verifiedCandidates);
+ assert.equal(states.at(-1).searchStatus,'projection-limit');assert.equal(states.at(-1).truncated,true);
+ assert.deepEqual(states.at(-1).startPlace,args.startPlace);assert.deepEqual(states.at(-1).endPlace,args.endPlace);assert.equal(states.at(-1).constructionSourceUpdatedAt,snapshot.sourceUpdatedAt);assert.equal(w.terminated,true);
+});
+test('projection exhaustion is reported as a retryable search limit',async()=>{
+ const w=fakeWorker(),states=[],search=createNearbySearch({fetchSnapshot:async()=>fresh(),createWorker:()=>w,onState:s=>states.push(s)});
+ await search.start(args);w.onmessage({data:{type:'ready'}});const id=w.sent.at(-1).id;
+ w.onmessage({data:{type:'nearby-positions',id,result:{error:'PROJECTION_LIMIT'}}});
+ assert.equal(states.at(-1).status,'error');assert.match(states.at(-1).message,/搜尋已達上限.*重新搜尋/);assert.equal(w.terminated,true);
+});
 test('replacement retains original place and labels its actual current side after swapping',()=>{
  const original={name:'二樓診所',lat:25,lon:121.5},first=nearbyReplacement({side:'end',point:{lat:25.0001,lon:121.5}},original);
  assert.equal(first.nearbyOriginal.name,'二樓診所');assert.deepEqual(first.nearbyOriginal.coordinates,[25,121.5]);

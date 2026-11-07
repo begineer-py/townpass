@@ -1,4 +1,6 @@
+import {generalSidewalkEdge} from './general-sidewalk.mjs';
 import {crossingEvidence} from './crossing-evidence.mjs';
+import {officialConditionMetrics,officialConditionScore} from './official-conditions.mjs';
 import {constructionFresh} from './construction.mjs';
 import {metres,ROUTING_POLICY} from './routing.mjs';
 import {measureUnconfirmedApproaches} from './pedestrian-improvement.mjs';
@@ -30,12 +32,27 @@ function localMetrics(graph,route,start,end){
  let sidewalk=0,shared=0,other=0,unknown=0,rough=0,network=0;
  const roughValues=new Set(['gravel','unpaved','cobblestone','ground','sand','dirt']);
  for(const id of route.edgeIds){const e=graph.edges[id],w=e&&graph.ways[e[3]];if(!w||!Number.isFinite(e[2]))return null;network+=e[2];
-  if(w.source==='osm-shared-street')shared+=e[2];else if(w.highway==='footway'&&w.footway==='sidewalk')sidewalk+=e[2];else if(['footway','path','pedestrian','corridor'].includes(w.highway))other+=e[2];
   const crossing=w.crossing===true||w.footway==='crossing',sourceProof=e[5]?.derivedFrom!=null?graph.edges[e[5].derivedFrom]?.[5]:e[5];
+  if(w.source==='osm-shared-street')shared+=e[2];else if(generalSidewalkEdge(w,sourceProof))sidewalk+=e[2];else if(!crossing&&['footway','path','pedestrian','corridor'].includes(w.highway))other+=e[2];
   if(w.width==null||w.slope==null||w.surface==null||(crossing&&crossingEvidence({...w,crossing},sourceProof)!=='full'))unknown+=e[2];
   if(roughValues.has(w.surface))rough+=e[2];
  }
- return {distanceMetres:network+metres(start,graph.nodes[route.nodeIds[0]])+metres(end,graph.nodes[route.nodeIds.at(-1)]),explicitSidewalkMetres:sidewalk,sharedMetres:shared,otherPedestrianMetres:other,unknownMetres:unknown,roughMetres:rough,estimatedMetres:approaches.start.metres+approaches.end.metres,unverifiedCrossings:route.crossingUncertainties||[],officialConditionCount:route.officialConditions?.status==='available'?route.officialConditions.points.filter(p=>p.distanceMetres<=2).length:null};
+ return {distanceMetres:network+metres(start,graph.nodes[route.nodeIds[0]])+metres(end,graph.nodes[route.nodeIds.at(-1)]),explicitSidewalkMetres:sidewalk,sharedMetres:shared,otherPedestrianMetres:other,unknownMetres:unknown,roughMetres:rough,estimatedMetres:approaches.start.metres+approaches.end.metres,unverifiedCrossings:route.crossingUncertainties||[],...officialConditionMetrics(route.officialConditions)};
+}
+// The source's segment paths must exactly reconstruct the verified network
+// line before their non-crossing lengths can be counted as sidewalk.
+function officialSidewalkMetres(route,networkLine){
+ if(!Array.isArray(route.segmentPaths)||!Array.isArray(route.crossingSegments)||!Array.isArray(networkLine))return null;
+ const key=line=>JSON.stringify(line),crossings=new Set(route.crossingSegments.map(key)),points=[];let sidewalk=0;
+ for(const line of route.segmentPaths){
+  if(!Array.isArray(line)||line.length<2||line.some(p=>!Array.isArray(p)||p.length!==2||!p.every(Number.isFinite)))return null;
+  if(points.length&&metres(points.at(-1),line[0])>.001)return null;
+  for(const p of line)if(!points.length||metres(points.at(-1),p)>.001)points.push(p);
+  if(!crossings.has(key(line)))sidewalk+=length(line);
+ }
+ const network=[];for(const p of networkLine)if(!network.length||metres(network.at(-1),p)>.001)network.push(p);
+ if(points.length!==network.length||points.some((p,i)=>metres(p,network[i])>.001))return null;
+ return sidewalk;
 }
 export function compareOfficialAndLocal(official,start,end,options,snapshot,{graph,verifyOfficial,verifyLocal,checker},config={}){
  if(!constructionFresh(snapshot))return {error:'CONSTRUCTION_UNAVAILABLE'};
@@ -47,7 +64,8 @@ export function compareOfficialAndLocal(official,start,end,options,snapshot,{gra
  const officialRoute={...checked,approaches:official.approaches||[],networkCoordinates:original.coordinates,construction:officialWork};
  const distance=length(officialRoute.coordinates);if(!Number.isFinite(distance)||distance<=0)return {error:'OFFICIAL_INVALID'};
  officialRoute.distance=Math.round(distance);
- const officialMetrics={distanceMetres:distance,explicitSidewalkMetres:null,sharedMetres:null,otherPedestrianMetres:null,unknownMetres:null,roughMetres:null,estimatedMetres:null,officialConditionCount:officialRoute.officialConditions?.status==='available'?officialRoute.officialConditions.points.filter(p=>p.distanceMetres<=2).length:null};
+ const officialSidewalk=officialSidewalkMetres(officialRoute,original.coordinates);
+ const officialMetrics={distanceMetres:distance,explicitSidewalkMetres:officialSidewalk,sharedMetres:null,otherPedestrianMetres:null,unknownMetres:null,roughMetres:null,estimatedMetres:null,...officialConditionMetrics(officialRoute.officialConditions)};
  const candidates=[{id:'official',route:officialRoute,metrics:officialMetrics,geometryComparison:'reference'}],rejected=[];
  const deadline=Date.now()+(config.totalMs??2000),maxComparisons=config.maxComparisons??200000;
  for(const item of config.localCandidates||[]){
@@ -71,14 +89,21 @@ export function compareOfficialAndLocal(official,start,end,options,snapshot,{gra
  }
  if(!constructionFresh(snapshot))return {error:'CONSTRUCTION_UNAVAILABLE'};
  const shortest=Math.min(...candidates.map(x=>x.metrics.distanceMetres));
+ // Proximity records are not confirmed blockages. Past the ordinary detour
+ // budget, removing such records alone must not make the longer option rank
+ // above the shortest verified route. Keep the option and its real metrics:
+ // other documented differences may still justify recommending it.
+ const shortestConditionScore=Math.max(...candidates.filter(c=>Math.abs(c.metrics.distanceMetres-shortest)<1e-7).map(c=>officialConditionScore(c.metrics.officialConditionWeight)));
  // The official source lacks edge attributes; its entire route is treated as
  // unknown by policy without inventing actual zero values for those attributes.
  for(const c of candidates){
   const m=c.metrics,d=m.distanceMetres,officialCandidate=c.id==='official',detour=Math.max(0,d-shortest);
-  const parts={sidewalk:officialCandidate?null:40*m.explicitSidewalkMetres/d,shared:officialCandidate?null:-25*m.sharedMetres/d,
+  const parts={sidewalk:m.explicitSidewalkMetres==null?null:40*(m.explicitSidewalkMetres+(m.otherPedestrianMetres??0))/d,shared:officialCandidate?null:-25*m.sharedMetres/d,
    unknown:-12*(officialCandidate?d:m.unknownMetres)/d,rough:officialCandidate?null:-10*m.roughMetres/d,
    estimated:officialCandidate?null:-15*m.estimatedMetres/d,detour:-20*detour/shortest,
-   officialConditions:m.officialConditionCount==null?null:-Math.min(20,2*m.officialConditionCount)};
+   officialConditions:officialConditionScore(m.officialConditionWeight)};
+  const conditionDetourLimit=Math.min(shortest*1.3,shortest+300);
+  parts.conditionDetourGuard=d>conditionDetourLimit+1e-7?Math.min(0,shortestConditionScore-parts.officialConditions):0;
   const raw=Object.values(parts).reduce((sum,v)=>sum+(v??0),0);
   c.scoreRaw=raw;c.score=100/(1+Math.exp(-raw/20));c.scoreBreakdown=parts;
   c.metrics={...m,detourMetres:detour,detourRatio:d/shortest};
@@ -86,5 +111,5 @@ export function compareOfficialAndLocal(official,start,end,options,snapshot,{gra
   c.assumptions=officialCandidate?['official-attributes-missing-whole-route-penalty']:[];
   if(officialCandidate)c.unknownAssessmentMetres=d;
  }
- return {status:rejected.some(x=>x.reason==='geometry-unresolved'||x.reason==='time-limit')?'comparison-limited':'partial-evidence',candidates,rejected,constructionSourceUpdatedAt:snapshot.sourceUpdatedAt,scoreMeaning:'ranking-only-not-safety',scoreFormula:'100 / (1 + exp(-sum(available scoreBreakdown) / 20))',unavailableMetrics:['explicitSidewalkMetres','sharedMetres','otherPedestrianMetres','unknownMetres','roughMetres','estimatedMetres'],crossSourceAttributeComparison:'unsupported-official-edge-provenance'};
+ return {status:rejected.some(x=>x.reason==='geometry-unresolved'||x.reason==='time-limit')?'comparison-limited':'partial-evidence',candidates,rejected,constructionSourceUpdatedAt:snapshot.sourceUpdatedAt,scoreMeaning:'ranking-only-not-safety',scoreFormula:'100 / (1 + exp(-sum(available scoreBreakdown) / 20))',unavailableMetrics:[...(officialSidewalk==null?['explicitSidewalkMetres']:[]),'sharedMetres','otherPedestrianMetres','unknownMetres','roughMetres','estimatedMetres'],crossSourceAttributeComparison:'unsupported-official-edge-provenance'};
 }

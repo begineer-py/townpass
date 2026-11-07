@@ -398,7 +398,7 @@ button.icon-action {
   justify-content: center;
   gap: 5px;
   width: auto;
-  min-width: 96px;
+  min-width: 76px;
   min-height: 54px;
   padding: 8px;
   border-left: 0.5px solid color-mix(in srgb, var(--tp-grayscale950) 10%, transparent);
@@ -1183,33 +1183,6 @@ button.icon-action {
   color: var(--tp-grayscale600);
   font-weight: var(--tp-text-bodyRegular-weight);
 }
-.point-tools {
-  display: flex;
-  gap: 2px;
-  flex-shrink: 0;
-}
-.endpoints .point-fields .point-tool {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  min-height: 0;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--tp-primary700);
-}
-.endpoints .point-fields .point-tool:hover {
-  background: var(--tp-primary50);
-}
-.endpoints .point-fields .point-tool[aria-pressed="true"] {
-  background: var(--tp-primary700);
-  color: var(--tp-white);
-}
-.endpoints .point-fields .point-tool:disabled {
-  opacity: 0.5;
-}
 @media (max-width: 700px) {
   .endpoints {
     padding-right: 4px;
@@ -1505,4 +1478,30 @@ button.icon-action {
 .panel[data-tab="plan"] .route-disclosure > summary,
 .panel[data-tab="plan"] .endpoints .point-fields strong.placeholder {
   color: var(--tp-grayscale900);
+}
+
+/* Route choices use short text labels as well as restrained colour. */
+.route-alternative.route-choice { gap: 8px; padding: 14px; }
+.route-alternative .route-choice__heading { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 8px; color: var(--tp-grayscale900); font-size: 1.05rem; }
+.route-alternative .route-choice__heading strong { font-size: 1.1rem; }
+.route-alternative .route-choice__selected { color: var(--tp-primary700); font-size: .875rem; font-weight: 600; }
+.route-alternative .route-choice__line { display: flex; align-items: baseline; gap: 10px; width: 100%; font-size: 1rem; line-height: 1.5; color: var(--tp-grayscale800); }
+.route-alternative .route-choice__line > b { flex: none; font-size: .875rem; font-weight: 600; }
+.route-alternative .route-choice__line > span { color: var(--tp-grayscale800); font-size: 1rem; }
+.route-alternative .route-choice__strength > b { color: var(--tp-primary700); }
+.route-alternative .route-choice__concern > b { color: var(--tp-orange700); }
+.route-choice__note { margin: 8px 0; color: var(--tp-grayscale600); font-size: .875rem; }
+.reference-route-result.reference-route-result--compact { padding: 0; border: 0; }
+
+.endpoints .point-fields .point-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 44px;
+  width: 44px;
+  min-height: 44px;
+  padding: 8px;
+  color: var(--tp-grayscale700);
+  background: transparent;
+  border: 0;
 }

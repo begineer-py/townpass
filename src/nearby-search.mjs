@@ -35,8 +35,9 @@ export function createNearbySearch({fetchSnapshot,createWorker,onState,onSnapsho
    if(id!==version)return;
    if(d.type==='ready')currentWorker.postMessage({type:'nearby-positions',id,startPlace,endPlace,options,construction:snapshot});
    else if(d.type==='nearby-positions'&&d.id===id){
-    if(!constructionFresh(snapshot)||d.result.error)finish({status:'error',candidates:[],message:'施工資料已過期或暫時不可用，請重新搜尋。'});
-    else finish({status:'ready',candidates:d.result.candidates,truncated:d.result.truncated});
+    if(!constructionFresh(snapshot))finish({status:'error',candidates:[],message:'施工資料已過期或暫時不可用，請重新搜尋。'});
+    else if(d.result.error)finish({status:'error',candidates:[],message:d.result.error==='PROJECTION_LIMIT'?'附近路線搜尋已達上限，請重新搜尋。':'施工資料已過期或暫時不可用，請重新搜尋。'});
+    else finish({status:'ready',candidates:d.result.candidates,verifiedCandidates:d.result.verifiedCandidates||[],truncated:d.result.truncated,searchStatus:d.result.searchStatus,startPlace,endPlace,constructionSourceUpdatedAt:snapshot.sourceUpdatedAt});
    }else if(d.type==='error')finish({status:'error',candidates:[],message:'附近位置資料暫時無法讀取。'});
   };
   currentWorker.postMessage({type:'init',url});

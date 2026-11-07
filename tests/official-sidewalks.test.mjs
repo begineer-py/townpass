@@ -55,12 +55,13 @@ test("sidewalk issue points keep level and crosswalk kinds, and fail closed", as
       missing_noCurbSlope: [
         { STAsText: "POINT (308740.27 2771606.03)", type: "活動區域分類-高" },
         { STAsText: "POINT (308741 2771607)", type: "活動區域分類-低" },
+        { STAsText: "POINT (308742 2771608)", type: "未分類" },
         { STAsText: "POINT (1 2)", type: "活動區域分類-中" },
       ],
       missing_crosswalkNoRamp: [{ STAsText: "POINT (310890.89 2772000)", type: "" }],
     },
   });
-  assert.deepEqual(points.map((p) => p.kind), [0, 2, 3]);
+  assert.deepEqual(points.map((p) => p.kind), [0, 2, 4, 3]);
   assert.throws(() => parseSidewalkIssues({ code: "101", data: {} }), /INVALID_SIDEWALK_ISSUES/);
   const issues = decodeSidewalkIssues({ scale: 1e6, points: [25040000, 121510000, 3, 25041000, 121511000, 9] });
   assert.deepEqual(issues, [{ lat: 25.04, lon: 121.51, kind: 3 }]);

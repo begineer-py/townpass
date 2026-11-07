@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import {createRouter} from '../src/routing.mjs';
 import {createLocalRouteVerifier} from '../src/local-route-verifier.mjs';
 import {createConstructionChecker} from '../src/construction.mjs';
-import {improvePedestrianRoute,hasNewPedestrianNearShared,hasNewSidewalkNearReplaced,measureUnconfirmedApproaches,compareUnconfirmedApproaches} from '../src/pedestrian-improvement.mjs';
-import {planImprovedPlaces} from '../src/pedestrian-planning.mjs';
+import {improvePedestrianRoute,hasNewPedestrianNearShared,hasNewSidewalkNearReplaced,measurePedestrianRoute,measureUnconfirmedApproaches,compareUnconfirmedApproaches} from '../src/pedestrian-improvement.mjs';
+import {planImprovedPlaces,improvePlannedRoute} from '../src/pedestrian-planning.mjs';
 const n=(x,y)=>[25+y/111195,121.5+x/100700,0];
 const proof={schemaVersion:2,coverage:0,maxUncoveredMetres:100,crossingCoverage:0,roadCrossingVerified:true,crossingVerified:true};
 const shared={...proof,sharedRoad:true,sourceTopologyVerified:true,junctionsVerified:true,roadIntersectionsVerified:true,barriersVerified:true};
@@ -76,6 +76,20 @@ test('reduces actual shared-road length using a connected nearby pedestrian deto
  assert.ok(result.pedestrianImprovement.iterations.some(i=>i.result==='improved'));
  const chosen=result.pedestrianImprovement.iterations.flatMap(i=>i.attempts).find(a=>a.selected);
  assert.ok(chosen);assert.equal(chosen.reason,'eligible');assert.equal(chosen.sharedMetres,0);assert.ok(Number.isFinite(chosen.distanceMetres));
+});
+test('retains the official-condition baseline when an improved route is selected',()=>{
+ const x=setup(),limit={baselineDistanceMetres:110,maxDistanceMetres:143,baselineOfficialConditionWeight:4,applied:false};
+ const result=improvePlannedRoute({...x.base,conditionDetourLimit:limit},{lat:x.start[0],lon:x.start[1]},{lat:x.end[0],lon:x.end[1]},x.options,x.snap,{graph:x.g,router:x.router,verifyLocal:x.verifyLocal,checker:x.checker});
+ assert.equal(result.pedestrianImprovement.status,'improved');assert.equal(result.roadPct,0);assert.deepEqual(result.conditionDetourLimit,limit);
+});
+test('projection capacity during optional improvement returns only a reverified fresh route',()=>{
+ const x=setup(),limit=Object.assign(new Error('limit'),{code:'PROJECTION_LIMIT'}),deps={graph:x.g,router:()=>{throw limit;},verifyLocal:x.verifyLocal,checker:x.checker};
+ const result=improvePedestrianRoute(x.base,x.start,x.end,x.options,x.snap,deps);
+ assert.equal(result.error,undefined);assert.equal(result.pedestrianImprovement.status,'projection-limit');assert.deepEqual(result.edgeIds,x.base.edgeIds);
+ const stale={...x.snap,sourceUpdatedAt:'2000-01-01T00:00:00Z'};
+ assert.equal(improvePedestrianRoute(x.base,x.start,x.end,x.options,stale,deps).error,'CONSTRUCTION_UNAVAILABLE');
+ assert.throws(()=>improvePedestrianRoute(x.base,x.start,x.end,x.options,x.snap,{...deps,verifyLocal:()=>({error:'UNVERIFIED_NETWORK'})}),error=>error===limit);
+ assert.throws(()=>improvePedestrianRoute(x.base,x.start,x.end,x.options,x.snap,{...deps,router:()=>{throw new Error('unexpected');}}),/unexpected/);
 });
 test('a route with no shared road can improve its explicit sidewalk share',()=>{
  const g=graph();g.ways[0]={...g.ways[0],highway:'path',source:undefined,width:1.5,slope:0};g.edges[0][5]=proof;
@@ -203,4 +217,24 @@ test('official route without matched graph provenance is retained with an explic
  const x=setup(),official={...x.base,provider:'taipei-official'};
  const result=improvePedestrianRoute(official,x.start,x.end,x.options,x.snap,{graph:x.g,router:x.router,verifyLocal:x.verifyLocal,checker:x.checker});
  assert.equal(result.provider,'taipei-official');assert.equal(result.pedestrianImprovement.status,'unsupported-official-provenance');
+});
+
+
+test('replaces shared road with nearby official-covered sidewalk without losing existing sidewalk credit',()=>{
+ const x=setup();x.g.ways[1].footway='sidewalk';
+ x.g.ways.push({...x.g.ways[1],footway:undefined});
+ for(const edge of x.g.edges.slice(2)){edge[3]=2;edge[5]={...proof,coverage:1,maxUncoveredMetres:0};}
+ const result=improvePedestrianRoute(x.base,x.start,x.end,x.options,x.snap,{graph:x.g,router:x.router,verifyLocal:x.verifyLocal,checker:x.checker});
+ assert.equal(result.error,undefined);assert.equal(result.pedestrianImprovement.originalSharedMetres,10);assert.equal(result.pedestrianImprovement.sharedMetres,0);
+ assert.equal(result.pedestrianImprovement.originalExplicitSidewalkMetres,100);assert.equal(result.pedestrianImprovement.explicitSidewalkMetres,140);
+ assert.ok(result.pedestrianImprovement.sidewalkShare>result.pedestrianImprovement.originalSidewalkShare);
+});
+
+test('a projected sidewalk uses the original edge evidence, not forged coverage',()=>{
+ const x=setup();x.g.ways[1].footway=undefined;
+ const original=x.g.edges[1],derived=[...original.slice(0,5),{...proof,coverage:1,maxUncoveredMetres:0,derivedFrom:1}];
+ x.g.edges.push(derived);const candidate={...x.base,edgeIds:[0,x.g.edges.length-1]};
+ assert.equal(measurePedestrianRoute(x.g,candidate,x.start,x.end).sidewalk,0);
+ x.g.edges[1][5]={...proof,coverage:1,maxUncoveredMetres:0};
+ assert.equal(measurePedestrianRoute(x.g,candidate,x.start,x.end).sidewalk,100);
 });

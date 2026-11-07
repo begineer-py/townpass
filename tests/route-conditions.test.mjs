@@ -1,14 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ROUTE_CONDITIONS, conditionForSegment } from '../src/route-conditions.mjs';
+import { ROUTE_CONDITIONS, conditionForSegment, fallbackRouteCondition } from '../src/route-conditions.mjs';
 import { stepConditions } from '../src/format.mjs';
 
 test('route display keeps unknown data distinct from known dimensions', () => {
-  assert.equal(conditionForSegment({unknownWidth:false,unknownSlope:false,roughSurface:false}), 'known');
-  assert.equal(conditionForSegment({unknownWidth:true,unknownSlope:false,roughSurface:false}), 'unknown');
-  assert.equal(conditionForSegment({unknownWidth:false,unknownSlope:true,roughSurface:false}), 'unknown');
-  assert.equal(conditionForSegment({}), 'unknown');
-  assert.equal(conditionForSegment(null), 'unknown');
+  assert.equal(conditionForSegment({unknownWidth:false,unknownSlope:false,roughSurface:false}), 'sidewalk');
+  assert.equal(conditionForSegment({unknownWidth:true,unknownSlope:false,roughSurface:false}), 'sidewalkUnknown');
+  assert.equal(conditionForSegment({unknownWidth:false,unknownSlope:true,roughSurface:false}), 'sidewalkUnknown');
+  assert.equal(conditionForSegment({}), 'sidewalkUnknown');
+  assert.equal(conditionForSegment(null), 'sidewalkUnknown');
+  assert.equal(fallbackRouteCondition({geometryVerification:'official-polygons-and-crossings-v1'}), 'sidewalkUnknown');
+  assert.equal(fallbackRouteCondition(null), 'sidewalkUnknown');
 });
 
 test('shared roads remain distinct while preserving unknown and rough conditions', () => {
@@ -20,9 +22,24 @@ test('shared roads remain distinct while preserving unknown and rough conditions
   assert.doesNotMatch(stepConditions({unknown:true}), /人車共道/);
 });
 
+test('recorded sidewalks keep unknown and rough conditions visible', () => {
+  assert.equal(conditionForSegment({explicitSidewalk:true,unknownWidth:false,unknownSlope:false}), 'sidewalk');
+  assert.equal(conditionForSegment({explicitSidewalk:true}), 'sidewalkUnknown');
+  assert.equal(conditionForSegment({explicitSidewalk:true,roughSurface:true}), 'sidewalkRoughUnknown');
+  assert.equal(conditionForSegment({explicitSidewalk:true,sharedRoad:true}), 'sharedUnknown');
+  assert.equal(conditionForSegment({tier:'official',unknownWidth:false,unknownSlope:false}), 'sidewalk');
+  assert.equal(conditionForSegment({tier:'official'}), 'sidewalkUnknown');
+  assert.equal(conditionForSegment({tier:'official',explicitSidewalk:true}), 'sidewalkUnknown');
+  assert.match(ROUTE_CONDITIONS.sidewalkUnknown.label, /人行道.*未知/);
+});
+
 test('rough routes remain identifiable with or without unknown dimensions', () => {
-  assert.equal(conditionForSegment({unknownWidth:false,unknownSlope:false,roughSurface:true}), 'rough');
-  assert.equal(conditionForSegment({unknownWidth:true,unknownSlope:false,roughSurface:true}), 'roughUnknown');
-  const dashes=Object.values(ROUTE_CONDITIONS).map(value=>value.dash || 'solid');
-  assert.equal(new Set(dashes).size,dashes.length);
+  assert.equal(conditionForSegment({unknownWidth:false,unknownSlope:false,roughSurface:true}), 'sidewalkRough');
+  assert.equal(conditionForSegment({unknownWidth:true,unknownSlope:false,roughSurface:true}), 'sidewalkRoughUnknown');
+  for(const key of ['sidewalk','sidewalkUnknown','sidewalkRough','sidewalkRoughUnknown']) assert.equal(ROUTE_CONDITIONS[key].dash,undefined);
+  assert.ok(ROUTE_CONDITIONS.crossing.dash);assert.ok(ROUTE_CONDITIONS.approach.dash);
+});
+
+test('near-boundary crossing instructions preserve uncertainty',()=>{
+ assert.match(stepConditions({crossing:true,approximateCrossing:true}),/過街邊界未確認/);
 });

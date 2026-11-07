@@ -32,5 +32,5 @@ const body = JSON.stringify({
 });
 const gz = gzipSync(new TextEncoder().encode(body), { level: 9 });
 fs.writeFileSync(out, gz);
-const counts = [0, 1, 2, 3].map((k) => issues.filter((i) => i.kind === k).length);
-console.log(`不利通行 高 ${counts[0]}、中 ${counts[1]}、低 ${counts[2]}；行穿線無斜坡 ${counts[3]}，壓縮後 ${(gz.length / 1024).toFixed(0)} KB → ${out}`);
+const counts = [0, 1, 2, 3, 4].map((k) => issues.filter((i) => i.kind === k).length);
+console.log(`不利通行 高 ${counts[0]}、中 ${counts[1]}、低 ${counts[2]}、分類未知 ${counts[4]}；行穿線無斜坡 ${counts[3]}，壓縮後 ${(gz.length / 1024).toFixed(0)} KB → ${out}`);

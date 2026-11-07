@@ -54,25 +54,41 @@ import {
   TrendingUp,
 } from "lucide-react";
 import MapView from "./MapView";
-import { createLiveFollow, displayedRouteCoordinates } from "./live-follow.mjs";
-import { createRouteWorkerLifecycle } from "./route-worker-lifecycle.mjs";
-import { createLiveFollowSearch } from "./live-follow-search.mjs";
-import { presentRouteCandidates, sortRouteCandidates } from "./route-candidates-presentation.mjs";
-import { createNearbySearch, shouldAutoSearchNearby } from "./nearby-search.mjs";
-import { nearbyReplacement, nearbyWarnings } from "./nearby-presentation.mjs";
-import { partialRoutePresentation } from "./partial-route-presentation.mjs";
-import { canFallbackAfterVerification, startLocalFallback } from "./local-fallback.mjs";
-import OfficialConditions from "./OfficialConditions";
-import { createConditionDetourSearch } from "./condition-detour-search.mjs";
+import { routeFitPadding } from "./route-fit.mjs";
+import {mapRouteVisibility} from "./map-route-visibility.mjs";
+import {useReferenceComparison} from "./use-reference-comparison.js";
+import ReferenceRouteResult from "./ReferenceRouteResult";
+import RouteChoice from "./RouteChoice.jsx";
+import {describeRouteChoices} from "./route-summary.mjs";
+import {createReferenceSearch} from "./reference-search.mjs";
+import {createConditionDetourSearch} from "./condition-detour-search.mjs";
+import {createConstructionDetourSearch} from "./construction-detour-search.mjs";
+import {presentRouteCandidates, sortRouteCandidates} from "./route-candidates-presentation.mjs";
+import {ROUTE_CONDITIONS, conditionForSegment, fallbackRouteCondition} from "./route-conditions.mjs";
+import {NO_WALK_URLS, UNKNOWN_NO_WALK_URL} from "./issue-icons.mjs";
+import {TPColors} from "./tp-colors.mjs";
 import VoiceSearch from "./VoiceSearch";
 import {searchVerifiedAlternatives} from "./alternative-routes.mjs";
 import {fetchConstruction} from "./construction-client.mjs";
+import {useConstructionFeed} from "./use-construction-feed.js";
+import {inspectSavedTrips, alertFingerprint, notifyTownPass} from "./trip-alerts.mjs";
+import {createTripAlertLedger} from "./trip-alert-ledger.mjs";
+import {canFallbackAfterVerification, startLocalFallback} from "./local-fallback.mjs";
 import {constructionFresh, CONSTRUCTION_MAX_AGE} from "./construction.mjs";
-import { groupConstructionNotices } from "./construction-display.mjs";
+import {groupConstructionNotices} from "./construction-display.mjs";
+import {nearbyReplacement,nearbyWarnings,verifiedNearbyChoice,preservesGpsOrigin} from "./nearby-presentation.mjs";
+import {isVerifiedNavigationRoute} from "./route-trust.mjs";
+import {chooseSidewalkImprovement,compareSidewalkRouteScores} from "./sidewalk-route-choice.mjs";
+import {createNearbySearch,shouldAutoSearchNearby} from "./nearby-search.mjs";
+import {createMapSnapSearch} from "./map-snap-search.mjs";
+import {createRouteWorkerLifecycle} from "./route-worker-lifecycle.mjs";
+import {createLiveFollow,displayedRouteCoordinates} from "./live-follow.mjs";
+import {createLiveFollowSearch} from "./live-follow-search.mjs";
+import {routeGapPresentation} from "./route-gap-presentation.mjs";
+import {partialRoutePresentation} from "./partial-route-presentation.mjs";
 import { requestOfficialRoute } from "./official-router.mjs";
 import { ROUTING_POLICY } from "./routing.mjs";
 import { BASEMAPS } from "./basemaps.mjs";
-import { ISSUE_LEVELS, NO_WALK_URLS } from "./issue-icons.mjs";
 // Layer-picker preview: the z15 tile covering Taipei Main Station.
 const layerThumb = (url) =>
   url.replace("{z}", 15).replace("{x}", 27444).replace("{y}", 14027);
@@ -88,28 +104,27 @@ import {
   readSaved,
   saveLocal,
 } from "./data";
-import { getLocation, locationErrorText, watchLocation, destinationPoint, swappedOrigin } from "./location";
-import { installTownPassLinks, postToTownPass, townPassUserKey } from "./townpass-bridge";
-import {
-  activeElevatorStops,
-  facilitiesAlongRoute,
-  nearestStop,
-} from "./trip-extras.mjs";
-import { travelProfiles } from "./travel-profiles";
+import { getLocation, locationError, watchLocation, destinationPoint, swappedOrigin } from "./location";
+import { townPassUserKey, hasTownPass, postToTownPass } from "./townpass-bridge";
+import { normalizeRoutingPreferences } from "./routing-preferences.mjs";
 import { clearLocalData, loadProfile, loadTrips, saveProfile, saveTrips } from "./local-database";
-import { addressSearch } from "./address-search";
-import { nearestSheetSnapIndex } from "./sheet-snap.mjs";
 import {
-  metroStationCodes,
-  metroStationIconUrl,
-} from "./metro-station-icons.mjs";
-import { isNumberedStationExit, metroExitIconUrl, metroExitLabel } from "./metro-exits.mjs";
-import {
-  maintenanceText,
-  sourceCountLabel,
-  stationKey,
-  stepText,
-} from "./format.mjs";
+  PHONES,
+  mapLink,
+  nearestStop,
+  activeElevatorStops,
+} from "./trip-extras.mjs";
+import { addressSearch, landmarkSearch } from "./address-search";
+import { matchStationLandmark } from "./search-station.mjs";
+import { nearbyEntranceChoices } from "./entrance-choices.mjs";
+import { addRecentPlace } from "./recent-places.mjs";
+import { matchMetroStations } from "./station-matches.mjs";
+import { StationSearchGroup, stationLabel } from "./StationSearchGroup.jsx";
+import { MetroStationIcon } from "./MetroStationIcon.jsx";
+import { metroExitIconUrl, metroExitLabel } from "./metro-exits.mjs";
+import { useFacilityTiles } from "./use-facility-tiles.js";
+import { createDeferredActions } from "./deferred-actions.mjs";
+import { maintenanceText, sourceCountLabel, stationKey, stepText, stepConditions } from "./format.mjs";
 const icons = {
   elevator: ArrowUpFromLine,
   toilet: Toilet,
@@ -130,23 +145,14 @@ const icons = {
 };
 const filters = [
   ["toilet", "無障礙廁所", Toilet],
-  ["rest", "歇歇腳", Armchair],
-  ["water", "飲水處", GlassWater],
+  ["water", "飲水台", GlassWater],
+  ["rest", "椅子", Armchair],
 ];
-const sidewalkStatusText = {
-  loading: "載入中…",
-  zoom: "請放大地圖",
-  error: "暫時無法載入",
-};
-const routeModes = {
-  balanced: "均衡走法",
-  gentle: "偏好平緩",
-  crossings: "減少過街",
-};
+const routeModes = { balanced: "均衡走法", crossings: "減少過街" };
 const basePrefs = {
   avoidSteps: true,
   minWidth: 0.8,
-  maxSlope: 8,
+  maxSlope: 1000000,
   knownOnly: false,
   officialOnly: false,
   preferOfficial: true,
@@ -156,29 +162,32 @@ const basePrefs = {
   colorFriendly: false,
   voiceRate: 0.9,
 };
+const NO_MAP_ICONS = [];
+function RouteLegend({ segments, colorFriendly, showIssueIcons=true }) {
+  const keys = [...new Set(segments.flatMap(route => [
+    ...(route.tierSegments?.length ? route.tierSegments.map(conditionForSegment) : [fallbackRouteCondition(route)]),
+    ...(route.approaches?.length ? ['approach'] : []),
+  ]))];
+  const labelFor = key => key.startsWith('shared') ? '人車共行' : key === 'crossing' ? '過街' : key === 'approach' ? '起終點銜接' : '一般人行道';
+  const groups = new Map();
+  for (const key of keys) {
+    const label = labelFor(key);
+    if (!groups.has(label)) groups.set(label, []);
+    groups.get(label).push(key);
+  }
+  return <div className="route-key" role="group" aria-label="路線線條說明">
+    {[...groups].map(([label, styles]) => <span key={label}>{styles.map(key => {
+      const condition = ROUTE_CONDITIONS[key];
+      return <svg key={key} width="52" height="16" aria-hidden="true"><line x1="2" y1="8" x2="50" y2="8" stroke={colorFriendly ? TPColors.primary900 : condition.color} strokeWidth="6" strokeDasharray={condition.dash}/></svg>;
+    })}{label}</span>)}
+    {segments.some(route => route.officialConditions?.status==='available' && route.officialConditions.points?.length>0) && <span>{showIssueIcons && <i className="route-issue-legend" aria-hidden="true">!</i>}<svg width="52" height="16" aria-hidden="true"><line x1="2" y1="8" x2="50" y2="8" stroke="#7036a3" strokeWidth="4" strokeDasharray="3 4"/></svg>附近通行紀錄</span>}
+    {!groups.has('過街') && segments.some(route => route.crossingUncertainties?.length > 0 || route.crossingSegments?.length > 0) && <span><svg width="52" height="16" aria-hidden="true"><line x1="2" y1="8" x2="50" y2="8" stroke={TPColors.primary900} strokeWidth="3" strokeDasharray="2 5"/></svg>過街</span>}
+  </div>;
+}
+
 function Icon({ kind, ...props }) {
   const C = icons[kind] || MapPin;
   return <C size={20} aria-hidden="true" {...props} />;
-}
-function MetroStationIcon({ codes, value }) {
-  const stationCodes = metroStationCodes(codes, value);
-  if (!stationCodes.length) return <TrainFront size={20} aria-hidden="true" />;
-  return (
-    <span className="metro-station-icons" aria-hidden="true">
-      <TrainFront className="metro-station-icon-fallback" size={20} />
-      {stationCodes.filter((code) => metroStationIconUrl(code)).map((code) => (
-        <img
-          key={code}
-          src={metroStationIconUrl(code)}
-          alt=""
-          loading="lazy"
-          onError={(event) => {
-            event.currentTarget.hidden = true;
-          }}
-        />
-      ))}
-    </span>
-  );
 }
 function Sheet({ title, onClose, children, dismissible = true }) {
   const ref = useRef();
@@ -216,38 +225,25 @@ function Sheet({ title, onClose, children, dismissible = true }) {
     </dialog>
   );
 }
-// 車站名稱補上「站」，但「台北車站」這類已經以站結尾的不再重複。
-const stationLabel = (name) => (/站$/.test(name) ? name : `${name}站`);
-function FacilityRow({ p, from, onSelect, saved, onSave, note, stationCode }) {
+function FacilityRow({ p, from, onSelect, saved, onSave, sourceLabel, note, stationCode }) {
   const k = category(p),
-    sub = labels[k] || "設施",
-    exitIcon = metroExitIconUrl(p);
+    sub = labels[k] || "設施";
   return (
     <div className="facility-row">
       <button className="facility-main" onClick={() => onSelect(p)}>
         <span className={`facility-icon ${k}`}>
-          {exitIcon ? (
-            <img className="metro-exit-icon" src={exitIcon} alt="" aria-hidden="true" />
-          ) : p.kind === "metro-elevator" ? (
-              metroExitLabel(p) === "梯" ? (
-                <Icon kind="elevator" />
-              ) : (
-                <span className="metro-exit-label" aria-hidden="true">
-                  {metroExitLabel(p)}
-                </span>
-              )
-          ) : k === "station" ? (
-            <MetroStationIcon codes={stationCode} value={p.name} />
-          ) : (
-            <Icon kind={k} />
-          )}
+          {p.kind === "metro-elevator" ? (
+            metroExitIconUrl(p) ? <img className="metro-exit-icon" src={metroExitIconUrl(p)} alt="" aria-hidden="true" /> :
+              metroExitLabel(p) === "梯" ? <Icon kind="elevator" /> : <span className="metro-exit-label" aria-hidden="true">{metroExitLabel(p)}</span>
+          ) : k === "station" ? <MetroStationIcon codes={stationCode} value={p.name} /> : <Icon kind={k} />}
         </span>
         <span className="facility-copy">
           <strong>{cleanName(p.name)}</strong>
-          {(sub !== cleanName(p.name) || p.exit) && (
+          {(sub !== cleanName(p.name) || p.exit || sourceLabel) && (
             <span>
               {sub}
               {p.exit ? ` · ${p.exit}` : ""}
+              {sourceLabel ? ` · ${sourceLabel}` : ""}
             </span>
           )}
           {note && <span className="facility-note">{note}</span>}
@@ -267,17 +263,54 @@ function FacilityRow({ p, from, onSelect, saved, onSave, note, stationCode }) {
   );
 }
 export default function App() {
+  const [recentPlaces, setRecentPlaces] = useState(() => {
+    const stored = readSaved("hhz-recent-places", []);
+    return Array.isArray(stored) ? stored.slice(0, 10) : [];
+  });
+  const [landmarkIndex, setLandmarkIndex] = useState([]);
+  const [landmarkError, setLandmarkError] = useState(false);
+  const [landmarkRetry, setLandmarkRetry] = useState(0);
+  const [metroExits, setMetroExits] = useState(null);
+  const [metroExitError, setMetroExitError] = useState(false);
+  const [metroExitRetry, setMetroExitRetry] = useState(0);
+  useEffect(() => {
+    let active = true;
+    setLandmarkError(false);
+    loadData("landmarks").then((places) => {
+      if (!Array.isArray(places)) throw Error("invalid landmarks");
+      if (active) setLandmarkIndex(places);
+    }).catch(() => { if (active) setLandmarkError(true); });
+    return () => { active = false; };
+  }, [landmarkRetry]);
+  const rememberPlace = (place) => setRecentPlaces((previous) => {
+    const next = addRecentPlace(previous, place);
+    if (next !== previous) saveLocal("hhz-recent-places", next);
+    return next;
+  });
   const [data, setData] = useState(null),
     [loading, setLoading] = useState(false),
-    [loadError, setLoadError] = useState(false);
+    [loadError, setLoadError] = useState(false),
+    [dataRequested, setDataRequested] = useState(false);
+  const dataGate = useRef(null);
+  const graphReadyRef = useRef(false);
   const [tab, setTab] = useState("plan"),
-    [filter, setFilter] = useState("toilet"),
+    [filter, setFilter] = useState("all"),
     [viewport, setViewport] = useState({
       lat: 25.0478,
       lon: 121.517,
       bounds: [25.03, 121.49, 25.06, 121.54],
       zoom: 15,
     });
+  useEffect(() => {
+    if (viewport.zoom < 16 || metroExits) return;
+    let active = true;
+    setMetroExitError(false);
+    loadData("metro-exits").then((places) => {
+      if (!Array.isArray(places)) throw Error("invalid metro exits");
+      if (active) setMetroExits(places);
+    }).catch(() => { if (active) setMetroExitError(true); });
+    return () => { active = false; };
+  }, [viewport.zoom >= 16, metroExits, metroExitRetry]);
   const [focus, setFocus] = useState(null),
     [start, setStart] = useState(null),
     [end, setEnd] = useState(null),
@@ -286,43 +319,35 @@ export default function App() {
     [query, setQuery] = useState("");
   const [selected, setSelected] = useState(null),
     [modal, setModal] = useState(null),
-    [travelProfile, setTravelProfile] = useState(null),
-    [profileDraft, setProfileDraft] = useState("walking"),
     [profileStorageKey, setProfileStorageKey] = useState("hhz-profile-local"),
     [profileReady, setProfileReady] = useState(false),
-    [prefs, setPrefs] = useState(() => ({
+    [prefs, setPrefs] = useState(() => normalizeRoutingPreferences({
       ...basePrefs,
       ...readSaved("hhz-preferences", {}),
       avoidSteps: true,
       officialOnly: false,
     }));
-  // 搜尋紀錄：最近選過的地點，只存在這支手機（hhz- 開頭，設定裡的清除資料會一起刪）。
-  const [recents, setRecents] = useState(() => readSaved("hhz-recent-places", []));
-  const rememberPlace = (p) => {
-    if (!p || !Number.isFinite(p.lat) || !Number.isFinite(p.lon) || p.id === "my-location")
-      return;
-    const keep = {
-      id: p.id, name: p.name, lat: p.lat, lon: p.lon, kind: p.kind,
-      address: p.address, station: p.station, exit: p.exit, sourceId: p.sourceId,
-    };
-    setRecents((list) => {
-      const previous = list.find(x => x.id === p.id);
-      const next = [{ ...keep, selections: (previous?.selections ?? (previous ? 1 : 0)) + 1 },
-        ...list.filter(x => x.id !== p.id)].slice(0, 10);
-      saveLocal("hhz-recent-places", next);
-      return next;
-    });
-  };
-  const clearRecents = () => {
-    setRecents([]);
-    saveLocal("hhz-recent-places", []);
-  };
+  const selectedRef = useRef(null);
+  selectedRef.current = selected;
+  const [unlocatedExits, setUnlocatedExits] = useState(null);
+  const [unlocatedError, setUnlocatedError] = useState(false);
+  useEffect(() => {
+    if (selected?.kind !== "station-detail" || unlocatedExits) return;
+    let active = true;
+    setUnlocatedError(false);
+    loadData("metro-unlocated-exits").then((items) => { if (active && Array.isArray(items)) setUnlocatedExits(items); })
+      .catch(() => { if (active) setUnlocatedError(true); });
+    return () => { active = false; };
+  }, [selected?.id, selected?.kind, unlocatedExits]);
   const [saved, setSaved] = useState(() => readSaved("hhz-saved", [])),
     [trips, setTrips] = useState([]);
+  const [tripAlerts, setTripAlerts] = useState({});
+  const [tripCheckFailed, setTripCheckFailed] = useState(false);
+  const tripAlertLedger = useRef(null);
+  if (!tripAlertLedger.current) tripAlertLedger.current = createTripAlertLedger(readSaved, saveLocal);
   const [route, setRoute] = useState(null),
     [routeError, setRouteError] = useState(""),
     [routing, setRouting] = useState(false),
-    // 路網（約 22 MB）不在開啟時下載：選好起點和終點、或按規劃路線時才載入。
     [graphRequested, setGraphRequested] = useState(false),
     [graphReady, setGraphReady] = useState(false),
     [graphError, setGraphError] = useState(false),
@@ -331,23 +356,26 @@ export default function App() {
     [confirmClear, setConfirmClear] = useState(false),
     [locating, setLocating] = useState(false),
     [listLimit, setListLimit] = useState(12),
+    [stationQuery, setStationQuery] = useState(""),
     [speaking, setSpeaking] = useState(false),
     [stepIndex, setStepIndex] = useState(0),
     [online, setOnline] = useState(navigator.onLine);
+  const [routeCandidates, setRouteCandidates] = useState([]);
+  const [selectedRouteCandidate, setSelectedRouteCandidate] = useState(null);
+  const [candidateSort, setCandidateSort] = useState("score");
   const [currentLocation, setCurrentLocation] = useState(null);
+  const [followState,setFollowState] = useState({active:false,status:'idle',message:''});
+  const followSession = useRef(null);
   const [basemap, setBasemap] = useState(() => {
     const v = readSaved("hhz-basemap", "street");
     return Object.prototype.hasOwnProperty.call(BASEMAPS, v) ? v : "street";
   });
   const [basemapStatus, setBasemapStatus] = useState("loading");
-  // 人行道圖層（官方無障礙通行線）預設顯示；使用者關掉後會記住。
-  const [showOfficialSidewalk, setShowOfficialSidewalk] = useState(() =>
-    readSaved("hhz-show-sidewalk", true),
-  );
-  useEffect(() => {
-    saveLocal("hhz-show-sidewalk", showOfficialSidewalk);
-  }, [showOfficialSidewalk]);
-  const [officialSidewalkStatus, setOfficialSidewalkStatus] = useState("idle");
+  const [showOfficialSidewalk, setShowOfficialSidewalk] = useState(() => readSaved("hhz-show-sidewalk", true));
+  const [hideMapIcons, setHideMapIcons] = useState(() => readSaved("hhz-hide-map-icons", false));
+  const [sidewalkStatus, setSidewalkStatus] = useState("idle");
+  useEffect(() => { saveLocal("hhz-show-sidewalk", showOfficialSidewalk); }, [showOfficialSidewalk]);
+  useEffect(() => { saveLocal("hhz-hide-map-icons", hideMapIcons); }, [hideMapIcons]);
   const [layersOpen, setLayersOpen] = useState(false),
     layersRef = useRef();
   useEffect(() => {
@@ -363,8 +391,15 @@ export default function App() {
       document.removeEventListener("keydown", esc);
     };
   }, [layersOpen]);
+  const [showConstruction, setShowConstruction] = useState(() => readSaved("hhz-show-construction", true));
+  const constructionFeed=useConstructionFeed(showConstruction);
+  const [constructionMapStatus,setConstructionMapStatus]=useState({status:'hidden',truncated:false});
+  useEffect(()=>{saveLocal("hhz-show-construction",showConstruction);},[showConstruction]);
+  const [showMapFacilities, setShowMapFacilities] = useState(() => readSaved("hhz-show-map-facilities", true));
+  const { places: nearbyMapFacilities, status: facilityStatus, retry: retryFacilityTiles } = useFacilityTiles(viewport, showMapFacilities);
+  useEffect(() => { saveLocal("hhz-show-map-facilities", showMapFacilities); }, [showMapFacilities]);
   const needsData =
-    tab !== "saved" ||
+    dataRequested || tab === "explore" || tab === "stations" ||
     modal === "sources" ||
     Boolean(searchFor);
   const waitingForData = needsData && !data && !loadError;
@@ -373,113 +408,86 @@ export default function App() {
   const tabVersion = useRef(0);
   useEffect(() => {
     tabVersion.current++;
-    if (tab !== "plan") conditionDetourSearch.current?.cancel();
+    if (tab !== "plan") {conditionDetourSearch.current?.cancel();constructionDetourSearch.current?.cancel();}
   }, [tab]);
-  // 起點、終點都選好時先在背景載入路網，按下規劃路線時通常已經準備好。
-  useEffect(() => {
-    if (start && end) setGraphRequested(true);
-  }, [start, end]);
   useEffect(() => {
     saveLocal("hhz-basemap", basemap);
   }, [basemap]);
   const [addressResults, setAddressResults] = useState([]);
+  const [addressQuery, setAddressQuery] = useState(null);
+  const [addressPending, setAddressPending] = useState(false);
+  const [addressError, setAddressError] = useState(false);
   useEffect(() => {
     const ctl = new AbortController();
     setAddressResults([]);
+    setAddressError(false);
+    setAddressQuery(query);
+    setAddressPending(Boolean(searchFor && query.trim()));
     const t = setTimeout(() => {
-      addressSearch(query, ctl.signal)
-        .then((r) => {
-          if (!ctl.signal.aborted) setAddressResults(r);
-        })
-        .catch(() => {});
+      if (!searchFor || !query.trim()) return;
+      Promise.allSettled([addressSearch(query, ctl.signal), landmarkSearch(query, ctl.signal)]).then(results => {
+        if (ctl.signal.aborted) return;
+        setAddressResults(results.flatMap(result => result.status === 'fulfilled' ? result.value : []));
+        setAddressError(results.some(result => result.status === 'rejected'));
+        setAddressPending(false);
+      });
     }, 350);
     return () => {
       clearTimeout(t);
       ctl.abort();
     };
-  }, [query]);
+  }, [query, searchFor]);
   const officialRequest = useRef();
+  const locationRequest=useRef(0);
   const pendingVerifications = useRef(new Map());
   const lastConstruction = useRef(null);
-  const [conditionDetourState, setConditionDetourState] = useState({ status: "idle" });
-  const conditionDetourSearch = useRef(null);
-  if (!conditionDetourSearch.current)
-    conditionDetourSearch.current = createConditionDetourSearch({
-      fetchSnapshot: fetchConstruction,
-      createWorker: () => new Worker(new URL("./route-worker.js", import.meta.url), { type: "module" }),
-      onState: setConditionDetourState,
-      onSnapshot: (snapshot) => { lastConstruction.current = snapshot; },
-    });
+  const mapSnap=useRef(null), pendingMapSnap=useRef(null), mapSnapVersion=useRef(0);
+  if(!mapSnap.current)mapSnap.current=createMapSnapSearch({fetchSnapshot:fetchConstruction,getLifecycle:()=>worker.current,onSnapshot:s=>{lastConstruction.current=s;}});
+  useEffect(()=>()=>mapSnap.current?.cancel(false),[]);
+  const [nearbyState,setNearbyState]=useState({status:'idle',candidates:[]});
+  const nearbySearch=useRef(null);
+  if(!nearbySearch.current)nearbySearch.current=createNearbySearch({fetchSnapshot:fetchConstruction,createWorker:()=>new Worker(new URL('./route-worker.js',import.meta.url),{type:'module'}),onState:setNearbyState,onSnapshot:s=>{lastConstruction.current=s;}});
+  const [referenceState,setReferenceState]=useState({status:'idle'});
+  const [referenceCollapsed,setReferenceCollapsed]=useState(false);
+  const referenceSnapshot=useRef(null),referenceAutoAttempt=useRef(null),referenceSearch=useRef(null),referenceBaseline=useRef(null),manualRouteSelection=useRef(false);
+  if(!referenceSearch.current)referenceSearch.current=createReferenceSearch({fetchSnapshot:fetchConstruction,getLifecycle:()=>worker.current,onState:setReferenceState,onSnapshot:s=>{referenceSnapshot.current=s;}});
+  useEffect(()=>()=>referenceSearch.current?.cancel(false),[]);
+  const [conditionDetourState,setConditionDetourState]=useState({status:'idle'});
+  const conditionDetourSearch=useRef(null);
+  if(!conditionDetourSearch.current)conditionDetourSearch.current=createConditionDetourSearch({fetchSnapshot:fetchConstruction,createWorker:()=>new Worker(new URL('./route-worker.js',import.meta.url),{type:'module'}),onState:setConditionDetourState,onSnapshot:s=>{lastConstruction.current=s;}});
+  const [constructionDetourState,setConstructionDetourState]=useState({status:'idle'}),constructionDetourSearch=useRef(null);
+  if(!constructionDetourSearch.current)constructionDetourSearch.current=createConstructionDetourSearch({fetchSnapshot:fetchConstruction,createWorker:()=>new Worker(new URL('./route-worker.js',import.meta.url),{type:'module'}),onState:setConstructionDetourState,onSnapshot:s=>{lastConstruction.current=s;}});
+  useEffect(()=>()=>constructionDetourSearch.current?.cancel(false),[]);
   const [constructionConflict,setConstructionConflict] = useState(null);
-  const verificationSequence = useRef(0);
-  function verifyOnlineRoute(route, start, end, requestId, construction, options) {
+  const [routeGap,setRouteGap] = useState(null);
+  const [partialRoute,setPartialRoute] = useState(null);
+  const requestEndpoints=useRef(null);
+  const routeGapView=useMemo(()=>partialRoute?null:routeGapPresentation(routeError,routeGap),[routeError,routeGap,partialRoute]);
+  const [routeAttempt,setRouteAttempt]=useState(0);
+  function verifyOnlineRoute(route, start, end, id, construction, options=prefs) {
     return new Promise(resolve => {
-      const lifecycle = worker.current;
-      if (!lifecycle || requestId !== request.current) {
-        resolve({ error: "CANCELLED" });
-        return;
-      }
-      const id = ++verificationSequence.current;
-      const finish = result => {
-        clearTimeout(timer);
-        pendingVerifications.current.delete(id);
-        resolve(result);
-      };
-      const timer = setTimeout(() => {
-        finish({ error: "UNVERIFIED_NETWORK" });
-        lifecycle.cancelIfActive("verify-official", id);
-      }, 30000);
-      pendingVerifications.current.set(id, finish);
-      if (!lifecycle.postMessage({ type: "verify-official", id, route, start, end, construction, options })) {
-        finish({ error: "UNVERIFIED_NETWORK" });
-      }
+      let settled=false;
+      const finish=result=>{if(settled)return;settled=true;clearTimeout(timer);if(pendingVerifications.current.get(id)===finish)pendingVerifications.current.delete(id);resolve(result);};
+      const timer=setTimeout(()=>{if(pendingVerifications.current.get(id)!==finish)return;pendingVerifications.current.delete(id);worker.current?.cancelIfActive('verify-official',id);finish({error:'UNVERIFIED_NETWORK'});},30000);
+      pendingVerifications.current.set(id,finish);
+      if (!worker.current || worker.current.postMessage({type:'verify-official',id,route,start,end,construction,options})===false)finish({error:'UNVERIFIED_NETWORK'});
     });
   }
   const panelScroll = useRef();
+  const panel = useRef();
+  const menuButton = useRef();
   const autoLocated = useRef(false);
   const routeFeedback = useRef();
   // Phone bottom sheet: 0 = peek, 1 = half, 2 = full (heights in style.css).
   const panelEl = useRef(),
     gripDragged = useRef(false);
-  const [sheetSnap, setSheetSnap] = useState(0);
-  // 地圖目前旋轉的角度（不是手機朝向）。指南針指針用它轉回正北。
+  const [sheetSnap, setSheetSnap] = useState(1);
   const [bearing, setBearing] = useState(0);
   const SHEET_SNAPS = [0.11, 0.56, 0.9];
   useEffect(()=>{if(route || routeError)setSheetSnap(v=>Math.max(v,1));},[route,routeError]);
-  // 抽屜最高只拉到內容的高度：內容短時，拉到最上面下面不會留白。
-  useLayoutEffect(() => {
-    const el = panelEl.current,
-      scroll = panelScroll.current;
-    if (!el || !scroll) return;
-    const measure = () => {
-      const last = scroll.lastElementChild;
-      if (!last) return;
-      const pad = parseFloat(getComputedStyle(scroll).paddingBottom) || 0;
-      const panelTop = el.getBoundingClientRect().top;
-      const contentBottom =
-        last.getBoundingClientRect().bottom + scroll.scrollTop + pad - panelTop;
-      el.style.setProperty("--sheet-max", `${Math.ceil(contentBottom)}px`);
-    };
-    measure();
-    const ro = new ResizeObserver(measure);
-    for (const child of scroll.children) ro.observe(child);
-    const mo = new MutationObserver(() => {
-      ro.disconnect();
-      for (const child of scroll.children) ro.observe(child);
-      measure();
-    });
-    mo.observe(scroll, { childList: true });
-    addEventListener("resize", measure);
-    return () => {
-      ro.disconnect();
-      mo.disconnect();
-      removeEventListener("resize", measure);
-    };
-  });
   function gripDown(e) {
     const el = panelEl.current;
     if (!el || e.button > 0) return;
-    e.currentTarget.setPointerCapture?.(e.pointerId);
     const startY = e.clientY,
       startH = el.getBoundingClientRect().height;
     gripDragged.current = false;
@@ -487,36 +495,30 @@ export default function App() {
     const move = (ev) => {
       const dy = startY - ev.clientY;
       if (Math.abs(dy) > 5) gripDragged.current = true;
-      const max = parseFloat(el.style.getPropertyValue("--sheet-max")) || Infinity;
-      el.style.setProperty("--sheet-h", `${Math.min(max, Math.max(110, startH + dy))}px`);
+      el.style.setProperty("--sheet-h", `${Math.max(110, startH + dy)}px`);
     };
     const up = () => {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
       window.removeEventListener("pointercancel", up);
       el.classList.remove("dragging");
-      const height = el.getBoundingClientRect().height;
-      const max =
-        parseFloat(el.style.getPropertyValue("--sheet-max")) || Infinity;
+      const f = el.getBoundingClientRect().height / window.innerHeight;
       el.style.removeProperty("--sheet-h");
       if (!gripDragged.current) return;
-      setSheetSnap(
-        nearestSheetSnapIndex(
-          height,
-          max,
-          window.innerHeight,
-          SHEET_SNAPS,
-        ),
-      );
+      let best = 0;
+      SHEET_SNAPS.forEach((v, i) => {
+        if (Math.abs(v - f) < Math.abs(SHEET_SNAPS[best] - f)) best = i;
+      });
+      setSheetSnap(best);
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
     window.addEventListener("pointercancel", up);
   }
   function resetNorth() {
-    map.current?.setBearing?.(0);
     setBearing(0);
-    announce("地圖已轉回正北。", { quiet: true });
+    map.current?.setBearing?.(0);
+    announce("地圖已朝北。", { quiet: true });
   }
   useEffect(() => {
     if (routeError)
@@ -528,8 +530,6 @@ export default function App() {
   useEffect(() => {
     if (panelScroll.current) panelScroll.current.scrollTop = 0;
   }, [tab]);
-  // 台北通 WebView 不支援新視窗：外部連結改用 open_link。
-  useEffect(() => installTownPassLinks(), []);
   useEffect(() => {
     let active = true;
     townPassUserKey().then(async (userKey) => {
@@ -545,81 +545,139 @@ export default function App() {
         null,
       );
       setProfileStorageKey(key);
-      setTravelProfile(travelProfiles[stored] ? stored : null);
+      if(stored!=='wheelchair')void saveProfile(key,'wheelchair');
       setTrips(storedTrips);
-      setPrefs({
+      setPrefs(normalizeRoutingPreferences({
         ...basePrefs,
-        ...(savedPrefs || travelProfiles[stored]?.preferences || {}),
+        ...(savedPrefs || {}),
         avoidSteps: true,
         officialOnly: false,
-      });
+      }));
       setProfileReady(true);
-      if (!travelProfiles[stored]) setModal("profile");
     });
     return () => {
       active = false;
     };
   }, []);
-  const [routeCandidates, setRouteCandidates] = useState([]);
-  const [selectedRouteCandidate, setSelectedRouteCandidate] = useState(null);
-  const [candidateSort, setCandidateSort] = useState("score");
-  const sortedRouteCandidates = useMemo(() => sortRouteCandidates(routeCandidates, candidateSort), [routeCandidates, candidateSort]);
-  const [partialRoute, setPartialRoute] = useState(null);
-  const [nearbyState, setNearbyState] = useState({ status: "idle", candidates: [] });
-  const nearbySearch = useRef(null);
-  if (!nearbySearch.current) {
-    nearbySearch.current = createNearbySearch({
-      fetchSnapshot: fetchConstruction,
-      createWorker: () => new Worker(new URL("./route-worker.js", import.meta.url), { type: "module" }),
-      onState: setNearbyState,
-      onSnapshot: snapshot => { lastConstruction.current = snapshot; },
-    });
-  }
   useEffect(() => {
-    if (tab !== "plan") nearbySearch.current.cancel();
-    return () => nearbySearch.current.cancel(false);
-  }, [tab]);
-  const [followState, setFollowState] = useState({ active: false, status: "idle", message: "" });
-  const followSession = useRef(null);
-  const requestEndpoints = useRef(null);
-  const locationRequest = useRef(0);
+    if (!profileReady || !trips.length) { setTripAlerts({}); return; }
+    let active = true, running = false;
+    const controller = new AbortController();
+    const storageKey = `${profileStorageKey}-trip-alerts`;
+    async function check() {
+      if (running || document.visibilityState === 'hidden') return;
+      running = true;
+      try {
+        const snapshot = await fetchConstruction(controller.signal);
+        if (!active || document.visibilityState === 'hidden') return;
+        if (snapshot.error) { setTripCheckFailed(true); return; }
+        const alerts = inspectSavedTrips(trips, snapshot);
+        const previous = tripAlertLedger.current.get(storageKey), next = {};
+        for (const trip of trips) {
+          const works = alerts[trip.id];
+          if (!works?.length) continue;
+          const fingerprint = alertFingerprint(works);
+          if (previous[trip.id] !== fingerprint) {
+            if (notifyTownPass('收藏路線受施工影響', `${trip.start.name} → ${trip.end.name}：${works[0].address}附近可能影響通行，請開啟收藏查看改道。`)) next[trip.id] = fingerprint;
+          } else next[trip.id] = fingerprint;
+        }
+        tripAlertLedger.current.save(storageKey, next);
+        setTripAlerts(alerts);
+        setTripCheckFailed(false);
+      } catch { if (active) setTripCheckFailed(true); }
+      finally { running = false; }
+    }
+    void check();
+    const timer = setInterval(check, 60000);
+    document.addEventListener('visibilitychange', check);
+    window.addEventListener('online', check);
+    return () => { active = false; controller.abort(); clearInterval(timer); document.removeEventListener('visibilitychange', check); window.removeEventListener('online', check); };
+  }, [profileReady, profileStorageKey, trips]);
+  const wantedStop = useRef(null);
+  const pendingRoute = useRef(null);
   const worker = useRef(),
     request = useRef(0),
     map = useRef(),
-    announceTimer = useRef();
-  // 提示分兩種：
-  // - 一般提示（錯誤、需要使用者處理的事）：畫面上一定顯示。
-  // - 操作確認（quiet）：只給螢幕報讀器唸；選了「聽障」出行方式或開啟「顯示操作提示」時，畫面上才顯示。
-  // 所有提示都會送到報讀用的 live region，視障者不會漏聽。
-  const showConfirmations =
-    prefs.visualPrompts ?? travelProfile === "hearing";
+    announceTimer = useRef(),
+    srAnnounceTimer = useRef();
+  const sidewalkComparison = useMemo(()=>{
+    const baseline=referenceBaseline.current;
+    if(referenceState.status!=='ready'||!baseline||baseline.requestId!==request.current)return null;
+    return compareSidewalkRouteScores({currentRoute:baseline.route,localCandidates:routeCandidates,referenceCandidates:referenceState.candidates,start,end,snapshot:lastConstruction.current,referenceSnapshot:referenceSnapshot.current,referenceSourceHash:referenceState.sourceHash});
+  },[referenceState,routeCandidates,start,end,route,lastConstruction.current?.fetchedAt,lastConstruction.current?.sourceUpdatedAt,referenceSnapshot.current?.fetchedAt,referenceSnapshot.current?.sourceUpdatedAt]);
+  const displayedReferenceCandidates = useMemo(()=>{
+    const candidates=referenceState.candidates||[];
+    if(!sidewalkComparison)return candidates;
+    return candidates.map(candidate=>({...candidate,score:sidewalkComparison.referenceCandidates?.find(item=>item.candidate.id===candidate.id)?.score.value??null})).sort((a,b)=>(b.score??-Infinity)-(a.score??-Infinity));
+  },[referenceState,sidewalkComparison]);
+  const sortedRouteCandidates = useMemo(()=>{
+    let candidates=routeCandidates;
+    const baseline=referenceBaseline.current;
+    const sameRoute=(a,b)=>Array.isArray(a?.coordinates)&&Array.isArray(b?.coordinates)&&a.coordinates.length===b.coordinates.length&&a.coordinates.every((p,i)=>p[0]===b.coordinates[i]?.[0]&&p[1]===b.coordinates[i]?.[1]);
+    const originalMissing=baseline && !candidates.some(candidate=>candidate.id===baseline.selectedId || sameRoute(candidate.route,baseline.route));
+    if(referenceState.status==='ready' && originalMissing && isVerifiedNavigationRoute(baseline.route) && constructionFresh(lastConstruction.current) && baseline.route.construction?.sourceUpdatedAt===lastConstruction.current?.sourceUpdatedAt){
+      const m=sidewalkComparison?.status==='ready'?sidewalkComparison.current.metrics:null;
+      candidates=[...candidates,{id:'original-route',route:baseline.route,score:sidewalkComparison?.current?.score.value??null,metrics:{distanceMetres:m?.distance??baseline.route.distance,explicitSidewalkMetres:m?.sidewalk??null,otherPedestrianMetres:null,sharedMetres:m?.shared??null,unknownMetres:null,estimatedMetres:m?.estimated??null,roughMetres:null,detourMetres:m?Math.max(0,m.distance-sidewalkComparison.shortestDistanceMetres):null,officialConditionCount:null}}];
+    }
+    if(sidewalkComparison){
+      candidates=candidates.map(candidate=>({...candidate,score:sidewalkComparison.localCandidates?.find(item=>item.candidate.id===candidate.id)?.score.value ?? (candidate.id==='original-route'&&sidewalkComparison.status==='ready'?sidewalkComparison.current.score.value:null)}));
+    }
+    return sortRouteCandidates(candidates,candidateSort);
+  },[routeCandidates,candidateSort,sidewalkComparison,referenceState,route]);
+  const unifiedRouteChoices = useMemo(()=>{
+    if(!sidewalkComparison)return null;
+    const items=[...sortedRouteCandidates.map(candidate=>({source:'local',candidate,distance:candidate.metrics.distanceMetres,score:candidate.score})),...displayedReferenceCandidates.map(candidate=>({source:'reference',candidate,distance:candidate.route.distanceMetres,score:candidate.score}))];
+    return items.sort((a,b)=>{const distance=a.distance-b.distance,score=(Number.isFinite(b.score)?b.score:-1)-(Number.isFinite(a.score)?a.score:-1);return candidateSort==='distance'?distance||score:score||distance;});
+  },[sidewalkComparison,sortedRouteCandidates,displayedReferenceCandidates,candidateSort]);
+  const unifiedRouteSummaries = useMemo(()=>{
+    if(!unifiedRouteChoices)return [];
+    const comparable=unifiedRouteChoices.filter(item=>Number.isFinite(item.score));
+    const descriptions=describeRouteChoices(comparable);
+    return unifiedRouteChoices.map(item=>{const index=comparable.indexOf(item);return index>=0?descriptions[index]:describeRouteChoices([item])[0];});
+  },[unifiedRouteChoices]);
+  const localRouteSummaries = useMemo(()=>describeRouteChoices(sortedRouteCandidates.map(candidate=>({candidate,source:'local'}))),[sortedRouteCandidates]);
+  const selectedRouteScore = unifiedRouteChoices?.find(item=>route===item.candidate.route || (item.source==='local'&&selectedRouteCandidate===item.candidate.id))?.score ?? sortedRouteCandidates.find(candidate=>selectedRouteCandidate===candidate.id)?.score ?? displayedReferenceCandidates.find(candidate=>selectedRouteCandidate===candidate.id)?.score;
   const announce = (text, { quiet = false } = {}) => {
-    // 先清空再填入，同一句話重複出現時報讀器也會再唸一次。
     setSrStatus("");
-    setTimeout(() => setSrStatus(text), 50);
-    if (quiet && !showConfirmations) return;
+    clearTimeout(srAnnounceTimer.current);
+    srAnnounceTimer.current=setTimeout(() => setSrStatus(text), 50);
+    if (quiet && !(prefs.visualPrompts ?? false)) return;
     setStatus(text);
     clearTimeout(announceTimer.current);
     announceTimer.current = setTimeout(() => setStatus(""), 7000);
   };
-  const boot = useCallback(async () => {
+  function clearPickPrompt(){clearTimeout(announceTimer.current);clearTimeout(srAnnounceTimer.current);setStatus('');setSrStatus('');}
+  if (!dataGate.current) dataGate.current = createDeferredActions(async () => {
     setLoading(true);
     setLoadError(false);
     try {
       const [fac, places, metro, sources] = await Promise.all(
-        ["facilities", "places", "metro", "sources"].map(
-          loadData,
-        ),
+        ["facilities", "places", "metro", "sources"].map(loadData),
       );
-      const all = [...fac, ...places];
-      setData({ fac, places, metro, sources, all });
+      const loaded = { fac, places, metro, sources, all: [...fac, ...places] };
+      setData(loaded);
+      return loaded;
     } catch (error) {
       console.error("Data load failed", error);
       setLoadError(true);
+      throw error;
     } finally {
       setLoading(false);
     }
+  });
+  const boot = useCallback(async () => {
+    try { return await dataGate.current.ensure(); } catch { return null; }
   }, []);
+  async function retryData() {
+    const result = await dataGate.current.retry();
+    if (result.status === "cancelled") await boot();
+    else if (result.status === "failed") announce("設施資料暫時無法載入，請再試一次。");
+  }
+  async function afterData(execute) {
+    setDataRequested(true);
+    const result = await dataGate.current.run({ execute });
+    if (result.status === "failed") announce("設施資料暫時無法載入，請按再試一次。");
+  }
   useEffect(() => {
     if (needsData && !data && !loadError && !loading) boot();
   }, [needsData, data, loadError, loading, boot]);
@@ -631,7 +689,7 @@ export default function App() {
     return () => {
       window.removeEventListener("online", on);
       window.removeEventListener("offline", off);
-      clearTimeout(announceTimer.current);
+      clearTimeout(announceTimer.current);clearTimeout(srAnnounceTimer.current);
       window.speechSynthesis?.cancel();
     };
   }, []);
@@ -648,93 +706,94 @@ export default function App() {
   }, [prefs, profileStorageKey]);
   useEffect(() => {
     if (!graphRequested) return;
-    const lifecycle = createRouteWorkerLifecycle({
-      createWorker: () => new Worker(new URL("./route-worker.js", import.meta.url), { type: "module" }),
-      initMessage: {
-        type: "init",
-        url: new URL(dataUrl("graph") + "?policy=" + ROUTING_POLICY, location.href).href,
-      },
-      onReady: ready => {
-        setGraphReady(ready);
-        if (ready) setGraphError(false);
-      },
-      onDropped: message => {
-        if (message.type === "verify-official") {
-          pendingVerifications.current.get(message.id)?.({ error: "CANCELLED" });
-        }
-      },
-      onMessage: ({ type, id, result }) => {
-        if (type === "verified-official") {
-          pendingVerifications.current.get(id)?.(result);
-          return;
-        }
-        if (type !== "route" || id !== request.current) return;
+    let wasReady=false;
+    const lifecycle=createRouteWorkerLifecycle({
+      createWorker:()=>new Worker(new URL("./route-worker.js",import.meta.url),{type:'module'}),
+      initMessage:{type:'init',url:new URL(dataUrl('graph')+'?policy='+ROUTING_POLICY,location.href).href},
+      onReady:ready=>{graphReadyRef.current=ready;setGraphReady(ready);if(ready){wasReady=true;setGraphError(false);}else if(wasReady)announce('正在重新準備路線資料。');},
+      onDropped:message=>{if(mapSnap.current.handleDropped(message)||referenceSearch.current.handleDropped(message))return;if(message.type==='verify-official')pendingVerifications.current.get(message.id)?.({error:'CANCELLED'});},
+      onMessage:d=>{
+      if(mapSnap.current.handleMessage(d))return;
+      if(referenceSearch.current.handleMessage(d))return;
+      if (d.type === 'verified-official') {
+        pendingVerifications.current.get(d.id)?.(d.result);
+        pendingVerifications.current.delete(d.id);
+        return;
+      }
+      if (d.type === "route" && d.id === request.current) {
         setRouting(false);
-        if (result.error || result.policyVersion !== ROUTING_POLICY) {
-          const partial = partialRoutePresentation(
-            result.error, result.partialRoute, lastConstruction.current,
-            ROUTING_POLICY, Date.now(), requestEndpoints.current,
-          );
+        if (d.result.error || d.result.policyVersion !== ROUTING_POLICY) {
+          const partial=partialRoutePresentation(d.result.error,d.result.partialRoute,lastConstruction.current,ROUTING_POLICY,Date.now(),requestEndpoints.current);
           clearRoute();
-          setConstructionConflict(result.construction || null);
+          setConstructionConflict(d.result.construction || null);
+          setRouteGap(d.result.error==='NO_ROUTE'?d.result.routeGap||{status:'unavailable'}:null);
           setPartialRoute(partial);
-          setRouteError(result.error || "UNVERIFIED_NETWORK");
-          return;
+          setRouteError(d.result.error || "UNVERIFIED_NETWORK");
+        } else {
+          window.speechSynthesis?.cancel();
+          setSpeaking(false);
+          if(d.result.resolvedStart)setStart(d.result.resolvedStart);
+          if(d.result.resolvedEnd)setEnd(d.result.resolvedEnd);
+          const candidates=presentRouteCandidates(d.result.routeCandidates,ROUTING_POLICY,lastConstruction.current?.sourceUpdatedAt);
+          setRouteCandidates(candidates);
+          setSelectedRouteCandidate(candidates.find(c=>c.id===d.result.selectedCandidateId)?.id ?? null);
+          setRoute(d.result);
+          setRouteError("");
+          setStepIndex(0);
         }
-        window.speechSynthesis?.cancel();
-        setSpeaking(false);
-        showRoute(result);
-        setRouteError("");
-        setStepIndex(0);
+      }
       },
-      onError: () => {
+      onError:(d,failedMessage)=>{
+        graphReadyRef.current=false;
+        if(failedMessage?.type==='reference-route'||failedMessage?.type==='snap-map-point'){lifecycle.start();return;}
+        if(pendingMapSnap.current){cancelMapSnap();announce('路網資料暫時無法載入，請稍後再試。');}
+        for(const resolve of pendingVerifications.current.values()) resolve({error:'UNVERIFIED_NETWORK'});
+        pendingVerifications.current.clear();
+        if (d?.id != null && d.id !== request.current) return;
         clearRoute();
+        setRouting(false);
         setGraphError(true);
-        setRouteError("UNVERIFIED_NETWORK");
+        setRouteError('UNVERIFIED_NETWORK');
       },
     });
-    worker.current = lifecycle;
-    lifecycle.start();
-    return () => {
-      lifecycle.dispose();
-      if (worker.current === lifecycle) worker.current = null;
-      conditionDetourSearch.current?.cancel(false);
-    };
+    worker.current=lifecycle;lifecycle.start();
+    return () => { lifecycle.dispose();if(worker.current===lifecycle)worker.current=null;nearbySearch.current?.cancel(false);conditionDetourSearch.current?.cancel(false);for(const resolve of pendingVerifications.current.values()) resolve({error:'UNVERIFIED_NETWORK'});pendingVerifications.current.clear(); };
   }, [graphRequested]);
   const changePoint = (which, p) => {
+    cancelMapSnap();
     rememberPlace(p);
+    stopFollowing();
+    if(which==='end')p=destinationPoint(p);
+    cancelLocation();
     request.current++;
     setRouting(false);
     clearRoute();
     setRouteError("");
-    which === "start" ? setStart(swappedOrigin(p)) : setEnd(destinationPoint(p));
+    which === "start" ? setStart(p) : setEnd(p);
     setSearchFor(null);
     setQuery("");
+    if(pick)clearPickPrompt();
     setPick(null);
     setTab("plan");
-    setSheetSnap(snap => Math.max(snap, 1));
+    setFocus({ ...p, token: Date.now() });
   };
-  function showRoute(result) {
-    const candidates = result.viaName ? [] : presentRouteCandidates(
-      result.routeCandidates, ROUTING_POLICY, lastConstruction.current?.sourceUpdatedAt,
-    );
-    setRouteCandidates(candidates);
-    setSelectedRouteCandidate(candidates.find(c => c.id === result.selectedCandidateId)?.id ?? null);
-    setPartialRoute(null);
-    setRoute(result);
+  function clearDestination(){
+    cancelMapSnap();cancelLocation();stopFollowing();setEnd(null);setPick(null);setRouteError('');clearRoute();
   }
   function clearRoute() {
-    nearbySearch.current.cancel();
-    worker.current?.cancel();
+    referenceBaseline.current=null;manualRouteSelection.current=false;setReferenceCollapsed(false);
     stopFollowing();
-    locationRequest.current++;
-    setLocating(false);
-    setFollowState({ active: false, status: "idle", message: "" });
-    setRouteCandidates([]);
-    setSelectedRouteCandidate(null);
-    setPartialRoute(null);
+    dataGate.current.cancel();
     conditionDetourSearch.current.cancel();
+    constructionDetourSearch.current.cancel();
+    cancelNearby();
+    referenceSearch.current.cancel();referenceSnapshot.current=null;
+    pendingRoute.current=null;
+    worker.current?.cancel();
     setConstructionConflict(null);
+    setRouteGap(null);
+    setPartialRoute(null);
+    setRouteAttempt(0);
     for(const resolve of pendingVerifications.current.values()) resolve({error:'UNVERIFIED_NETWORK'});
     pendingVerifications.current.clear();
     officialRequest.current?.abort();
@@ -743,14 +802,114 @@ export default function App() {
     setSpeaking(false);
     setRouting(false);
     setRoute(null);
+    setRouteCandidates([]);
+    setSelectedRouteCandidate(null);
+  }
+  function isCurrentOfficialRoute(candidate) {
+    return !!candidate && referenceState.status==='ready' && referenceState.startPlace===start && referenceState.endPlace===end && constructionFresh(referenceSnapshot.current) && candidate.kind==='official-passageway' && candidate.verification==='official-source-screened-v1' && candidate.navigationAllowed===true && candidate.constructionSourceUpdatedAt===referenceSnapshot.current?.sourceUpdatedAt && (!constructionFresh(lastConstruction.current) || Date.parse(lastConstruction.current.sourceUpdatedAt)<=Date.parse(referenceSnapshot.current.sourceUpdatedAt)) && referenceState.candidates?.some(item=>item.route===candidate);
+  }
+  function selectOfficialCandidate(candidate,automatic=false) {
+    if(!isCurrentOfficialRoute(candidate?.route)) { announce('路線資料已過期，請重新規劃。'); return; }
+    if(!automatic)manualRouteSelection.current=true;
+    stopFollowing(); conditionDetourSearch.current.cancel();constructionDetourSearch.current.cancel();
+    lastConstruction.current=referenceSnapshot.current;
+    setRoute(candidate.route);
+    setRouteCandidates(existing=>existing.filter(item=>item.route?.construction?.sourceUpdatedAt===referenceSnapshot.current?.sourceUpdatedAt));
+    setSelectedRouteCandidate(candidate.id);
+    setConstructionConflict(null); setRouteGap(null); setPartialRoute(null); setRouteError(''); setStepIndex(0);
   }
   function selectRouteCandidate(candidate) {
-    if (!constructionFresh(lastConstruction.current) || candidate.route.construction?.sourceUpdatedAt !== lastConstruction.current?.sourceUpdatedAt) {
-      clearRoute(); setRouteError("CONSTRUCTION_UNAVAILABLE"); return;
+    manualRouteSelection.current=true;
+    if (!isVerifiedNavigationRoute(candidate?.route) || !constructionFresh(lastConstruction.current) || candidate.route.construction?.sourceUpdatedAt !== lastConstruction.current?.sourceUpdatedAt) {
+      announce('路線資料已更新，請重新規劃。'); return;
     }
-    conditionDetourSearch.current.cancel();stopFollowing();
+    conditionDetourSearch.current.cancel();constructionDetourSearch.current.cancel();stopFollowing();
     window.speechSynthesis?.cancel(); setSpeaking(false);
     setRoute(candidate.route); setSelectedRouteCandidate(candidate.id); setStepIndex(0);
+  }
+  function cancelNearby(){
+    nearbySearch.current.cancel();
+  }
+  function avoidOfficialCondition(point){
+    if(!route||!start||!end||!graphReady)return;
+    stopFollowing();cancelNearby();constructionDetourSearch.current.cancel();
+    const a=route.resolvedStart||start,b=route.resolvedEnd||end;
+    const old=route.conditionDetour?.targets||[],targets=[...old.filter(p=>p.id!==point.id||p.type!==point.type),{id:point.id,type:point.type,lat:point.lat,lon:point.lon}];
+    void conditionDetourSearch.current.start({startPlace:a,endPlace:b,options:{...prefs,avoidPoints},url:new URL(dataUrl('graph')+'?policy='+ROUTING_POLICY,location.href).href,targets,online:navigator.onLine,offlineSnapshot:lastConstruction.current});
+  }
+  function avoidConstruction(ids){
+    if(!route||!start||!end||!graphReady||!Array.isArray(ids)||!ids.length)return;
+    stopFollowing();cancelNearby();conditionDetourSearch.current.cancel();manualRouteSelection.current=true;
+    const a=route.resolvedStart||start,b=route.resolvedEnd||end;
+    const targets=[...new Set([...(route.constructionDetour?.ids||[]),...ids])];
+    void constructionDetourSearch.current.start({startPlace:a,endPlace:b,options:{...prefs,avoidPoints},url:new URL(dataUrl('graph')+'?policy='+ROUTING_POLICY,location.href).href,ids:targets,originalRoute:route,online:navigator.onLine,offlineSnapshot:lastConstruction.current});
+  }
+  useEffect(()=>{
+    if(constructionDetourState.status!=='ready'||constructionDetourState.originalRoute!==route)return;
+    const next=constructionDetourState.route;
+    if(!isVerifiedNavigationRoute(next)||!constructionFresh(lastConstruction.current)||next.construction?.sourceUpdatedAt!==lastConstruction.current?.sourceUpdatedAt){setConstructionDetourState({status:'error',message:'無法確認繞路結果，原路線仍可查看。'});return;}
+    referenceSearch.current.cancel();referenceSnapshot.current=null;referenceBaseline.current=null;
+    setRoute(next);setRouteCandidates([]);setSelectedRouteCandidate(null);setStepIndex(0);setConstructionDetourState({status:'idle'});
+  },[constructionDetourState,route]);
+  useEffect(()=>{
+    if(conditionDetourState.status!=='ready')return;
+    const next=conditionDetourState.route;
+    if(next?.policyVersion!==ROUTING_POLICY||next.geometryVerification!=='pedestrian-network-v1'||!constructionFresh(lastConstruction.current)||next.construction?.sourceUpdatedAt!==lastConstruction.current?.sourceUpdatedAt){
+      setConditionDetourState({status:'error',message:'無法確認繞路結果，原路線仍可查看。'});return;
+    }
+    setRoute(next);setRouteCandidates([]);setSelectedRouteCandidate(null);setStepIndex(0);
+  },[conditionDetourState]);
+  function findNearbyPositions(){
+    if(!start||!end||!graphReady)return;
+    void nearbySearch.current.start({startPlace:start,endPlace:end,options:{...prefs,avoidPoints},url:new URL(dataUrl('graph')+'?policy='+ROUTING_POLICY,location.href).href,online:navigator.onLine,offlineSnapshot:lastConstruction.current});
+  }
+  function findReferenceRoute(baseline=null,automatic=false){
+    if(!start||!end)return;
+    referenceBaseline.current=baseline?{route:baseline,requestId:request.current,automatic,selectedId:selectedRouteCandidate}:null;
+    setReferenceCollapsed(false);
+    referenceAutoAttempt.current=request.current;
+    referenceSnapshot.current=null;
+    void referenceSearch.current.start({startPlace:start,endPlace:end,options:{...prefs,avoidPoints},url:new URL(dataUrl('graph')+'?policy='+ROUTING_POLICY,location.href).href,online:navigator.onLine,offlineSnapshot:lastConstruction.current});
+  }
+  function chooseNearby(candidate){
+    stopFollowing();
+    if(!constructionFresh(lastConstruction.current)){cancelNearby();announce('施工資料已過期，請重新搜尋附近位置。');return;}
+    const original=candidate.side==='start'?start:end,point=nearbyReplacement(candidate,original);
+    const points=candidate.side==='start'?{start:point,end}:{start,end:point};
+    if(candidate.side==='start')setStart(point);else setEnd(point);
+    setFocus({...point,token:Date.now()});setRouteError('');cancelNearby();calculate(points);
+  }
+  function cancelMapSnap(){mapSnapVersion.current++;pendingMapSnap.current=null;mapSnap.current?.cancel(false);}
+  async function runMapSnap(task){
+    if(!task || task.started || !graphReadyRef.current)return;
+    task.started=true;
+    const result=await mapSnap.current.start({place:task.place,side:task.side,options:{...prefs,avoidPoints},online:navigator.onLine,offlineSnapshot:lastConstruction.current});
+    if(task.version!==mapSnapVersion.current)return;
+    pendingMapSnap.current=null;
+    if(result.error){if(result.error!=='CANCELLED')announce(result.error==='CONSTRUCTION_UNAVAILABLE'?'無法確認施工資料，請稍後再試。':'附近找不到可確認的人行路網，請點選其他位置。');return;}
+    const distance=Math.round(result.distanceMetres);
+    const point={...task.place,lat:result.point[0],lon:result.point[1],name:distance?'附近人行路網位置':task.place.name,mapSnap:result};
+    if(distance)point.nearbyOriginal={name:task.place.name,coordinates:result.original,straightMetres:distance};
+    changePoint(task.side,point);
+    if(distance)announce(`已選附近人行路網，距原選點約 ${distance} 公尺，銜接尚未確認。`);
+  }
+  function selectPoint(p) {
+    if(!pick)return;
+    if(p.originKind!=='map'||!/^point-\d+$/.test(String(p.id||''))){changePoint(pick,p);return;}
+    cancelMapSnap();
+    const task={place:p,side:pick,version:mapSnapVersion.current};
+    pendingMapSnap.current=task;
+    setGraphRequested(true);
+    announce('正在尋找附近人行路網。');
+    if(graphReadyRef.current)void runMapSnap(task);
+  }
+  function updateDisplay(patch) { setPrefs((current) => ({ ...current, ...patch })); }
+  function updatePrefs(patch) {
+    stopFollowing();
+    request.current++;
+    setRouting(false);
+    clearRoute();
+    setPrefs(normalizeRoutingPreferences({ ...prefs, ...patch, avoidSteps: true, officialOnly: false }));
   }
   function stopFollowing() {
     const session=followSession.current;
@@ -762,14 +921,15 @@ export default function App() {
     setFollowState({active:false,status:'idle',message:''});
   }
   function startFollowing() {
-    if(!route||!end||route.requiresEntryConfirmation||route.viaName||route.conditionDetour){
+    if(!(isVerifiedNavigationRoute(route)||isCurrentOfficialRoute(route))||!end||route.requiresEntryConfirmation||route.viaName){
       announce(route?.viaName?'順路停靠的行程暫不支援位置跟隨。':'請先規劃路線，再開始位置跟隨。');
       return;
     }
+    manualRouteSelection.current=true;
+    if(referenceState.status==='loading'&&referenceBaseline.current?.automatic){referenceSearch.current.cancel();referenceSnapshot.current=null;referenceBaseline.current=null;}
     stopFollowing();
     // Discard any earlier one-shot positioning response before subscribing.
-    locationRequest.current++;
-    setLocating(false);
+    cancelLocation();
     const destination={...end,selectionKind:'user'},options={...prefs,avoidPoints};
     const session={engine:null,search:null,stopWatch:null,latest:null,referenceRoute:route};
     followSession.current=session;
@@ -796,7 +956,8 @@ export default function App() {
           }
           session.referenceRoute=result;
           setStart(state.startPlace);
-          showRoute(result);
+          setRoute(result);
+          setRouteCandidates([]); setSelectedRouteCandidate(null);
           setRouteError('');
           setStepIndex(0);
           session.engine.complete(displayedRouteCoordinates(result));
@@ -831,7 +992,7 @@ export default function App() {
     session.stopWatch=watchLocation(p=>session.engine.sample(p),error=>{
       if(followSession.current!==session)return;
       stopFollowing();
-      setFollowState({active:false,status:'error',message:locationErrorText(error)});
+      setFollowState({active:false,status:'error',message:locationMessages[locationError(error)]});
     });
   }
   useEffect(()=>{
@@ -841,54 +1002,6 @@ export default function App() {
     const session=followSession.current;
     if(session){followSession.current=null;session.engine.stop();session.search.cancel();session.stopWatch?.();}
   },[]);
-  function avoidOfficialCondition(point) {
-    if (!route || !start || !end || !graphReady) return;
-    stopFollowing();
-    const a = route.resolvedStart || start, b = route.resolvedEnd || end;
-    const old = route.conditionDetour?.targets || [];
-    const targets = [
-      ...old.filter((p) => p.id !== point.id || p.type !== point.type),
-      { id: point.id, type: point.type, lat: point.lat, lon: point.lon },
-    ];
-    void conditionDetourSearch.current.start({
-      startPlace: a,
-      endPlace: b,
-      options: { ...prefs, avoidPoints },
-      url: new URL(dataUrl("graph") + "?policy=" + ROUTING_POLICY, location.href).href,
-      targets,
-      online: navigator.onLine,
-      offlineSnapshot: lastConstruction.current,
-    });
-  }
-  useEffect(() => {
-    if (conditionDetourState.status !== "ready") return;
-    const next = conditionDetourState.route;
-    if (
-      next?.policyVersion !== ROUTING_POLICY ||
-      next.geometryVerification !== "pedestrian-network-v1" ||
-      !constructionFresh(lastConstruction.current) ||
-      next.construction?.sourceUpdatedAt !== lastConstruction.current?.sourceUpdatedAt
-    ) {
-      setConditionDetourState({ status: "error", message: "無法確認繞路結果，原路線仍可查看。" });
-      return;
-    }
-    showRoute(next);
-    setRouteError("");
-    setStepIndex(0);
-  }, [conditionDetourState]);
-  function selectPoint(p) {
-    if (pick) changePoint(pick, p);
-  }
-  // 顯示、語音這類設定不影響路線，改了不清掉目前的路線。
-  function updateDisplay(patch) {
-    setPrefs((current) => ({ ...current, ...patch }));
-  }
-  function updatePrefs(patch) {
-    request.current++;
-    setRouting(false);
-    clearRoute();
-    setPrefs({ ...prefs, ...patch, avoidSteps: true, officialOnly: false });
-  }
   function toggleSave(p) {
     const next = saved.some((x) => x.id === p.id)
       ? saved.filter((x) => x.id !== p.id)
@@ -897,17 +1010,35 @@ export default function App() {
     if (!saveLocal("hhz-saved", next))
       announce("這次沒能儲存收藏。請確認瀏覽器有可用的儲存空間。");
   }
+  function cancelPendingNavigation() {
+    cancelMapSnap();
+    dataGate.current.cancel();
+    pendingRoute.current = null;
+    request.current++;
+    officialRequest.current?.abort();
+    worker.current?.cancel();
+    conditionDetourSearch.current?.cancel();
+    constructionDetourSearch.current?.cancel();
+    cancelNearby();
+    setRouting(false);
+  }
   function openSearch(which) {
+    if (which === "start" || which === "end") { cancelPendingNavigation(); cancelLocation(); }
     setSearchFor(which);
     setQuery("");
   }
+  const locationMessages={LOCATION_DENIED:'定位權限尚未開啟。請在瀏覽器網站設定或手機定位設定允許此網站，再點一次定位。',LOCATION_TIMEOUT:'定位等候較久，請移到訊號較好的地方再試一次。',LOCATION_INSECURE:'請使用HTTPS網址開啟此服務，才能使用定位。',LOCATION_UNSUPPORTED:'這個瀏覽器不支援定位，可以搜尋出發地。',LOCATION_UNAVAILABLE:'裝置目前無法提供位置，請確認手機定位服務已開啟，再試一次。'};
+  function cancelLocation(){ locationRequest.current++; setLocating(false); }
   async function locate(which, useAsStart = false) {
+    if(which || useAsStart)stopFollowing();
+    if (which) cancelPendingNavigation();
+    const locationId=++locationRequest.current;
     const version = tabVersion.current;
-    const locationId = ++locationRequest.current;
     setLocating(true);
     try {
       const p = await getLocation();
-      if (locationId !== locationRequest.current || (which && version !== tabVersion.current)) return;
+      if(locationId!==locationRequest.current)return;
+      if (which && version !== tabVersion.current) return;
       if (p.lat < 24.94 || p.lat > 25.24 || p.lon < 121.42 || p.lon > 121.69) {
         announce(
           "你目前的位置在服務範圍外。可以搜尋臺北的地點，或直接在地圖上選擇。",
@@ -915,94 +1046,143 @@ export default function App() {
         return;
       }
       setCurrentLocation(p);
-      setFocus({ ...p, token: Date.now(), zoom: useAsStart ? 15 : undefined });
-      if (useAsStart) setStart(p);
+      setFocus({ ...p, token: Date.now() });
+      if (useAsStart) { cancelNearby(); setStart(p); }
       if (which) changePoint(which, p);
-      else if (!useAsStart) announce("已找到你的位置，可以看看附近有哪些設施。", { quiet: true });
     } catch (error) {
-      if (locationId === locationRequest.current && (!which || version === tabVersion.current))
-        announce(locationErrorText(error));
+      autoLocated.current=false;
+      if (locationId===locationRequest.current && (!which || version === tabVersion.current)) announce(locationMessages[locationError(error)]);
     } finally {
-      if (locationId === locationRequest.current) setLocating(false);
+      if(locationId===locationRequest.current)setLocating(false);
     }
-  }
-  function saveTravelProfile(id, closeSheet = true) {
-    const profile = travelProfiles[id];
-    if (!profile) return;
-    setTravelProfile(id);
-    void saveProfile(profileStorageKey, id);
-    updatePrefs(profile.preferences);
-    if (closeSheet) setModal(null);
   }
   useEffect(() => {
-    if (!profileReady || !travelProfile || autoLocated.current) return;
+    if (!profileReady || autoLocated.current || start) return;
     autoLocated.current = true;
     locate(null, true);
-  }, [profileReady, travelProfile]);
-  async function calculate(via = null, endpoints = { start, end }) {
-    const asEndpoint = (point) => point && {
-      ...point,
-      selectionKind: "user",
-      lat: Number(point.lat ?? NaN),
-      lon: Number(point.lon ?? NaN),
-    };
-    const from = asEndpoint(swappedOrigin(endpoints.start));
-    const to = asEndpoint(destinationPoint(endpoints.end));
-    if (from && to && ![from.lat, from.lon, to.lat, to.lon].every(Number.isFinite)) {
+  }, [profileReady, start]);
+  async function navigateTo(place) {
+    rememberPlace(place);
+    stopFollowing();
+    cancelPendingNavigation();
+    clearRoute();setRouteError('');
+    const locationId=++locationRequest.current;
+    setSelected(null);
+    setSearchFor(null);
+    setQuery("");
+    setPick(null);
+    setTab("plan");
+    setGraphRequested(true);
+    setFocus({ ...place, token: Date.now() });
+    if (matchMedia("(max-width: 700px)").matches) setSheetSnap(1);
+    let from = start;
+    if (!from) {
+      setLocating(true);
+      try {
+        from = await getLocation();
+        if(locationId!==locationRequest.current)return;
+        if (
+          from.lat < 24.94 ||
+          from.lat > 25.24 ||
+          from.lon < 121.42 ||
+          from.lon > 121.69
+        ) {
+          setEnd(place);
+          announce("你目前的位置在服務範圍外。可以先選一個臺北的出發地。");
+          return;
+        }
+      } catch (error) {
+        if(locationId!==locationRequest.current)return;
+        setEnd(place);
+        announce(locationMessages[locationError(error)]);
+        return;
+      } finally {
+        if(locationId===locationRequest.current)setLocating(false);
+      }
+    }
+    setStart(from);
+    setEnd(place);
+    wantedStop.current = null;
+    announce(`正在規劃前往${cleanName(place.name)}的路線。`);
+    calculate({ start: from, end: place });
+  }
+  const avoidPoints = useMemo(
+    () => activeElevatorStops(data),
+    [data],
+  );
+  async function calculate(points) {
+    stopFollowing();
+    const fromPoint=points?.start||start,toPoint=points?.end||end;
+    if (!fromPoint || !toPoint) { announce('請先選擇出發地和目的地。'); return; }
+    const loaded = points?._loadedData || dataGate.current.peek();
+    if (!loaded) {
+      cancelLocation();
       clearRoute();
-      setRouteError("OFFICIAL_INVALID_POINTS");
+      setGraphRequested(true);
+      announce('正在載入設施資料，完成後會繼續規劃。');
+      const job = { start: fromPoint, end: toPoint, prefs: points?.prefs, via: points?.via };
+      await afterData((ready) => calculate({ ...job, _loadedData: ready }));
       return;
     }
-    const options = { ...prefs, avoidPoints, startPlace: from, endPlace: to };
-    if (from && to && navigator.onLine) {
+    // Route endpoints here come from an explicit selection, location action,
+    // or a chosen nearby point. The flag permits an unregistered search
+    // result's positional estimate; it is not a safety or access certificate.
+    const from=fromPoint?{...fromPoint,selectionKind:'user'}:fromPoint,to=toPoint?{...toPoint,selectionKind:'user'}:toPoint;
+    requestEndpoints.current={start:from,end:to};
+    const requestPrefs={...normalizeRoutingPreferences(points?.prefs||prefs),avoidPoints:activeElevatorStops(loaded),startPlace:from,endPlace:to};
+    if(!from||!to){announce('請先選擇出發地和目的地。');return;}
+    cancelLocation();
+    setGraphRequested(true);
+    if(!graphReadyRef.current){clearRoute();setRouteError('');setRouting(true);pendingRoute.current={...points,start:from,end:to};worker.current?.start();announce('正在準備路線，完成後會繼續規劃。');return;}
+    pendingRoute.current=null;
+    if (from && to && navigator.onLine && !points?.via && ![from,to].some(p=>['20','station'].includes(String(p.kind)))) {
       setGraphRequested(true);
       clearRoute();
-      worker.current?.start();
       setRouteError("");
       setRouting(true);
       setTab("plan");
-      setSheetSnap(snap => Math.max(snap, 1));
       const id = request.current,
         controller = new AbortController();
       officialRequest.current = controller;
       const timer = setTimeout(() => controller.abort(), 90000);
-      requestEndpoints.current = { start: from, end: to };
       let localStarted = false;
-      const fallback = snapshot => {
-        localStarted = !via && startLocalFallback(worker.current, id, from, to, options, snapshot);
-        return localStarted;
-      };
       try {
         const [result, construction] = await Promise.all([requestOfficialRoute(
           [from.lat, from.lon],
           [to.lat, to.lon],
-          via ? { ...prefs, via: [via.lat, via.lon] } : options,
+          requestPrefs,
           controller.signal,
         ), fetchConstruction(controller.signal)]);
+        if (!construction.error) lastConstruction.current=construction;
         if (id !== request.current) return;
-        if (!construction.error) lastConstruction.current = construction;
         if (construction.error) setRouteError(construction.error);
         else if (result.error) {
-          if (!fallback(construction)) setRouteError(result.error);
+          localStarted=startLocalFallback(worker.current,id,from,to,requestPrefs,construction);
+          if(!localStarted) setRouteError(result.error);
         }
         else {
-          let verified=await verifyOnlineRoute(result,[from.lat,from.lon],[to.lat,to.lon],id,construction,options);
+          let verified=await verifyOnlineRoute(result,[from.lat,from.lon],[to.lat,to.lon],id,construction,requestPrefs);
           if(id!==request.current)return;
-          if(!via && verified.error && verified.detourWaypoints?.length){
+          if(verified.error && verified.detourWaypoints?.length){
             const alternatives=await searchVerifiedAlternatives({start:[from.lat,from.lon],end:[to.lat,to.lon],waypoints:verified.detourWaypoints,signal:controller.signal,
-              query:(a,b,via,signal)=>requestOfficialRoute(a,b,{...prefs,via},signal),
-              verify:candidate=>verifyOnlineRoute(candidate,[from.lat,from.lon],[to.lat,to.lon],id,construction,options)});
+              onProgress:n=>{if(id===request.current)setRouteAttempt(n);},
+              query:(a,b,via,signal)=>requestOfficialRoute(a,b,{...requestPrefs,via},signal),
+              verify:candidate=>verifyOnlineRoute(candidate,[from.lat,from.lon],[to.lat,to.lon],id,construction,requestPrefs)});
             if(id!==request.current)return;
             if(alternatives.route)verified={...alternatives.route,alternativeAttempts:alternatives.attempts};
             else if(alternatives.error==='CONSTRUCTION_UNAVAILABLE')verified=alternatives;
           }
           setConstructionConflict(verified.construction || null);
-          if (canFallbackAfterVerification(verified.error) && fallback(construction)) return;
-          if (verified.error || !["official-polygons-and-crossings-v1", "pedestrian-network-v1"].includes(verified.geometryVerification) || verified.policyVersion !== ROUTING_POLICY) {
-            setRouteError(verified.error || "UNVERIFIED_NETWORK");
-          } else {
-            showRoute(via ? { ...verified, viaName: via.name } : verified);
-            setStepIndex(0);
+          if (canFallbackAfterVerification(verified.error)) {
+            localStarted = startLocalFallback(worker.current,id,from,to,requestPrefs,construction);
+            if (!localStarted) setRouteError(verified.error);
+          }
+          else if(verified.error || !['official-polygons-and-crossings-v1','pedestrian-network-v1'].includes(verified.geometryVerification) || verified.policyVersion !== ROUTING_POLICY) setRouteError(verified.error || 'UNVERIFIED_NETWORK');
+          else {
+            const candidates=presentRouteCandidates(verified.routeCandidates,ROUTING_POLICY,lastConstruction.current?.sourceUpdatedAt);
+            setRouteCandidates(candidates);
+            setSelectedRouteCandidate(candidates.find(c=>c.id===verified.selectedCandidateId)?.id ?? null);
+            setRoute(verified); setStepIndex(0);
           }
         }
       } catch (error) {
@@ -1017,83 +1197,34 @@ export default function App() {
       announce("選好出發地和目的地，就能一起看看適合的走法。");
       return;
     }
-    if (via) {
-      announce("順路停靠需要網路連線，目前先維持原本的路線。");
+    clearRoute();
+    const localId=request.current;
+    setRouting(true);
+    let localConstruction=navigator.onLine ? await fetchConstruction() : lastConstruction.current;
+    if(localId!==request.current)return;
+    if(!constructionFresh(localConstruction)){setRouting(false);setRouteError('CONSTRUCTION_UNAVAILABLE');return;}
+    lastConstruction.current=localConstruction;
+    if (!worker.current) {
+      pendingRoute.current = { ...points, start: from, end: to, _loadedData: loaded };
+      setRouting(false);
+      announce("正在準備路線資料，完成後會繼續規劃。");
       return;
     }
-    if(!constructionFresh(lastConstruction.current)){setRouteError('CONSTRUCTION_UNAVAILABLE');return;}
     clearRoute();
-    worker.current?.start();
     setRouting(true);
     setRouteError("");
-    requestEndpoints.current = { start: from, end: to };
-    if (!startLocalFallback(worker.current, request.current, from, to, options, lastConstruction.current)) {
-      setRouting(false);
-      setRouteError("UNVERIFIED_NETWORK");
-    }
-  }
-  // 從詳細卡直接導航：沒有出發地時先取得目前位置，再規劃路線。
-  async function navigateTo(place) {
-    setSelected(null);
-    const destination = destinationPoint(place);
-    changePoint("end", destination);
-    let origin = start;
-    if (!origin) {
-      const locationId = ++locationRequest.current;
-      setLocating(true);
-      try {
-        const here = await getLocation();
-        if (locationId !== locationRequest.current) return;
-        if (here.lat < 24.94 || here.lat > 25.24 || here.lon < 121.42 || here.lon > 121.69) {
-          announce("你目前的位置在服務範圍外。可以先選一個臺北的出發地。");
-          return;
-        }
-        setCurrentLocation(here);
-        if (here.needsConfirmation) {
-          announce("目前定位精度較低，請在地圖上確認出發地。");
-          return;
-        }
-        origin = here;
-        setStart(here);
-      } catch (error) {
-        if (locationId === locationRequest.current) announce(locationErrorText(error));
-        return;
-      } finally {
-        if (locationId === locationRequest.current) setLocating(false);
-      }
-    }
-    announce(`正在規劃前往${cleanName(place.name)}的路線。`, { quiet: true });
-    void calculate(null, { start: origin, end: destination });
-  }
-  function findNearbyPositions() {
-    if (!start || !end || !graphReady) return;
-    void nearbySearch.current.start({
-      startPlace: start,
-      endPlace: end,
-      options: { ...prefs, avoidPoints },
-      url: new URL(dataUrl("graph") + "?policy=" + ROUTING_POLICY, location.href).href,
-      online: navigator.onLine,
-      offlineSnapshot: lastConstruction.current,
+    if (!worker.current) return;
+    worker.current.postMessage({
+      type: points?.via ? 'route' : 'plan-places',
+      startPlace:from,endPlace:to,
+      id: ++request.current,
+      start: [from.lat, from.lon],
+      end: [to.lat, to.lon],
+      options: requestPrefs,
+      construction:localConstruction,
+      via:points?.via ? [points.via.lat,points.via.lon] : null,
+      viaName:points?.via?.name,
     });
-  }
-  function chooseNearby(candidate) {
-    const snapshot = lastConstruction.current;
-    const route = candidate.route;
-    if (!constructionFresh(snapshot) || route?.policyVersion !== ROUTING_POLICY ||
-        route.geometryVerification !== "pedestrian-network-v1" ||
-        route.construction?.sourceUpdatedAt !== snapshot.sourceUpdatedAt) {
-      findNearbyPositions();
-      return;
-    }
-    const from = candidate.start ? nearbyReplacement(candidate.start, start) : start;
-    const to = candidate.end ? nearbyReplacement(candidate.end, end) : end;
-    clearRoute();
-    setStart(from);
-    setEnd(to);
-    setRouteError("");
-    showRoute(route);
-    setStepIndex(0);
-    setSheetSnap(snap => Math.max(snap, 1));
   }
   function addStop(kind) {
     const hit = nearestStop(route, data?.all, kind);
@@ -1101,141 +1232,120 @@ export default function App() {
       announce("這條路線 150 公尺內沒有這類設施。");
       return;
     }
-    calculate({ lat: hit.place.lat, lon: hit.place.lon, name: cleanName(hit.place.name) });
+    wantedStop.current = null;
+    calculate({
+      via: {
+        lat: hit.place.lat,
+        lon: hit.place.lon,
+        name: cleanName(hit.place.name),
+      },
+    });
   }
-  // 台北通的 1999agree 會開啟 1999 語音通報對話框（需使用者同意）。
-  function report1999() {
-    if (!postToTownPass("1999agree", true)) window.location.href = "tel:1999";
+  async function openPhoneMap() {
+    if (!start || !end) return;
+    const url = mapLink(start, end);
+    window.open(url, "_blank", "noopener");
   }
+  function callNumber(number) {
+    if (!hasTownPass()) window.location.href = `tel:${number}`;
+    else postToTownPass("phone_call", number);
+  }
+  function reportBlockage() {
+    if (!hasTownPass())
+      announce("路障回報要在台北通裡同意後送出。你也可以撥 1999。");
+    else postToTownPass("1999agree", true);
+  }
+  const essential = new Set(["toilet", "water", "rest"]);
+  const mapKinds = new Set([...essential, "elevator", "park", "friendly", "bus", "public-toilet", "ramp", "entrance", "parking", "health", "facility", "place"]);
   const facilities = useMemo(
-    () => data?.all.filter((p) => category(p) === filter) || [],
+    () =>
+      data?.all.filter((p) =>
+        filter === "all" ? essential.has(category(p)) : category(p) === filter,
+      ) || [],
     [data, filter],
   );
   const nearby = useMemo(
     () =>
-      tab !== "explore" ? [] : facilities
+      facilities
         .map((p) => ({ ...p, dist: distance(viewport, p) }))
         .sort((a, b) => a.dist - b.dist),
-    [tab, facilities, viewport.lat, viewport.lon],
+    [facilities, viewport.lat, viewport.lon],
   );
   const mapItems = useMemo(
     () =>
-      facilities.filter(
+      (filter === "all" ? data?.all || [] : facilities).filter(
         (p) =>
+          (filter !== "all" || mapKinds.has(category(p))) &&
+          (filter !== "all" || viewport.zoom >= 19 || category(p) !== "place") &&
           p.lat >= viewport.bounds[0] &&
           p.lat <= viewport.bounds[2] &&
           p.lon >= viewport.bounds[1] &&
           p.lon <= viewport.bounds[3],
       ),
-    [facilities, viewport],
+    [data, facilities, filter, viewport],
   );
-  // 地點資料載入時先按緯度分帶，移動地圖只掃描視野附近的資料。
-  const placeBands = useMemo(() => {
-    const bands = new Map();
-    for (const p of data?.places || []) {
-      if (!["place", "park", "station", "health"].includes(p.kind)) continue;
-      const band = Math.floor(p.lat * 100);
-      if (!bands.has(band)) bands.set(band, []);
-      bands.get(band).push(p);
+  const landmarks = useMemo(() => {
+    return landmarkIndex
+      .filter(
+        (p) =>
+          p.lat >= viewport.bounds[0] &&
+          p.lat <= viewport.bounds[2] &&
+          p.lon >= viewport.bounds[1] &&
+          p.lon <= viewport.bounds[3],
+      )
+      .sort((a, b) => distance(viewport, a) - distance(viewport, b));
+  }, [landmarkIndex, viewport]);
+  const mapPins = useMemo(() => {
+    const seen = new Set();
+    const pins = [];
+    for (const p of [
+      ...(showMapFacilities ? mapItems : []),
+      ...(showMapFacilities ? nearbyMapFacilities.filter((p) =>
+        (filter === "all" || category(p) === filter) &&
+        (viewport.zoom >= 19 || category(p) !== "place")) : []),
+      ...landmarks,
+      ...(viewport.zoom >= 16 ? (metroExits || []).filter((p) => p.lat >= viewport.bounds[0] && p.lat <= viewport.bounds[2] && p.lon >= viewport.bounds[1] && p.lon <= viewport.bounds[3]) : []),
+    ]) {
+      if (seen.has(p.id)) continue;
+      seen.add(p.id);
+      pins.push(p);
     }
-    return bands;
-  }, [data]);
-  const busStops = useMemo(() => (data?.fac || []).filter(p => category(p) === "bus"), [data?.fac]);
-  const { landmarkItems, poiItems } = useMemo(() => {
-    const zoom = viewport.zoom ?? 15;
-    const [south, west, north, east] = viewport.bounds;
-    const user = currentLocation;
-    const anchor = user && user.lat >= south && user.lat <= north && user.lon >= west && user.lon <= east
-      ? user
-      : viewport;
-    const landmarks = [], shops = [];
-    for (const p of busStops) {
-      if (p.lat < south || p.lat > north || p.lon < west || p.lon > east) continue;
-      landmarks.push({ p, rank: zoom < 16 ? distance(anchor, p) * 1.5 + 180 : distance(viewport, p) + 100 });
-    }
-    for (let band = Math.floor(south * 100); band <= Math.floor(north * 100); band++) {
-      for (const p of placeBands.get(band) || []) {
-        if (p.lat < south || p.lat > north || p.lon < west || p.lon > east) continue;
-        if (p.kind === "place") {
-          if (zoom >= 17) shops.push({ p, metres: distance(viewport, p) });
-        } else if (zoom >= 16 || (p.kind !== "health" && !isNumberedStationExit(p))) {
-          const metres = distance(zoom < 16 ? anchor : viewport, p);
-          landmarks.push({ p, rank: zoom < 16 && p.kind === "station" ? metres * 0.65 : metres });
-        }
-      }
-    }
-    const seen = new Set(), landmarkItems = [];
-    const limit = zoom < 16 ? 24 : zoom < 18 ? 36 : 70;
-    for (const { p } of landmarks.sort((a, b) => a.rank - b.rank)) {
-      const key = p.kind === "station" ? stationKey(p.name) : p.id;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      landmarkItems.push({ ...p, landmark: true });
-      if (landmarkItems.length === limit) break;
-    }
-    return {
-      landmarkItems,
-      poiItems: shops.sort((a, b) => a.metres - b.metres)
-        .slice(0, zoom < 18 ? 60 : zoom < 19 ? 100 : 160)
-        .map(({ p }) => p),
-    };
-  }, [placeBands, busStops, viewport, currentLocation]);
-  const avoidPoints = useMemo(() => activeElevatorStops(data), [data]);
-  useEffect(() => {
-    if (shouldAutoSearchNearby({ error: routeError, routing, graphReady, tab, start, end })) {
-      findNearbyPositions();
-    }
-    return () => nearbySearch.current.cancel(false);
-  }, [routeError, routing, graphReady, tab, start, end, prefs, avoidPoints]);
-
-  // 沒有搜尋紀錄時的推薦：附近的捷運站、公園、醫院與無障礙廁所，由近到遠 8 個。
-  const recommendedPlaces = useMemo(() => {
-    if (!data) return [];
-    const from = currentLocation || viewport;
-    const wanted = new Set(["station", "park", "health", "toilet"]);
-    return data.all
-      .filter((p) => wanted.has(category(p)) && Number.isFinite(p.lat))
-      .map((p) => [distance(from, p), p])
-      .filter(([d]) => d < 1500)
-      .sort((a, b) => a[0] - b[0])
-      .slice(0, 8)
-      .map(([, p]) => p);
-  }, [data, currentLocation, viewport.lat, viewport.lon]);
+    return pins;
+  }, [showMapFacilities, mapItems, nearbyMapFacilities, tab, filter, landmarks, metroExits, viewport]);
   const searchResults = useMemo(() => {
     if (!searchFor || !data || !profileReady) return [];
     const q = normalize(query);
-    const recentPlaces = trips
+    const tripPlaces = trips
       .flatMap((trip) => [trip.start, trip.end])
       .filter((place) => Number.isFinite(place?.lat) && Number.isFinite(place?.lon));
+    const recentIds = new Set([...recentPlaces, ...tripPlaces].map((place) => place.id));
     const list = q
       ? [
-          ...recentPlaces.filter((p) =>
+          ...[...recentPlaces, ...tripPlaces].filter((p) =>
             normalize(p.name + " " + (p.address || "")).includes(q),
           ),
           ...data.all.filter((p) =>
             normalize(p.name + " " + (p.address || "")).includes(q),
           ),
         ]
-      : recents.length || recentPlaces.length
-        ? [...recents, ...recentPlaces]
-        : recommendedPlaces;
-    const used = new Set();
-    return [...addressResults, ...list]
+      : [...recentPlaces, ...tripPlaces, ...saved, ...data.fac.filter((p) => p.kind === "20")];
+    const used = new Set(), usedIds = new Set();
+    return [...(addressQuery === query ? addressResults : []).map(p => matchStationLandmark(p, data.fac)), ...list]
       .sort(
         (a, b) => {
           const exact = (a.name === query ? -1 : 0) - (b.name === query ? -1 : 0);
           if (exact) return exact;
-          // 沒有輸入時保留紀錄原本的順序（最近的在最上面）。
-          if (!q) return 0;
+          if (!q && recentIds.has(a.id) !== recentIds.has(b.id))
+            return recentIds.has(a.id) ? -1 : 1;
           return distance(viewport, a) - distance(viewport, b);
         },
       )
       .filter((p) => {
         const key =
           normalize(p.name) +
-          Math.round(p.lat * 1000) +
-          Math.round(p.lon * 1000);
-        if (used.has(key)) return false;
+          `:${p.lat}:${p.lon}`;
+        if ((p.id && usedIds.has(p.id)) || used.has(key)) return false;
+        if (p.id) usedIds.add(p.id);
         used.add(key);
         return true;
       })
@@ -1247,122 +1357,23 @@ export default function App() {
     searchFor,
     saved,
     trips,
-    recents,
-    recommendedPlaces,
+    recentPlaces,
     addressResults,
+    addressQuery,
     viewport.lat,
     viewport.lon,
   ]);
-  // 搜尋到捷運站時，在結果最上方直接列出該站的電梯／坡道出口。
-  const stationsFor = (name) =>
-    data?.fac.filter(
-      (p) => p.kind === "metro-elevator" && stationKey(p.station) === stationKey(name),
-    ) || [];
-  const stationCodesByName = useMemo(() => {
-    const codes = new Map();
-    for (const record of data?.metro["metro-elevators"] || []) {
-      const key = stationKey(record["車站名稱"]);
-      codes.set(key, metroStationCodes(codes.get(key), record["車站編號"]));
-    }
-    return codes;
-  }, [data?.metro]);
-  const stationCodesFor = (name) => metroStationCodes(stationCodesByName.get(stationKey(name)), name);
-  const selectSearchPlace = (p) => {
-    if (searchFor === "explore") {
-      rememberPlace(p);
-      setSearchFor(null);
-      inspect(p);
-      return;
-    }
-    const exits = ["20", "station"].includes(String(p.kind))
-      ? stationsFor(p.name)
-      : [];
-    if (exits.length) {
-      setQuery(exits[0].station || cleanName(p.name));
-      announce(`請選擇${cleanName(p.name)}的電梯或坡道出口。`, {
-        quiet: true,
-      });
-      return;
-    }
-    changePoint(searchFor, p);
-  };
-  const exitUnderMaintenance = (p) =>
-    avoidPoints.some(([lat, lon]) => lat === p.lat && lon === p.lon);
-  const stationMatches = useMemo(() => {
-    const q = normalize(query).replace(/站$/, "");
-    if (!searchFor || !q || !data) return [];
-    const seen = new Set();
-    return (data.metro["metro-elevators"] || [])
-      .filter((s) => {
-        const n = normalize(s["車站名稱"]).replace(/站$/, "");
-        return n && (n.includes(q) || q.includes(n));
-      })
-      .filter((s) => (seen.has(s["車站名稱"]) ? false : seen.add(s["車站名稱"])))
-      .sort((a, b) => {
-        const exact = (s) => normalize(s["車站名稱"]).replace(/站$/, "") === q;
-        return exact(b) - exact(a);
-      })
-      .slice(0, 2)
-      .map((s) => ({ s, name: s["車站名稱"], exits: stationsFor(s["車站名稱"]) }));
-  }, [searchFor, query, data]);
-  const routeWorks = groupConstructionNotices(route?.construction?.nearby);
-  const routeFacilities = useMemo(
+  const stationMatches = useMemo(() => searchFor && data ? matchMetroStations(query, data.metro, data.fac) : [], [searchFor, query, data]);
+  const stations = useMemo(
     () =>
-      ["toilet", "rest", "water", "health"]
-        .flatMap((kind) =>
-          facilitiesAlongRoute(route, data?.all, kind, 100, 4),
-        )
-        .sort((a, b) => a.order - b.order || a.near - b.near)
-        .slice(0, 12),
-    [route, data],
+      data?.metro["metro-elevators"]?.filter((s) =>
+        normalize(s["車站名稱"]).includes(normalize(stationQuery)),
+      ) || [],
+    [data, stationQuery],
   );
-  const endpointStationExits = useMemo(() => {
-    const stationKeys = new Set(
-      [start, end]
-        .map((point) =>
-          stationKey(
-            point?.station ||
-              (category(point || {}) === "station" ? point?.name : ""),
-          ),
-        )
-        .filter(Boolean),
-    );
-    return (data?.fac || []).filter(
-      (place) =>
-        place.kind === "metro-elevator" &&
-        stationKeys.has(stationKey(place.station)),
-    );
-  }, [data, start, end]);
-  const routeMapItems = useMemo(() => {
-    const unique = new Map();
-    for (const place of [
-      ...routeFacilities.map(({ place }) => place),
-      ...endpointStationExits,
-    ])
-      unique.set(place.id, place);
-    return [...unique.values()];
-  }, [routeFacilities, endpointStationExits]);
-  // 地圖上的標記：路線模式只顯示路線相關點；否則加上地標與商店（放大才出現），同一地點只畫一次。
-  const mapLayerItems = useMemo(() => {
-    const overview = viewport.zoom < 16;
-    const [south, west, north, east] = viewport.bounds;
-    const preferred = [...saved, ...recents.filter(p => (p.selections ?? 1) > 1)
-      .sort((a, b) => b.selections - a.selections)]
-      .filter(p => p.lat >= south && p.lat <= north && p.lon >= west && p.lon <= east)
-      .filter((p, index, list) => list.findIndex(other => other.id === p.id) === index)
-      .slice(0, overview ? 2 : 8)
-      .map(p => ({ ...p, landmark: true, mapPriority: 3 }));
-    const base = route ? routeMapItems : tab === "explore" && !overview ? mapItems : endpointStationExits;
-    const points = route ? base : [...preferred, ...landmarkItems, ...base, ...poiItems];
-    const seen = new Set();
-    return points.filter(p => !seen.has(p.id) && seen.add(p.id)).map(p => {
-      if (category(p) !== "station" || isNumberedStationExit(p)) return p;
-      const stationCodes = metroStationCodes(stationCodesByName.get(stationKey(p.name)), p.name);
-      return { ...p, stationCodes };
-    });
-  }, [route, routeMapItems, tab, mapItems, endpointStationExits, landmarkItems, poiItems, saved, recents, viewport, stationCodesByName]);
-  const avoidedWorks = route?.construction?.avoidedWorks || [];
-  const avoidedStairs = route?.avoidedStairs || [];
+  const routeWorks = groupConstructionNotices(route?.construction?.nearby);
+  const destinationNotice = end && category(end) === 'public-toilet'
+    ? '目的地：一般公廁；無障礙設施資訊未確認。' : '';
   useEffect(() => {
     if(!route?.construction)return;
     const until=Date.parse(route.construction.sourceUpdatedAt)+CONSTRUCTION_MAX_AGE-Date.now();
@@ -1370,14 +1381,11 @@ export default function App() {
     return ()=>clearTimeout(timer);
   }, [route]);
   useEffect(() => {
-    if (!partialRoute) return;
-    const expiresAt = Math.min(Date.parse(partialRoute.constructionSourceUpdatedAt), Date.parse(partialRoute.constructionFetchedAt)) + CONSTRUCTION_MAX_AGE;
-    const timer = setTimeout(() => {
-      setPartialRoute(null);
-      setRouteError("CONSTRUCTION_UNAVAILABLE");
-    }, Math.max(0, expiresAt - Date.now()));
-    return () => clearTimeout(timer);
-  }, [partialRoute]);
+    if(!partialRoute)return;
+    const until=Math.min(Date.parse(partialRoute.constructionSourceUpdatedAt),Date.parse(partialRoute.constructionFetchedAt))+CONSTRUCTION_MAX_AGE-Date.now();
+    const timer=setTimeout(()=>{clearRoute();setRouteError('CONSTRUCTION_UNAVAILABLE');},Math.max(0,until));
+    return ()=>clearTimeout(timer);
+  },[partialRoute]);
   useEffect(() => {
     window.speechSynthesis?.cancel();
     setSpeaking(false);
@@ -1389,22 +1397,12 @@ export default function App() {
       return;
     }
     if (
-      !route ||
+      !(isVerifiedNavigationRoute(route)||isCurrentOfficialRoute(route)) ||
       route.requiresEntryConfirmation ||
       route.policyVersion !== ROUTING_POLICY
     )
       return;
-    const avoidedText =
-      avoidedStairs.length || avoidedWorks.length
-        ? `已避開${avoidedStairs.length ? `${avoidedStairs.length}處階梯` : ""}${avoidedStairs.length && avoidedWorks.length ? "與" : ""}${avoidedWorks.length ? `${avoidedWorks.length}處施工` : ""}。`
-        : "";
-    const toiletCount = routeFacilities.filter(
-      ({ place }) => category(place) === "toilet",
-    ).length;
-    const facilityText = routeFacilities.length
-      ? `沿途找到${routeFacilities.length}處設施${toiletCount ? `，其中${toiletCount}處為無障礙廁所` : ""}。`
-      : "";
-    const text = `從${start.name}前往${end.name}，路線長約${formatDistance(route.distance)}。${avoidedText}${facilityText}${route.steps.map((s) => `${stepText(s)}約${Math.round(s.distance)}公尺。`).join("")}路況仍需留意現場，這是路線預覽。`;
+    const text = `從${start.name}前往${end.name}，路線長約${formatDistance(route.distance)}。${destinationNotice}${nearbyWarnings(start,end).join(' ')}${route.kind==='official-passageway' ? '銜接與樓層未確認。' : ''}${route.approaches?.some(p=>p.estimated) ? "起終點銜接為直線位置估算，入口與實際通行狀況未確認，請先確認現場。" : ""}${route.steps.map((s) => `${stepText(s)}約${Math.round(s.distance)}公尺。${stepConditions(s) ? stepConditions(s)+'。' : ''}`).join("")}路況仍需留意現場，這是路線預覽。`;
     speakText(text);
   }
   function speakText(text) {
@@ -1421,7 +1419,7 @@ export default function App() {
   }
   async function saveTrip() {
     if (
-      !route ||
+      !isVerifiedNavigationRoute(route) ||
       route.requiresEntryConfirmation ||
       route.policyVersion !== ROUTING_POLICY
     )
@@ -1437,56 +1435,131 @@ export default function App() {
     const next = [entry, ...trips].slice(0, 12);
     if (await saveTrips(profileStorageKey, next)) {
       setTrips(next);
-      announce("行程已存好，稍後可以從「收藏」再打開。", { quiet: true });
+      announce("行程已存好，稍後可以從「收藏」再打開。");
     } else announce("儲存空間不足，這次沒能存下行程。");
   }
   async function share() {
     if (
-      !route ||
+      !(isVerifiedNavigationRoute(route)||isCurrentOfficialRoute(route)) ||
       route.requiresEntryConfirmation ||
       route.policyVersion !== ROUTING_POLICY
     )
       return;
     const text = `好好走｜${start.name} → ${end.name}\n約 ${formatDistance(route.distance)}\n${route.steps
       .slice(0, 20)
-      .map((s) => `${s.name} ${Math.round(s.distance)}公尺`)
-      .join("\n")}\n路線依公開路網規劃，部分通行條件尚未確認，請留意現場。`;
+      .map((s) => `${s.name} ${Math.round(s.distance)}公尺${stepConditions(s) ? `（${stepConditions(s)}）` : ''}`)
+      .join("\n")}\n${destinationNotice ? destinationNotice+'\n' : ''}${nearbyWarnings(start,end).join('\n')}${nearbyWarnings(start,end).length?'\n':''}${route.kind==='official-passageway' ? '銜接與樓層未確認。\n' : ''}${route.approaches?.some(p=>p.estimated) ? '起終點入口與實際通行狀況未確認，銜接為直線位置估算。\n' : ''}路線依公開路網規劃，部分通行條件尚未確認，請留意現場。`;
     try {
       if (navigator.share)
         await navigator.share({ title: "好好走・行程", text });
       else {
         await navigator.clipboard.writeText(text);
-        announce("行程文字已複製，可以貼給同行的人。", { quiet: true });
+        announce("行程文字已複製，可以貼給同行的人。");
       }
     } catch {
       announce("這次沒有分享行程，你可以稍後再試。");
     }
   }
+  useEffect(() => {
+    if(graphReady && pendingMapSnap.current)void runMapSnap(pendingMapSnap.current);
+  }, [graphReady]);
+  useEffect(() => {
+    if (!graphReady || !pendingRoute.current) return;
+    const job = pendingRoute.current;
+    pendingRoute.current = null;
+    calculate(job);
+  }, [graphReady]);
+  useEffect(() => {
+    if (!route || route.viaName || !wantedStop.current) return;
+    const kind = wantedStop.current;
+    wantedStop.current = null;
+    const hit = nearestStop(route, data?.all, kind);
+    if (!hit) {
+      announce("這條路線 150 公尺內沒有這類設施。");
+      return;
+    }
+    calculate({
+      via: {
+        lat: hit.place.lat,
+        lon: hit.place.lon,
+        name: cleanName(hit.place.name),
+      },
+    });
+  }, [route]);
   const inspect = (p) => {
+    cancelLocation();
+    rememberPlace(p);
     setSelected(p);
     setFocus({ ...p, token: Date.now() });
   };
   const retryWithEntrance = ['OFFICIAL_PATH_UNVERIFIED','OFFICIAL_ROAD_CONFLICT','OFFICIAL_CROSSING_UNVERIFIED','OFFICIAL_ENTRY_UNVERIFIED','OFFICIAL_NO_ROUTE','OFFICIAL_GAP','NO_CONNECTION','NO_ROUTE'].includes(routeError);
+  const simpleNoRoute=['NO_ROUTE','NO_CONNECTION','OFFICIAL_NO_ROUTE','OFFICIAL_GAP'].includes(routeError);
+  const automaticComparisonLoading=referenceState.status==='loading'&&referenceBaseline.current?.automatic===true&&referenceBaseline.current.route===route;
+  const mapRoutes=mapRouteVisibility({tab,routing,automaticComparisonLoading,route,partialRoute,simpleNoRoute});
+  useEffect(()=>{
+    if(['NO_ROUTE','NO_CONNECTION'].includes(routeError) && referenceState.status!=='error')return;
+    if(!shouldAutoSearchNearby({error:routeError,routing,graphReady,tab,start,end}))return;
+    findNearbyPositions();
+    // A new route request, changed endpoint or changed preference invalidates
+    // the search. Nearby status is deliberately not a dependency: cancel or
+    // completion must never restart the lookup by itself.
+    return ()=>nearbySearch.current?.cancel(false);
+  },[routeError,routing,graphReady,tab,start,end,prefs,avoidPoints,partialRoute,referenceState.status]);
+  useEffect(()=>{
+    if(nearbyState.status!=='ready'||!routeError||nearbyState.startPlace!==start||nearbyState.endPlace!==end||nearbyState.constructionSourceUpdatedAt!==lastConstruction.current?.sourceUpdatedAt)return;
+    const choice=(nearbyState.verifiedCandidates||[]).map(candidate=>verifiedNearbyChoice(candidate,start,end,lastConstruction.current)).find(choice=>preservesGpsOrigin(choice,start));
+    if(!choice)return;
+    stopFollowing();
+    setStart(start.originKind==='gps'?start:choice.start);setEnd(choice.end);setRoute(nearbyState.searchStatus==='projection-limit'?{...choice.route,routeSearchStatus:'projection-limit'}:choice.route);
+    setRouteCandidates([]);setSelectedRouteCandidate(null);setStepIndex(0);
+    setConstructionConflict(null);setRouteGap(null);setPartialRoute(null);setRouteError('');
+    cancelNearby();
+  },[nearbyState,routeError,start,end]);
+  useEffect(()=>{
+    if(tab!=='plan'||!start||!end||!graphReady||!['NO_ROUTE','NO_CONNECTION'].includes(routeError)||referenceAutoAttempt.current===request.current)return;
+    referenceAutoAttempt.current=request.current;
+    findReferenceRoute();
+  },[tab,start,end,graphReady,routeError]);
+  useReferenceComparison({start,end,prefs,avoidPoints,tab,graphReady,routing,routeError,route,referenceState,referenceSearch,referenceSnapshot,setReferenceState,referenceAutoAttempt,request,manualRouteSelection,followSession,findReferenceRoute});
+  useEffect(()=>{
+    const original=referenceBaseline.current;
+    if(tab==='plan'||!original?.automatic||route!==original.route)return;
+    manualRouteSelection.current=true;
+    if(referenceState.status==='loading'){referenceSearch.current.cancel();referenceSnapshot.current=null;referenceBaseline.current=null;}
+  },[tab,route,referenceState.status]);
+  useLayoutEffect(()=>{
+    const original=referenceBaseline.current;
+    if(tab!=='plan'||referenceState.status!=='ready'||!original?.automatic||original.requestId!==request.current||route!==original.route)return;
+    const improvement=chooseSidewalkImprovement({currentRoute:route,localCandidates:routeCandidates,referenceCandidates:referenceState.candidates,start,end,snapshot:lastConstruction.current,referenceSnapshot:referenceSnapshot.current,referenceSourceHash:referenceState.sourceHash,userSelected:manualRouteSelection.current,following:!!followSession.current});
+    if(improvement)selectOfficialCandidate(improvement.candidate,true);
+  },[referenceState,route,start,end,tab,routeCandidates]);
+  useEffect(()=>{
+    if(tab!=='plan'||referenceState.status!=='ready'||!['NO_ROUTE','NO_CONNECTION'].includes(routeError))return;
+    const recommended=referenceState.candidates?.find(candidate=>candidate.route===referenceState.route);
+    if(recommended)selectOfficialCandidate(recommended);
+  },[referenceState,routeError,tab]);
+  const referenceRoute=referenceState.status==='ready'&&referenceState.startPlace===start&&referenceState.endPlace===end&&constructionFresh(referenceSnapshot.current)&&referenceState.constructionSourceUpdatedAt===referenceSnapshot.current?.sourceUpdatedAt?referenceState.route:null;
+  useEffect(()=>{
+    if(referenceState.status!=='ready'||!referenceSnapshot.current)return;
+    const s=referenceSnapshot.current,expires=Math.min(Date.parse(s.fetchedAt),Date.parse(s.sourceUpdatedAt))+CONSTRUCTION_MAX_AGE-Date.now();
+    const timer=setTimeout(()=>{if(route?.kind==='official-passageway')clearRoute();else {referenceSearch.current.cancel();referenceSnapshot.current=null;}},Math.max(0,expires));
+    return ()=>clearTimeout(timer);
+  },[referenceState,route]);
   const entranceChoices = useMemo(() => {
-    if(!retryWithEntrance)return [];
-    return [['start',start],['end',end]].flatMap(([which,point]) => {
-      if(!point)return [];
-      const picked=[];
-      for(const p of (data?.fac || []).filter(p=>p.kind==='metro-elevator').map(p=>({...p,gap:distance(point,p)})).filter(p=>p.gap>=3&&p.gap<=300).sort((a,b)=>a.gap-b.gap)){
-        if(picked.some(x=>distance(x,p)<20))continue;
-        picked.push(p);if(picked.length===2)break;
-      }
-      return picked.map(p=>({which,p}));
-    });
-  }, [retryWithEntrance,data,start,end]);
+    if (!retryWithEntrance) return [];
+    return nearbyEntranceChoices(start, end, data?.fac);
+  }, [retryWithEntrance, data, start, end]);
   const errorText = {
-    CONSTRUCTION_UNAVAILABLE: '施工資料暫時無法更新。請連上網路再查一次，附近設施仍可查看。',
+    PROJECTION_LIMIT: '這次路線計算已達上限，請重新規劃。',
+    CONSTRUCTION_UNAVAILABLE: '施工資料暫時無法更新。請確認網路或稍後再試，附近設施仍可查看。',
     CONSTRUCTION_BLOCKED: '路線或入口遇到影響通行的施工通報，目前沒有找到通過檢查的替代路線。可以換個出入口再試。',
 
     OFFICIAL_PATH_UNVERIFIED: '這次還沒找到合適的走法。可以改從附近的電梯出口出發，或選擇另一個目的地入口。',
     OFFICIAL_ROAD_CONFLICT: '這次還沒找到合適的過街走法，可以換個入口再找找看。',
     OFFICIAL_CROSSING_UNVERIFIED: '這次還沒找到合適的過街走法，可以試試附近的電梯出口。',
-    OFFICIAL_ENTRY_UNVERIFIED: '這個地點可能有不同入口，選擇實際使用的電梯出口，再幫你找路。',
+    OFFICIAL_ENTRY_UNVERIFIED: start?.kind === 'metro-elevator' || end?.kind === 'metro-elevator'
+      ? '尚未找到通過檢查的入口連接，請檢查另一端或重新選擇起點、目的地。'
+      : '這個地點可能有不同入口，選擇實際使用的電梯出口，再幫你找路。',
     OFFICIAL_NO_ROUTE:
       "這次還沒找到連接兩地的走法，可以試試另一個入口。",
     OFFICIAL_BLOCKED:
@@ -1510,7 +1583,7 @@ export default function App() {
     UNVERIFIED_NETWORK:
       "人行路網資料尚未完成驗證，暫時無法規劃。請重新載入後再試。",
     NO_CONNECTION:
-      "選擇實際使用的人行入口，我們再幫你找路。",
+      "尚未找到連接兩地的路線。",
     NO_ROUTE:
       "這次還沒找到合適的走法，可以換個入口，或先看看附近設施。",
     SAME_POINT: "這兩個位置很接近，可以再確認一下目的地入口。",
@@ -1524,6 +1597,7 @@ export default function App() {
       <div className="workspace" data-sheet={sheetSnap}>
         <aside
           className="panel"
+          hidden={!tab}
           data-tab={tab}
           id="main-content"
           ref={panelEl}
@@ -1531,14 +1605,8 @@ export default function App() {
           onPointerDown={(e) => {
             if (!matchMedia("(max-width: 700px)").matches || sheetSnap !== 0)
               return;
-            if (e.target.closest("button, a, input, select, textarea")) return;
+            if (e.target.closest("button, a, input, textarea, select")) return;
             gripDown(e);
-          }}
-          onClickCapture={(e) => {
-            if (!gripDragged.current) return;
-            e.preventDefault();
-            e.stopPropagation();
-            gripDragged.current = false;
           }}
         >
           <button
@@ -1555,16 +1623,6 @@ export default function App() {
               ["展開面板", "面板放到最大", "收合面板，顯示更多地圖"][sheetSnap]
             }
           />
-          <div className="omnibox-wrap">
-            <button
-              className="omnibox"
-              onClick={() => openSearch("explore")}
-              aria-label="搜尋地點、捷運站或路名"
-            >
-              <Search size={20} aria-hidden="true" />
-              <span>搜尋地點、捷運站或路名</span>
-            </button>
-          </div>
           <nav className="main-nav" aria-label="主要功能">
             {[
               ["explore", "找設施", Compass],
@@ -1573,10 +1631,14 @@ export default function App() {
             ].map(([id, label, C]) => (
               <button
                 key={id}
-                className={tab === id ? "active" : ""}
+                className={tab === id || (id === "explore" && tab === "stations") ? "active" : ""}
                 aria-label={label}
                 onClick={() => {
+                  if (tab !== id) { dataGate.current.cancel(); pendingRoute.current = null; }
+                  cancelMapSnap();
+                  if (id !== "plan") { cancelNearby(); stopFollowing(); }
                   setTab(id);
+                  if(pick)clearPickPrompt();
                   setPick(null);
                   setSheetSnap((v) => Math.max(v, 1));
                 }}
@@ -1586,12 +1648,8 @@ export default function App() {
                 <span>{label}</span>
               </button>
             ))}
-            <button
-              className="nav-utility"
-              aria-label="設定"
-              onClick={() => setModal("prefs")}
-            >
-              <SlidersHorizontal size={22} aria-hidden="true" />
+            <button className="nav-utility" aria-label="設定" onClick={() => setModal("prefs")}>
+              <SlidersHorizontal size={24} aria-hidden="true" />
             </button>
           </nav>
           <div className="panel-scroll" ref={panelScroll}>
@@ -1605,7 +1663,7 @@ export default function App() {
                 <WifiOff />
                 <h2>資料暫時沒有載入</h2>
                 <p>可以稍後再試，已收藏的行程仍可從「收藏」查看。</p>
-                <button className="primary" onClick={boot}>
+                <button className="primary" onClick={retryData}>
                   再試一次
                 </button>
               </div>
@@ -1621,7 +1679,7 @@ export default function App() {
                       aria-label={label}
                       aria-pressed={filter === id}
                       onClick={() => {
-                        setFilter(id);
+                        setFilter(current => current === id ? "all" : id);
                         setListLimit(12);
                       }}
                     >
@@ -1630,16 +1688,13 @@ export default function App() {
                     </button>
                   ))}
                 </div>
-                <p className="list-caption icon-caption">
-                  <Navigation size={18} aria-hidden="true" />
-                  <span className="sr-only">離地圖中心由近到遠</span>
-                </p>
+                <p className="list-caption">離地圖中心由近到遠</p>
                 {nearby.slice(0, listLimit).map((p) => (
                   <FacilityRow
                     key={p.id}
                     p={p}
                     from={viewport}
-                    onSelect={setSelected}
+                    onSelect={inspect}
                   />
                 ))}
                 {data && !nearby.length && (
@@ -1661,13 +1716,16 @@ export default function App() {
             {tab === "plan" && (
               <>
                 <h1 className="sr-only">規劃路線</h1>
+                {!end ? <button type="button" className="search-launch" onClick={()=>openSearch("end")}><Search size={20} aria-hidden="true" />想去哪裡？</button> : <>
                 <div className="endpoints">
                   <div className="route-rail">
                     <i className="rail-start" aria-hidden="true" />
                     <button
                       className="swap"
-                      aria-label="交換出發地與目的地"
+                      aria-label="交換起點與終點"
                       onClick={() => {
+                        stopFollowing();
+                        cancelLocation();
                         setStart(swappedOrigin(end));
                         setEnd(destinationPoint(start));
                         clearRoute();
@@ -1685,57 +1743,21 @@ export default function App() {
                       ["end", "想去哪裡", "選擇目的地", "目的地", end],
                     ].map(([which, label, placeholder, noun, point]) => (
                       <div className="point-row" key={which}>
-                        <button
-                          className="point-main"
-                          onClick={() => openSearch(which)}
-                          aria-label={point ? `${noun}：${point.name}，點一下重新選擇` : placeholder}
-                        >
+                        <button className="point-main" onClick={() => openSearch(which)}
+                          aria-label={point ? `${noun}：${point.name}，點一下重新選擇` : placeholder}>
                           <small>{label}</small>
-                          <strong className={point ? "" : "placeholder"}>
-                            {point?.name || placeholder}
-                          </strong>
+                          <strong className={point ? "" : "placeholder"}>{point?.name || placeholder}</strong>
+                          {point?.nearbyOriginal && <small>距原選點約 {point.nearbyOriginal.straightMetres} 公尺，銜接未確認</small>}
                         </button>
-                        <div className="point-tools">
-                          <button
-                            className="point-tool"
-                            aria-label={`用目前位置當${noun}`}
-                            onClick={() => locate(which)}
-                            disabled={locating}
-                          >
-                            <LocateFixed size={20} aria-hidden="true" />
-                          </button>
-                          <button
-                            className="point-tool"
-                            aria-label={`在地圖上選${noun}`}
-                            aria-pressed={pick === which}
-                            onClick={() => {
-                              setPick(pick === which ? null : which);
-                              announce(`請在地圖上點選${noun}。`, { quiet: true });
-                            }}
-                          >
-                            <MapPin size={20} aria-hidden="true" />
-                          </button>
-                        </div>
+                        {which === "start" && <button type="button" className="point-shortcut" onClick={() => locate("start")} disabled={locating} aria-label={locating ? "正在定位出發地" : "使用目前位置作為出發地"}>
+                          {locating ? <LoaderCircle className="spin" size={18} aria-hidden="true" /> : <LocateFixed size={18} aria-hidden="true" />}
+                          <span>{locating ? "定位中" : "定位"}</span>
+                        </button>}
+                        {which === "end" && <button type="button" className="point-clear" aria-label="清除目的地" onClick={clearDestination}><X size={19} aria-hidden="true"/></button>}
                       </div>
                     ))}
                   </div>
                 </div>
-                {!online && <div className="mode-tabs" aria-label="路線偏好">
-                  {[
-                    ["balanced", "均衡走法"],
-                    ["gentle", "偏好平緩"],
-                    ["crossings", "減少過街"],
-                  ].map(([id, name]) => (
-                    <button
-                      key={id}
-                      aria-pressed={prefs.mode === id}
-                      className={prefs.mode === id ? "active" : ""}
-                      onClick={() => updatePrefs({ mode: id })}
-                    >
-                      {name}
-                    </button>
-                  ))}
-                </div>}
                 <button
                   className="primary full"
                   onClick={() => calculate()}
@@ -1746,23 +1768,26 @@ export default function App() {
                   ) : (
                     <Route size={19} />
                   )}{" "}
-                  {routing ? "正在找路線…" : "規劃路線"}
+                  {routing ? (routeAttempt ? `正在嘗試第 ${routeAttempt} 條繞路…` : "正在找路線…") : "規劃路線"}
                   <ArrowRight size={19} />
                 </button>
-                {graphError && !online && (
-                  <p className="quiet-note" role="status">路線資料讀取失敗，請重新整理再試。</p>
+                </>}
+                {graphRequested && !graphReady && (
+                  <p className="quiet-note" role="status">
+                    {graphError
+                      ? "路線資料暫時讀取不到，請重新整理再試。"
+                      : "正在準備路線資料。"}
+                  </p>
                 )}
-                {nearbyWarnings(start, end).map(message => (
-                  <p key={message} className="quiet-note">{message}</p>
-                ))}
+                {nearbyWarnings(start,end).map(text=><p className="quiet-note" role="note" key={text}>{text}</p>)}
                 {routeError && (
                   <div className={`notice ${retryWithEntrance ? "route-recovery" : ""}`} role="status" ref={routeFeedback}>
                     <Info />
                     <div>
                     <p>
-                      {errorText[routeError] || "暫時無法規劃，請稍後再試。"}
+                      {simpleNoRoute ? ((nearbyState.status==='loading'||referenceState.status==='loading')?'正在尋找路線…':'找不到路線。') : (nearbyState.status==='loading' ? '正在尋找附近可連通的路線…' : (errorText[routeError] || "暫時無法規劃，請稍後再試。"))}
                     </p>
-                    {partialRoute && <section aria-label="未連接的部分路段">
+                    {!simpleNoRoute && partialRoute && <section aria-label="未連接的部分路段">
                       <p>{partialRoute.message}</p>
                       {partialRoute.segments.some(s=>s.officialConditions?.points?.length>0)&&<p>部分路線附近有官方不利通行紀錄，地圖已標示；與路線的關係及現況未確認。</p>}
                       {partialRoute.segments.some(s=>s.officialConditions?.status==='unavailable')&&<p>官方不利通行資料暫時無法讀取。</p>}
@@ -1773,91 +1798,76 @@ export default function App() {
                         {s.side==='end'&&partialRoute.resolvedEnd?.name&&partialRoute.resolvedEnd.id!==end?.id&&<p>使用候選入口：{cleanName(partialRoute.resolvedEnd.name)}。</p>}
                         {s.approaches.some(a=>a.estimated)&&<p>部分入口銜接為位置估算，實際通行狀況未確認。</p>}
                         {s.tierSegments.some(t=>t.sharedRoad)&&<p>部分路段可能人車共行，通行與無障礙狀況未確認。</p>}
-                        {Array.isArray(s.steps)&&s.steps.length>0&&<details><summary>查看{s.side==='start'?'起點側':'目的地側'}步驟</summary><ol>{s.steps.map((step,i)=><li key={i}>{cleanName(step.name) || step.turn || "繼續前進"}，約 {formatDistance(step.distance)}</li>)}</ol></details>}
+                        {Array.isArray(s.steps)&&s.steps.length>0&&<details><summary>查看{s.side==='start'?'起點側':'目的地側'}步驟</summary><ol>{s.steps.map((step,i)=><li key={i}>{stepText(step)}，約 {formatDistance(step.distance)}{stepConditions(step)?`，${stepConditions(step)}`:''}</li>)}</ol></details>}
                       </div>)}
+                      <RouteLegend segments={partialRoute.segments} colorFriendly={prefs.colorFriendly} showIssueIcons={true}/>
                     </section>}
-
-                    {retryWithEntrance && entranceChoices.length > 0 && <div className="entrance-choices">
+                    {!simpleNoRoute && routeGapView && <p>{routeGapView.message}</p>}
+                    {!simpleNoRoute && retryWithEntrance && entranceChoices.length > 0 && <div className="entrance-choices">
                       <p>附近捷運電梯出口（距離為直線估算，選擇後會更改起終點，需重新規劃）</p>
                       {entranceChoices.map(({which,p}) => <button key={which+p.id} onClick={()=>changePoint(which,p)}>
                         <ArrowUpFromLine size={18} aria-hidden="true"/><span>{which==='start'?'出發地改為':'目的地改為'} {cleanName(p.name)}<small>距原選點約 {formatDistance(p.gap)}</small></span><ChevronRight size={18} aria-hidden="true"/>
                       </button>)}
                     </div>}
-                    {(retryWithEntrance || routeError === "CONSTRUCTION_BLOCKED") && start && end && graphReady && (
-                      <div className="entrance-choices">
-                        {nearbyState.status === "loading" ? (
-                          <p>正在找附近可走的路線… <button type="button" onClick={() => nearbySearch.current.cancel()}>取消</button></p>
-                        ) : (
-                          nearbyState.status !== "ready" && <button type="button" onClick={findNearbyPositions}>再找附近路線</button>
-                        )}
-                        {nearbyState.status === "error" && <p>{nearbyState.message}</p>}
-                        {nearbyState.status === "ready" && (
-                          <>
-                            <p>{nearbyState.candidates.length
-                              ? "可改用附近位置。請先確認你能到達這個位置。"
-                              : nearbyState.truncated ? "已檢查部分附近位置。可換個入口再試。"
-                                : "附近也未找到完整路線。請換個入口，或查看可走的部分路段。"}</p>
-                            {nearbyState.candidates.map(candidate => (
-                              <button type="button" key={`${candidate.start?.point.id || ""}:${candidate.end?.point.id || ""}`} onClick={() => chooseNearby(candidate)}>
-                                <span>使用這條路線 · {formatDistance(candidate.route.distance)}
-                                  {candidate.start && <small>起點改到{candidate.start.point.kind === "metro-elevator" ? candidate.start.point.name : "附近人行道"}（約 {formatDistance(candidate.start.straightMetres)}）</small>}
-                                  {candidate.end && <small>終點改到{candidate.end.point.kind === "metro-elevator" ? candidate.end.point.name : "附近人行道"}（約 {formatDistance(candidate.end.straightMetres)}）</small>}
-                                </span>
-                                <ChevronRight size={18} aria-hidden="true" />
-                              </button>
-                            ))}
-                          </>
-                        )}
-                      </div>
-                    )}
+                    {constructionConflict?.blocked?.length > 0 && <p>{showConstruction ? '地圖已標出影響路線的施工位置；' : '路線受到施工影響；'}點線位置的周邊範圍是估計，並非精確封閉邊界。</p>}
                     {constructionConflict?.blocked?.slice(0,3).map(w => <p key={w.id}>{w.address}：{w.match === 'vicinity' ? '鄰近影響通行的施工位置' : '與影響通行的施工範圍交會'}。{w.plan}</p>)}
-                    {(retryWithEntrance || ["OFFICIAL_OUTSIDE_COVERAGE", "OFFICIAL_INVALID_POINTS", "OFFICIAL_ENTRY_UNVERIFIED", "OFFICIAL_PATH_UNVERIFIED", "OFFICIAL_ROAD_CONFLICT", "OFFICIAL_CROSSING_UNVERIFIED", "CONSTRUCTION_BLOCKED"].includes(routeError)) && (
-                      <div className="route-tools">
-                        <button onClick={() => openSearch("start")}>重選出發地</button>
-                        <button onClick={() => openSearch("end")}>重選目的地</button>
-                      </div>
-                    )}
+                    {!simpleNoRoute && (retryWithEntrance||routeError==='CONSTRUCTION_BLOCKED') && start && end && graphReady && <div className="entrance-choices">
+                      {(nearbyState.status==='idle'||nearbyState.status==='error')&&<button type="button" onClick={findNearbyPositions}>重新找路</button>}
+                      {nearbyState.status==='loading'&&<button type="button" onClick={cancelNearby}>取消搜尋</button>}
+                      {nearbyState.status==='error'&&<p>{nearbyState.message}</p>}
+                      {nearbyState.status==='ready'&&<>
+                        <p>附近仍未找到可連通的路線，請重新選點。</p>
+                        {nearbyState.candidates.length>0&&<details><summary>查看附近路網位置</summary><p>這些位置尚未確認能否連通，選擇後會重新找路。</p>{nearbyState.candidates.map((c,i)=><button type="button" key={`${c.side}-${c.point.id}`} onClick={()=>chooseNearby(c)}><span>{c.side==='start'?'起點':'目的地'}附近位置 {i+1}<small>距原點約 {formatDistance(c.straightMetres)}{c.point.nearbyNetwork==='shared'?' · 人車共行':''}</small></span><ChevronRight size={18}/></button>)}</details>}
+                        {nearbyState.truncated&&<p>搜尋未完成，可再試一次。</p>}
+                      </>}
+                    </div>}
                     </div>
                   </div>
                 )}
-                {route && (
+                {!simpleNoRoute && (route || routeError) && start && end && ['idle','error'].includes(referenceState.status) && <button type="button" onClick={()=>findReferenceRoute(isVerifiedNavigationRoute(route)?route:null)}>尋找更多人行路線</button>}
+                {automaticComparisonLoading && <p role="status">正在比較路線…</p>}
+                {!mapRoutes.pending && unifiedRouteChoices?.length>0 && <section className="route-alternatives" aria-label="選擇路線">
+                  <h3>選擇路線</h3>
+                  {unifiedRouteChoices.length>1 && <div className="candidate-sort" role="group" aria-label="路線排序">
+                    <button type="button" aria-pressed={candidateSort==='score'} onClick={()=>{manualRouteSelection.current=true;setCandidateSort('score');}}>較好走優先</button>
+                    <button type="button" aria-pressed={candidateSort==='distance'} onClick={()=>{manualRouteSelection.current=true;setCandidateSort('distance');}}>依距離</button>
+                  </div>}
+                  {unifiedRouteSummaries.some(summary=>summary.hasUnknown && !summary.concern.includes('資料不足')) && <p className="route-choice__note">部分路況資料不足</p>}
+                  {unifiedRouteChoices.map((item,index)=>{const candidate=item.candidate,source=item.source==='reference';return <RouteChoice key={`${item.source}:${candidate.id}`} number={index+1} distance={item.distance} summary={unifiedRouteSummaries[index]} selected={route===candidate.route || (!source&&selectedRouteCandidate===candidate.id)} disabled={source?!isCurrentOfficialRoute(candidate.route):!constructionFresh(lastConstruction.current)||candidate.route?.construction?.sourceUpdatedAt!==lastConstruction.current?.sourceUpdatedAt} onClick={()=>source?selectOfficialCandidate(candidate):selectRouteCandidate(candidate)}/>;})}
+                </section>}
+                {referenceCollapsed && referenceState.status==='ready' && <button type="button" onClick={()=>setReferenceCollapsed(false)}>查看線條說明</button>}
+                {!simpleNoRoute && !mapRoutes.pending && <ReferenceRouteResult status={referenceCollapsed?'idle':referenceState.status} route={referenceRoute} candidates={displayedReferenceCandidates} selected={selectedRouteCandidate} onSelect={selectOfficialCandidate} comparisonStatus={referenceState.comparisonStatus} showCandidates={!unifiedRouteChoices} showLegend={route?.kind==='official-passageway'||!route} showSelectedNotice={route?.kind==='official-passageway'||!route} showIssueIcons={true} start={start} end={end} message={referenceState.message} onClose={()=>{if(route?.kind==='official-passageway')setReferenceCollapsed(true);else {referenceSearch.current.cancel();referenceSnapshot.current=null;referenceBaseline.current=null;}}} />}
+                {route && !mapRoutes.pending && (
                   <>
-                    <div className="route-summary">
-                      <h2>全程 {formatDistance(route.distance)}</h2>
-                    </div>
-                    {(route.requiresEntryConfirmation || route.approaches?.some(point => point.estimated) ||
-                      route.startGap > 10 || route.endGap > 10) && (
-                      <p className="quiet-note" role="note">請先確認入口能否通行。</p>
-                    )}
-                    {route.roadPct > 0 && (
-                      <p className="quiet-note" role="note">部分路段可能人車共用，請留意來車。</p>
-                    )}
-                    {route.officialConditions?.points?.length > 0 && (
-                      <p className="quiet-note" role="note">沿途附近有通行問題紀錄。</p>
-                    )}
-                    {routeWorks.length > 0 && (
-                      <p className="quiet-note" role="note">附近有施工，請留意現場指引。</p>
-                    )}
-                    {(followState.active || (!route.viaName && !route.requiresEntryConfirmation && !route.conditionDetour)) && (
-                      <button type="button" className="primary full" disabled={routing}
-                        onClick={followState.active ? stopFollowing : startFollowing}>
-                        <LocateFixed size={20} aria-hidden="true" />
-                        {followState.active ? "停止跟隨" : "開始跟隨"}
-                      </button>
-                    )}
-                    {(followState.active || followState.message) && (
-                      <p className="quiet-note" role="status">
-                        {followState.message || ({
-                          following: "跟隨中",
-                          replanning: "正在重新找路…",
-                          uncertain: "目前定位不夠準確。",
-                          failed: "暫時無法重新找路。",
-                          unavailable: "目前無法繼續跟隨。",
-                        }[followState.status] || "")}
-                      </p>
-                    )}
-                    <details className="route-disclosure">
-                      <summary>查看步驟</summary>
+                    <div className="route-summary"><h2>{start?.nearbyOriginal||end?.nearbyOriginal?'路網路線':'全程'} {formatDistance(route.distance)}</h2></div>
+                    {(route.routeSearchStatus==='projection-limit'||route.conditionDetourComparison==='projection-limit'||route.pedestrianImprovement?.status==='projection-limit'||route.routeCandidates?.status==='projection-limit'||route.avoidanceStatus==='projection-limit') && <p role="status">部分比較未完成，路線仍可查看；可重新規劃。</p>}
+                    {route.officialConditions?.status === "unavailable" && <p className="quiet-note" role="note">目前查不到沿途通行問題紀錄。</p>}
+                    {routeWorks.length > 0 && <p className="quiet-note" role="note">附近有施工，請留意現場指引。</p>}
+                    {routeWorks.filter(w=>w.impact==='clear').map(w=><button className="construction-avoid" key={w.id} type="button" disabled={constructionDetourState.status==='loading'} onClick={()=>avoidConstruction(w.ids)}>繞過施工：{w.address}</button>)}
+                    {constructionDetourState.status==='loading'&&<p role="status">正在尋找繞路… <button type="button" onClick={()=>constructionDetourSearch.current.cancel()}>取消</button></p>}
+                    {constructionDetourState.status==='error'&&<p role="status">{constructionDetourState.message}</p>}
+                    {route.constructionDetour&&<p className="quiet-note">已繞過所選施工通報。</p>}
+                    {route.kind!=='official-passageway' && <details className="route-disclosure"><summary>線條說明</summary><RouteLegend segments={[route]} colorFriendly={prefs.colorFriendly} showIssueIcons={true}/></details>}
+                    {conditionDetourState.status==='loading'&&<p role="status">正在尋找繞路… <button type="button" onClick={()=>conditionDetourSearch.current.cancel()}>取消</button></p>}
+                    {conditionDetourState.status==='error'&&<p role="status">{conditionDetourState.message}</p>}
+                    {route.conditionDetour&&<p className="quiet-note" role="note">已規劃避開 {route.conditionDetour.targets.length} 筆所選官方紀錄點 10 公尺內的路線；點位與實際路況仍需現場確認。</p>}
+                    {!unifiedRouteChoices && sortedRouteCandidates.length > 0 && <section className="route-alternatives" aria-label="選擇路線">
+                      <h3>選擇路線</h3>
+                      {sortedRouteCandidates.length>1 && <div className="candidate-sort" role="group" aria-label="路線排序">
+                        <button type="button" aria-pressed={candidateSort==='score'} onClick={()=>{manualRouteSelection.current=true;setCandidateSort('score');}}>較好走優先</button>
+                        <button type="button" aria-pressed={candidateSort==='distance'} onClick={()=>{manualRouteSelection.current=true;setCandidateSort('distance');}}>依距離</button>
+                      </div>}
+                      {localRouteSummaries.some(summary=>summary.hasUnknown && !summary.concern.includes('資料不足')) && <p className="route-choice__note">部分路況資料不足</p>}
+                      {sortedRouteCandidates.map((candidate,index)=><RouteChoice key={candidate.id ?? index} number={index+1} distance={candidate.metrics.distanceMetres} summary={localRouteSummaries[index]} selected={selectedRouteCandidate===candidate.id || (candidate.id==='original-route' && route===candidate.route)} disabled={!constructionFresh(lastConstruction.current)||candidate.route?.construction?.sourceUpdatedAt!==lastConstruction.current?.sourceUpdatedAt} onClick={()=>selectRouteCandidate(candidate)}/>)}
+                    </section>}
+                    {(followState.active || !route.viaName) && <button type="button" className="primary full" disabled={routing && !followState.active} onClick={followState.active ? stopFollowing : startFollowing}>
+                      <LocateFixed size={20} aria-hidden="true" />{followState.active ? "停止跟隨" : "開始跟隨"}
+                    </button>}
+                    {route.viaName && !followState.active && <p className="quiet-note">順路停靠的行程暫不支援位置跟隨。</p>}
+                    {(followState.active || followState.message) && <p className="quiet-note" role="status">
+                      {followState.message || ({following:'位置跟隨中；偏離門檻依定位精度調整，輕微偏離可能不會觸發。',replanning:'偵測到偏離，正在重新規劃。',uncertain:'定位精度或時間不足，暫停自動重新規劃。',failed:'暫時無法重新規劃。',unavailable:'目前路線資料不足，暫停位置跟隨。'}[followState.status]||'')}
+                    </p>}
+                    <details className="route-disclosure"><summary>查看步驟</summary>
                     <ol className="steps">
                       {route.steps.map((s, i) => (
                         <li
@@ -1875,10 +1885,7 @@ export default function App() {
                               <b>{stepText(s)}</b>
                               <small>
                                 約 {formatDistance(s.distance)}
-                                {s.unknown &&
-                                route.provider !== "taipei-official"
-                                  ? " · 通行條件待確認"
-                                  : ""}
+                                {stepConditions(s) ? ` · ${stepConditions(s)}` : ''}
                               </small>
                             </span>
                           </button>
@@ -1886,225 +1893,97 @@ export default function App() {
                       ))}
                     </ol>
                     </details>
-                    {routeCandidates.length > 1 && (
-                      <details className="route-disclosure">
-                        <summary>比較路線</summary>
-                        <div className="candidate-sort" role="group" aria-label="路線排序">
-                          <button type="button" aria-pressed={candidateSort === "score"} onClick={() => setCandidateSort("score")}>推薦順序</button>
-                          <button type="button" aria-pressed={candidateSort === "distance"} onClick={() => setCandidateSort("distance")}>距離較短</button>
-                        </div>
-                        {sortedRouteCandidates.map((candidate, index) => (
-                          <button type="button" className="route-alternative" key={candidate.id}
-                            aria-pressed={selectedRouteCandidate === candidate.id} onClick={() => selectRouteCandidate(candidate)}>
-                            <strong>路線 {index + 1} · {formatDistance(candidate.metrics.distanceMetres)}</strong>
-                            {candidate.metrics.sharedMetres > 0 && <span>約 {formatDistance(candidate.metrics.sharedMetres)} 可能需與車輛共用道路</span>}
-                          </button>
-                        ))}
-                      </details>
-                    )}
-                    <details className="route-disclosure">
-                      <summary>路線詳情</summary>
-                        <p>
-                          {route.provider === "local-verified" ? "另一條人行路線" : route.provider === "local-detour" ? "已改走避開施工的人行路線" : route.provider === "taipei-official"
-                            ? "臺北市無障礙通行路線圖台回傳"
-                            : "離線人行路網參考"}
-                        </p>
+                    <details className="route-disclosure"><summary>路線詳情</summary>
+                    {Number.isFinite(selectedRouteScore) && <p className="quiet-note">比較分數：{selectedRouteScore.toFixed(1)}</p>}
+                    {destinationNotice && <p className="quiet-note" role="note">{destinationNotice}</p>}
                     {route.construction && <p className="quiet-note">施工資料更新：{new Date(route.construction.sourceUpdatedAt).toLocaleString('zh-TW', {timeZone:'Asia/Taipei'})}{route.construction.unmapped > 0 ? ` · ${route.construction.unmapped} 處施工位置待確認` : ''}</p>}
-                    {route.viaName && (
-                      <p className="quiet-note">順路停靠：{route.viaName}</p>
+                    {route.construction?.avoided > 0 && (
+                      <p className="quiet-note">
+                        已避開 {route.construction.avoided} 處今日施工。
+                      </p>
                     )}
                     {avoidPoints.length > 0 && (
                       <p className="quiet-note">
-                        今天有捷運電梯保養，離線規劃會盡量不從那些出口經過。
+                        今天有電梯保養，路線會盡量不從那些出口經過。
                       </p>
                     )}
-                    {route.unknownPct > 0 && <p className="quiet-note">部分路段的路寬或坡度資料不足。</p>}
-                    {(avoidedStairs.length > 0 || avoidedWorks.length > 0) && (
-                      <>
-                        <h2 className="section-title">這條路線已避開</h2>
-                        <div className="route-context-list">
-                          {avoidedStairs.map((stair) => (
-                            <button
-                              type="button"
-                              key={`stair-${stair.way}-${stair.lat}-${stair.lon}`}
-                              onClick={() =>
-                                setFocus({
-                                  lat: stair.lat,
-                                  lon: stair.lon,
-                                  zoom: 18,
-                                  token: Date.now(),
-                                })
-                              }
-                            >
-                              <AlertTriangle size={19} aria-hidden="true" />
-                              <span>
-                                <b>階梯 · {cleanName(stair.name)}</b>
-                                <small>點一下查看避開的位置</small>
-                              </span>
-                              <ChevronRight size={18} aria-hidden="true" />
-                            </button>
-                          ))}
-                          {avoidedWorks.map((work) => {
-                            const point = work.geometry?.coordinates?.[0];
-                            return (
-                              <button
-                                type="button"
-                                key={`work-${work.id}`}
-                                onClick={() =>
-                                  point &&
-                                  setFocus({
-                                    lat: point[0],
-                                    lon: point[1],
-                                    zoom: 18,
-                                    token: Date.now(),
-                                  })
-                                }
-                              >
-                                <AlertTriangle size={19} aria-hidden="true" />
-                                <span>
-                                  <b>施工 · {work.address}</b>
-                                  <small>
-                                    {work.match === "vicinity"
-                                      ? "已避開通報位置周邊"
-                                      : "已避開施工範圍"}
-                                  </small>
-                                </span>
-                                <ChevronRight size={18} aria-hidden="true" />
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </>
+                    {route.viaName && (
+                      <p className="quiet-note">順路停靠：{route.viaName}</p>
                     )}
-                    {routeFacilities.length > 0 && (
-                      <>
-                        <h2 className="section-title">沿途設施</h2>
-                        <div
-                          className="route-context-list"
-                          aria-label="沿途設施"
-                        >
-                          {routeFacilities.map(({ place, near }) => {
-                            const FacilityIcon =
-                              icons[category(place)] || MapPin;
-                            return (
-                              <button
-                                type="button"
-                                key={place.id}
-                                onClick={() => inspect(place)}
-                              >
-                                <FacilityIcon size={19} aria-hidden="true" />
-                                <span>
-                                  <b>{cleanName(place.name)}</b>
-                                  <small>
-                                    {labels[category(place)] || "設施"} ·
-                                    距路線約 {formatDistance(near)}
-                                  </small>
-                                </span>
-                                <ChevronRight size={18} aria-hidden="true" />
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </>
+                    {route.approaches?.some(p=>p.estimated) && <p className="quiet-note" role="note">位置估算，實際通行狀況未確認；虛線約 {route.approaches.filter(p=>p.estimated).map(p=>p.distance).join('／')} 公尺。</p>}
+                    <p className="quiet-note">線條反映已知資料，實際路況請留意現場。</p>
+                    {route.pedestrianImprovement?.status === 'unsupported-official-provenance' && <p className="quiet-note">使用官方原路；此路線暫無法比較沿線人行道替代路段。</p>}
+                    {route.tierSegments?.some(segment => segment.sharedRoad === true) && (
+                      <p className="quiet-note" role="note">部分路段可能人車共行，通行與無障礙狀況未確認。</p>
                     )}
-                    {!route.viaName && !route.requiresEntryConfirmation && (
-                      <div className="point-actions" aria-label="順路停靠">
-                        <button
-                          type="button"
-                          aria-label="順路找無障礙廁所"
-                          onClick={() => addStop("toilet")}
-                        >
-                          <Toilet size={20} aria-hidden="true" />
-                          廁所
-                        </button>
-                        <button
-                          type="button"
-                          aria-label="順路找歇腳椅"
-                          onClick={() => addStop("rest")}
-                        >
-                          <Armchair size={20} aria-hidden="true" />
-                          歇腳
-                        </button>
-                        <button
-                          type="button"
-                          aria-label="順路找飲水處"
-                          onClick={() => addStop("water")}
-                        >
-                          <GlassWater size={20} aria-hidden="true" />
-                          飲水
-                        </button>
-                        <button
-                          type="button"
-                          aria-label="順路找醫療設施"
-                          onClick={() => addStop("health")}
-                        >
-                          <Hospital size={20} aria-hidden="true" />
-                          醫療
-                        </button>
-                      </div>
+                    <p className="quiet-note">{route.provider === "mapped-pedestrian" ? "路網參考路線" : route.provider === "local-verified" ? "另一條人行路線" : route.provider === "local-detour" ? "已改走避開施工的人行路線" : route.provider === "taipei-official" ? "臺北市無障礙通行路線圖台回傳" : "離線人行路網參考"}</p>
+                    {route.costBreakdown && <p className="quiet-note">這條路依距離、路況資料、坡度與寬度等條件綜合比較；資料未知不代表無障礙。</p>}
+                    {route.unknownPct > 0 && <p className="quiet-note">路寬／坡度：尚無完整資料{Number.isFinite(route.unknownWidthMetres) && Number.isFinite(route.unknownSlopeMetres) ? `（路網中約 ${Math.round(route.unknownWidthMetres)} 公尺寬度未知、${Math.round(route.unknownSlopeMetres)} 公尺坡度未知）` : ''}。</p>}
+                    {!route.approaches && !route.requiresEntryConfirmation && (route.startGap > 10 || route.endGap > 10) && (
+                      <p className="quiet-note">
+                        起點距路網約 {route.startGap} 公尺，終點距路網約{" "}
+                        {route.endGap} 公尺；這兩段銜接尚未確認。
+                      </p>
                     )}
-                    <div className="route-tools icon-actions">
-                      <button
-                        type="button"
-                        className="icon-action emergency-action"
-                        aria-label="1999 通報路障"
-                        onClick={report1999}
-                      >
-                        <Phone size={19} aria-hidden="true" />
-                        <span>1999</span>
+                    {route.roadPct > 0 && (
+                      <p className="quiet-note">
+                        約 {route.roadPct}%
+                        路程使用一般道路路網，尚未確認是否有連續人行空間。
+                      </p>
+                    )}
+                    <div className="point-actions">
+                      <button type="button" onClick={() => addStop("toilet")}>
+                        <Toilet size={16} />
+                        順路找無障礙廁所
+                      </button>
+                      <button type="button" onClick={() => addStop("rest")}>
+                        <Armchair size={16} />
+                        順路找歇腳椅
+                      </button>
+                    </div>
+                    <div className="route-tools">
+                      <button type="button" onClick={openPhoneMap}>
+                        <Navigation size={17} />
+                        手機地圖
+                      </button>
+                      <button type="button" onClick={() => callNumber(PHONES.metro)}>
+                        <Phone size={17} />
+                        捷運專線
+                      </button>
+                      <button type="button" onClick={() => callNumber(PHONES.city)}>
+                        <Phone size={17} />
+                        1999
+                      </button>
+                      <button type="button" onClick={reportBlockage}>
+                        <AlertTriangle size={17} />
+                        回報路障
+                      </button>
+                      <button onClick={saveTrip} disabled={route.requiresEntryConfirmation || !isVerifiedNavigationRoute(route)}>
+                        <Bookmark size={17} />
+                        存下行程
                       </button>
                       <button
-                        className="icon-action"
-                        aria-label="存下行程"
-                        onClick={saveTrip}
-                        disabled={route.requiresEntryConfirmation}
-                      >
-                        <Bookmark size={20} aria-hidden="true" />
-                      </button>
-                      <button
-                        className="icon-action"
-                        aria-label="分享"
                         onClick={share}
                         disabled={route.requiresEntryConfirmation}
                       >
-                        <Share2 size={20} aria-hidden="true" />
+                        <Share2 size={17} />
+                        分享
                       </button>
                       {"speechSynthesis" in window && (
                         <button
-                          className="icon-action"
-                          aria-label={speaking ? "停止朗讀" : "聽路線"}
                           onClick={readRoute}
                           disabled={route.requiresEntryConfirmation}
                         >
                           {speaking ? (
-                            <VolumeX size={20} aria-hidden="true" />
+                            <VolumeX size={17} />
                           ) : (
-                            <Volume2 size={20} aria-hidden="true" />
-                          )}
+                            <Volume2 size={17} />
+                          )}{" "}
+                          {speaking ? "停止朗讀" : "聽路線"}
                         </button>
                       )}
                     </div>
-                    <OfficialConditions
-                      conditions={route.officialConditions}
-                      onAvoid={avoidOfficialCondition}
-                      avoiding={conditionDetourState.status === "loading"}
-                    />
-                    {conditionDetourState.status === "loading" && (
-                      <p role="status">
-                        正在尋找繞路…{" "}
-                        <button type="button" onClick={() => conditionDetourSearch.current.cancel()}>
-                          取消
-                        </button>
-                      </p>
-                    )}
-                    {conditionDetourState.status === "error" && (
-                      <p role="status">{conditionDetourState.message}</p>
-                    )}
-                    {route.conditionDetour && (
-                      <p className="quiet-note" role="note">
-                        已規劃避開 {route.conditionDetour.targets.length} 筆所選官方紀錄點 10 公尺內的路線；點位與實際路況仍需現場確認。
-                      </p>
-                    )}
+                    {route.crossingUncertainties?.length > 0 && <p className="quiet-note">路線包含 {route.crossingUncertainties.length} 段 OSM 過街資料未被官方資料完整覆蓋；地圖以點線標出相關路段。</p>}
                     {routeWorks.length > 0 && (
                       <>
                         <h2 className="section-title">沿途施工資料</h2>
@@ -2118,6 +1997,7 @@ export default function App() {
                               <b>{c.address}</b>
                               <br />
                               {c.start}—{c.end}
+                              {c.hours && <><br />施工時間：{c.hours}</>}
                               <br />
                               {c.plan || "通行影響請依現場指引確認。"}
                               {c.count > 1 && `（同一工程 ${c.count} 筆通報）`}
@@ -2128,6 +2008,74 @@ export default function App() {
                     )}
                     </details>
                   </>
+                )}
+              </>
+            )}
+            {tab === "stations" && (
+              <>
+                <h1 className="sr-only">捷運電梯出口</h1>
+                <label className="search-launch input">
+                  <Search size={20} />
+                  <input
+                    value={stationQuery}
+                    onChange={(e) => setStationQuery(e.target.value)}
+                    placeholder="搜尋捷運站，例如：台北車站"
+                    aria-label="搜尋捷運站"
+                  />
+                </label>
+                <div className="notice soft">
+                  <Info size={18} />
+                  <p>資料來自捷運公司，出發前可再向車站確認電梯是否維修。</p>
+                </div>
+                {stations
+                  .map((s) => {
+                    const name = s["車站名稱"];
+                    const exits = data.fac.filter(
+                      (p) =>
+                        p.kind === "metro-elevator" &&
+                        stationKey(p.station) === stationKey(name),
+                    );
+                    const near = exits.length
+                      ? Math.min(...exits.map((p) => distance(viewport, p)))
+                      : Infinity;
+                    return { s, name, exits, near };
+                  })
+                  .sort((a, b) => a.near - b.near)
+                  .map(({ s, name, exits }) => {
+                    return (
+                      <button
+                        className="station-card"
+                        key={`${name}-${s["路線別"]}`}
+                        onClick={() =>
+                          setSelected({
+                            id: `station-${name}-${s["路線別"]}`,
+                            name: `${name}站`,
+                            kind: "station-detail",
+                            record: s,
+                            exits,
+                          })
+                        }
+                      >
+                        <span className="station-icon">
+                          <TrainFront size={22} />
+                        </span>
+                        <span>
+                          <strong>{name}</strong>
+                          <small>
+                            {s["路線別"]} ·{" "}
+                            {exits.length
+                              ? `${exits.length} 處電梯／坡道出口`
+                              : "查看電梯位置說明"}
+                          </small>
+                        </span>
+                        <ChevronRight size={18} />
+                      </button>
+                    );
+                  })}
+                {!stations.length && data && (
+                  <p className="quiet-note">
+                    還沒找到這個站名，試試少打幾個字。
+                  </p>
                 )}
               </>
             )}
@@ -2145,27 +2093,33 @@ export default function App() {
                 {trips.length > 0 && (
                   <h2 className="section-title">已存行程</h2>
                 )}
+                {trips.length > 0 && <p className="quiet-note">開啟頁面時會檢查施工通報；點選受影響的行程可重新規劃。</p>}
+                {trips.length > 0 && tripCheckFailed && <p className="quiet-note" role="status">施工資料暫時無法更新，請稍後再試。</p>}
                 {trips.length > 0 &&
                   trips.map((t) => (
                     <div className="trip-card" key={t.id}>
                       <button
                         onClick={() => {
+                          stopFollowing();
+                          cancelLocation();
                           request.current++;
                           setStart(t.start);
                           setEnd(t.end);
                           clearRoute();
-                          setPrefs({
+                          setPrefs(normalizeRoutingPreferences({
                             ...basePrefs,
                             ...t.prefs,
                             avoidSteps: true,
                             officialOnly: false,
-                          });
+                          }));
                           setTab("plan");
                           setRouteError("");
                           setRouting(false);
-                          announce(
-                            "已帶入起點與終點。舊路線不會沿用，請按「規劃路線」重新確認。",
-                          );
+                          if (tripAlerts[t.id]) {
+                            wantedStop.current = null;
+                            announce(t.route.viaName ? "正在重新規劃，這次不包含原本的順路停靠。" : "正在重新規劃，避開已通報的施工。");
+                            calculate({ start: t.start, end: t.end, prefs: { ...basePrefs, ...t.prefs, avoidSteps: true, officialOnly: false } });
+                          } else announce("已帶入起點與終點。舊路線不會沿用，請按「規劃路線」重新確認。");
                         }}
                       >
                         <Route size={22} />
@@ -2177,6 +2131,7 @@ export default function App() {
                             {formatDistance(t.route.distance)} ·{" "}
                             {new Date(t.date).toLocaleDateString("zh-TW")} 儲存
                           </small>
+                          {tripAlerts[t.id] && <small role="status">施工可能影響通行：{tripAlerts[t.id][0].address} · 點此重新規劃</small>}
                         </span>
                       </button>
                       <button
@@ -2201,7 +2156,7 @@ export default function App() {
                       key={p.id}
                       p={p}
                       from={viewport}
-                      onSelect={setSelected}
+                      onSelect={inspect}
                       saved
                       onSave={toggleSave}
                     />
@@ -2212,37 +2167,68 @@ export default function App() {
         </aside>
         <main className="map-area" aria-label="地圖與設施">
           <MapView
-            items={mapLayerItems}
+            items={hideMapIcons ? NO_MAP_ICONS : mapPins}
+            activeFilter={tab==='explore' ? filter : 'all'}
+            recentPlaces={hideMapIcons ? NO_MAP_ICONS : recentPlaces}
             basemap={basemap}
             showOfficialSidewalk={showOfficialSidewalk}
+            hideMapIcons={hideMapIcons}
+            onOfficialSidewalkStatus={setSidewalkStatus}
             colorFriendly={prefs.colorFriendly}
             onBasemapStatus={setBasemapStatus}
-            onOfficialSidewalkStatus={setOfficialSidewalkStatus}
-            route={route}
-            partialRoute={tab === "plan" ? partialRoute : null}
-            start={start}
-            end={end}
+            route={mapRoutes.route}
+            onAvoidOfficialCondition={tab==='plan' && mapRoutes.route ? avoidOfficialCondition : null}
+            avoidingOfficialCondition={conditionDetourState.status==='loading'}
+            referenceRoute={null}
+            partialRoute={mapRoutes.partialRoute}
+            onAvoidConstruction={tab==='plan' && mapRoutes.route ? avoidConstruction : null}
+            avoidingConstruction={constructionDetourState.status==='loading'}
+            constructionConflict={tab && showConstruction && !mapRoutes.pending ? constructionConflict : null}
+            constructionSnapshot={constructionFeed.snapshot}
+            showConstruction={showConstruction}
+            onConstructionStatus={setConstructionMapStatus}
+            routeGap={tab && !simpleNoRoute && !mapRoutes.pending ? routeGapView : null}
+            nearbyCandidates={tab==='plan' && !simpleNoRoute && !mapRoutes.pending ? nearbyState.candidates : NO_MAP_ICONS}
+            onNearbySelect={chooseNearby}
+            start={tab ? start : null}
+            end={tab ? end : null}
             location={currentLocation}
             focus={focus}
             pick={pick}
             onPick={selectPoint}
-            onSelect={setSelected}
+            onSelect={inspect}
             onViewport={setViewport}
             onBearing={setBearing}
             onMapReady={(m) => (map.current = m)}
+            fitPadding={() => routeFitPadding({
+              phone: matchMedia("(max-width: 700px)").matches,
+              viewportHeight: window.innerHeight,
+              sheetFraction: SHEET_SNAPS[1],
+              sheetMax: parseFloat(panelEl.current?.style.getPropertyValue("--sheet-max")) || Infinity,
+              mapRect: map.current?.getContainer().getBoundingClientRect(),
+              panelRect: panelEl.current?.getBoundingClientRect(),
+            })}
+            sheetSnap={sheetSnap}
+            getBottomInset={()=>matchMedia('(max-width:700px)').matches && tab && panelEl.current ? window.innerHeight-panelEl.current.getBoundingClientRect().top : 0}
             onGesture={() => {
               if (
                 matchMedia("(max-width: 700px)").matches &&
-                sheetSnap > 0 &&
-                !(tab === "plan" && (pick || start || end))
+                sheetSnap > 0
               )
                 setSheetSnap(0);
             }}
           />
-          <div
-            className={`map-dock ${layersOpen ? "open" : ""}`}
-            ref={layersRef}
-          >
+          {(facilityStatus === "error" || landmarkError || (viewport.zoom >= 16 && metroExitError) || (showConstruction && !hideMapIcons && (['unavailable','update-failed'].includes(constructionFeed.status)||constructionMapStatus.truncated))) && <div className="facility-load-error" role="status">
+            {(facilityStatus === "error" || landmarkError || (viewport.zoom >= 16 && metroExitError)) && <><span>部分地圖設施載入失敗。</span><button type="button" onClick={() => {
+              if (facilityStatus === "error") retryFacilityTiles();
+              if (landmarkError) setLandmarkRetry((n) => n + 1);
+              if (viewport.zoom >= 16 && metroExitError) setMetroExitRetry((n) => n + 1);
+            }}>再試一次</button></>}
+            {showConstruction && !hideMapIcons && ['unavailable','update-failed'].includes(constructionFeed.status) && <><span>施工資料暫時無法更新。</span><button type="button" onClick={constructionFeed.retry}>重試施工</button></>}
+            {showConstruction && !hideMapIcons && constructionMapStatus.truncated && <span>部分施工未顯示，放大地圖可看更多。</span>}
+          </div>}
+          {!tab && <button className="map-search-button" onClick={()=>openSearch("explore")} aria-label="搜尋地點、地址或路名"><Search size={20}/><span>搜尋地點、地址或路名</span></button>}
+          <div className="map-dock" ref={layersRef}>
             <button
               className="map-fab"
               aria-label="地圖圖層"
@@ -2296,38 +2282,24 @@ export default function App() {
                   ))}
                 </div>
                 <label className="toggle-row layers-toggle">
-                  <span className="layer-toggle-copy">
-                    <b>
-                      <i className="sidewalk-legend" aria-hidden="true" />
-                      人行道
-                    </b>
-                    <span className="issue-legend">
-                      <span className="issue-legend-title">
-                        不利通行・淨寬不足（依活動區域）
-                      </span>
-                      {ISSUE_LEVELS.map((level, i) => (
-                        <span key={level.label}>
-                          <img className="issue-sign" src={NO_WALK_URLS[i]} alt="" />
-                          {level.label}
-                        </span>
-                      ))}
-                      <span className="issue-legend-title">
-                        <i className="issue-ring" aria-hidden="true" />
-                        行穿線無斜坡
-                      </span>
-                    </span>
-                    {sidewalkStatusText[officialSidewalkStatus] && (
-                      <small>
-                        {sidewalkStatusText[officialSidewalkStatus]}
-                      </small>
-                    )}
-                  </span>
+                  <b>隱藏地圖圖標</b>
+                  <input type="checkbox" checked={hideMapIcons} onChange={(e) => setHideMapIcons(e.target.checked)} />
+                </label>
+                <label className="toggle-row layers-toggle">
+                  <span><b>施工資訊</b>{constructionFeed.status==='loading' && <small>載入中…</small>}{hideMapIcons && <small>已隱藏圖標</small>}{!hideMapIcons && constructionMapStatus.truncated && <small>只顯示部分，放大地圖可看更多</small>}</span>
+                  <input type="checkbox" checked={showConstruction} onChange={(e)=>setShowConstruction(e.target.checked)} />
+                </label>
+                <label className="toggle-row layers-toggle">
+                  <span><b>人行道</b>{sidewalkStatus === "loading" && <small>載入中…</small>}{sidewalkStatus === "zoom" && <small>請放大地圖</small>}{sidewalkStatus === "error" && <small>暫時無法載入</small>}</span>
+                  <input type="checkbox" checked={showOfficialSidewalk} onChange={(e) => setShowOfficialSidewalk(e.target.checked)} />
+                </label>
+                {showOfficialSidewalk && <div className="issue-legend" aria-label="不利通行圖例"><span className="issue-legend-title">淨寬不足：活動區域分類</span>{[...NO_WALK_URLS,UNKNOWN_NO_WALK_URL].map((url,i)=><span key={url}><img src={url} width="18" height="18" alt="" />{['高','中','低','未提供'][i]}</span>)}<span><i className="issue-ring" aria-hidden="true" />行穿線未設路緣斜坡</span></div>}
+                <label className="toggle-row layers-toggle">
+                  <b>在地圖上顯示無障礙設施</b>
                   <input
                     type="checkbox"
-                    checked={showOfficialSidewalk}
-                    onChange={(e) =>
-                      setShowOfficialSidewalk(e.target.checked)
-                    }
+                    checked={showMapFacilities}
+                    onChange={(e) => setShowMapFacilities(e.target.checked)}
                   />
                 </label>
               </div>
@@ -2375,12 +2347,12 @@ export default function App() {
             </button>
           </div>
           {pick && (
-            <div className="pick-prompt" role="status" aria-live="polite">
+            <div className="pick-prompt">
               <MapPin size={19} />
               <span>
                 點一下地圖，選擇{pick === "start" ? "出發地" : "目的地"}
               </span>
-              <button onClick={() => setPick(null)} aria-label="取消地圖選點">
+              <button onClick={() => {cancelMapSnap();setPick(null);clearPickPrompt();}} aria-label="取消地圖選點">
                 <X size={18} />
               </button>
             </div>
@@ -2408,9 +2380,7 @@ export default function App() {
           目前離線，已載入的資料仍可查看，最新路況暫時無法確認。
         </div>
       )}
-      <div className="sr-only" role="status" aria-live="polite">
-        {srStatus}
-      </div>
+      <div className="sr-only" role="status" aria-live="polite">{srStatus}</div>
       <div
         className={`toast ${status ? "visible" : ""}`}
       >
@@ -2446,78 +2416,68 @@ export default function App() {
             />
             <VoiceSearch onResult={setQuery} />
           </div>
-          {stationMatches.map(({ s, name, exits }) => {
-            const pickExit = (p) => {
-              if (searchFor === "explore") {
-                rememberPlace(p);
+          <div className="search-options">
+            <button
+              onClick={() => {
+                const which = searchFor === "explore" ? null : searchFor;
                 setSearchFor(null);
-                inspect(p);
-              } else changePoint(searchFor, p);
-            };
-            return (
-              <section className="station-group" key={name} aria-label={`${stationLabel(name)}的無障礙出口`}>
-                <div className="station-group-head">
-                  <span className="station-icon">
-                    <MetroStationIcon codes={stationCodesFor(name)} />
-                  </span>
-                  <span>
-                    <strong>{stationLabel(name)}</strong>
-                    <small>{s["路線別"]} · {exits.length ? `${exits.length} 處電梯／坡道出口` : "沒有出口座標"}</small>
-                  </span>
-                </div>
-                {exits.map((p) => (
-                  <FacilityRow
-                    key={p.id}
-                    p={p}
-                    from={viewport}
-                    note={exitUnderMaintenance(p) ? "今天有保養，可能無法使用" : ""}
-                    onSelect={pickExit}
-                  />
-                ))}
-                <p className="quiet-note">
-                  只標示出入口位置；大廳到月台的電梯請看車站資訊。
-                </p>
-                <button
-                  className="text-button station-more"
-                  onClick={() => {
-                    setSearchFor(null);
-                    setSelected({
-                      id: `station-${name}-${s["路線別"]}`,
-                      name: stationLabel(name),
-                      kind: "station-detail",
-                      record: s,
-                      exits,
-                    });
-                  }}
-                >
-                  車站資訊與保養時段
-                  <ChevronRight size={16} />
-                </button>
-              </section>
-            );
-          })}
-          {query && searchResults.length > 0 && (
-            <p className="list-caption">找到 {searchResults.length} 個地方</p>
-          )}
-          {!query && searchResults.length > 0 && (
-            <div className="list-caption recent-caption">
-              <span>{recents.length || trips.length ? "最近" : "推薦"}</span>
-              {recents.length > 0 && (
-                <button type="button" className="text-button" onClick={clearRecents}>
-                  清除
-                </button>
-              )}
-            </div>
-          )}
+                locate(which);
+              }}
+            >
+              <LocateFixed size={20} />
+              <span>{locating ? "定位中…" : "使用目前位置"}</span>
+            </button>
+            <button
+              onClick={() => {
+                cancelPendingNavigation();
+                cancelLocation();
+                setPick(searchFor === "explore" ? "end" : searchFor);
+                setSearchFor(null);
+                setQuery("");
+                setTab("plan");
+                setSheetSnap(0);
+                announce(`請在地圖上點選${searchFor === "start" ? "出發地" : "目的地"}。`);
+              }}
+            >
+              <MapPin size={20} />
+              <span>在地圖上點選</span>
+            </button>
+          </div>
+          {stationMatches.map((match) => (
+            <StationSearchGroup key={match.name} match={match}
+              renderExit={(p) => <FacilityRow key={p.id} p={p} from={viewport}
+                note={avoidPoints.some(([lat, lon]) => lat === p.lat && lon === p.lon) ? "今天有保養，可能無法使用" : ""}
+                onSelect={(place) => {
+                  if (searchFor === "explore") { setSearchFor(null); inspect(place); }
+                  else changePoint(searchFor, place);
+                }} />}
+              onDetails={() => {
+                setSearchFor(null);
+                setSelected({ id: `station-${match.name}-${match.record["路線別"]}`,
+                  name: stationLabel(match.name), kind: "station-detail", record: match.record, exits: match.exits });
+              }} />
+          ))}
+          {waitingForData ? <p role="status">正在載入設施資料…</p> : loadError && !data ?
+            <p role="status">資料暫時無法載入。 <button className="text-button" onClick={retryData}>再試一次</button></p> :
+            <p className="list-caption">{query ? "找到這些地方" : "最近行程、收藏與附近車站"}</p>}
           {searchResults.map((p) => (
             <FacilityRow
               key={p.id}
               p={p}
               from={viewport}
-              onSelect={selectSearchPlace}
+              sourceLabel={searchResults.some(other => other !== p && normalize(other.name) === normalize(p.name))
+                ? (p.sourceId === 'osm' ? 'OpenStreetMap' : p.sourceId ? '其他圖資' : '地點搜尋') : undefined}
+              onSelect={(p) => {
+                if (searchFor === "explore") {
+                  setSearchFor(null);
+                  inspect(p);
+                } else changePoint(searchFor, p);
+              }}
             />
           ))}
-          {query && !searchResults.length && (
+          {query.trim() && !searchResults.length && (addressQuery !== query || addressPending) && <p role="status">正在搜尋地點…</p>}
+          {query.trim() && addressQuery === query && !addressPending && addressError && <p role="status">部分搜尋來源暫時無法使用，請確認網路或稍後再試；也可以使用地圖選點。</p>}
+          {query.trim() && data && !searchResults.length && !stationMatches.length && addressQuery === query && !addressPending && !addressError && (
             <div className="empty-card">
               <Search />
               <p>
@@ -2525,38 +2485,6 @@ export default function App() {
               </p>
             </div>
           )}
-        </Sheet>
-      )}
-      {profileReady && modal === "profile" && (
-        <Sheet
-          title="設定主要出行方式"
-          dismissible={false}
-          onClose={() => {}}
-        >
-          <p>選一種最符合你這次出行需要的方式，之後可隨時調整。</p>
-          <label className="select-row profile-select">
-            主要出行方式
-            <select
-              value={profileDraft}
-              onChange={(event) => setProfileDraft(event.target.value)}
-            >
-              {Object.entries(travelProfiles).map(([id, profile]) => (
-                <option key={id} value={id}>
-                  {profile.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <p className="quiet-note profile-note">
-            偏好只保存在這部裝置。路網沒有寬度或坡度資料時，會標示為未知；路線仍需留意現場。
-          </p>
-          <button
-            className="primary full"
-            onClick={() => saveTravelProfile(profileDraft)}
-          >
-            開始使用
-            <ArrowRight size={18} />
-          </button>
         </Sheet>
       )}
       {selected && (
@@ -2567,9 +2495,7 @@ export default function App() {
           {selected.kind === "station-detail" ? (
             <>
               <div className="detail-badge">
-                <MetroStationIcon
-                  codes={stationCodesFor(selected.record["車站名稱"])}
-                />
+                <TrainFront size={17} />
                 {selected.record["路線別"]}
               </div>
               <h3>電梯在哪裡</h3>
@@ -2594,6 +2520,15 @@ export default function App() {
                   這個車站目前沒有可對應的出口座標，先參考上方位置說明。
                 </p>
               )}
+              {unlocatedError && <p className="quiet-note">部分出口資料暫時無法載入。</p>}
+              {unlocatedExits?.some((p) => stationKey(p.station) === stationKey(selected.record["車站名稱"])) &&
+                <h3>以下出口尚未對應座標，未顯示於地圖</h3>}
+              {unlocatedExits?.filter((p) => stationKey(p.station) === stationKey(selected.record["車站名稱"])).map((p) => (
+                <div className="notice soft" key={p.id}>
+                  <Info size={18} aria-hidden="true" />
+                  <p>{p.name}：{p.elevator === true ? "有電梯" : "電梯資訊待確認"}；{p.description || "地圖位置未提供"}。</p>
+                </div>
+              ))}
               <h3>維修與保養資訊</h3>
               {data.metro["metro-alerts"]
                 .filter((r) =>
@@ -2641,7 +2576,7 @@ export default function App() {
             <>
               {/* Apple 地圖式地點卡：一行分類與距離、一排操作、資訊清單；不放說明文字 */}
               <p className="place-subtitle">
-                {labels[category(selected)] || "地點"}
+                {selected.kind === "metro-exit" ? "捷運出口" : labels[category(selected)] || "地點"}
                 {" · "}
                 {formatDistance(distance(currentLocation || viewport, selected))}
               </p>
@@ -2685,12 +2620,16 @@ export default function App() {
                 if (selected.exit) rows.push(["exit", DoorOpen, "出入口", selected.exit]);
                 if (selected.slopePct != null) rows.push(["slope", TrendingUp, "坡度", `${selected.slopePct}%`]);
                 if (selected.openingHours) rows.push(["hours", Clock, "開放時間", selected.openingHours]);
+                if (selected.description) rows.push(["description", MapPin, "位置", selected.description]);
+                if (selected.kind === "metro-exit" && typeof selected.officialAccessible === "boolean") rows.push(["official-accessible", Accessibility, "座標資料『是否為無障礙用』", selected.officialAccessible ? "是" : "否"]);
                 if (selected.address) rows.push(["addr", MapPin, "地址", selected.address]);
+                if (selected.parkingDetails) rows.push(["parking-details", Car, "車位", selected.parkingDetails]);
                 if (selected.phone)
                   rows.push(["phone", Phone, "電話",
                     <a href={`tel:${String(selected.phone).replace(/[^\d+]/g, "")}`}>{selected.phone}</a>]);
                 if (selected.careBed) rows.push(["bed", Info, "照護床", selected.careBed]);
-                if (selected.routes) rows.push(["bus", Bus, "路線", selected.routes.join("、")]);
+                if (selected.mapGroupRoutes?.length || selected.routes?.length) rows.push(["bus", Bus, "路線", (selected.mapGroupRoutes?.length ? selected.mapGroupRoutes : selected.routes).join("、")]);
+                if (selected.kind === "metro-exit") rows.push(["elevator", ArrowUpFromLine, "電梯", selected.elevator === true ? `有電梯${selected.elevatorUpdatedAt ? `（更新日期 ${selected.elevatorUpdatedAt}）` : ""}` : "電梯資訊待確認"]);
                 return rows.length ? (
                   <dl className="place-info">
                     {rows.map(([key, RowIcon, label, value]) => (
@@ -2703,24 +2642,26 @@ export default function App() {
                   </dl>
                 ) : null;
               })()}
+              {String(selected.kind) === "20" && (
+                <button className="place-link" onClick={async () => {
+                  const station = selected;
+                  setDataRequested(true);
+                  const loaded = dataGate.current.peek() || await boot();
+                  if (selectedRef.current?.id !== station.id) return;
+                  if (!loaded) { announce("車站資訊暫時無法載入，請稍後再試。"); return; }
+                  const match = matchMetroStations(station.name, loaded.metro, loaded.fac)[0];
+                  if (!match) { announce("這個車站目前沒有電梯位置說明。"); return; }
+                  setSelected({ id: `station-${match.name}-${match.record["路線別"]}`, name: stationLabel(match.name), kind: "station-detail", record: match.record, exits: match.exits });
+                }}><TrainFront size={18} aria-hidden="true" /><span>車站資訊與出口</span><ChevronRight size={18} aria-hidden="true" /></button>
+              )}
               {selected.station && (
                 <button
                   className="place-link"
                   onClick={() => {
-                    const record = (data?.metro["metro-elevators"] || []).find(
-                      (r) => stationKey(r["車站名稱"]) === stationKey(selected.station),
-                    );
-                    if (!record) {
-                      announce("這個車站目前沒有電梯位置說明。");
-                      return;
-                    }
-                    setSelected({
-                      id: `station-${record["車站名稱"]}-${record["路線別"]}`,
-                      name: stationLabel(record["車站名稱"]),
-                      kind: "station-detail",
-                      record,
-                      exits: stationsFor(record["車站名稱"]),
-                    });
+                    stopFollowing();
+                    setStationQuery(selected.station);
+                    setTab("stations");
+                    setSelected(null);
                   }}
                 >
                   <ArrowUpFromLine size={18} aria-hidden="true" />
@@ -2728,12 +2669,12 @@ export default function App() {
                   <ChevronRight size={18} aria-hidden="true" />
                 </button>
               )}
-              <p className="place-source">
+              {selected.originKind!=='map' && <p className="place-source">
                 {selected.sourceId === "osm"
                   ? "OpenStreetMap"
                   : data?.sources.sources.find((s) => s.id === selected.sourceId)?.name ||
                     "臺北市開放資料"}
-              </p>
+              </p>}
             </>
           )}
         </Sheet>
@@ -2743,21 +2684,12 @@ export default function App() {
           <section className="settings-group" aria-labelledby="set-mobility">
             <h3 id="set-mobility">通行</h3>
             <div className="settings-list">
-              <label className="settings-row">
-                <span>出行方式</span>
-                <select
-                  value={travelProfile || "walking"}
-                  onChange={(event) => saveTravelProfile(event.target.value, false)}
-                >
-                  {Object.entries(travelProfiles).map(([id, profile]) => (
-                    <option key={id} value={id}>{profile.label}</option>
-                  ))}
-                </select>
-              </label>
+              <div className="settings-row"><span>出行方式</span><b>輪椅</b></div>
+              <div className="settings-row"><span>通道寬度</span><b>0.9 公尺以上</b></div>
               <div className="settings-row settings-row--stack">
                 <span id="set-mode">路線偏好</span>
                 <div className="segmented" role="radiogroup" aria-labelledby="set-mode">
-                  {Object.entries({ balanced: "均衡", gentle: "平緩", crossings: "少過街" }).map(([id, name]) => (
+                  {Object.entries({ balanced: "均衡", crossings: "少過街" }).map(([id, name]) => (
                     <button
                       key={id}
                       type="button"
@@ -2772,54 +2704,8 @@ export default function App() {
                   ))}
                 </div>
               </div>
-              <details className="settings-advanced">
-                <summary>進階</summary>
-                <label className="settings-row settings-row--stack">
-                  <span>通道寬度<b>{prefs.minWidth} 公尺以上</b></span>
-                  <input
-                    type="range"
-                    min="0.6"
-                    max="1.5"
-                    step="0.1"
-                    value={prefs.minWidth}
-                    aria-describedby="set-known-note"
-                    onChange={(e) => updatePrefs({ minWidth: Number(e.target.value) })}
-                  />
-                </label>
-                <label className="settings-row settings-row--stack">
-                  <span>坡度上限<b>{prefs.maxSlope}%</b></span>
-                  <input
-                    type="range"
-                    min="2"
-                    max="15"
-                    step="1"
-                    value={prefs.maxSlope}
-                    aria-describedby="set-known-note"
-                    onChange={(e) => updatePrefs({ maxSlope: Number(e.target.value) })}
-                  />
-                </label>
-                <label className="settings-row">
-                  <span>只走有寬度、坡度資料的路段</span>
-                  <input
-                    type="checkbox"
-                    className="switch"
-                    checked={prefs.knownOnly}
-                    aria-describedby="set-known-note"
-                    onChange={(e) => updatePrefs({ knownOnly: e.target.checked })}
-                  />
-                </label>
-                <p className="sr-only" id="set-known-note">
-                  寬度與坡度只套用在有記載資料的路段；只走有資料的路段時，可能找不到路線。
-                </p>
-                <button
-                  type="button"
-                  className="settings-link"
-                  onClick={() => saveTravelProfile(travelProfile || "walking", false)}
-                >
-                  恢復出行方式預設
-                </button>
-              </details>
             </div>
+            <p className="quiet-note">規劃時避開階梯；必要時可能使用人車共道，請留意車輛與現場狀況。</p>
           </section>
           <section className="settings-group" aria-labelledby="set-display">
             <h3 id="set-display">顯示</h3>
@@ -2842,7 +2728,7 @@ export default function App() {
               </label>
               <label className="settings-row">
                 <span>顯示操作提示</span>
-                <input type="checkbox" className="switch" checked={showConfirmations}
+                <input type="checkbox" className="switch" checked={prefs.visualPrompts ?? false}
                   aria-describedby="set-prompt-note"
                   onChange={(e) => updateDisplay({ visualPrompts: e.target.checked })} />
               </label>
@@ -2921,9 +2807,7 @@ export default function App() {
           <p>
             你可以搜尋地點、直接在地圖選兩點，或先找一個附近的設施。收藏與通行偏好留在你的裝置，不需要登入。
           </p>
-          <p>
-            語音輸入：按搜尋框旁的麥克風後才會收音；辨識可能由瀏覽器的線上語音服務處理，本服務不儲存錄音。
-          </p>
+          <p>語音輸入只在按下麥克風後收音；辨識可能由瀏覽器的線上語音服務處理，本服務不儲存錄音。</p>
           <div className="notice">
             <Info />
             <p>
@@ -2994,18 +2878,6 @@ export default function App() {
               rel="noopener"
             >
               來源與授權
-              <ExternalLink size={14} />
-            </a>
-          </div>
-          <div className="source-card">
-            <b>臺北捷運車站圖標・Wikimedia Commons</b>
-            <span>臺北大眾捷運股份有限公司；公有領域，圖示存放於本站</span>
-            <a
-              href="https://commons.wikimedia.org/wiki/Category:Taipei_Metro_station_icons"
-              target="_blank"
-              rel="noopener"
-            >
-              圖標來源與授權
               <ExternalLink size={14} />
             </a>
           </div>

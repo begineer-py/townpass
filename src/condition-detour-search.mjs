@@ -20,7 +20,7 @@ export function createConditionDetourSearch({fetchSnapshot,createWorker,onState,
    if(d.type==='ready')current.postMessage({type:'avoid-official-condition',id,startPlace,endPlace,options,targets,construction:snapshot});
    else if(d.type==='avoid-official-condition'&&d.id===id){
     if(!constructionFresh(snapshot))finish({status:'error',message:'施工資料已過期，請重新搜尋。'});
-    else if(d.result.error)finish({status:'error',message:d.result.error==='NO_CONDITION_DETOUR'?'目前沒有找到繞過這個紀錄的路線，原路線仍可查看。':'資料暫時不可用，原路線仍可查看。'});
+    else if(d.result.error)finish({status:'error',message:d.result.error==='PROJECTION_LIMIT'?'繞路搜尋已達上限，請重試；原路線仍可查看。':d.result.error==='NO_CONDITION_DETOUR'?'目前沒有找到繞過這個紀錄的路線，原路線仍可查看。':'資料暫時不可用，原路線仍可查看。'});
     else {onSnapshot(snapshot);finish({status:'ready',route:d.result});}
    }else if(d.type==='error')finish({status:'error',message:'路網資料暫時無法讀取。'});
   };

@@ -1,23 +1,23 @@
 import { useEffect, useRef } from "react";
 import L from "leaflet";
-// 讓 Leaflet 地圖可以旋轉（GPL-3.0，與本專案 AGPL-3.0 相容）。固定 0.2.8，0.3 之後是近期才發布的版本。
 import "leaflet-rotate";
-import { category, cleanName } from "./data";
+import { category, cleanName, labels } from "./data";
 import { BASEMAPS } from "./basemaps.mjs";
-import { metroStationIconUrl } from "./metro-station-icons.mjs";
-import { isNumberedStationExit, metroExitIconUrl, metroExitLabel } from "./metro-exits.mjs";
-import {
-  loadOfficialSidewalks,
-  loadSidewalkIssues,
-  OFFICIAL_SIDEWALK_SOURCE,
-  visibleSidewalkIssues,
-  visibleSidewalkLines,
-} from "./official-sidewalks.mjs";
-import { ROUTE_CONDITIONS, conditionForSegment } from "./route-conditions.mjs";
+import { ROUTE_CONDITIONS, conditionForSegment, fallbackRouteCondition } from "./route-conditions.mjs";
 import { TPColors } from "./tp-colors.mjs";
+import { focusOffsetForInset, layoutMapMarkers, isMetroStation, metroExitLabelForAccessibility, selectMapMarkers } from "./marker-layout.mjs";
+import { useSidewalkLayer } from "./use-sidewalk-layer.js";
+import { isNumberedStationExit, isMetroElevatorEntrance, isMetroExitSymbol, metroExitIconUrl, metroExitLabel } from "./metro-exits.mjs";
+import { loadSidewalkIssues, visibleSidewalkIssues } from "./official-sidewalks.mjs";
+import { NO_WALK_URLS, UNKNOWN_NO_WALK_URL } from "./issue-icons.mjs";
+import { groupVisibleIssues, hitIssueGroup, issueGroupLabel } from "./issue-presentation.mjs";
+import {routeIssueMarkers} from "./route-issue-markers.mjs";
+import {useConstructionLayer} from "./use-construction-layer.js";
+import "./route-issue-markers.css";
+import { metroStationCodes, metroStationIconUrl } from "./metro-station-icons.mjs";
 import { mapIconElement } from "./map-icons.mjs";
-import { NO_WALK_URLS } from "./issue-icons.mjs";
-// 標記底色（白色圖形放在上面，與白色的對比都在 3:1 以上）。
+import { mapPickPoint } from "./location.js";
+import { REFERENCE_STYLES, referenceRouteLines } from "./reference-route-presentation.mjs";
 const colors = {
   place: TPColors.orange700,
   bus: TPColors.primary900,
@@ -33,52 +33,48 @@ const colors = {
   parking: TPColors.grayscale600,
   health: TPColors.red700,
 };
-// 每種地點用不同圖形（Lucide），不只靠顏色辨認。
-const iconKind = (k) =>
-  ({ place: "store", "public-toilet": "toilet" })[k] || k;
-// 在 canvas 上畫一張圖（不利通行號誌，高／中／低各一張）：數百個點也不必各建一個 DOM 標記。
-// radius 決定重繪範圍，圖以 radius*2 見方畫在點的中心。
-const noWalkImages = NO_WALK_URLS.map((src) => Object.assign(new Image(), { src }));
+const iconKind = (kind) => ({ place: "store", "public-toilet": "toilet" })[kind] || kind;
+const isMetroExit = (p) => p.kind === "metro-elevator" || p.kind === "metro-exit" || isNumberedStationExit(p);
+const isExitSymbol = isMetroExitSymbol;
+const markerKindLabel = (p) => isExitSymbol(p)
+  ? metroExitLabelForAccessibility(p)
+  : labels[category(p)] || "地點";
+const noWalkImages = [...NO_WALK_URLS, UNKNOWN_NO_WALK_URL].map((src) => Object.assign(new Image(), { src }));
 const ImageMark = L.CircleMarker.extend({
   _updatePath() {
-    const r = this._renderer,
-      img = this.options.image;
-    if (!r._drawing || this._empty() || !img?.complete) return;
-    const s = this._radius * 2;
-    r._ctx.drawImage(img, this._point.x - s / 2, this._point.y - s / 2, s, s);
+    const renderer = this._renderer, img = this.options.image;
+    if (!renderer._drawing || this._empty() || !img?.complete) return;
+    const size = this._radius * 2;
+    renderer._ctx.drawImage(img, this._point.x - size / 2, this._point.y - size / 2, size, size);
   },
 });
-// 標記（圖形＋店名）隨縮放一起變大變小：縮放 18 為原尺寸，最小 0.9 倍免得太難點。
-const pinScale = (z) => Math.min(1.15, Math.max(0.9, 1 + (z - 18) * 0.13));
-// Dense issue records are sampled more sparsely at lower zooms to keep the map responsive.
-const issueMarkerCell = (z) => z >= 19 ? 38 : z >= 18 ? 46 : z >= 17 ? 54 : 64;
-// 店家與地標在圖形下方顯示名稱。
-const hasLabel = (p) =>
-  p.landmark || ["place", "friendly"].includes(category(p));
-// 估計名稱寬度（11px 字，中文一字一格，英數約半格），最多約 9 個字寬後截斷。
-const labelWidth = (name) =>
-  Math.min(
-    99,
-    [...name].reduce((w, ch) => w + (ch.charCodeAt(0) > 0x2e80 ? 11 : 6.5), 0),
-  ) + 4;
-function drawOfficialConditions(group,conditions){
-  for(const point of conditions?.points||[]){
-    if(!Number.isFinite(point.lat)||!Number.isFinite(point.lon))continue;
-    const label=document.createElement('span');label.textContent=`${point.label}；與路線的實際關係未確認`;
-    L.circleMarker([point.lat,point.lon],{radius:6,color:TPColors.white,weight:2,fillColor:TPColors.orange700,fillOpacity:1}).bindTooltip(label).addTo(group);
-  }
-}
+const pinScale = (zoom) => Math.min(1.15, Math.max(0.9, 1 + (zoom - 18) * 0.13));
 export default function MapView({
   items,
+  recentPlaces = [],
   route,
+  onAvoidOfficialCondition,
+  avoidingOfficialCondition,
+  referenceRoute,
   partialRoute,
+  constructionConflict,
+  constructionSnapshot,
+  onAvoidConstruction,
+  avoidingConstruction,
+  showConstruction = true,
+  onConstructionStatus,
+  routeGap,
+  nearbyCandidates,
+  onNearbySelect,
   start,
   end,
   location,
   focus,
   pick,
   basemap = "street",
-  showOfficialSidewalk = false,
+  showOfficialSidewalk = true,
+  hideMapIcons = false,
+  activeFilter = "all",
   colorFriendly = false,
   onBasemapStatus,
   onOfficialSidewalkStatus,
@@ -88,15 +84,31 @@ export default function MapView({
   onMapReady,
   onGesture,
   onBearing,
+  getBottomInset,
+  sheetSnap,
+  fitPadding,
 }) {
   const root = useRef(),
     map = useRef(),
     marks = useRef(),
     path = useRef(),
+    referencePath = useRef(),
+    referenceRenderer = useRef(),
+    partialPath = useRef(),
+    blocked = useRef(),
+    routeIssues = useRef(),
+    gap = useRef(),
+    nearby = useRef(),
     ends = useRef();
   const baseLayers = useRef([]);
-  const cb = useRef({ onPick, onSelect, onViewport, onGesture, pick, onBearing });
-  cb.current = { onPick, onSelect, onViewport, onGesture, pick, onBearing };
+  const markerData = useRef({ items, recentPlaces, colorFriendly, hideMapIcons, activeFilter });
+  const markerRedraw = useRef();
+  markerData.current = { items, recentPlaces, colorFriendly, hideMapIcons, activeFilter };
+  const paddingReader=useRef(getBottomInset);paddingReader.current=getBottomInset;
+  const fitPaddingReader=useRef(fitPadding);fitPaddingReader.current=fitPadding;
+  const routePadding = (height) => fitPaddingReader.current?.() || {paddingTopLeft:[24,40],paddingBottomRight:[24,Math.min(height-120,(paddingReader.current?.()||0)+24)]};
+  const cb = useRef({ onPick, onSelect, onViewport, onGesture, onNearbySelect, onBearing, pick, onAvoidOfficialCondition });
+  cb.current = { onPick, onSelect, onViewport, onGesture, onNearbySelect, onBearing, pick, onAvoidOfficialCondition };
   useEffect(() => {
     const m = L.map(root.current, {
       zoomControl: false,
@@ -104,19 +116,26 @@ export default function MapView({
       minZoom: 11,
       maxZoom: 19,
       zoomAnimation: !matchMedia("(prefers-reduced-motion: reduce)").matches,
-      // 雙指旋轉；電腦上按住 Shift 拖曳旋轉。指南針按鈕在 App 裡，這裡不用套件內建的控制項。
-      rotate: true,
-      touchRotate: true,
-      shiftKeyRotate: true,
-      rotateControl: false,
-      bearing: 0,
+      rotate: true, touchRotate: true, shiftKeyRotate: true, rotateControl: false, bearing: 0,
     }).setView([25.0478, 121.517], 15);
     map.current = m;
-    // 開發時方便在主控台測試（例如旋轉）；正式建置不含。
     if (import.meta.env.DEV) window.__haohaoMap = m;
     m.attributionControl?.setPrefix(false);
     marks.current = L.layerGroup().addTo(m);
+    const referencePane=m.getPane('reference-route')||m.createPane('reference-route',m.getPane('rotatePane')||undefined);
+    referencePane.style.zIndex='390';referencePane.style.pointerEvents='none';
+    referenceRenderer.current=L.canvas({pane:'reference-route',padding:.25});
+    referencePath.current=L.layerGroup().addTo(m);
     path.current = L.layerGroup().addTo(m);
+    partialPath.current = L.layerGroup().addTo(m);
+    blocked.current = L.layerGroup().addTo(m);
+    const issuePane=m.getPane('route-issues')||m.createPane('route-issues',m.getPane('rotatePane')||undefined);
+    issuePane.style.zIndex='650';
+    const issueLinePane=m.getPane('route-issue-line')||m.createPane('route-issue-line',m.getPane('rotatePane')||undefined);
+    issueLinePane.style.zIndex='405';
+    routeIssues.current=L.layerGroup().addTo(m);
+    gap.current = L.layerGroup().addTo(m);
+    nearby.current = L.layerGroup().addTo(m);
     ends.current = L.layerGroup().addTo(m);
     const viewport = () => {
       const b = m.getBounds(),
@@ -129,22 +148,14 @@ export default function MapView({
       });
     };
     m.on("moveend", viewport);
-    const scale = (z) =>
-      root.current?.style.setProperty("--pin-scale", pinScale(z).toFixed(3));
+    const scale = (zoom) => root.current?.style.setProperty("--pin-scale", pinScale(zoom).toFixed(3));
     scale(m.getZoom());
-    // zoomanim 帶目標縮放，標記和地圖同時開始變大小（CSS 有 transition）。
-    m.on("zoomanim", (e) => scale(e.zoom));
+    m.on("zoomanim", (event) => scale(event.zoom));
     m.on("zoomend", () => scale(m.getZoom()));
     m.on("rotate", () => cb.current.onBearing?.(m.getBearing()));
     m.on("click", (e) => {
       if (cb.current.pick)
-        cb.current.onPick({
-          lat: e.latlng.lat,
-          lon: e.latlng.lng,
-          name: "地圖上選的位置",
-          originKind: "map",
-          id: `point-${Date.now()}`,
-        });
+        cb.current.onPick(mapPickPoint(e.latlng.lat,e.latlng.lng,cb.current.pick));
     });
     // User pan/zoom gestures only (not taps, not fitBounds/setView), so the
     // phone sheet can get out of the way the way Google Maps does.
@@ -163,9 +174,71 @@ export default function MapView({
       el.removeEventListener("wheel", gesture);
       el.removeEventListener("touchstart", pinch);
       observer.disconnect();
+      if (map.current === m) map.current = null;
       m.remove();
     };
   }, []);
+  useSidewalkLayer(map, location, showOfficialSidewalk, onOfficialSidewalkStatus);
+  const constructionPriorityIds=[...(route?.construction?.nearby||[]),...(constructionConflict?.blocked||[]),...(partialRoute?.segments||[]).flatMap(segment=>segment.construction?.nearby||[])].map(work=>work.id).filter(Boolean);
+  useConstructionLayer(map,constructionSnapshot,showConstruction,onConstructionStatus,constructionPriorityIds,hideMapIcons,onAvoidConstruction,avoidingConstruction);
+  useEffect(() => {
+    const m = map.current;
+    if (!m || !showOfficialSidewalk || hideMapIcons) return;
+    const pane = m.getPane("sidewalk-issues") || m.createPane("sidewalk-issues", m.getPane("rotatePane") || undefined);
+    pane.style.zIndex = "351";
+    // The issue canvas covers the map. Leave it transparent to pointer events
+    // and hit-test only rendered issue symbols at the map container instead.
+    pane.style.pointerEvents = "none";
+    const renderer = L.canvas({pane: "sidewalk-issues", padding: 0.25});
+    const layer = L.layerGroup().addTo(m);
+    let active = true, issues, timer, hitGroups = [], hitRadius = 0, hoverFrame = 0;
+    const container = m.getContainer(), tooltip = L.tooltip({direction:'top', offset:[0,-10]}), popup = L.popup({offset:[0,-10]});
+    const hit = (event) => {
+      if (cb.current.pick || event.target.closest?.('.leaflet-control, .leaflet-marker-icon, .leaflet-popup, .leaflet-tooltip')) return null;
+      return hitIssueGroup(hitGroups, m.mouseEventToContainerPoint(event), hitRadius);
+    };
+    const hover = (event) => {
+      cancelAnimationFrame(hoverFrame);
+      hoverFrame=requestAnimationFrame(() => {
+        const group=hit(event);
+        if (!group || m.dragging?.moving()) { tooltip.remove(); return; }
+        const content=document.createElement('span');content.textContent=issueGroupLabel(group.points);
+        tooltip.setLatLng([group.points[0].lat,group.points[0].lon]).setContent(content).addTo(m);
+      });
+    };
+    const click = (event) => {
+      const group=hit(event);if(!group)return;
+      event.preventDefault();event.stopPropagation();
+      const content=document.createElement('span');content.textContent=issueGroupLabel(group.points);
+      popup.setLatLng([group.points[0].lat,group.points[0].lon]).setContent(content).openOn(m);
+    };
+    const leave=()=>tooltip.remove();
+    container.addEventListener('mousemove',hover,true);
+    container.addEventListener('click',click,true);
+    container.addEventListener('mouseleave',leave);
+    const draw = () => {
+      if (!active) return;
+      layer.clearLayers();
+      hitGroups = []; tooltip.remove();
+      if (!issues || m.getZoom() < 16) return;
+      const z = m.getZoom(), size = z >= 19 ? 28 : z >= 18 ? 24 : z >= 17 ? 20 : 16;
+      const cell = z >= 19 ? 38 : z >= 18 ? 46 : z >= 17 ? 54 : 64;
+      const groups = groupVisibleIssues(visibleSidewalkIssues(issues, m.getBounds()), p => m.latLngToContainerPoint([p.lat,p.lon]), cell);
+      hitRadius = Math.max(12, size/2);
+      for (const group of groups) {
+        const {lat, lon, kind} = group[0], text=issueGroupLabel(group);
+        const {x,y}=m.latLngToContainerPoint([lat,lon]);hitGroups.push({x,y,points:group});
+        const mark = kind === 3 ? L.circleMarker([lat, lon], {renderer, pane:"sidewalk-issues", radius:size*0.32, color:TPColors.red600, weight:z>=18?3:2.5, fillColor:TPColors.white, fillOpacity:1})
+          : new ImageMark([lat, lon], {renderer, pane:"sidewalk-issues", radius:size/2, image:noWalkImages[kind===4?3:kind]});
+        mark.addTo(layer);
+      }
+    };
+    const schedule = () => {clearTimeout(timer); timer=setTimeout(draw,120);};
+    loadSidewalkIssues().then((data) => {if (!active) return; issues=data; draw();}).catch(() => {});
+    for (const img of noWalkImages) if (!img.complete) img.addEventListener("load", draw, {once:true});
+    m.on("moveend", schedule);
+    return () => {active=false; clearTimeout(timer); cancelAnimationFrame(hoverFrame); container.removeEventListener('mousemove',hover,true);container.removeEventListener('click',click,true);container.removeEventListener('mouseleave',leave);tooltip.remove();popup.remove();m.off("moveend", schedule);layer.remove();renderer.remove();};
+  }, [showOfficialSidewalk, hideMapIcons]);
   useEffect(() => {
     if (!map.current) return;
     const m = map.current,
@@ -174,29 +247,27 @@ export default function MapView({
     baseLayers.current = [];
     root.current?.removeAttribute("data-tile-error");
     onBasemapStatus?.("loading");
-    let failed = false;
+    let active=true;
+    const tileStates=[];
+    const updateStatus=()=>{
+      if(!active)return;
+      const zoom=m.getZoom(),visible=tileStates.filter(item=>zoom>=(item.layer.options.minZoom??0)&&zoom<=(item.layer.options.maxZoom??Infinity));
+      const failed=visible.some(item=>item.failed);
+      if(failed){root.current?.setAttribute("data-tile-error", "true");onBasemapStatus?.("error");}
+      else {root.current?.removeAttribute("data-tile-error");onBasemapStatus?.(visible.some(item=>item.loading)?"loading":"ready");}
+    };
     const watch = (layer) => {
-      layer.on("loading", () => {
-        failed = false;
-        onBasemapStatus?.("loading");
-      });
-      layer.on("tileerror", () => {
-        failed = true;
-        onBasemapStatus?.("error");
-        root.current?.setAttribute("data-tile-error", "true");
-      });
-      layer.on("load", () => {
-        if (!failed) {
-          root.current?.removeAttribute("data-tile-error");
-          onBasemapStatus?.("ready");
-        }
-      });
+      const item={layer,loading:true,failed:false};tileStates.push(item);
+      layer.on("loading", () => {item.loading=true;item.failed=false;updateStatus();});
+      layer.on("tileerror", () => {item.failed=true;updateStatus();});
+      layer.on("load", () => {item.loading=false;updateStatus();});
       layer.addTo(m);
       baseLayers.current.push(layer);
     };
+    m.on("zoomend",updateStatus);
     // spec.close：放大到 minZoom 以上改用另一組圖磚（例如不印店名的底圖）。
-    const close = spec.close;
-    watch(
+    const close = spec.close && hideMapIcons ? {...spec.close, minZoom: 11} : spec.close;
+    if (!close || close.minZoom > 11) watch(
       L.tileLayer(spec.url, {
         maxZoom: close ? close.minZoom - 1 : 19,
         maxNativeZoom: 19,
@@ -220,9 +291,9 @@ export default function MapView({
           maxZoom: 19,
           maxNativeZoom: 19,
           zIndex: 2,
+          attribution: hideMapIcons ? close.attribution : undefined,
         });
-        roads.addTo(m);
-        baseLayers.current.push(roads);
+        watch(roads);
       }
     }
     if (spec.overlay) {
@@ -232,363 +303,311 @@ export default function MapView({
         zIndex: 2,
         opacity: 0.85,
       });
-      overlay.addTo(m);
-      baseLayers.current.push(overlay);
+      watch(overlay);
     }
     return () => {
+      active=false;m.off("zoomend",updateStatus);
       for (const layer of baseLayers.current) {
-        layer.off();
+        // Leaflet's own remove listener unregisters the layer's map events.
+        // Clearing listeners first leaves zoom/viewreset callbacks on the map.
         layer.remove();
       }
       baseLayers.current = [];
     };
-  }, [basemap]);
+  }, [basemap, hideMapIcons]);
   useEffect(() => {
-    if (!map.current) return;
-    if (!showOfficialSidewalk) {
-      onOfficialSidewalkStatus?.("idle");
-      return;
-    }
     const m = map.current;
-    const pane =
-      m.getPane("official-sidewalks") ||
-      // 地圖可旋轉時，底圖在 rotatePane（z-index 400）裡；通行線也要放進同一層，
-      // 否則會被底圖蓋住，且不會跟著地圖旋轉。
-      m.createPane("official-sidewalks", m.getPane("rotatePane") || undefined);
-    pane.style.zIndex = "350";
-    pane.style.pointerEvents = "none";
-    const renderer = L.canvas({ pane: "official-sidewalks", padding: 0.25 });
-    let active = true;
-    let features;
-    let issues;
-    let drawing;
-    const clear = () => {
-      drawing?.remove();
-      drawing = null;
-    };
-    const draw = () => {
-      if (!active || !features) return;
-      clear();
-      if (m.getZoom() < 16) {
-        onOfficialSidewalkStatus?.("zoom");
-        return;
-      }
-      const lines = visibleSidewalkLines(features, m.getBounds());
-      const halo = L.polyline(lines, {
-        renderer,
-        pane: "official-sidewalks",
-        color: TPColors.white,
-        weight: 6,
-        opacity: 0.9,
-        interactive: false,
-      });
-      const official = L.polyline(lines, {
-        renderer,
-        pane: "official-sidewalks",
-        color: TPColors.orange700,
-        weight: 3,
-        opacity: 0.92,
-        interactive: false,
-      });
-      drawing = L.layerGroup([halo, official]);
-      // 不利通行點位跟人行道同一個圖層：放大到 16 以上才畫。
-      // 不利通行（淨寬不足）用「禁止行人」號誌，依平臺活動區域分級上色（高紫、中黃、低青綠）；
-      // 行穿線未設置路緣斜坡為空心紅圈。號誌比圓點大，彼此太近（同一格）只畫一個：高 > 中 > 低 > 紅圈。
-      if (issues && m.getZoom() >= 16) {
-        const z = m.getZoom(),
-          size = z >= 19 ? 28 : z >= 18 ? 24 : z >= 17 ? 20 : 16,
-          cell = issueMarkerCell(z),
-          taken = new Set();
-        const free = (lat, lon) => {
-          const pt = m.latLngToContainerPoint([lat, lon]),
-            key = `${Math.floor(pt.x / cell)}:${Math.floor(pt.y / cell)}`;
-          if (taken.has(key)) return false;
-          taken.add(key);
-          return true;
-        };
-        const visible = visibleSidewalkIssues(issues, m.getBounds()).sort(
-          (a, b) => a.kind - b.kind,
-        );
-        for (const { lat, lon, kind } of visible) {
-          if (!free(lat, lon)) continue;
-          if (kind === 3)
-            L.circleMarker([lat, lon], {
-              renderer,
-              pane: "official-sidewalks",
-              radius: size * 0.32,
-              color: TPColors.red600,
-              weight: z >= 18 ? 3 : 2.5,
-              fillColor: TPColors.white,
-              fillOpacity: 1,
-              interactive: false,
-            }).addTo(drawing);
-          else
-            new ImageMark([lat, lon], {
-              renderer,
-              pane: "official-sidewalks",
-              radius: size / 2,
-              image: noWalkImages[kind],
-              interactive: false,
-            }).addTo(drawing);
-        }
-      }
-      drawing.getAttribution = () =>
-        `無障礙通行線 © <a href="${OFFICIAL_SIDEWALK_SOURCE}" target="_blank" rel="noopener">臺北市政府</a>`;
-      drawing.addTo(m);
-      onOfficialSidewalkStatus?.("ready");
-    };
+    if (!m || !marks.current) return;
+    let openPopup = null;
+    let redrawPending = false;
+    let rotationTimer;
     let redrawTimer;
-    const scheduleDraw = () => {
-      clearTimeout(redrawTimer);
-      redrawTimer = setTimeout(draw, 120);
+    const renderMarkers = () => {
+      // The popup can pan the map. Keep its source marker until the user
+      // chooses or closes it, then draw the new viewport.
+      if (openPopup && markerData.current.hideMapIcons) m.closePopup(openPopup);
+      if (openPopup) { redrawPending = true; return; }
+      marks.current.clearLayers();
+      const bounds = m.getBounds();
+      const visible = [];
+      const visibleRecent = markerData.current.recentPlaces.filter(p=>Number.isFinite(p?.lat)&&Number.isFinite(p?.lon)&&bounds.contains([p.lat,p.lon]));
+      for (const p of selectMapMarkers(markerData.current.items, visibleRecent, m.getZoom(), markerData.current.activeFilter)) {
+        if (category(p) === "ramp") continue;
+        if (!Number.isFinite(p.lat) || !Number.isFinite(p.lon) || !bounds.contains([p.lat, p.lon])) continue;
+        const pos = m.latLngToContainerPoint([p.lat, p.lon]);
+        visible.push({ p, x: pos.x, y: pos.y });
+      }
+      // Choose one readable marker per occupied screen area; known duplicates
+      // are filtered earlier and exact colocated places remain in a list.
+      const size = Math.ceil(32 * pinScale(m.getZoom()));
+      const center = m.getSize().divideBy(2);
+      const groups = layoutMapMarkers(visible,{size,center,recentPlaces:visibleRecent,activeFilter:markerData.current.activeFilter});
+      for (const { points, label: markerText } of groups) {
+        const p = points[0].p, kind = category(p), multiple = points.length > 1;
+        const name = cleanName(p.name) || labels[kind] || "地點";
+        const color = markerData.current.colorFriendly ? TPColors.primary900 : colors[kind] || TPColors.primary700;
+        const face = document.createElement("span");
+        face.style.setProperty("--pin", color);
+        const stationIcon = isMetroStation(p) ? metroStationIconUrl(metroStationCodes(p.name)[0]) : "";
+        const exitIcon = isExitSymbol(p) && m.getZoom() >= 16 ? metroExitIconUrl(p) : "";
+        if (isExitSymbol(p) && m.getZoom() >= 16) face.classList.add("metro-exit-face");
+        if (stationIcon) {
+          face.classList.add("metro-station-face");
+          const img = document.createElement("img"); img.src = stationIcon; img.alt = ""; face.appendChild(img);
+        } else if (exitIcon) {
+          face.classList.add("has-exit-icon");
+          const img = document.createElement("img"); img.src = exitIcon; img.alt = ""; face.appendChild(img);
+        } else if (isExitSymbol(p) && m.getZoom() >= 16 && metroExitLabel(p) !== "梯") {
+          face.textContent = metroExitLabel(p);
+        } else {
+          face.classList.add("has-glyph"); face.appendChild(mapIconElement(m.getZoom() < 16 && isMetroExit(p) ? "place" : p.kind === "metro-exit" ? "entrance" : p.kind === "metro-elevator" ? "elevator" : iconKind(kind), 16));
+        }
+        const body = document.createElement("div");
+        body.className = "pin-body";
+        body.appendChild(face);
+        if (isExitSymbol(p) && m.getZoom() >= 16) {
+          const stationBadge = metroStationIconUrl(p.stationCode);
+          if (stationBadge) {
+            const img = document.createElement("img");
+            img.className = "metro-station-badge"; img.src = stationBadge; img.alt = "";
+            body.classList.add("has-station-badge");
+            body.appendChild(img);
+          }
+          if (p.elevator === true || isMetroElevatorEntrance(p)) {
+            const lift = document.createElement("div");
+            lift.className = "metro-lift-badge"; lift.appendChild(mapIconElement("elevator", 11));
+            body.appendChild(lift);
+          }
+        }
+        if (markerText) {
+          const label = document.createElement("div"); label.className = "pin-label"; label.textContent = markerText; body.appendChild(label);
+        }
+        const marker = L.marker([p.lat, p.lon], {
+          title: multiple ? `${markerKindLabel(p)}：${name}（同位置 ${points.length} 個地點）` : `${markerKindLabel(p)}：${name}`,
+          icon: L.divIcon({
+            className: isExitSymbol(p) && m.getZoom() >= 16 ? "fac-pin metro-exit-pin" : p.landmark ? "fac-pin landmark" : "fac-pin",
+            html: body, iconSize: p.landmark ? [32, 32] : [28, 28], iconAnchor: p.landmark ? [16, 16] : [14, 14],
+          }),
+        }).addTo(marks.current);
+        if (!markerText) {
+          const tip = document.createElement("span"); tip.textContent = multiple ? `${name}（同位置 ${points.length} 個地點）` : name;
+          marker.bindTooltip(tip, { direction: "top", offset: [0, -14] });
+        }
+        marker.on("click", (event) => {
+          L.DomEvent.stopPropagation(event);
+          if (!multiple) {
+            if (cb.current.pick) cb.current.onPick(p); else cb.current.onSelect(p);
+            return;
+          }
+          cb.current.onGesture?.();
+          const list = document.createElement("div"); list.className = "facility-marker-choices";
+          const heading = document.createElement("strong"); heading.textContent = "同位置的地點"; list.append(heading);
+          for (const { p: choice } of points) {
+            const choiceKind = category(choice), button = document.createElement("button"); button.type = "button";
+            const iconUrl = isMetroStation(choice)
+              ? metroStationIconUrl(metroStationCodes(choice.name)[0])
+              : isExitSymbol(choice) && m.getZoom() >= 16 ? metroExitIconUrl(choice) : "";
+            const icon = iconUrl ? document.createElement("img") : mapIconElement(iconKind(choiceKind), 16);
+            if (iconUrl) { icon.src = iconUrl; icon.alt = ""; }
+            const text = document.createElement("span");
+            const stationCode = choice.kind === "metro-exit" ? metroStationIconUrl(choice.stationCode) : "";
+            text.textContent = `${markerKindLabel(choice)}：${cleanName(choice.name) || "未命名"}${stationCode ? `（${choice.stationCode}）` : ""}`;
+            button.append(icon, text);
+            if (stationCode) {
+              const station = document.createElement("img"); station.src = stationCode; station.alt = ""; station.className = "metro-choice-station";
+              button.append(station);
+            }
+            button.addEventListener("click", () => {
+              m.closePopup(openPopup);
+              if (cb.current.pick) cb.current.onPick(choice); else cb.current.onSelect(choice);
+            });
+            list.append(button);
+          }
+          L.DomEvent.disableClickPropagation(list);
+          L.DomEvent.disableScrollPropagation(list);
+          const height = m.getSize().y;
+          const bottom = Math.min(Math.max(0, paddingReader.current?.() || 0), Math.max(0, height - 120));
+          const popup = L.popup({
+            maxHeight: Math.max(70, Math.min(260, height - bottom - 100)),
+            autoPanPaddingTopLeft: [16, 16], autoPanPaddingBottomRight: [16, bottom + 16],
+          }).setLatLng(marker.getLatLng()).setContent(list);
+          openPopup = popup;
+          popup.openOn(m);
+          requestAnimationFrame(() => list.querySelector("button")?.focus());
+        });
+      }
     };
-    onOfficialSidewalkStatus?.("loading");
-    // 不利通行點位載入失敗時，人行道照常顯示。
-    loadSidewalkIssues()
-      .then((result) => {
-        if (!active) return;
-        issues = result;
-        // 號誌圖還沒解碼完時先略過，載好再重畫一次。
-        for (const img of noWalkImages)
-          if (!img.complete)
-            img.addEventListener("load", () => active && draw(), { once: true });
-        draw();
-      })
-      .catch(() => {});
-    loadOfficialSidewalks()
-      .then((result) => {
-        if (!active) return;
-        features = result;
-        draw();
-        m.on("moveend", scheduleDraw);
-      })
-      .catch(() => {
-        if (active) onOfficialSidewalkStatus?.("error");
-      });
+    const close = (event) => {
+      if (event.popup !== openPopup) return;
+      openPopup = null;
+      if (redrawPending) { redrawPending = false; redrawTimer = setTimeout(renderMarkers, 0); }
+    };
+    const rotate = () => { clearTimeout(rotationTimer); rotationTimer = setTimeout(renderMarkers, 120); };
+    markerRedraw.current = renderMarkers;
+    m.on("moveend", renderMarkers);
+    m.on("rotate", rotate);
+    m.on("popupclose", close);
+    renderMarkers();
     return () => {
-      active = false;
+      clearTimeout(rotationTimer);
       clearTimeout(redrawTimer);
-      m.off("moveend", scheduleDraw);
-      clear();
-      renderer.remove();
+      markerRedraw.current = undefined;
+      m.off("moveend", renderMarkers);
+      m.off("rotate", rotate);
+      m.off("popupclose", close);
     };
-  }, [showOfficialSidewalk]);
+  }, []);
+  useEffect(() => { markerRedraw.current?.(); }, [items, recentPlaces, colorFriendly, hideMapIcons, activeFilter]);
   useEffect(() => {
-    if (!marks.current) return;
-    marks.current.clearLayers();
-    const m = map.current;
-    const bounds = m.getBounds(), z = m.getZoom(), size = m.getSize();
-    const s = pinScale(z);
-    const spacing = z <= 13 ? 88 : z === 14 ? 78 : z === 15 ? 68 : z === 16 ? 57 : z === 17 ? 49 : z === 18 ? 43 : 38;
-    const cap = z <= 13 ? 4 : z === 14 ? 5 : z === 15 ? 7 : z === 16 ? 16 : z === 17 ? 32 : z === 18 ? 54 : 85;
-    const limit = Math.min(cap, Math.max(3, Math.floor(size.x * size.y / (spacing * spacing * 1.6))));
-    const ranked = items.filter(p => bounds.contains([p.lat, p.lon])).map((p, order) => {
-      const pos = m.latLngToContainerPoint([p.lat, p.lon]);
-      const station = p.stationCodes?.length > 0;
-      const transit = station || p.kind === "metro-elevator" || category(p) === "bus";
-      const priority = p.mapPriority ?? (z >= 16 && (station || (z >= 17 && transit)) ? 2 : p.landmark ? 1 : 0);
-      const distance = Math.hypot(pos.x - size.x / 2, pos.y - size.y / 2);
-      return { p, pos, order, distance, priority };
-    }).sort((a, b) => b.priority - a.priority || (z < 16 ? a.order - b.order : a.distance - b.distance));
-    const endpointPositions = [start, end].filter(Boolean)
-      .map(p => m.latLngToContainerPoint([p.lat, p.lon]));
-    const pins = [];
-    for (const candidate of ranked) {
-      if (endpointPositions.some(pos => pos.distanceTo(candidate.pos) < spacing * 0.7)) continue;
-      if (pins.some(({ pos }) => pos.distanceTo(candidate.pos) < spacing)) continue;
-      pins.push(candidate);
-      if (pins.length === limit) break;
+    if(!referencePath.current||!referenceRenderer.current)return;
+    referencePath.current.clearLayers();
+    const lines=referenceRouteLines(route?.kind==='official-passageway'?route:referenceRoute,{start,end});
+    // Draw the whole outline first so adjacent segment outlines cannot cover
+    // an already drawn route and create visible gaps at their shared points.
+    for(const line of lines){
+      L.polyline(line.coordinates,{pane:'reference-route',renderer:referenceRenderer.current,interactive:false,color:TPColors.white,weight:7,opacity:1}).addTo(referencePath.current);
     }
-    const boxes = [], labelled = new Set();
-    const overlaps = (r) => boxes.some(
-      b => r.x0 < b.x1 && r.x1 > b.x0 && r.y0 < b.y1 && r.y1 > b.y0,
-    );
-    for (const { pos } of pins) {
-      const r = 15 * s;
-      boxes.push({ x0: pos.x - r, x1: pos.x + r, y0: pos.y - r, y1: pos.y + r });
+    for(const line of lines){
+      const style=REFERENCE_STYLES[line.kind],options={pane:'reference-route',renderer:referenceRenderer.current,interactive:line.approximateCrossing===true};
+      const stroke=L.polyline(line.coordinates,{...options,color:style.color,weight:style.weight,dashArray:style.dashArray,opacity:1}).addTo(referencePath.current);
+      if(line.approximateCrossing)stroke.bindTooltip('過街邊界未確認');
     }
-    pins
-      .filter(({ p }) => hasLabel(p) && cleanName(p.name))
-      .sort(
-        (a, b) =>
-          !!b.p.landmark - !!a.p.landmark ||
-          Math.hypot(a.pos.x - size.x / 2, a.pos.y - size.y / 2) -
-            Math.hypot(b.pos.x - size.x / 2, b.pos.y - size.y / 2),
-      )
-      .forEach(({ p, pos }) => {
-        const half = (labelWidth(cleanName(p.name)) * s) / 2,
-          top = pos.y + (p.landmark ? 17 : 15) * s;
-        const r = { x0: pos.x - half, x1: pos.x + half, y0: top, y1: top + 15 * s };
-        if (overlaps(r)) return;
-        boxes.push(r);
-        labelled.add(p);
-      });
-    for (const { p } of pins) {
-      const color = colorFriendly ? TPColors.primary900 : colors[category(p)] || TPColors.primary700;
-      const face = document.createElement("span");
-      face.style.setProperty("--pin", color);
-      const exitIcon = metroExitIconUrl(p);
-      const stationIcon = p.stationCodes?.map(metroStationIconUrl).find(Boolean);
-      const iconUrl = exitIcon || stationIcon;
-      const isExit = p.kind === "metro-elevator" || isNumberedStationExit(p);
-      if (iconUrl || isExit) face.classList.add("metro-exit-face");
-      if (iconUrl) {
-        face.classList.add("has-exit-icon");
-        const img = document.createElement("img");
-        img.src = iconUrl;
-        img.alt = "";
-        face.appendChild(img);
-      } else if (isExit && metroExitLabel(p) !== "梯") {
-        face.textContent = metroExitLabel(p);
-      } else if (p.kind === "metro-elevator") {
-        face.classList.add("has-glyph");
-        face.appendChild(mapIconElement("elevator", 16));
-      } else {
-        face.classList.add("has-glyph");
-        face.appendChild(mapIconElement(iconKind(category(p)), 16));
-      }
-      // 圖形和名稱包在同一個元素裡，一起縮放。名稱用 div，避免套到 .fac-pin span 的圓點樣式。
-      const body = document.createElement("div");
-      body.className = "pin-body";
-      body.appendChild(face);
-      const showLabel = labelled.has(p);
-      if (showLabel) {
-        const label = document.createElement("div");
-        label.className = "pin-label";
-        label.textContent = cleanName(p.name);
-        body.appendChild(label);
-      }
-      const marker = L.marker([p.lat, p.lon], {
-        icon: L.divIcon({
-          className:
-            iconUrl || isExit
-              ? "fac-pin metro-exit-pin"
-              : p.landmark
-                ? "fac-pin landmark"
-                : "fac-pin",
-          html: body,
-          iconSize: p.landmark ? [32, 32] : [28, 28],
-          iconAnchor: p.landmark ? [16, 16] : [14, 14],
-        }),
-        keyboard: false,
-        title: cleanName(p.name),
-      }).addTo(marks.current);
-      // 名稱已經顯示在地圖上就不再用滑鼠提示重複一次。
-      if (!showLabel) {
-        const tip = document.createElement("span");
-        tip.textContent = cleanName(p.name);
-        marker.bindTooltip(tip, { direction: "top", offset: [0, -14] });
-      }
-      marker.on("click", (ev) => {
-        L.DomEvent.stopPropagation(ev);
-        if (cb.current.pick) cb.current.onPick(p);
-        else cb.current.onSelect(p);
-      });
-    }
-  }, [items, start, end, colorFriendly]);
+    if(lines.length&&(!route||route.kind==='official-passageway')&&!partialRoute&&map.current){const points=lines.flatMap(line=>line.coordinates),height=map.current.getSize().y;map.current.fitBounds(L.latLngBounds(points),{animate:false,...routePadding(height)});}
+  },[referenceRoute,route,partialRoute,start,end,hideMapIcons]);
   useEffect(() => {
     if (!path.current) return;
     path.current.clearLayers();
-    if (route?.coordinates) {
-      L.polyline(route.coordinates, {
+    if (route?.coordinates && route.kind!=='official-passageway') {
+      L.polyline(route.networkCoordinates || route.coordinates, {
         color: TPColors.white,
         weight: 10,
         opacity: 1,
       }).addTo(path.current);
-      L.polyline(route.coordinates, {
-        color: TPColors.primary700,
-        weight: 6,
-        opacity: 1,
-        lineCap: "round",
-        dashArray: route.requiresEntryConfirmation ? "8 6" : undefined,
-      }).addTo(path.current);
-      for (const [index, step] of (route.steps || []).entries()) {
-        if (!Number.isFinite(step.lat) || !Number.isFinite(step.lon)) continue;
-        const marker = L.marker([step.lat, step.lon], {
-          icon: L.divIcon({
-            className: "route-step-pin",
-            html: `<span>${index + 1}</span>`,
-            iconSize: [24, 24],
-            iconAnchor: [12, 12],
-          }),
-          keyboard: false,
-        }).addTo(path.current);
-        const label = document.createElement("span");
-        label.textContent = `第 ${index + 1} 段：${cleanName(step.name) || step.turn || "繼續前進"}`;
-        marker.bindTooltip(label, { direction: "top" });
+      if(route.tierSegments?.length){
+        for(const segment of route.tierSegments){const style=ROUTE_CONDITIONS[conditionForSegment(segment)];const line=L.polyline(segment.coordinates,{color:colorFriendly?TPColors.primary900:style.color,weight:8,dashArray:style.dash,opacity:1}).addTo(path.current);if(segment.sharedRoad===true)line.bindTooltip(`${style.label}；請留意車輛及現場通行狀況`);}
+      }else {
+        // The online response does not certify width or slope.
+        const style=ROUTE_CONDITIONS[fallbackRouteCondition(route)];
+        L.polyline(route.networkCoordinates||route.coordinates,{color:colorFriendly?TPColors.primary900:style.color,weight:8,dashArray:style.dash,opacity:1}).addTo(path.current);
       }
-      for (const stair of route.avoidedStairs || []) {
-        if (!Number.isFinite(stair.lat) || !Number.isFinite(stair.lon)) continue;
-        const marker = L.circleMarker([stair.lat, stair.lon], {
-          radius: 8,
-          color: TPColors.white,
-          weight: 3,
-          fillColor: TPColors.orange700,
-          fillOpacity: 1,
-        }).addTo(path.current);
-        const label = document.createElement("span");
-        label.textContent = `已避開階梯：${cleanName(stair.name)}`;
-        marker.bindTooltip(label, { direction: "top" });
+      for (const crossing of route.crossingUncertainties || []) {
+        const coords = crossing.coordinates;
+        if (!Array.isArray(coords) || coords.length < 2 || !coords.every(p=>Array.isArray(p) && p.length >= 2 && Number.isFinite(p[0]) && Number.isFinite(p[1]))) continue;
+        L.polyline(coords, {color: TPColors.primary900, weight: 3, dashArray: '2 5', opacity: 0.9})
+          .bindTooltip('OSM 過街位置，官方資料未完整確認').addTo(path.current);
       }
-      for (const work of route.construction?.avoidedWorks || []) {
-        const geometry = work.geometry;
-        if (!geometry?.coordinates?.length) continue;
-        let layer;
-        if (geometry.type === "Point")
-          layer = L.circleMarker(geometry.coordinates[0], {
-            radius: 9,
-            color: TPColors.white,
-            weight: 3,
-            fillColor: TPColors.red700,
-            fillOpacity: 1,
-          });
-        else if (geometry.type === "Polygon")
-          layer = L.polygon(geometry.coordinates, {
-            color: TPColors.red700,
-            weight: 3,
-            dashArray: "6 5",
-            fillColor: TPColors.red500,
-            fillOpacity: 0.18,
-          });
-        else
-          layer = L.polyline(geometry.coordinates, {
-            color: TPColors.red700,
-            weight: 4,
-            dashArray: "6 5",
-          });
-        layer.addTo(path.current);
-        const label = document.createElement("span");
-        label.textContent = `已避開施工：${work.address}`;
-        layer.bindTooltip(label, { direction: "top" });
+      for (const coords of route.crossingSegments || []) {
+        if (!Array.isArray(coords) || coords.length < 2 || !coords.every(p=>Array.isArray(p) && p.length >= 2 && Number.isFinite(p[0]) && Number.isFinite(p[1]))) continue;
+        L.polyline(coords, {color: TPColors.primary900, weight: 3, dashArray: '2 5', opacity: 0.9}).bindTooltip('過街').addTo(path.current);
       }
-      map.current.fitBounds(L.latLngBounds(route.coordinates).pad(0.2));
-    } else if (partialRoute) {
-      const bounds=[];
-      for(const segment of partialRoute.segments){
-        drawOfficialConditions(path.current,segment.officialConditions);
-        bounds.push(...segment.coordinates);
-        L.polyline(segment.networkCoordinates,{color:TPColors.white,weight:10,opacity:1}).addTo(path.current);
-        if(segment.tierSegments.length){
-          for(const tier of segment.tierSegments){const style=ROUTE_CONDITIONS[conditionForSegment(tier)];L.polyline(tier.coordinates,{color:colorFriendly?TPColors.primary900:style.color,weight:5,dashArray:style.dash,opacity:1}).addTo(path.current);}
-        }else{
-          const style=ROUTE_CONDITIONS.unknown;L.polyline(segment.networkCoordinates,{color:colorFriendly?TPColors.primary900:style.color,weight:5,dashArray:style.dash,opacity:1}).addTo(path.current);
+      for(const approach of route.approaches || []) {const style=ROUTE_CONDITIONS.approach;L.polyline(approach.coordinates,{color:TPColors.white,weight:6,opacity:1}).addTo(path.current);const line=L.polyline(approach.coordinates,{color:colorFriendly?TPColors.primary900:style.color,weight:4,dashArray:style.dash}).addTo(path.current);if(approach.estimated)line.bindTooltip('入口及實際通行狀況未確認，虛線僅為位置估算');}
+      const m=map.current;
+      const fit=()=>{if(!m||map.current!==m)return;const height=m.getSize().y;m.fitBounds(L.latLngBounds(route.coordinates),{animate:false,...routePadding(height)});};
+      fit();const timer=setTimeout(fit,350);return ()=>clearTimeout(timer);
+    }
+  }, [route,sheetSnap,colorFriendly,hideMapIcons]);
+  useEffect(() => {
+    if(!partialPath.current)return;
+    partialPath.current.clearLayers();
+    if(!partialRoute)return;
+    const bounds=[];
+    for(const segment of partialRoute.segments){
+      bounds.push(...segment.coordinates);
+      L.polyline(segment.networkCoordinates,{color:TPColors.white,weight:7,opacity:1}).addTo(partialPath.current);
+      if(segment.tierSegments.length){
+        for(const tier of segment.tierSegments){const style=ROUTE_CONDITIONS[conditionForSegment(tier)];L.polyline(tier.coordinates,{color:colorFriendly?TPColors.primary900:style.color,weight:5,dashArray:style.dash,opacity:1}).addTo(partialPath.current);}
+      }else{
+        const style=ROUTE_CONDITIONS[fallbackRouteCondition(segment)];L.polyline(segment.networkCoordinates,{color:colorFriendly?TPColors.primary900:style.color,weight:5,dashArray:style.dash,opacity:1}).addTo(partialPath.current);
+      }
+      for(const crossing of segment.crossingUncertainties||[]){const coords=crossing.coordinates;if(!Array.isArray(coords)||coords.length<2||!coords.every(p=>Array.isArray(p)&&p.length>=2&&Number.isFinite(p[0])&&Number.isFinite(p[1])))continue;L.polyline(coords,{color:TPColors.primary900,weight:3,dashArray:'2 5',opacity:.9}).bindTooltip('OSM 過街位置，官方資料未完整確認').addTo(partialPath.current);}
+      for(const approach of segment.approaches){const style=ROUTE_CONDITIONS.approach;L.polyline(approach.coordinates,{color:TPColors.white,weight:6,opacity:1}).addTo(partialPath.current);const l=L.polyline(approach.coordinates,{color:colorFriendly?TPColors.primary900:style.color,weight:4,dashArray:style.dash}).addTo(partialPath.current);if(approach.estimated)l.bindTooltip('入口銜接為位置估算，實際通行狀況未確認');}
+    }
+    for(const [side,label] of [['startSide','起點側路段到此'],['endSide','目的地側路段由此開始']]){
+      const point=partialRoute.gap[side];if(!point)continue;bounds.push(point);
+      L.circleMarker(point,{radius:9,color:TPColors.white,weight:3,fillColor:TPColors.orange700,fillOpacity:1}).bindTooltip(label,{permanent:true,direction:side==='startSide'?'top':'bottom',offset:side==='startSide'?[0,-8]:[0,8]}).addTo(partialPath.current);
+    }
+    if(bounds.length&&!route){const height=map.current.getSize().y;map.current.fitBounds(L.latLngBounds(bounds),{maxZoom:17,animate:false,...routePadding(height)});}
+  },[partialRoute,route,sheetSnap,colorFriendly,hideMapIcons]);
+  useEffect(() => {
+    if(!routeIssues.current)return;
+    routeIssues.current.clearLayers();
+    const paths=route?[route]:(partialRoute?.segments||[]),seen=new Set();
+    for(const path of paths){
+      const {markers,highlights}=routeIssueMarkers(path);
+      for(const highlight of highlights){
+        const note=document.createElement('span');note.textContent=highlight.label;
+        L.polyline(highlight.coordinates,{pane:'route-issue-line',color:'#7036a3',weight:4,dashArray:'3 4',opacity:1}).bindTooltip(note).addTo(routeIssues.current);
+      }
+      for(const marker of markers){
+        const key=`${marker.lat},${marker.lon}`;if(seen.has(key))continue;seen.add(key);
+        const icon=document.createElement('span');icon.className='route-issue-pin';icon.textContent='!';
+        const label=document.createElement('span');label.textContent=`${marker.title}：${marker.detail}`;
+        const detail=document.createElement('div'),heading=document.createElement('strong'),body=document.createElement('p');
+        heading.textContent=marker.title;body.textContent=marker.detail;detail.append(heading,body);
+        if(route && path===route && onAvoidOfficialCondition){
+          for(const record of marker.records){
+            const button=document.createElement('button');
+            button.type='button';button.className='route-issue-avoid';button.disabled=avoidingOfficialCondition;
+            button.textContent=marker.records.length>1?`嘗試繞過${record.type==='missing_noCurbSlope'?'淨寬不足':'缺少路緣斜坡'}`:'嘗試繞過';
+            button.addEventListener('click',()=>{button.disabled=true;cb.current.onAvoidOfficialCondition?.({...record,lat:marker.lat,lon:marker.lon});});
+            detail.append(button);
+          }
         }
-        for(const crossing of segment.crossingUncertainties||[]){const coords=crossing.coordinates;if(!Array.isArray(coords)||coords.length<2||!coords.every(p=>Array.isArray(p)&&p.length>=2&&Number.isFinite(p[0])&&Number.isFinite(p[1])))continue;L.polyline(coords,{color:TPColors.primary900,weight:3,dashArray:'2 5',opacity:.9}).bindTooltip('OSM 過街位置，官方資料未完整確認').addTo(path.current);}
-        for(const approach of segment.approaches){const style=ROUTE_CONDITIONS.approach;L.polyline(approach.coordinates,{color:TPColors.white,weight:8,opacity:1}).addTo(path.current);const l=L.polyline(approach.coordinates,{color:colorFriendly?TPColors.primary900:style.color,weight:4,dashArray:style.dash}).addTo(path.current);if(approach.estimated)l.bindTooltip('入口銜接為位置估算，實際通行狀況未確認');}
-      }
-      for(const [side,label] of [['startSide','起點側路段到此'],['endSide','目的地側路段由此開始']]){
-        const point=partialRoute.gap[side];if(!point)continue;bounds.push(point);
-        L.circleMarker(point,{radius:9,color:TPColors.white,weight:3,fillColor:TPColors.orange700,fillOpacity:1}).bindTooltip(label,{permanent:true,direction:side==='startSide'?'top':'bottom',offset:side==='startSide'?[0,-8]:[0,8]}).addTo(path.current);
-      }
-      if (bounds.length) {
-        map.current.fitBounds(L.latLngBounds(bounds).pad(0.2), { maxZoom: 17 });
+        const pin=L.marker([marker.lat,marker.lon],{pane:'route-issues',icon:L.divIcon({className:'route-issue-shell',html:icon,iconSize:[30,30],iconAnchor:[15,15]}),title:marker.title,alt:marker.title,keyboard:true}).bindTooltip(label,{direction:'top',offset:[0,-12]}).bindPopup(detail).addTo(routeIssues.current);
+        pin.getElement()?.setAttribute('aria-label',`${marker.title}，${marker.detail}`);
       }
     }
-  }, [route, partialRoute, colorFriendly]);
+  },[route,partialRoute,hideMapIcons,avoidingOfficialCondition]);
+  useEffect(() => {
+    if (!blocked.current) return;
+    blocked.current.clearLayers();
+    const bounds = [];
+    for (const work of constructionConflict?.blocked || []) {
+      const g = work.geometry;
+      if (!g || !Array.isArray(g.coordinates) || !g.coordinates.length) continue;
+      const label = document.createElement('span');
+      label.textContent = `${work.address || '施工位置'}：${g.type === 'Polygon' ? '施工範圍影響通行' : '施工位置附近可能影響通行，範圍為估計'}`;
+      let shape;
+      if (g.type === 'Point') shape = L.circle(g.coordinates[0], {radius:10, color:TPColors.red700, fillOpacity:0.2, weight:3});
+      else if (g.type === 'LineString') shape = L.polyline(g.coordinates, {color:TPColors.red700, weight:8, dashArray:'5 5'});
+      else if (g.type === 'Polygon') shape = L.polygon(g.coordinates, {color:TPColors.red700, fillOpacity:0.2, weight:3});
+      if (!shape) continue;
+      shape.bindTooltip(label).addTo(blocked.current);
+      bounds.push(...g.coordinates);
+    }
+    if (bounds.length && !route) map.current.fitBounds(L.latLngBounds(bounds), {maxZoom:17, ...routePadding(map.current.getSize().y), animate:false});
+  }, [constructionConflict, route]);
+  useEffect(() => {
+    if(!gap.current)return;
+    gap.current.clearLayers();
+    if(routeGap?.status!=='candidate')return;
+    const points=[[routeGap.startSide,'起點側路網'],[routeGap.endSide,'目的地側路網']];
+    for(const [point,label] of points){
+      const marker=L.circleMarker(point,{radius:9,color:TPColors.white,weight:3,fillColor:TPColors.orange700,fillOpacity:1}).addTo(gap.current);
+      marker.bindTooltip(label,{permanent:true,direction:'top'});
+    }
+    if(!route&&!constructionConflict?.blocked?.length&&!nearbyCandidates?.length){
+      const height=map.current.getSize().y;
+      map.current.fitBounds(L.latLngBounds(points.map(([point])=>point)),{maxZoom:17,animate:false,...routePadding(height)});
+    }
+  },[routeGap,route,constructionConflict,nearbyCandidates]);
+  useEffect(() => {
+    if(!nearby.current)return;
+    nearby.current.clearLayers();
+    const bounds=[];
+    for(const [index,candidate] of (nearbyCandidates||[]).entries()){
+      const point=[candidate.point.lat,candidate.point.lon];bounds.push(point);
+      const marker=L.circleMarker(point,{radius:9,color:TPColors.white,weight:3,fillColor:TPColors.primary700,fillOpacity:1}).addTo(nearby.current);
+      marker.bindTooltip(`${candidate.side==='start'?'起點':'目的地'}附近位置 ${index+1}：距原點約 ${candidate.straightMetres} 公尺${candidate.point.nearbyNetwork==='shared'?'；人車共行':''}；尚未確認連通`);
+      marker.on('click',event=>{L.DomEvent.stopPropagation(event);cb.current.onNearbySelect?.(candidate);});
+    }
+    if(bounds.length&&!route){const height=map.current.getSize().y;map.current.fitBounds(L.latLngBounds(bounds),{maxZoom:17,animate:false,...routePadding(height)});}
+  },[nearbyCandidates,route]);
   useEffect(() => {
     if (!ends.current) return;
     ends.current.clearLayers();
     if (location) {
+      if(Number.isFinite(location.accuracy) && location.accuracy > 0) L.circle([location.lat,location.lon],{radius:location.accuracy,color:TPColors.primary700,weight:1,fillOpacity:0.08,interactive:false}).addTo(ends.current);
       const marker = L.circleMarker([location.lat, location.lon], {
         radius: 7,
         color: TPColors.white,
@@ -600,7 +619,6 @@ export default function MapView({
     }
     [start, end].forEach((p, i) => {
       if (!p) return;
-      // 起點、終點用圖形（起點圓點、終點旗子），不用中文字。
       const face = document.createElement("span");
       face.className = i ? "destination" : "origin";
       const glyph = mapIconElement(i ? "flag" : "start", 16);
@@ -613,7 +631,7 @@ export default function MapView({
           iconSize: [32, 40],
           iconAnchor: [16, 38],
         }),
-        title: i ? `終點：${p.name}` : `起點：${p.name}`,
+        title: `${i ? "終點" : "起點"}：${p.name}`,
       }).addTo(ends.current);
       const el = document.createElement("span");
       el.textContent = p.name;
@@ -621,6 +639,7 @@ export default function MapView({
     });
     if (route?.requiresEntryConfirmation) {
       [route.coordinates[0], route.coordinates.at(-1)].forEach((p, i) => {
+        const text = i ? "路線終點" : "路線起點";
         const face = document.createElement("span");
         face.appendChild(mapIconElement(i ? "flag" : "start", 16));
         L.marker(p, {
@@ -630,14 +649,18 @@ export default function MapView({
             iconSize: [28, 28],
             iconAnchor: [14, 14],
           }),
-          title: i ? "路線終點" : "路線起點",
+          title: text,
         }).addTo(ends.current);
       });
     }
   }, [start, end, route, location]);
   useEffect(() => {
-    if (focus?.lat && map.current)
-      map.current.setView([focus.lat, focus.lon], focus.zoom ?? Math.max(17, map.current.getZoom()));
+    if (focus?.lat && map.current) {
+      const m = map.current;
+      m.setView([focus.lat, focus.lon], focus.zoom || 17, { animate: false });
+      const offset = focusOffsetForInset(m.getSize().y, paddingReader.current?.());
+      if (offset) m.panBy([0, offset], { animate: false });
+    }
   }, [focus?.token]);
   return (
     <div

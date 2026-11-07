@@ -3,6 +3,7 @@ import json, urllib.request, time, hashlib, csv, io, sys
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
+from clean_facilities import clean_datasets
 ROOT=Path(__file__).resolve().parent.parent
 RAW=ROOT/'data/raw'; OUT=ROOT/'data/processed'
 RAW.mkdir(parents=True,exist_ok=True); OUT.mkdir(parents=True,exist_ok=True)
@@ -75,6 +76,9 @@ def main():
         sources.append({'id':'construction','name':'臺北市今日施工資訊','url':'https://data.taipei/dataset/detail?id=c208dabd-2da0-4e6d-8dbd-a004b9782b0a','fetchedAt':NOW,'count':len(clean),'status':'ok','updateFrequency':'每10分鐘','snapshot':True})
         print('construction',len(clean),'raw keys',list(rows[0]) if rows else [],flush=True)
     except Exception as e: print('construction:',e,flush=True)
+    # Preserve every source record and ID; normalize display names and provide
+    # conservative map grouping without altering accessibility metadata.
+    facilities,_=clean_datasets(facilities,[])
     (OUT/'facilities.json').write_text(json.dumps(facilities,ensure_ascii=False,separators=(',',':')),encoding='utf-8')
     (OUT/'metro.json').write_text(json.dumps(metro,ensure_ascii=False,separators=(',',':')),encoding='utf-8')
     (OUT/'sources.json').write_text(json.dumps({'generatedAt':NOW,'sources':sources,'facilityCount':len(facilities)},ensure_ascii=False,indent=2),encoding='utf-8')

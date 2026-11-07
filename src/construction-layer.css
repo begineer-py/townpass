@@ -1,0 +1,8 @@
+.construction-marker-shell { background: transparent; border: 0; }
+.construction-pin { box-sizing: border-box; display: flex; width: 34px; height: 34px; align-items: center; justify-content: center; border: 2px solid #fff; border-radius: 50%; box-shadow: 0 1px 5px rgba(0,0,0,.35); color: #fff; font-size: 11px; font-weight: 600; line-height: 1; background: #74521B; }
+.construction-pin--blocked { background: #912522; }
+.construction-pin--unknown { background: #74521B; }
+.construction-pin--clear { background: #5E6D76; }
+.construction-pin img { display: block; width: 23px; height: 23px; }
+.construction-avoid { display:block; min-height:44px; margin-top:8px; padding:8px 12px; border:1px solid #468d9b; border-radius:8px; background:#fff; color:#356c77; font:inherit; cursor:pointer; }
+.construction-avoid:disabled { opacity:.55; cursor:default; }

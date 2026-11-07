@@ -1,17 +1,21 @@
 import {polygonConnectorChecker,roadConnectorChecker} from './geometry.mjs';
 import {officialGeometryEvidence} from './supplemental-evidence.mjs';
 import {edgeAllowed,metres,ROUTING_POLICY,SNAP_METRES} from './routing.mjs';
+import {restoreOfficialConditionCost} from './official-condition-cost.mjs';
 import {edgeTier,edgeCostDetails} from './route-tiers.mjs';
 import {crossingEvidence,crossingUncertainty} from './crossing-evidence.mjs';
+import {constructionFresh} from './construction.mjs';
+import {officialConditionMetrics} from './official-conditions.mjs';
 const same=(a,b)=>a&&b&&a[0]===b[0]&&a[1]===b[1];
+const localFirstFloorAddress=p=>/^(?:1|1f|一樓|一楼)$/i.test(String(p?.['addr:floor']??'').trim());
 // OSM level 0 is ground; Taiwanese labels 1F / 一樓 also denote ground.
 // Any ambiguous explicit level or indoor-only point fails closed. No level
 // or indoor metadata on its own is not evidence that the point is ground.
 function incompatibleFloor(p){
  if(!p)return false;
- const text=[p.name,p.description].filter(x=>typeof x==='string').join(' ');
+ const text=[p.name,p.sourceName,p.address,p.description].filter(x=>typeof x==='string').join(' ');
  if(/地下|地庫|地下室|頂樓|屋頂|basement|underground|rooftop/i.test(text))return true;
- if(/(?:^|[^A-Za-z0-9])B\s*\d+(?:\s*F)?(?=$|[^A-Za-z])/i.test(text))return true;
+ if(/(?:^|[^A-Za-z0-9])B\s*\d{1,2}(?:\s*F)?(?=$|[^A-Za-z0-9])/i.test(text))return true;
  let textGround=false;
  for(const m of text.matchAll(/(?:^|[^A-Za-z0-9])(\d{1,2})\s*F(?=$|[^A-Za-z])/gi)){
   if(Number(m[1])!==1)return true;textGround=true;
@@ -23,7 +27,12 @@ function incompatibleFloor(p){
  for(const key of ['level','floor','addr:floor','addr:level','level:ref','repeat_on','layer','building:level']){
   const v=p[key];if(v==null)continue;
   // The OSM level index is zero based. Other unparsed values are unknown.
-  const s=String(v).trim();if(!/^[+-]?\d+(?:\.\d+)?$/.test(s)||Number(s)!==0)return true;
+  const s=String(v).trim();
+  // addr:floor is a locally displayed address label, not the zero-based
+  // `level` index. In Taiwan a first-floor label alone is not a known upper
+  // floor; it does not establish ground-level entry or physical accessibility.
+  if(key==='addr:floor'&&localFirstFloorAddress(p))continue;
+  if(!/^[+-]?\d+(?:\.\d+)?$/.test(s)||Number(s)!==0)return true;
   explicitGround=true;
  }
  // Other unknown level:* tags may encode a level restriction we cannot parse.
@@ -74,7 +83,7 @@ export function createLocalRouteVerifier(graph,facilities=[],places=[]){
   if(!['start','end'].includes(side)||!place||!same(point,[place.lat,place.lon]))return null;
   if(place.originKind==='map'&&place.kind==null&&place.sourceId==null&&/^point-\d+$/.test(String(place.id||'')))return 'map';
   if(side==='start'&&place.originKind==='gps'&&place.kind==null&&place.sourceId==null&&place.id==='my-location'&&['browser','townpass'].includes(place.locationSource)&&
-     Number.isFinite(place.accuracy)&&place.accuracy>=0&&place.accuracy<=100&&place.needsConfirmation===false)return 'gps';
+     (place.accuracy===null||(Number.isFinite(place.accuracy)&&place.accuracy>=0)))return 'gps';
   // User-selected search results can be positional estimates even when the
   // search provider has no registered POI record. Do not use this path to
   // bypass an ambiguous/registered ID or an unverified OSM object identity.
@@ -90,6 +99,7 @@ export function createLocalRouteVerifier(graph,facilities=[],places=[]){
  function allowed(point,target,place,options={},side=null){
   const gap=metres(point,target),known=matchedPoint(point,place),origin=userPoint(point,place,side);
   if(!endpointAllowed(point,place,side))return false;
+  if(options.knownOnly&&localFirstFloorAddress(known))return false;
   // A point already on a verified network node has no approach to cross a road.
   // This matters for a shared-street centreline, which is itself in the road mask.
   if(gap<=.001)return true;
@@ -99,6 +109,8 @@ export function createLocalRouteVerifier(graph,facilities=[],places=[]){
  const verify=(route,start,end,options={})=>{
   if(route.error)return route;
   if(!Array.isArray(route.edgeIds)||!route.edgeIds.length||route.nodeIds?.length!==route.edgeIds.length+1)return {error:'UNVERIFIED_NETWORK'};
+  const projection=graph._routeProjectionState;
+  if(projection&&(route.edgeIds.some(id=>id>=projection.baseEdges||graph.edges[id]?.[5]?.derivedFrom!=null)||route.nodeIds.some(id=>id>=projection.baseNodes))&&route.projectionEpoch!==projection.epoch)return {error:'UNVERIFIED_NETWORK'};
   const coordinates=[graph.nodes[route.nodeIds[0]]?.slice(0,2)],tierSegments=[],crossingUncertainties=[],verifiedSegments=[];
   let networkDistance=0;
   for(let i=0;i<route.edgeIds.length;i++){
@@ -113,13 +125,13 @@ export function createLocalRouteVerifier(graph,facilities=[],places=[]){
    // rather than trusting annotations on the candidate route.
    const tier=edgeTier(e[5]),unknownWidth=way.width==null,unknownSlope=way.slope==null,
     roughSurface=edgeCostDetails(way,e[5],options).surface>0,
-    sharedRoad=way.source==='osm-shared-street',crossEvidence=crossingEvidence(way,e[5]);
+    sharedRoad=way.source==='osm-shared-street',crossing=way.crossing===true||way.footway==='crossing',explicitSidewalk=way.highway==='footway'&&way.footway==='sidewalk'&&!sharedRoad,crossEvidence=crossingEvidence(way,e[5]);
    verifiedSegments.push({way:e[3],start:segmentCoordinates[0],crossingEvidence:crossEvidence});
    const uncertainty=crossingUncertainty(way,e[5],segmentCoordinates);if(uncertainty)crossingUncertainties.push(uncertainty);
    const last=tierSegments.at(-1);
-   if(last?.tier===tier&&last.unknownWidth===unknownWidth&&last.unknownSlope===unknownSlope&&last.roughSurface===roughSurface&&last.sharedRoad===sharedRoad&&last.crossingEvidence===crossEvidence){
+   if(last?.tier===tier&&last.unknownWidth===unknownWidth&&last.unknownSlope===unknownSlope&&last.roughSurface===roughSurface&&last.sharedRoad===sharedRoad&&last.explicitSidewalk===explicitSidewalk&&last.crossing===crossing&&last.crossingEvidence===crossEvidence){
     last.coordinates.push(...segmentCoordinates.slice(1));last.distance+=e[2];
-   }else tierSegments.push({tier,unknownWidth,unknownSlope,roughSurface,sharedRoad,crossingEvidence:crossEvidence,coordinates:segmentCoordinates,distance:e[2]});
+   }else tierSegments.push({tier,unknownWidth,unknownSlope,roughSurface,sharedRoad,explicitSidewalk,crossing,crossingEvidence:crossEvidence,coordinates:segmentCoordinates,distance:e[2]});
   }
   if(coordinates.length!==route.coordinates?.length||coordinates.some((p,i)=>!same(p,route.coordinates[i])))return {error:'UNVERIFIED_NETWORK'};
   const wayIds=new Set(route.edgeIds.map(id=>graph.edges[id][3]));
@@ -144,8 +156,9 @@ export function createLocalRouteVerifier(graph,facilities=[],places=[]){
    // The entire approach is checked against roads. A registered point link
    // without polygon coverage is an estimate, not a surveyed walking path.
    if(!allowed(point,target,place,options,side))return {error:'OFFICIAL_ENTRY_UNVERIFIED'};
-   if(gap>.05){const origin=userPoint(point,place,side),estimated=!!origin||!covered(point,target);
-    approaches.push({side,coordinates:side==='start'?[point,target]:[target,point],distance:Math.round(gap),estimated,name:known?.name,...(origin?{originKind:origin,unconfirmed:true,entryStatus:'unconfirmed'}:{})});}
+   const firstFloor=localFirstFloorAddress(known);
+   if(gap>.05||firstFloor){const origin=userPoint(point,place,side),estimated=!!origin||firstFloor||!covered(point,target);
+    approaches.push({side,coordinates:side==='start'?[point,target]:[target,point],distance:Math.round(gap),estimated,name:known?.name,...(origin?{originKind:origin}:{}),...((origin||firstFloor)?{unconfirmed:true,entryStatus:'unconfirmed'}:{})});}
   }
   const all=[...coordinates];if(!same(start,all[0]))all.unshift(start);if(!same(end,all.at(-1)))all.push(end);
   const officialConditions=graph.officialConditionIndex
@@ -178,17 +191,56 @@ export function diagnoseConstruction(start,end,prefs,snapshot,{router,verifyLoca
  const work=checker.inspect(checked.coordinates);
  return work.blocked.length?{error:'CONSTRUCTION_BLOCKED',construction:work}:null;
 }
-export function planPlaces(startPlace,endPlace,options,snapshot,{router,verifyLocal,facilities,checker}){
+export function planPlaces(startPlace,endPlace,options,snapshot,{router,verifyLocal,facilities,checker,graph}){
  let last={error:'NO_ROUTE'},best=null,blocked=null;
+ let bestCost=Infinity;
  const attempts=[],failures=[];
  function failed(result){last=result;failures.push(result);}
- for(const a of stationEntrances(startPlace,facilities))for(const b of stationEntrances(endPlace,facilities)){
-  const start=[a.lat,a.lon],end=[b.lat,b.lon],prefs={...options,startPlace:a,endPlace:b,lineAllowed:checker.allowed,approachAllowed:(p,n,side)=>verifyLocal.approachAllowed(p,n,side==='start'?a:b,options,side)};
+ attemptsLoop: for(const a of stationEntrances(startPlace,facilities))for(const b of stationEntrances(endPlace,facilities)){
+  const start=[a.lat,a.lon],end=[b.lat,b.lon],prefs={...options,_ignoreOfficialConditions:false,startPlace:a,endPlace:b,lineAllowed:checker.allowed,approachAllowed:(p,n,side)=>verifyLocal.approachAllowed(p,n,side==='start'?a:b,options,side)};
   attempts.push({start,end,prefs});
-  const candidate=router(start,end,prefs);if(candidate.error){failed(['NO_ROUTE','NO_CONNECTION'].includes(candidate.error)?{...candidate,failedPair:{start:a,end:b}}:candidate);continue;}
+  let candidate;
+  try{candidate=router(start,end,prefs);}catch(error){
+   if(error?.code!=='PROJECTION_LIMIT'||!best)throw error;
+   return constructionFresh(snapshot)?{...best,routeSearchStatus:'projection-limit'}:{error:'CONSTRUCTION_UNAVAILABLE'};
+  }
+  if(candidate.error){failed(['NO_ROUTE','NO_CONNECTION'].includes(candidate.error)?{...candidate,failedPair:{start:a,end:b}}:candidate);continue;}
   const checked=verifyLocal(candidate,start,end,prefs);if(checked.error){failed(checked);continue;}
   const work=checker.inspect(checked.coordinates);if(work.blocked.length){blocked={error:'CONSTRUCTION_BLOCKED',construction:work};continue;}
-  if(!best||checked.weightedCost<best.weightedCost)best={...checked,construction:work,resolvedStart:a,resolvedEnd:b};
+  let chosen=checked,chosenWork=work,conditionDetourLimit,capacityExhausted=false;
+  // Compare only routes for the same resolved endpoints, with the same
+  // restrictions and construction snapshot. This preference may not turn a
+  // nearby map observation into an unbounded detour.
+  if(graph?.officialConditionIndex){
+   if(!constructionFresh(snapshot))return {error:'CONSTRUCTION_UNAVAILABLE'};
+   const baselinePrefs={...prefs,_ignoreOfficialConditions:true};
+   let baselineCandidate;
+   try{baselineCandidate=router(start,end,baselinePrefs);}catch(error){
+    if(error?.code!=='PROJECTION_LIMIT')throw error;
+    capacityExhausted=true;baselineCandidate={error:'PROJECTION_LIMIT'};
+   }
+   const withinDeadline=()=>!Number.isFinite(prefs._optimizeDeadline)||Date.now()<=prefs._optimizeDeadline;
+   if(!constructionFresh(snapshot))return {error:'CONSTRUCTION_UNAVAILABLE'};
+   if(!baselineCandidate.error&&withinDeadline()){
+    const baseline=verifyLocal(baselineCandidate,start,end,baselinePrefs);
+    if(!baseline.error&&withinDeadline()){
+     const baselineWork=checker.inspect(baseline.coordinates);
+     if(!baselineWork.blocked.length&&Number.isFinite(baseline.distance)&&baseline.distance>0&&Number.isFinite(checked.distance)){
+      const maxDistanceMetres=Math.min(baseline.distance*1.3,baseline.distance+300);
+      const applied=checked.distance>maxDistanceMetres+1e-7;
+      conditionDetourLimit={baselineDistanceMetres:baseline.distance,maxDistanceMetres,baselineOfficialConditionWeight:officialConditionMetrics(baseline.officialConditions).officialConditionWeight,applied};
+      if(applied){
+       const repriced=restoreOfficialConditionCost(graph,baseline,prefs);
+       if(repriced){chosen=repriced;chosenWork=baselineWork;}
+       else conditionDetourLimit={...conditionDetourLimit,applied:false,reason:'baseline-cost-unavailable'};
+      }
+     }
+    }
+   }
+   if(!constructionFresh(snapshot))return {error:'CONSTRUCTION_UNAVAILABLE'};
+  }
+  if(!best||chosen.weightedCost<bestCost){bestCost=chosen.weightedCost;best={...chosen,construction:chosenWork,resolvedStart:a,resolvedEnd:b,...(conditionDetourLimit?{conditionDetourLimit}:{}),...(capacityExhausted?{conditionDetourComparison:'projection-limit'}:{})};}
+  if(capacityExhausted){best={...best,routeSearchStatus:'projection-limit'};break attemptsLoop;}
  }
  if(best)return best;
  if(blocked)return blocked;

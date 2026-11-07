@@ -1,0 +1,81 @@
+{
+  "checkedAt": "2026-11-07T21:28:52.090Z",
+  "graphSha256": "bb211a0e906221556b5eb7621921733dd6586bb3649ba3dbf988907e22552f2d",
+  "sidewalkSha256": "bed72241f5362c9cb2f2389ccd31cc3d95694118d0c20a5d11b518691ddd3640",
+  "conditionSha256": "f2479b9ebb9c40e36302a649d81ccf091b05cc5fa63d77b3ce3c8ad00869aa41",
+  "method": "Four deliberately selected stress examples; whole original segments checked using current official area and road crossing geometry. Not a complete or random sample. Segment lengths are conservative upper bounds for geometry not fully covered, not exact uncovered lengths.",
+  "limitations": "Display source lacks original IDs and elevation attributes; no construction snapshot, source topology, missing road geometry, human field validation, or accessibility verification. A successful geometry test alone does not authorize new route edges.",
+  "officialAreas": 54028,
+  "officialCrossingAreas": 20179,
+  "roadLines": 62805,
+  "results": [
+    {
+      "index": 0,
+      "start": [
+        25.048706,
+        121.561956
+      ],
+      "end": [
+        25.048712,
+        121.562017
+      ],
+      "vertices": 3,
+      "lengthMetres": 6.178911366333542,
+      "segmentsNotEntirelyCoveredMetres": 6.178911366333542,
+      "roadConflictSegmentMetres": 3.239620457070606,
+      "roadConflictSegments": 1,
+      "nearbyConditionsWithin2m": 0
+    },
+    {
+      "index": 43737,
+      "start": [
+        25.116268,
+        121.574038
+      ],
+      "end": [
+        25.113326,
+        121.56656
+      ],
+      "vertices": 39,
+      "lengthMetres": 833.8522385948736,
+      "segmentsNotEntirelyCoveredMetres": 106.63323775881196,
+      "roadConflictSegmentMetres": 15.59806001044886,
+      "roadConflictSegments": 1,
+      "nearbyConditionsWithin2m": 0
+    },
+    {
+      "index": 28847,
+      "start": [
+        25.077907,
+        121.614418
+      ],
+      "end": [
+        25.078592,
+        121.622148
+      ],
+      "vertices": 50,
+      "lengthMetres": 830.3119522621159,
+      "segmentsNotEntirelyCoveredMetres": 515.0704173545656,
+      "roadConflictSegmentMetres": 56.57454477639969,
+      "roadConflictSegments": 3,
+      "nearbyConditionsWithin2m": 1
+    },
+    {
+      "index": 55065,
+      "start": [
+        24.989143,
+        121.580163
+      ],
+      "end": [
+        24.989699,
+        121.586565
+      ],
+      "vertices": 60,
+      "lengthMetres": 697.0696472484957,
+      "segmentsNotEntirelyCoveredMetres": 53.89234252324974,
+      "roadConflictSegmentMetres": 0,
+      "roadConflictSegments": 0,
+      "nearbyConditionsWithin2m": 0
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "checkedAt": "2026-11-07T21:29:57.014Z",
+  "sourceFetchedAt": "2026-11-07T16:01:55.792Z",
+  "graphSha256": "bb211a0e906221556b5eb7621921733dd6586bb3649ba3dbf988907e22552f2d",
+  "linesSha256": "bed72241f5362c9cb2f2389ccd31cc3d95694118d0c20a5d11b518691ddd3640",
+  "codeHashes": {
+    "src/geometry.mjs": "27264e6113326d681465dc4694eb2c394e57b9d886ce48eba3be499c46d02138",
+    "src/supplemental-evidence.mjs": "86b90ff2314cfe78db9f9b137835dba9544cd73ac06334bbaa25671d842dc029",
+    "scripts/audit-official-line-evidence.mjs": "26083f0148d732d261003e68a9148d0b9b512d5c3f16e906d738114675d64cfd"
+  },
+  "method": "Whole original quantized line segments, exact polygon-union and OSM road/crossing checks. A segment must pass end-to-end; length is the sum of segment lengths, not a Taipei ground-truth or route coverage percentage.",
+  "limitations": "No guarantee of layer, topology, barriers, endpoint connectivity, actual construction or on-site accessibility. The line source is rounded to 1e-6 degrees. This audit does not authorize route generation.",
+  "count": {
+    "lines": 60180,
+    "segments": 183551,
+    "invalidLines": 0,
+    "zeroLength": 848,
+    "covered": 91263,
+    "roadClear": 172592,
+    "both": 90162
+  },
+  "metres": {
+    "total": 1683758.599915026,
+    "covered": 935389.1564573377,
+    "roadClear": 1532080.270530909,
+    "both": 906609.8151454643
+  }
+}

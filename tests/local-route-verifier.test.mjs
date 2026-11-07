@@ -5,6 +5,14 @@ import{createConstructionChecker}from'../src/construction.mjs';
 const a=[25,121.5],b=[25,121.501],proof={schemaVersion:2,coverage:0,maxUncoveredMetres:100,crossingCoverage:0,roadCrossingVerified:true,crossingVerified:true};
 const base=()=>({officialPathEvidence:{schemaVersion:2},nodes:[[...a,0],[...b,0]],ways:[{highway:'footway',width:2,slope:0}],edges:[[0,1,100,0,[],proof]],officialAreas:[],officialCrossingAreas:[],roadGeometries:[[[121.51,25],[121.51,25.01]]]});
 test('mapped footway provenance replaces an unrelated full-city polygon coverage requirement',()=>{const g=base(),r=createRouter(g)(a,b);const v=createLocalRouteVerifier(g)(r,a,b);assert.equal(v.error,undefined);assert.equal(v.geometryVerification,'pedestrian-network-v1');});
+test('sidewalk markers use verified way data and split when the tag changes',()=>{
+ const g=base(),middle=[25,121.5005];g.nodes=[[...a,0],[...middle,0],[...b,0]];
+ g.ways=[{highway:'footway',footway:'sidewalk',width:2,slope:0},{highway:'footway',width:2,slope:0}];g.edges=[[0,1,50,0,[],proof],[1,2,50,1,[],proof]];
+ const r=createRouter(g)(a,b);r.tierSegments=[{explicitSidewalk:true,coordinates:[a,b]}];
+ const v=createLocalRouteVerifier(g)(r,a,b);
+ assert.equal(v.error,undefined);assert.deepEqual(v.tierSegments.map(s=>s.explicitSidewalk),[true,false]);
+ assert.deepEqual(v.tierSegments.map(s=>s.coordinates),[[a,middle],[middle,b]]);
+});
 test('revalidating a route reconstructs network distance without counting an approach twice',()=>{
  const g=base(),p=[25+30/111195,121.5],exit={id:'exit',kind:'metro-elevator',lat:p[0],lon:p[1]},v=createLocalRouteVerifier(g,[exit]),raw=createRouter(g)(a,b),opts={startPlace:exit};
  const first=v(raw,p,b,opts),second=v({...first,coordinates:first.networkCoordinates,distance:9999},p,b,opts);
@@ -74,7 +82,9 @@ test('OSM POI estimate requires a verified source match; non-OSM sources remain 
 test('explicit GPS and map starts may connect with a machine-readable unconfirmed estimate',()=>{
  const g=base(),p=[25+30/111195,121.5],candidate=createRouter(g)(a,b),v=createLocalRouteVerifier(g);
  const sources=[{id:'point-123',originKind:'map',lat:p[0],lon:p[1]},
-  {id:'my-location',originKind:'gps',locationSource:'browser',accuracy:20,needsConfirmation:false,lat:p[0],lon:p[1]}];
+  {id:'my-location',originKind:'gps',locationSource:'browser',accuracy:20,needsConfirmation:false,lat:p[0],lon:p[1]},
+  {id:'my-location',originKind:'gps',locationSource:'browser',accuracy:800,needsConfirmation:true,lat:p[0],lon:p[1]},
+  {id:'my-location',originKind:'gps',locationSource:'townpass',accuracy:null,needsConfirmation:true,lat:p[0],lon:p[1]}];
  for(const place of sources){const result=v(candidate,p,b,{startPlace:place});assert.equal(result.error,undefined);assert.equal(result.approaches[0].estimated,true);assert.equal(result.approaches[0].unconfirmed,true);assert.equal(result.approaches[0].entryStatus,'unconfirmed');assert.equal(result.approaches[0].originKind,place.originKind);assert.equal(result.approaches[0].distance,30);}
 });
 test('map estimate is symmetric, GPS is start-only, and restrictions are retained',()=>{
@@ -83,7 +93,7 @@ test('map estimate is symmetric, GPS is start-only, and restrictions are retaine
  assert.equal(v.approachAllowed(p,a,map,{knownOnly:true},'start'),false);
  const covered=base();covered.officialAreas=[{type:'Polygon',coordinates:[[[121.49,24.99],[121.51,24.99],[121.51,25.01],[121.49,25.01],[121.49,24.99]]]}];
  assert.equal(createLocalRouteVerifier(covered).approachAllowed(p,a,map,{knownOnly:true},'start'),false);
- for(const bad of [{...gps,accuracy:null},{...gps,accuracy:101},{...gps,needsConfirmation:true},{...gps,locationSource:'invented'},{...gps,id:'osm-n123'},{...map,kind:'place'},{...map,sourceId:'osm'},{...map,id:'osm-n123'},{...map,foot:'no'},{...map,level:'2'}])assert.equal(v.approachAllowed(p,a,bad,{},'start'),false,JSON.stringify(bad));
+ for(const bad of [{...gps,accuracy:-1},{...gps,accuracy:NaN},{...gps,locationSource:'invented'},{...gps,id:'osm-n123'},{...map,kind:'place'},{...map,sourceId:'osm'},{...map,id:'osm-n123'},{...map,foot:'no'},{...map,level:'2'}])assert.equal(v.approachAllowed(p,a,bad,{},'start'),false,JSON.stringify(bad));
  const far={...map,lat:25+51/111195};assert.equal(v.approachAllowed([far.lat,far.lon],a,far,{},'start'),false);
 });
 test('GPS and map starts cannot bypass recorded prohibited, upstairs or unmatched OSM points',()=>{
@@ -130,6 +140,26 @@ test('upper, underground or unlocated indoor POIs cannot become ground-level con
   const source={...poi,...patch},result=createLocalRouteVerifier(g,[],[source])(r,p,b,{startPlace:source});
   assert.equal(result.error,undefined,JSON.stringify(patch));assert.equal(result.approaches[0].estimated,true);
  }
+});
+test('local first-floor address labels permit only an unconfirmed approach and never override restrictions',()=>{
+ const g=base(),p=[25+30/111195,121.5],raw=createRouter(g)(a,b),poi={id:'osm-n123',kind:'place',sourceId:'osm',osmRestrictionsMatched:true,lat:p[0],lon:p[1],name:'店家'};
+ for(const label of ['1','1F','一樓','一楼']){
+  const place={...poi,'addr:floor':label},v=createLocalRouteVerifier(g,[],[place]),result=v(raw,p,b,{startPlace:place});
+  assert.equal(result.error,undefined,label);assert.equal(result.approaches[0].estimated,true);assert.equal(result.approaches[0].entryStatus,'unconfirmed');assert.deepEqual(result.approaches[0].coordinates,[p,a]);
+  assert.equal(v.approachAllowed(p,a,place,{knownOnly:true},'start'),false);
+ }
+ for(const patch of [{level:'1'},{'addr:floor':'2'},{'addr:floor':'B1'},{indoor:'yes'},{building:'yes'},{location:'indoor'},{wheelchair:'no'},{access:'private'},{foot:'no'},{'door:locked':'yes'}]){
+  const place={...poi,'addr:floor':'1',...patch},v=createLocalRouteVerifier(g,[],[place]);assert.equal(v.endpointAllowed(p,place,'start'),false,JSON.stringify(patch));
+ }
+ const unmatched={...poi,'addr:floor':'1',osmRestrictionsMatched:false};assert.equal(createLocalRouteVerifier(g,[],[unmatched]).approachAllowed(p,a,unmatched,{},'start'),false);
+ const samePoint={...poi,lat:a[0],lon:a[1],'addr:floor':'1'},sameVerifier=createLocalRouteVerifier(g,[],[samePoint]);
+ const zero=sameVerifier(raw,a,b,{startPlace:samePoint});assert.equal(zero.error,undefined);assert.equal(zero.approaches[0].distance,0);assert.equal(zero.approaches[0].entryStatus,'unconfirmed');assert.equal(sameVerifier.approachAllowed(a,a,samePoint,{knownOnly:true},'start'),false);
+ const covered=base();covered.officialAreas=[{type:'Polygon',coordinates:[[[121.49,24.99],[121.51,24.99],[121.51,25.01],[121.49,25.01],[121.49,24.99]]]}];
+ const coveredResult=createLocalRouteVerifier(covered,[],[{...poi,'addr:floor':'1'}])(raw,p,b,{startPlace:{...poi,'addr:floor':'1'}});assert.equal(coveredResult.error,undefined);assert.equal(coveredResult.approaches[0].estimated,true);assert.equal(coveredResult.approaches[0].entryStatus,'unconfirmed');
+ const crossing=base();crossing.roadGeometries=[[[121.499,25+15/111195],[121.502,25+15/111195]]];const place={...poi,'addr:floor':'1'};
+ assert.equal(createLocalRouteVerifier(crossing,[],[place]).approachAllowed(p,a,place,{},'start'),false);
+ const stamp=new Date().toISOString(),snapshot={schemaVersion:1,fetchedAt:stamp,sourceUpdatedAt:stamp,works:[{id:'blocked',start:'',end:'',hours:'24小時',impact:'blocked',geometries:[{type:'Point',coordinates:[p]}]}]};
+ assert.equal(planPlaces(place,{lat:b[0],lon:b[1]}, {},snapshot,{graph:g,router:createRouter(g),verifyLocal:createLocalRouteVerifier(g,[],[place]),facilities:[],checker:createConstructionChecker(snapshot)}).error,'CONSTRUCTION_BLOCKED');
 });
 test('POI estimated approach cannot cross vehicle way or active construction',()=>{
  const g=base(),p=[25+30/111195,121.5],poi={id:'poi',kind:'park',lat:p[0],lon:p[1]},r=createRouter(g)(a,b);
@@ -211,4 +241,12 @@ test('place planning prefers a verified alternative to the blocked direct route'
  const snapshot={schemaVersion:1,fetchedAt:stamp,sourceUpdatedAt:stamp,works:[{id:'closure',start:'115/11/07',end:'115/11/07',hours:'24小時施工',impact:'blocked',geometries:[{type:'Point',coordinates:[[25,121.5005]]}]}]};
  const result=planPlaces({lat:a[0],lon:a[1]},{lat:b[0],lon:b[1]}, {},snapshot,{router:createRouter(g),verifyLocal:createLocalRouteVerifier(g),facilities:[],checker:createConstructionChecker(snapshot,now)});
  assert.equal(result.error,undefined);assert.ok(result.coordinates.some(p=>p[0]===c[0]));assert.equal(result.construction.blocked.length,0);
+});
+
+test('cleaned names retain original floor restrictions',()=>{
+ const g=base(),p=[25+30/111195,121.5],v=createLocalRouteVerifier(g);
+ for(const place of [{id:'p1',kind:'place',name:'店家',sourceName:'店家<br />2F',lat:p[0],lon:p[1]},{id:'p2',kind:'place',name:'店家',address:'臺北市中正區中山路 1 號 B1',lat:p[0],lon:p[1]}]){
+  assert.equal(v.endpointAllowed(p,place,'start'),false);
+ }
+ assert.equal(v.endpointAllowed(p,{id:'p3',kind:'place',name:'幸安學坊',sourceName:'B02050001-幸安學坊',lat:p[0],lon:p[1]},'start'),true);
 });

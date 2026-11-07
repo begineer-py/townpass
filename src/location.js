@@ -8,7 +8,7 @@ export function destinationPoint(point){
 }
 export function swappedOrigin(point){
  if(/^point-\d+$/.test(String(point?.id||''))&&!point.kind&&!point.sourceId)return {...point,originKind:'map'};
- if(point?.id==='my-location'&&['browser','townpass'].includes(point.locationSource)&&Number.isFinite(point.accuracy)&&point.accuracy>=0&&point.accuracy<=100&&point.needsConfirmation===false)return {...point,originKind:'gps'};
+ if(point?.id==='my-location'&&['browser','townpass'].includes(point.locationSource)&&(point.accuracy===null||(Number.isFinite(point.accuracy)&&point.accuracy>=0)))return {...point,originKind:'gps'};
  return destinationPoint(point);
 }
 export function locationError(error){
@@ -29,7 +29,7 @@ export async function browserLocation(){
  if(globalThis.isSecureContext===false)throw Error('insecure');
  if(!globalThis.navigator?.geolocation)throw Error('unsupported');
  const request=options=>new Promise((resolve,reject)=>navigator.geolocation.getCurrentPosition(p=>{try{resolve(point(p.coords,'browser',p.timestamp));}catch(e){reject(e);}},reject,options));
- try{const coarse=await request({timeout:10000,maximumAge:60000,enableHighAccuracy:false});if(!coarse.needsConfirmation)return coarse;try{return await request({timeout:20000,maximumAge:0,enableHighAccuracy:true});}catch(error){if(error.code===1)throw error;return coarse;}}
+ try{return await request({timeout:10000,maximumAge:60000,enableHighAccuracy:false});}
  catch(error){if(error.code===1)throw error;return request({timeout:20000,maximumAge:0,enableHighAccuracy:true});}
 }
 export async function townPassLocation(){
@@ -39,12 +39,14 @@ export async function townPassLocation(){
 }
 export function devLocation(search=globalThis.location?.search){
  if(!import.meta.env?.DEV||!search)return null;
- const [lat,lon]=String(new URLSearchParams(search).get('devLocation')||'').split(',').map(Number);
- return Number.isFinite(lat)&&Number.isFinite(lon)?point({latitude:lat,longitude:lon,accuracy:5},'browser',Date.now()):null;
+ const params=new URLSearchParams(search),[lat,lon]=String(params.get('devLocation')||'').split(',').map(Number);
+ const rawAccuracy=params.get('devAccuracy'),accuracy=rawAccuracy===null?5:rawAccuracy==='unknown'?null:Number(rawAccuracy);
+ return Number.isFinite(lat)&&Number.isFinite(lon)?point({latitude:lat,longitude:lon,accuracy},'browser',Date.now()):null;
 }
 export async function getLocation(){
  const fake=devLocation();if(fake)return fake;
- try{return await browserLocation();}catch(error){const bridged=await townPassLocation();if(bridged)return bridged;throw error;}
+ const bridged=await townPassLocation();if(bridged)return bridged;
+ return browserLocation();
 }
 
 // A live subscription starts only when requested by the user. Town Pass exposes
