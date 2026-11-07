@@ -1709,6 +1709,10 @@ export default function App() {
                           <small>{label}</small>
                           <strong className={point ? "" : "placeholder"}>{point?.name || placeholder}</strong>
                         </button>
+                        {which === "start" && <button type="button" className="point-shortcut" onClick={() => locate("start")} disabled={locating} aria-label={locating ? "正在定位出發地" : "使用目前位置作為出發地"}>
+                          {locating ? <LoaderCircle className="spin" size={18} aria-hidden="true" /> : <LocateFixed size={18} aria-hidden="true" />}
+                          <span>{locating ? "定位中" : "定位"}</span>
+                        </button>}
                       </div>
                     ))}
                   </div>
@@ -1843,12 +1847,6 @@ export default function App() {
                         {nearbyState.truncated&&<p>搜尋未完成，可再試一次。</p>}
                       </>}
                     </div>}
-                    {(retryWithEntrance || ["OFFICIAL_OUTSIDE_COVERAGE", "OFFICIAL_INVALID_POINTS", "OFFICIAL_ENTRY_UNVERIFIED", "OFFICIAL_PATH_UNVERIFIED", "OFFICIAL_ROAD_CONFLICT", "OFFICIAL_CROSSING_UNVERIFIED", "CONSTRUCTION_BLOCKED"].includes(routeError)) && (
-                      <div className="route-tools">
-                        <button onClick={() => openSearch("start")}>重選出發地</button>
-                        <button onClick={() => openSearch("end")}>重選目的地</button>
-                      </div>
-                    )}
                     </div>
                   </div>
                 )}
