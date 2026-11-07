@@ -89,7 +89,7 @@ import {
   metroStationCodes,
   metroStationIconUrl,
 } from "./metro-station-icons.mjs";
-import { metroExitLabel } from "./metro-exits.mjs";
+import { metroExitIconUrl, metroExitLabel } from "./metro-exits.mjs";
 import {
   maintenanceText,
   sourceCountLabel,
@@ -202,6 +202,8 @@ function Sheet({ title, onClose, children, dismissible = true }) {
     </dialog>
   );
 }
+// 車站名稱補上「站」，但「台北車站」這類已經以站結尾的不再重複。
+const stationLabel = (name) => (/站$/.test(name) ? name : `${name}站`);
 function FacilityRow({ p, from, onSelect, saved, onSave, note, stationCode }) {
   const k = category(p),
     sub = labels[k] || "設施";
@@ -210,9 +212,13 @@ function FacilityRow({ p, from, onSelect, saved, onSave, note, stationCode }) {
       <button className="facility-main" onClick={() => onSelect(p)}>
         <span className={`facility-icon ${k}`}>
           {p.kind === "metro-elevator" ? (
-            <span className="metro-exit-label" aria-hidden="true">
-              {metroExitLabel(p)}
-            </span>
+            metroExitIconUrl(p) ? (
+              <img className="metro-exit-icon" src={metroExitIconUrl(p)} alt="" aria-hidden="true" />
+            ) : (
+              <span className="metro-exit-label" aria-hidden="true">
+                {metroExitLabel(p)}
+              </span>
+            )
           ) : k === "station" ? (
             <MetroStationIcon codes={stationCode} value={p.name} />
           ) : (
@@ -1932,13 +1938,13 @@ export default function App() {
               } else changePoint(searchFor, p);
             };
             return (
-              <section className="station-group" key={name} aria-label={`${name}站的無障礙出口`}>
+              <section className="station-group" key={name} aria-label={`${stationLabel(name)}的無障礙出口`}>
                 <div className="station-group-head">
                   <span className="station-icon">
                     <MetroStationIcon codes={stationCodesFor(name)} />
                   </span>
                   <span>
-                    <strong>{name}站</strong>
+                    <strong>{stationLabel(name)}</strong>
                     <small>{s["路線別"]} · {exits.length ? `${exits.length} 處電梯／坡道出口` : "沒有出口座標"}</small>
                   </span>
                 </div>
@@ -1960,7 +1966,7 @@ export default function App() {
                     setSearchFor(null);
                     setSelected({
                       id: `station-${name}-${s["路線別"]}`,
-                      name: `${name}站`,
+                      name: stationLabel(name),
                       kind: "station-detail",
                       record: s,
                       exits,
@@ -2214,7 +2220,7 @@ export default function App() {
                     }
                     setSelected({
                       id: `station-${record["車站名稱"]}-${record["路線別"]}`,
-                      name: `${record["車站名稱"]}站`,
+                      name: stationLabel(record["車站名稱"]),
                       kind: "station-detail",
                       record,
                       exits: stationsFor(record["車站名稱"]),

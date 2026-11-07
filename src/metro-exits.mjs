@@ -9,3 +9,11 @@ export function metroExitLabel(place) {
     name.match(/[-－]([A-Z]\d+[A-Z]?)$/i);
   return match?.[1]?.toUpperCase() || "梯";
 }
+
+// 本站自帶的出口編號圖示（public/metro-icons/exits，來源與授權見該資料夾 README）。
+const EXIT_ICONS = new Set("1 10 11 1A 2 2A 3 3A 4 4A 5 6 7 8 9 M1 M2 M3 M4 M5 M6 M7 M8".split(" "));
+
+export function metroExitIconUrl(place) {
+  const label = metroExitLabel(place);
+  return EXIT_ICONS.has(label) ? `./metro-icons/exits/${label}.svg` : "";
+}

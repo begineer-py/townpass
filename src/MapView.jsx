@@ -4,7 +4,7 @@ import L from "leaflet";
 import "leaflet-rotate";
 import { category, cleanName } from "./data";
 import { BASEMAPS } from "./basemaps.mjs";
-import { metroExitLabel } from "./metro-exits.mjs";
+import { metroExitIconUrl, metroExitLabel } from "./metro-exits.mjs";
 import {
   loadOfficialSidewalks,
   OFFICIAL_SIDEWALK_SOURCE,
@@ -282,10 +282,18 @@ export default function MapView({
       } else {
         if (p.kind === "metro-elevator")
           face.classList.add("metro-exit-face");
-        face.textContent =
-          p.kind === "metro-elevator"
-            ? metroExitLabel(p)
-            : glyphs[category(p)] || "點";
+        const exitIcon = p.kind === "metro-elevator" ? metroExitIconUrl(p) : "";
+        if (exitIcon) {
+          face.classList.add("has-exit-icon");
+          const img = document.createElement("img");
+          img.src = exitIcon;
+          img.alt = "";
+          face.appendChild(img);
+        } else
+          face.textContent =
+            p.kind === "metro-elevator"
+              ? metroExitLabel(p)
+              : glyphs[category(p)] || "點";
         marker = L.marker([p.lat, p.lon], {
           icon: L.divIcon({
             className:
