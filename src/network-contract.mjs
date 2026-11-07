@@ -21,6 +21,14 @@ export function validateNetwork(graph) {
       throw Error('MISSING_SHARED_NODE_IDENTITY');
     if(v?.gradeSeparatedPedestrian === true && (graph.nodeIdentity !== 'OSM node ID; coincident coordinates do not create connectivity' || !Number.isSafeInteger(graph.nodes[e[0]]?.[3]) || !Number.isSafeInteger(graph.nodes[e[1]]?.[3])))
       throw Error('MISSING_GRADE_NODE_IDENTITY');
+    if(v?.gradeSeparatedPedestrian === true){
+      const a=v.gradeCrossingAudit;
+      if(a?.schemaVersion!==1 || a.sourceVerified!==true || !Array.isArray(a.conflicts) ||
+         typeof v.gradeAuditBaseRoadCrossingVerified!=='boolean' ||
+         a.conflicts.some(c=>!c || !Number.isSafeInteger(c.roadOsmId) || !['shared-node','unknown-layer','same-layer'].includes(c.reason)) ||
+         v.roadCrossingVerified!==(v.gradeAuditBaseRoadCrossingVerified && a.conflicts.length===0))
+        throw Error('INVALID_GRADE_CROSSING_AUDIT');
+    }
     if (
       !v ||
       v.schemaVersion !== 2 ||

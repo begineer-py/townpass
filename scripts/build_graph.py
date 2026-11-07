@@ -1,5 +1,6 @@
 """Extract the Taipei pedestrian graph from OSM. Never join unconnected nearby ways."""
 import osmium, json, math, re, os
+from osm_poi_restrictions import restriction_tags
 from pathlib import Path
 from datetime import datetime,timezone
 ROOT=Path(__file__).resolve().parent.parent
@@ -30,7 +31,7 @@ class Extract(osmium.SimpleHandler):
             key=(name,round(lat,4),round(lon,4))
             if key in self.names:return
             self.names.add(key)
-            self.places.append({'id':identity,'name':name,'kind':kind,'lat':round(lat,7),'lon':round(lon,7),'address':address,'wheelchair':t.get('wheelchair'),'openingHours':t.get('opening_hours'),'phone':t.get('phone') or t.get('contact:phone'),'sourceId':'osm'})
+            self.places.append({'id':identity,'name':name,'kind':kind,'lat':round(lat,7),'lon':round(lon,7),'address':address,'openingHours':t.get('opening_hours'),'phone':t.get('phone') or t.get('contact:phone'),'sourceId':'osm','osmRestrictionsMatched':True,**restriction_tags(t)})
     def node(self,n):
         lat=n.location.lat;lon=n.location.lon
         if not(24.94<lat<25.24 and 121.42<lon<121.69):return

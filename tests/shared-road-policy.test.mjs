@@ -9,4 +9,6 @@ test('shared street candidates require all independent checks', () => {
   for(const k of Object.keys(proof)) assert.equal(eligibleSharedRoad(way,{...proof,[k]:false}),false);
   for(const patch of [{foot:'no'},{access:'private'},{wheelchair:'no'},{bridge:'yes'},{layer:'1'},{highway:'primary'}])
     assert.equal(eligibleSharedRoad({...way,...patch},proof),false);
+  for(const highway of ['living_street','residential','unclassified','service'])assert.equal(eligibleSharedRoad({...way,highway},proof),true);
+  for(const patch of [{foot:'use_sidepath'},{access:'destination'},{'foot:conditional':'no @ night'},{'oneway:foot':'yes'}])assert.equal(eligibleSharedRoad({...way,...patch},proof),false);
 });

@@ -3,9 +3,10 @@ import json
 import os
 from pathlib import Path
 import osmium
+from shared_road_rules import shared_candidate
 
 ROOT = Path(__file__).resolve().parent.parent
-INPUT = ROOT / 'data/raw/taiwan.osm.pbf'
+INPUT = Path(os.environ.get('TOWNPASS_OSM_PBF', ROOT / 'data/raw/taiwan.osm.pbf'))
 OUTPUT = ROOT / 'data/processed/shared-road-candidates.json'
 FIELDS = ('name', 'name:zh', 'highway', 'foot', 'access', 'wheelchair', 'width', 'incline',
           'maxspeed', 'surface', 'sidewalk', 'layer', 'level', 'bridge', 'tunnel')
@@ -17,9 +18,7 @@ class Extract(osmium.SimpleHandler):
 
     def way(self, way):
         tags = dict(way.tags)
-        if tags.get('highway') != 'living_street': return
-        if tags.get('access') in ('private', 'no') or tags.get('foot') in ('private', 'no') or tags.get('wheelchair') == 'no': return
-        if tags.get('bridge') not in (None, 'no') or tags.get('tunnel') not in (None, 'no') or tags.get('layer') not in (None, '0') or tags.get('level') not in (None, '0'): return
+        if not shared_candidate(tags): return
         nodes = [{'id': n.ref, 'lat': n.location.lat, 'lon': n.location.lon} for n in way.nodes if n.location.valid()]
         # Require every original node and keep only candidates fully in the project extent.
         if len(nodes) != len(way.nodes) or len(nodes) < 2: return
@@ -30,7 +29,7 @@ class Extract(osmium.SimpleHandler):
 if __name__ == '__main__':
     extractor = Extract()
     os.chdir(ROOT)
-    extractor.apply_file('data/raw/taiwan.osm.pbf', locations=True)
+    extractor.apply_file(str(INPUT), locations=True)
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.write_text(json.dumps({'source': 'OSM Taiwan PBF', 'routesAuthorized': False,
         'extent': 'project bounding rectangle, not administrative boundary', 'ways': extractor.ways},

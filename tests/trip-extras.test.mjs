@@ -1,10 +1,55 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import { gunzipSync } from "node:zlib";
 import {
+  DEMOS,
+  resolveDemo,
+  parseTripSentence,
+  matchPlace,
+  identityFromUser,
   activeElevatorStops,
   facilitiesAlongRoute,
   nearestStop,
 } from "../src/trip-extras.mjs";
+
+test('demo endpoints resolve official source records and refuse absent, changed or ambiguous records',()=>{
+ const facilities=JSON.parse(gunzipSync(fs.readFileSync(new URL('../public/data/facilities.json.gz',import.meta.url))));
+ for(const demo of DEMOS){
+  const points=resolveDemo(demo,facilities);assert.ok(points,demo.name);
+  assert.equal(points.start.id,demo.start.id);assert.equal(points.end.id,demo.end.id);
+  assert.ok(Number.isFinite(points.start.lat)&&Number.isFinite(points.end.lon));
+  assert.notDeepEqual([points.start.lat,points.start.lon],[points.end.lat,points.end.lon]);
+  assert.equal(resolveDemo(demo,facilities.filter(p=>p.id!==demo.start.id)),null);
+  const altered=facilities.map(p=>p.id===demo.end.id?{...p,name:'不同入口'}:p);assert.equal(resolveDemo(demo,altered),null);
+  assert.equal(resolveDemo(demo,[...facilities,points.start]),null);
+ }
+ assert.equal(resolveDemo(DEMOS[0],null),null);
+});
+
+test("a spoken trip keeps the identity, places and stop", () => {
+  const parsed = parseTripSentence(
+    "推嬰兒車從台北車站到大安森林公園，順便找無障礙廁所",
+  );
+  assert.deepEqual(parsed, {
+    identity: "stroller",
+    stop: "toilet",
+    startName: "台北車站",
+    endName: "大安森林公園",
+  });
+  assert.equal(
+    matchPlace("台北車站", [
+      { name: "台北車站出口", lat: 1, lon: 1 },
+      { name: "台北車站", lat: 2, lon: 2 },
+    ]).name,
+    "台北車站",
+  );
+});
+
+test("account data only changes prefs from an explicit access field", () => {
+  assert.equal(identityFromUser({ name: "輪椅" }), null);
+  assert.equal(identityFromUser({ identity: "輪椅使用者" }), "wheelchair");
+});
 
 test("today's elevator maintenance becomes an avoid point for that station", () => {
   const points = activeElevatorStops(

@@ -16,7 +16,7 @@ test('shared roads remain distinct while preserving unknown and rough conditions
   assert.equal(conditionForSegment({sharedRoad:true}), 'sharedUnknown');
   assert.equal(conditionForSegment({sharedRoad:true,unknownWidth:false,unknownSlope:false,roughSurface:true}), 'sharedRough');
   assert.equal(conditionForSegment({sharedRoad:true,roughSurface:true}), 'sharedRoughUnknown');
-  assert.match(stepConditions({sharedRoad:true,unknown:true}), /人車共道.*寬度或坡度未知/);
+  assert.match(stepConditions({sharedRoad:true,unknown:true}), /人車共行.*通行條件未確認.*寬度或坡度未知/);
   assert.doesNotMatch(stepConditions({unknown:true}), /人車共道/);
 });
 

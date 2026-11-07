@@ -1,6 +1,8 @@
 import { eligibleSharedRoad } from "./shared-road-policy.mjs";
+import { diagnoseRouteGap } from "./route-gap.mjs";
 import { roadConnectorChecker } from "./geometry.mjs";
 import { officialGeometryEvidence } from "./supplemental-evidence.mjs";
+import { crossingEvidence, crossingUncertainty } from "./crossing-evidence.mjs";
 import {edgeTier,edgeCostFactor,edgeCostDetails,ROUTE_TIERS} from "./route-tiers.mjs";
 export const ROUTING_POLICY = "pedestrian-evidence-v4";
 // A Symbol cannot arrive through stored preferences or postMessage. It permits
@@ -48,6 +50,7 @@ export class MinHeap {
 }
 export function edgeAllowed(way, options = {}, evidence = null) {
   // Safety constraints cannot be relaxed by UI options or old stored preferences.
+  if (!way || ['no','private'].includes(way.access) || ['no','private'].includes(way.foot) || way.crossing === 'no') return false;
   const sharedRoad = eligibleSharedRoad(way, evidence);
   const diagnosticStep =
     way.highway === "steps" && options.stepDiagnostic === STEP_DIAGNOSTIC;
@@ -77,13 +80,14 @@ export function edgeAllowed(way, options = {}, evidence = null) {
     evidence.crossingVerified !== true
   )
     return false;
-  const mappedBridge = evidence.gradeSeparatedPedestrian === true && way.gradeSeparatedPedestrian === true && way.highway === 'footway' && way.bridge === 'yes' && (way.footway === 'sidewalk' || way.wheelchair === 'yes');
+  const audit=evidence?.gradeCrossingAudit;
+  const mappedBridge = evidence.gradeSeparatedPedestrian === true && way.gradeSeparatedPedestrian === true && way.highway === 'footway' && way.bridge === 'yes' && (way.footway === 'sidewalk' || way.wheelchair === 'yes') && audit?.schemaVersion === 1 && audit.sourceVerified === true && Array.isArray(audit.conflicts) && audit.conflicts.length === 0;
   if ((way.bridge && way.bridge !== 'no' && !mappedBridge) || (way.tunnel && way.tunnel !== 'no') ||
       (way.layer != null && !((mappedBridge?['0','1']:['0']).includes(String(way.layer)))) ||
       (way.level != null && !((mappedBridge?['0','1']:['0']).includes(String(way.level))))) return false;
   if (way.wheelchair === "no") return false;
   if (
-    way.sidewalk === "no" &&
+    !sharedRoad && way.sidewalk === "no" &&
     [
       "primary",
       "primary_link",
@@ -118,6 +122,21 @@ export function createRouter(graph) {
   for(const e of graph.edges){const direct=metres(graph.nodes[e[0]],graph.nodes[e[1]]);if(direct>0)heuristicScale=Math.min(heuristicScale,e[2]/direct);}
   heuristicScale=Math.max(0,heuristicScale*.999);
   const adjacency = Array.from({ length: graph.nodes.length }, () => []);
+  const conditionCosts = new Map();
+  function officialConditionPenalty(index) {
+    if (!graph.officialConditionIndex) return 0;
+    if (!conditionCosts.has(index)) {
+      const edge=graph.edges[index], way=graph.ways[edge[3]];
+      // Point-to-line proximity cannot prove which side of a road is affected.
+      // Only apply a modest preference penalty to separately mapped pedestrian
+      // geometry; never turn a nearby observation into a hard road closure.
+      const pedestrian=['footway','path','pedestrian','corridor'].includes(way.highway);
+      const line=[graph.nodes[edge[0]],...(edge[4]||[]),graph.nodes[edge[1]]];
+      const count=pedestrian?graph.officialConditionIndex.find(line,2).length:0;
+      conditionCosts.set(index,Math.min(2,count*0.35));
+    }
+    return conditionCosts.get(index);
+  }
   graph.edges.forEach((e, i) => {
     adjacency[e[0]].push([e[1], i]);
     adjacency[e[1]].push([e[0], i]);
@@ -193,6 +212,8 @@ export function createRouter(graph) {
     const chosen = [];
     for (const [d, i] of raw) {
       if (blockerDist <= d) break;
+      const forced=side==='start'?options._partialForceStartNode:options._partialForceEndNode;
+      if(forced!=null && (i!==forced||d>.001))continue;
       if ((d <= 0.001 || approachClear(point, graph.nodes[i])) &&
           (!options.lineAllowed || options.lineAllowed([point,graph.nodes[i]])) &&
           (!options.approachAllowed || options.approachAllowed(point,graph.nodes[i],side))) {
@@ -203,24 +224,62 @@ export function createRouter(graph) {
     return { chosen, nearestDist };
   }
   return function route(start, end, options = {}) {
-    projectPoint(start,options,'start');projectPoint(end,options,'end');
+    if(options._partialForceStartNode==null)projectPoint(start,options,'start');
+    if(options._partialForceEndNode==null)projectPoint(end,options,'end');
     const starts=endpoints(start,options,'start'),ends=endpoints(end,options,'end');
-    if(!starts.chosen.length||!ends.chosen.length)return {error:'NO_CONNECTION',startGap:starts.nearestDist,endGap:ends.nearestDist};
+    const workAllowed = new Map();
+    function canTraverse(ei){
+      const e=graph.edges[ei],w=graph.ways[e[3]];
+      if(!edgeAllowed(w,options,e[5]))return false;
+      if(!options.lineAllowed)return true;
+      if(!workAllowed.has(ei))workAllowed.set(ei,options.lineAllowed([graph.nodes[e[0]],...(e[4]||[]),graph.nodes[e[1]]]));
+      return workAllowed.get(ei);
+    }
+    function part(side,index){
+      const point=graph.nodes[index].slice(0,2),boundary=side==='start'?'end':'start';
+      const approachAllowed=(p,n,s)=>s===boundary?metres(p,n)<=.001:(!options.approachAllowed||options.approachAllowed(p,n,s));
+      const prefs={...options,diagnosePartial:false,diagnoseGap:false,approachAllowed,
+        _optimizeDeadline:Date.now()+2000,_optimizeMaxVisited:100000,
+        ...(side==='start'?{_partialForceEndNode:index}:{_partialForceStartNode:index})};
+      const result=side==='start'?route(start,point,prefs):route(point,end,prefs);
+      return result.error||!result.edgeIds?.length?null:{side,point,route:result};
+    }
+    function nearestReachable(seeds,target){
+      const seen=new Uint8Array(graph.nodes.length),queue=[];let best=-1,distance=Infinity,head=0;
+      for(const p of seeds)if(!seen[p.index]){seen[p.index]=1;queue.push(p.index);}
+      const deadline=Date.now()+1500;
+      while(head<queue.length && head<100000 && ((head&255)!==0||Date.now()<=deadline)){
+        const u=queue[head++],node=graph.nodes[u];
+        if(!node[2]&&Number.isSafeInteger(node[3])&&adjacency[u].some(([v,ei])=>!graph.nodes[v][2]&&groundEdge(graph.edges[ei],options)&&canTraverse(ei))){const d=metres(node,target);if(d<distance){distance=d;best=u;}}
+        for(const [v,ei] of adjacency[u])if(!seen[v]&&!graph.nodes[v][2]&&canTraverse(ei)){seen[v]=1;queue.push(v);}
+      }
+      return best;
+    }
+    if(!starts.chosen.length||!ends.chosen.length){
+      const failed={error:'NO_CONNECTION',startGap:starts.nearestDist,endGap:ends.nearestDist};
+      if(options.diagnosePartial && !!starts.chosen.length!==!!ends.chosen.length){
+        const side=starts.chosen.length?'start':'end',index=nearestReachable(side==='start'?starts.chosen:ends.chosen,side==='start'?end:start);
+        const segment=index<0?null:part(side,index);if(segment)failed.partialCandidates=[segment];
+      }
+      return failed;
+    }
     if(metres(start,end)<.001)return {error:'SAME_POINT'};
     const targets=new Map(ends.chosen.map(p=>[p.index,p]));
-    const workAllowed = new Map();
     const dist = new Float64Array(graph.nodes.length).fill(Infinity),
       prev = new Int32Array(graph.nodes.length).fill(-1),
       edgePrev = new Int32Array(graph.nodes.length).fill(-1);
     const heap = new MinHeap();
     for(const source of starts.chosen){const cost=source.distance*ROUTE_TIERS.connector.factor;dist[source.index]=cost;heap.push([cost+heuristicScale*metres(graph.nodes[source.index],end),source.index,cost]);}
     let bestTotal=Infinity,goal=-1;
+    const optimizeDeadline=Number.isFinite(options._optimizeDeadline)?options._optimizeDeadline:Infinity;
+    const optimizeMaxVisited=Number.isInteger(options._optimizeMaxVisited)?options._optimizeMaxVisited:Infinity;
     let found = false,
       visited = 0;
     while (heap.a.length) {
       const [lowerBound, u, cost] = heap.pop();
       if (cost !== dist[u]) continue;
       if(lowerBound>=bestTotal)break;
+      if(visited>=optimizeMaxVisited||((visited&255)===0&&Date.now()>optimizeDeadline))return {error:'OPTIMIZATION_BUDGET',visited};
       if(targets.has(u)){
         const total=cost+targets.get(u).distance*ROUTE_TIERS.connector.factor;
         if(total<bestTotal){bestTotal=total;goal=u;found=true;}
@@ -229,20 +288,10 @@ export function createRouter(graph) {
       for (const [v, ei] of adjacency[u]) {
         const e = graph.edges[ei],
           w = graph.ways[e[3]];
-        if (graph.nodes[v][2] || !edgeAllowed(w, options, e[5])) continue;
-        if (options.lineAllowed) {
-          if (!workAllowed.has(ei))
-            workAllowed.set(
-              ei,
-              options.lineAllowed([
-                graph.nodes[e[0]],
-                ...(e[4] || []),
-                graph.nodes[e[1]],
-              ]),
-            );
-          if (!workAllowed.get(ei)) continue;
-        }
-        let factor = edgeCostFactor(w,e[5],options);
+        if (graph.nodes[v][2] || !canTraverse(ei)) continue;
+        let factor = edgeCostFactor(w,e[5],options) + officialConditionPenalty(ei);
+        if(w.source==='osm-shared-street'&&Number.isFinite(options._optimizeSharedPenalty))factor+=Math.max(0,Math.min(20,options._optimizeSharedPenalty));
+        if(w.source!=='osm-shared-street'&&!(w.highway==='footway'&&w.footway==='sidewalk')&&Number.isFinite(options._optimizeNonSidewalkPenalty))factor+=Math.max(0,Math.min(10,options._optimizeNonSidewalkPenalty));
         const mid = [
           (graph.nodes[u][0] + graph.nodes[v][0]) / 2,
           (graph.nodes[u][1] + graph.nodes[v][1]) / 2,
@@ -261,7 +310,21 @@ export function createRouter(graph) {
         }
       }
     }
-    if (!found) return { error: "NO_ROUTE", visited };
+    if (!found) {
+      const failed={error:'NO_ROUTE',visited};
+      if(options.diagnoseGap||options.diagnosePartial){
+        const gap=diagnoseRouteGap({graph,adjacency,forwardDist:dist,ends:ends.chosen,canTraverse,
+          groundEdge:ei=>groundEdge(graph.edges[ei],options),...(options.diagnosePartial?{includeIndices:true,maxMetres:Infinity}:{})});
+        const {startIndex,endIndex,...publicGap}=gap;failed.routeGap=publicGap;
+        if(options.diagnosePartial){
+          const indices=gap.status==='candidate'?[startIndex,endIndex]:[
+            nearestReachable(starts.chosen,end),nearestReachable(ends.chosen,start)];
+          const segments=[indices[0]>=0?part('start',indices[0]):null,indices[1]>=0?part('end',indices[1]):null].filter(Boolean);
+          if(segments.length)failed.partialCandidates=segments;
+        }
+      }
+      return failed;
+    }
     const path = [],
       es = [];
     let v = goal;
@@ -286,7 +349,7 @@ export function createRouter(graph) {
     // Costs are relative search preferences, not a safety score. Known hard
     // exclusions are still applied before a candidate reaches this point.
     const approachDistance=s.distance+t.distance;
-    const costBreakdown={base:approachDistance,source:0,unknown:0,surface:0,width:0,slope:0,crossing:0,avoidPoint:0,entrance:approachDistance*(ROUTE_TIERS.connector.factor-1)};
+    const costBreakdown={base:approachDistance,source:0,unknown:0,surface:0,width:0,slope:0,crossing:0,officialCondition:0,avoidPoint:0,entrance:approachDistance*(ROUTE_TIERS.connector.factor-1)};
     es.forEach((ei, k) => {
       const e = graph.edges[ei],
         w = graph.ways[e[3]];
@@ -296,9 +359,11 @@ export function createRouter(graph) {
       if (w.width == null) unknownWidth += e[2];
       if (w.slope == null) unknownSlope += e[2];
       const detail=edgeCostDetails(w,e[5],options);
+      const crossEvidence=crossingEvidence(w,e[5]);
       for(const key of ['base','source','unknown','surface','width','slope','crossing'])costBreakdown[key]+=detail[key]*e[2];
+      costBreakdown.officialCondition+=officialConditionPenalty(ei)*e[2];
       const mid=[(graph.nodes[e[0]][0]+graph.nodes[e[1]][0])/2,(graph.nodes[e[0]][1]+graph.nodes[e[1]][1])/2];
-      if(options.avoidPoints?.some(p=>metres(mid,p)<=25))costBreakdown.avoidPoint+=edgeCostFactor(w,e[5],options)*7*e[2];
+      if(options.avoidPoints?.some(p=>metres(mid,p)<=25))costBreakdown.avoidPoint+=(edgeCostFactor(w,e[5],options)+officialConditionPenalty(ei))*7*e[2];
       if (w.crossing) crossings++;
       if (
         ![
@@ -331,6 +396,7 @@ export function createRouter(graph) {
         last &&
         last.name === w.name &&
         last.crossing === w.crossing &&
+        last.crossingEvidence === crossEvidence &&
         last.unknown === (w.width == null || w.slope == null) &&
         last.roughSurface === (detail.surface > 0) &&
         last.sharedRoad === (w.source === "osm-shared-street") &&
@@ -346,6 +412,7 @@ export function createRouter(graph) {
           lat: a[0],
           lon: a[1],
           crossing: w.crossing,
+          crossingEvidence: crossEvidence,
           unknown: w.width == null || w.slope == null,
           roughSurface: detail.surface > 0,
           sharedRoad: w.source === "osm-shared-street",
@@ -362,12 +429,13 @@ export function createRouter(graph) {
         graph.nodes[path[k + 1]].slice(0, 2),
       );
     });
-    const tierSegments=[];
+    const tierSegments=[],crossingUncertainties=[];
     es.forEach((ei,k)=>{
       const e=graph.edges[ei],tier=edgeTier(e[5]),middle=e[0]===path[k] ? e[4]||[] : [...(e[4]||[])].reverse();
-      const way=graph.ways[e[3]],unknownWidth=way.width==null,unknownSlope=way.slope==null,roughSurface=edgeCostDetails(way,e[5],options).surface>0,sharedRoad=way.source==="osm-shared-street";
+      const way=graph.ways[e[3]],unknownWidth=way.width==null,unknownSlope=way.slope==null,roughSurface=edgeCostDetails(way,e[5],options).surface>0,sharedRoad=way.source==="osm-shared-street",crossEvidence=crossingEvidence(way,e[5]);
       const coords=[graph.nodes[path[k]].slice(0,2),...middle,graph.nodes[path[k+1]].slice(0,2)],last=tierSegments.at(-1);
-      if(last?.tier===tier && last.unknownWidth===unknownWidth && last.unknownSlope===unknownSlope && last.roughSurface===roughSurface && last.sharedRoad===sharedRoad){last.coordinates.push(...coords.slice(1));last.distance+=e[2];}else tierSegments.push({tier,unknownWidth,unknownSlope,roughSurface,sharedRoad,coordinates:coords,distance:e[2]});
+      const uncertainty=crossingUncertainty(way,e[5],coords);if(uncertainty)crossingUncertainties.push(uncertainty);
+      if(last?.tier===tier && last.unknownWidth===unknownWidth && last.unknownSlope===unknownSlope && last.roughSurface===roughSurface && last.sharedRoad===sharedRoad && last.crossingEvidence===crossEvidence){last.coordinates.push(...coords.slice(1));last.distance+=e[2];}else tierSegments.push({tier,unknownWidth,unknownSlope,roughSurface,sharedRoad,crossingEvidence:crossEvidence,coordinates:coords,distance:e[2]});
     });
     return {
       policyVersion: ROUTING_POLICY,
@@ -376,6 +444,7 @@ export function createRouter(graph) {
       unknownWidthMetres:unknownWidth,
       unknownSlopeMetres:unknownSlope,
       tierSegments,
+      crossingUncertainties,
       edgeIds: es,
       nodeIds: path,
       coordinates,

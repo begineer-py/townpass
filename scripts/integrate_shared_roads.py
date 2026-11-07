@@ -1,7 +1,7 @@
-"""Add ground-level OSM living_street edges with conservative intersection checks.
+"""Add ground-level OSM low-class vehicle roads as unconfirmed shared routes.
 
 Only shared node IDs create connections. Every intersection with a different
-vehicle way must be an OSM-shared-node junction to another living street or
+vehicle way must be an OSM-shared-node junction to another eligible low-class road or
 inside an official crossing polygon. Unknown width/slope stay unknown; a
 road's width is not the usable walking width. Re-running replaces prior output.
 """
@@ -14,6 +14,7 @@ from shapely.geometry import LineString, Point, shape
 from shapely.ops import transform
 from shapely.strtree import STRtree
 from shapely import union_all
+from shared_road_rules import shared_candidate
 
 ROOT=Path(__file__).resolve().parent.parent
 path=ROOT/'public/data/graph.json.gz'
@@ -23,7 +24,19 @@ VEHICLE={'motorway','motorway_link','trunk','trunk_link','primary','primary_link
 def blocked(tags):
     try: kerb=float(tags.get('kerb:height','0').replace(' m',''))
     except ValueError: kerb=0
-    return (tags.get('access') in ('no','private') or tags.get('foot') in ('no','private') or tags.get('wheelchair')=='no' or kerb>0.03 or tags.get('kerb')=='raised' or tags.get('barrier') not in (None,'no','kerb'))
+    allowed={None,'yes','permissive','designated'}
+    return (tags.get('access') not in allowed or tags.get('foot') not in allowed or tags.get('access:conditional') is not None or tags.get('foot:conditional') is not None or tags.get('wheelchair')=='no' or tags.get('wheelchair:conditional') is not None or kerb>0.03 or tags.get('kerb')=='raised' or tags.get('barrier') not in (None,'no','kerb'))
+
+def intersection_allowed(line, aid, bid, wid, road_record, crossings, ctree, coords):
+    other,other_candidate,ra,rb,road=road_record
+    if other==wid:return True
+    inter=line.intersection(road)
+    if inter.is_empty:return True
+    # A graph junction requires one real OSM node, never coordinate coincidence.
+    shared={aid,bid}.intersection((ra,rb))
+    if other_candidate and shared and inter.geom_type=='Point' and any(inter.distance(Point(project.transform(*coords[n])))<.001 for n in shared):return True
+    hit_cross=[crossings[int(i)] for i in ctree.query(inter,predicate='intersects')]
+    return bool(hit_cross) and union_all(hit_cross).covers(inter)
 
 class Extract(osmium.SimpleHandler):
     def __init__(self, candidates):
@@ -34,6 +47,8 @@ class Extract(osmium.SimpleHandler):
         for way in candidates:
             for a,b in zip(way['nodes'],way['nodes'][1:]):
                 self.cells.update(self.segment_cells((a['lon'],a['lat']),(b['lon'],b['lat'])))
+        if not self.cells: raise ValueError('No shared-road candidates')
+        self.cellbox=(min(x for x,y in self.cells),min(y for x,y in self.cells),max(x for x,y in self.cells),max(y for x,y in self.cells))
     @staticmethod
     def segment_cells(a,b):
         x1,x2=sorted((math.floor(a[0]*1000),math.floor(b[0]*1000)))
@@ -47,12 +62,17 @@ class Extract(osmium.SimpleHandler):
         tags=dict(w.tags)
         if tags.get('highway') not in VEHICLE: return
         if w.id in self.candidate_ids: self.way_tags[w.id]=tags
-        ids=[n.ref for n in w.nodes]
-        for a,b in zip(ids,ids[1:]):
-            if a in self.coords and b in self.coords and a!=b:
-                if not any(cell in self.cells for cell in self.segment_cells(self.coords[a],self.coords[b])): continue
-                p,q=project.transform(*self.coords[a]),project.transform(*self.coords[b])
-                if p!=q:self.roads.append((w.id,tags.get('highway'),a,b,LineString([p,q])))
+        # Read the full road geometry, including endpoints outside the project
+        # bounds: a long segment may cross a candidate inside those bounds.
+        nodes=[(n.ref,(n.location.lon,n.location.lat) if n.location.valid() else None) for n in w.nodes]
+        for (a,pa),(b,pb) in zip(nodes,nodes[1:]):
+            if pa is not None and pb is not None and a!=b:
+                x1,x2=sorted((math.floor(pa[0]*1000),math.floor(pb[0]*1000)))
+                y1,y2=sorted((math.floor(pa[1]*1000),math.floor(pb[1]*1000)))
+                if x2<self.cellbox[0] or x1>self.cellbox[2] or y2<self.cellbox[1] or y1>self.cellbox[3]:continue
+                if not any(cell in self.cells for cell in self.segment_cells(pa,pb)): continue
+                p,q=project.transform(*pa),project.transform(*pb)
+                if p!=q:self.roads.append((w.id,shared_candidate(tags),a,b,LineString([p,q])))
 
 def main():
     os.chdir(ROOT)
@@ -60,7 +80,7 @@ def main():
     if g.get('nodeIdentity')!='OSM node ID; coincident coordinates do not create connectivity': raise ValueError('OSM node identity required')
     candidates=json.loads((ROOT/'data/processed/shared-road-candidates.json').read_text(encoding='utf8'))['ways']
     print('Reading OSM vehicle junctions and barriers',flush=True)
-    ex=Extract(candidates);ex.apply_file('data/raw/taiwan.osm.pbf')
+    ex=Extract(candidates);ex.apply_file(os.environ.get('TOWNPASS_OSM_PBF',str(ROOT/'data/raw/taiwan.osm.pbf')),locations=True)
     roads=[r[4] for r in ex.roads];tree=STRtree(roads)
     crossings=[transform(project.transform,shape(x)) for x in g['officialCrossingAreas']]
     crossings += [transform(project.transform,shape(f['geometry'])) for f in g.get('supplementalEvidence',{}).get('features',[]) if f['crossing']]
@@ -82,8 +102,8 @@ def main():
     for candidate in candidates:
         wid=candidate['osmId'];tags=ex.way_tags.get(wid,{});nodes=candidate['nodes']
         # Re-check data instead of trusting a prior candidate extraction.
-        if tags.get('highway')!='living_street' or tags.get('area')=='yes' or tags.get('access') in ('no','private') or tags.get('foot') in ('no','private') or tags.get('wheelchair')=='no' or tags.get('bridge') not in (None,'no') or tags.get('tunnel') not in (None,'no') or tags.get('layer') not in (None,'0') or tags.get('level') not in (None,'0'): continue
-        wi=len(g['ways']);g['ways'].append({'name':tags.get('name:zh') or tags.get('name') or '人車共道','highway':'living_street','source':'osm-shared-street','osmId':wid,'access':tags.get('access'),'foot':tags.get('foot'),'wheelchair':tags.get('wheelchair'),'width':None,'slope':None,'surface':tags.get('surface'),'sidewalk':tags.get('sidewalk'),'layer':tags.get('layer'),'level':tags.get('level'),'bridge':tags.get('bridge'),'tunnel':tags.get('tunnel'),'crossing':False})
+        if not shared_candidate(tags): continue
+        wi=len(g['ways']);g['ways'].append({'name':tags.get('name:zh') or tags.get('name') or '未命名道路','highway':tags['highway'],'source':'osm-shared-street','osmId':wid,'access':tags.get('access'),'foot':tags.get('foot'),'wheelchair':tags.get('wheelchair'),'width':None,'slope':None,'surface':tags.get('surface'),'sidewalk':tags.get('sidewalk'),'layer':tags.get('layer'),'level':tags.get('level'),'bridge':tags.get('bridge'),'tunnel':tags.get('tunnel'),'crossing':False})
         for a,b in zip(nodes,nodes[1:]):
             aid,bid=a['id'],b['id']
             if aid in ex.blocked or bid in ex.blocked or aid not in ex.coords or bid not in ex.coords: rejected+=1;continue
@@ -95,20 +115,11 @@ def main():
             if length<.001: continue
             conflict=False
             for hit in tree.query(line,predicate='intersects'):
-                other,highway,ra,rb,road=ex.roads[int(hit)]
-                if other==wid: continue
-                inter=line.intersection(road)
-                if inter.is_empty:continue
-                # Only the common, original endpoint connects two living streets;
-                # coincident or overlapping geometry alone is never a junction.
-                shared={aid,bid}.intersection((ra,rb))
-                if highway=='living_street' and shared and inter.geom_type=='Point' and any(inter.distance(Point(project.transform(*ex.coords[n])))<.001 for n in shared):continue
-                hit_cross=[crossings[int(i)] for i in ctree.query(inter,predicate='intersects')]
-                if not hit_cross or not union_all(hit_cross).covers(inter):conflict=True;break
+                if not intersection_allowed(line,aid,bid,wid,ex.roads[int(hit)],crossings,ctree,ex.coords):conflict=True;break
             if conflict:rejected+=1;continue
             proof={'schemaVersion':2,'coverage':0,'maxUncoveredMetres':round(length,2),'crossingCoverage':0,'roadCrossingVerified':True,'crossingVerified':True,'sharedRoad':True,'sourceTopologyVerified':True,'junctionsVerified':True,'roadIntersectionsVerified':True,'barriersVerified':True}
             g['edges'].append([index(a),index(b),round(length,4),wi,[],proof]);added+=1
-    g['sharedRoadEvidence']={'source':'OpenStreetMap living_street','generatedAt':datetime.now(timezone.utc).isoformat(),'count':added,'rejectedSegments':rejected,'method':'original OSM node topology; mapped barriers excluded; other road intersections require official crossing or shared-node living street junction; no physical accessibility certification'}
+    g['sharedRoadEvidence']={'source':'OpenStreetMap living_street/residential/unclassified/service','generatedAt':datetime.now(timezone.utc).isoformat(),'count':added,'rejectedSegments':rejected,'method':'original OSM node topology; mapped barriers excluded; other road intersections require official crossing or shared-node candidate-road junction; unknown pedestrian and physical accessibility'}
     temp=path.with_suffix('.json.gz.next');temp.write_bytes(gzip.compress(json.dumps(g,ensure_ascii=False,separators=(',',':')).encode(),6,mtime=0));temp.replace(path)
     print(json.dumps(g['sharedRoadEvidence'],ensure_ascii=False),flush=True)
 if __name__=='__main__':main()
