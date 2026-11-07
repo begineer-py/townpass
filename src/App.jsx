@@ -75,7 +75,7 @@ import {
   saveLocal,
   isLandmark,
 } from "./data";
-import { getLocation } from "./location";
+import { getLocation, locationErrorText } from "./location";
 import { installTownPassLinks, postToTownPass, townPassUserKey } from "./townpass-bridge";
 import { activeElevatorStops, nearestStop } from "./trip-extras.mjs";
 import { travelProfiles } from "./travel-profiles";
@@ -576,9 +576,9 @@ export default function App() {
       if (useAsStart) setStart(p);
       if (which) changePoint(which, p);
       else if (!useAsStart) announce("已找到你的位置，可以看看附近有哪些設施。");
-    } catch {
+    } catch (error) {
       if (!which || version === tabVersion.current)
-        announce("目前無法取得位置。你仍可以搜尋地點，或在地圖上選擇。");
+        announce(locationErrorText(error));
     } finally {
       setLocating(false);
     }
@@ -690,8 +690,8 @@ export default function App() {
         }
         setStart(here);
         setCurrentLocation(here);
-      } catch {
-        announce("目前無法取得位置。請先選出發地，或在地圖上選點。");
+      } catch (error) {
+        announce(locationErrorText(error));
         return;
       } finally {
         setLocating(false);

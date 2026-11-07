@@ -71,3 +71,14 @@ test("external and new-window links open through open_link", () => {
   assert.equal(linkForTownPass(anchor("tel:1999"), page), null);
   assert.equal(linkForTownPass(anchor("/data/sources.json"), page), null);
 });
+
+test("location failures explain the cause", async () => {
+  const { getLocation, locationErrorText } = await import("../src/location.js");
+  globalThis.window = {};
+  globalThis.isSecureContext = false;
+  await assert.rejects(getLocation(), (e) => /HTTPS/.test(locationErrorText(e)));
+  globalThis.isSecureContext = true;
+  assert.match(locationErrorText({ code: 1 }), /權限/);
+  assert.match(locationErrorText({ code: 2 }), /定位服務/);
+  assert.match(locationErrorText({ code: 3 }), /逾時/);
+});
