@@ -88,6 +88,8 @@ export default function MapView({
   onMapReady,
   onGesture,
   onBearing,
+  // 回傳 fitBounds 的 padding，讓路線落在沒被面板蓋住的地方。
+  fitPadding,
 }) {
   const root = useRef(),
     map = useRef(),
@@ -95,8 +97,8 @@ export default function MapView({
     path = useRef(),
     ends = useRef();
   const baseLayers = useRef([]);
-  const cb = useRef({ onPick, onSelect, onViewport, onGesture, pick, onBearing });
-  cb.current = { onPick, onSelect, onViewport, onGesture, pick, onBearing };
+  const cb = useRef({ onPick, onSelect, onViewport, onGesture, pick, onBearing, fitPadding });
+  cb.current = { onPick, onSelect, onViewport, onGesture, pick, onBearing, fitPadding };
   useEffect(() => {
     const m = L.map(root.current, {
       zoomControl: false,
@@ -490,14 +492,18 @@ export default function MapView({
     if (!path.current) return;
     path.current.clearLayers();
     if (route?.coordinates) {
+      // 路線要比人行道圖層（3px 橘線）明顯得多：白色外框 + 粗的深青色線。
       L.polyline(route.coordinates, {
         color: TPColors.white,
-        weight: 10,
+        weight: 13,
         opacity: 1,
+        lineCap: "round",
+        lineJoin: "round",
       }).addTo(path.current);
       L.polyline(route.coordinates, {
         color: TPColors.primary700,
-        weight: 6,
+        weight: 8,
+        lineJoin: "round",
         opacity: 1,
         lineCap: "round",
         dashArray: route.requiresEntryConfirmation ? "8 6" : undefined,
@@ -561,7 +567,10 @@ export default function MapView({
         label.textContent = `已避開施工：${work.address}`;
         layer.bindTooltip(label, { direction: "top" });
       }
-      map.current.fitBounds(L.latLngBounds(route.coordinates).pad(0.2));
+      map.current.fitBounds(L.latLngBounds(route.coordinates), {
+        maxZoom: 18,
+        ...cb.current.fitPadding?.(),
+      });
     } else if (partialRoute) {
       const bounds=[];
       for(const segment of partialRoute.segments){
@@ -581,7 +590,10 @@ export default function MapView({
         L.circleMarker(point,{radius:9,color:TPColors.white,weight:3,fillColor:TPColors.orange700,fillOpacity:1}).bindTooltip(label,{permanent:true,direction:side==='startSide'?'top':'bottom',offset:side==='startSide'?[0,-8]:[0,8]}).addTo(path.current);
       }
       if (bounds.length) {
-        map.current.fitBounds(L.latLngBounds(bounds).pad(0.2), { maxZoom: 17 });
+        map.current.fitBounds(L.latLngBounds(bounds), {
+          maxZoom: 17,
+          ...cb.current.fitPadding?.(),
+        });
       }
     }
   }, [route, partialRoute, colorFriendly]);

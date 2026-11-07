@@ -54,6 +54,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import MapView from "./MapView";
+import { routeFitPadding } from "./route-fit.mjs";
 import { createLiveFollow, displayedRouteCoordinates } from "./live-follow.mjs";
 import { createRouteWorkerLifecycle } from "./route-worker-lifecycle.mjs";
 import { createLiveFollowSearch } from "./live-follow-search.mjs";
@@ -1695,27 +1696,6 @@ export default function App() {
                             {point?.name || placeholder}
                           </strong>
                         </button>
-                        <div className="point-tools">
-                          <button
-                            className="point-tool"
-                            aria-label={`用目前位置當${noun}`}
-                            onClick={() => locate(which)}
-                            disabled={locating}
-                          >
-                            <LocateFixed size={20} aria-hidden="true" />
-                          </button>
-                          <button
-                            className="point-tool"
-                            aria-label={`在地圖上選${noun}`}
-                            aria-pressed={pick === which}
-                            onClick={() => {
-                              setPick(pick === which ? null : which);
-                              announce(`請在地圖上點選${noun}。`, { quiet: true });
-                            }}
-                          >
-                            <MapPin size={20} aria-hidden="true" />
-                          </button>
-                        </div>
                       </div>
                     ))}
                   </div>
@@ -2230,6 +2210,17 @@ export default function App() {
             onViewport={setViewport}
             onBearing={setBearing}
             onMapReady={(m) => (map.current = m)}
+            fitPadding={() => {
+              const panel = panelEl.current;
+              return routeFitPadding({
+                phone: matchMedia("(max-width: 700px)").matches,
+                viewportHeight: window.innerHeight,
+                sheetFraction: SHEET_SNAPS[1],
+                sheetMax: parseFloat(panel?.style.getPropertyValue("--sheet-max")) || Infinity,
+                mapRect: map.current?.getContainer().getBoundingClientRect(),
+                panelRect: panel?.getBoundingClientRect(),
+              });
+            }}
             onGesture={() => {
               if (
                 matchMedia("(max-width: 700px)").matches &&
@@ -2446,6 +2437,28 @@ export default function App() {
             />
             <VoiceSearch onResult={setQuery} />
           </div>
+          {(searchFor === "start" || searchFor === "end") && (
+            <div className="search-options">
+              <button type="button" onClick={() => locate(searchFor)} disabled={locating}>
+                <LocateFixed size={20} aria-hidden="true" />
+                {locating ? "定位中…" : "使用目前位置"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const which = searchFor;
+                  setSearchFor(null);
+                  setQuery("");
+                  setPick(which);
+                  setSheetSnap(0);
+                  announce(`請在地圖上點選${which === "start" ? "出發地" : "目的地"}。`, { quiet: true });
+                }}
+              >
+                <MapPin size={20} aria-hidden="true" />
+                在地圖上點選
+              </button>
+            </div>
+          )}
           {stationMatches.map(({ s, name, exits }) => {
             const pickExit = (p) => {
               if (searchFor === "explore") {

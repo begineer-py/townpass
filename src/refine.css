@@ -1183,33 +1183,6 @@ button.icon-action {
   color: var(--tp-grayscale600);
   font-weight: var(--tp-text-bodyRegular-weight);
 }
-.point-tools {
-  display: flex;
-  gap: 2px;
-  flex-shrink: 0;
-}
-.endpoints .point-fields .point-tool {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  min-height: 0;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--tp-primary700);
-}
-.endpoints .point-fields .point-tool:hover {
-  background: var(--tp-primary50);
-}
-.endpoints .point-fields .point-tool[aria-pressed="true"] {
-  background: var(--tp-primary700);
-  color: var(--tp-white);
-}
-.endpoints .point-fields .point-tool:disabled {
-  opacity: 0.5;
-}
 @media (max-width: 700px) {
   .endpoints {
     padding-right: 4px;
