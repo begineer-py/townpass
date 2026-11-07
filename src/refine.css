@@ -1480,7 +1480,6 @@ button.icon-action {
   color: var(--tp-grayscale900);
 }
 
-/* Route choices use short text labels as well as restrained colour. */
 .route-alternative.route-choice { gap: 8px; padding: 14px; }
 .route-alternative .route-choice__heading { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 8px; color: var(--tp-grayscale900); font-size: 1.05rem; }
 .route-alternative .route-choice__heading strong { font-size: 1.1rem; }

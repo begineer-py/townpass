@@ -3,9 +3,10 @@ import L from 'leaflet';
 import {CONSTRUCTION_MAX_AGE} from './construction.mjs';
 import {constructionLabel,selectVisibleConstruction,createConstructionRedrawGate,constructionMarkerVisible} from './construction-layer.mjs';
 import constructionIcon from './construction-icon.svg';
+import {TPColors} from './tp-colors.mjs';
 import './construction-layer.css';
 
-const colors={blocked:'#912522',unknown:'#74521B',clear:'#5E6D76'};
+const colors={blocked:TPColors.red700,unknown:TPColors.secondary800,clear:TPColors.grayscale600};
 function popupContent(work,geometry,sourceUpdatedAt,count=1,ids=[],onAvoid=null,avoiding=false){
  const root=document.createElement('div'),title=document.createElement('strong');
  title.textContent=constructionLabel(work,geometry);root.append(title);
