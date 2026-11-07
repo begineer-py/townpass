@@ -29,7 +29,7 @@ export default function MapView({
   onSelect,
   onViewport,
   onMapReady,
-  onUserInteract,
+  onGesture,
 }) {
   const root = useRef(),
     map = useRef(),
@@ -37,8 +37,8 @@ export default function MapView({
     path = useRef(),
     ends = useRef();
   const baseLayers = useRef([]);
-  const cb = useRef({ onPick, onSelect, onViewport, pick });
-  cb.current = { onPick, onSelect, onViewport, pick, onUserInteract };
+  const cb = useRef({ onPick, onSelect, onViewport, onGesture, pick });
+  cb.current = { onPick, onSelect, onViewport, onGesture, pick };
   useEffect(() => {
     const m = L.map(root.current, {
       zoomControl: false,
@@ -62,7 +62,6 @@ export default function MapView({
       });
     };
     m.on("moveend", viewport);
-    m.on("dragstart", () => cb.current.onUserInteract?.());
     m.on("click", (e) => {
       if (cb.current.pick)
         cb.current.onPick({
@@ -72,11 +71,22 @@ export default function MapView({
           id: `point-${Date.now()}`,
         });
     });
+    // User pan/zoom gestures only (not taps, not fitBounds/setView), so the
+    // phone sheet can get out of the way the way Google Maps does.
+    const gesture = () => cb.current.onGesture?.();
+    const el = root.current;
+    const pinch = (e) => e.touches.length > 1 && gesture();
+    m.on("dragstart", gesture);
+    m.on("dblclick", gesture);
+    el.addEventListener("wheel", gesture, { passive: true });
+    el.addEventListener("touchstart", pinch, { passive: true });
     viewport();
     onMapReady(m);
     const observer = new ResizeObserver(() => m.invalidateSize({pan:false, debounceMoveend:true}));
     observer.observe(root.current);
     return () => {
+      el.removeEventListener("wheel", gesture);
+      el.removeEventListener("touchstart", pinch);
       observer.disconnect();
       m.remove();
     };
@@ -236,9 +246,6 @@ export default function MapView({
   return (
     <div
       ref={root}
-      onWheelCapture={() => onUserInteract?.()}
-      onDoubleClick={() => onUserInteract?.()}
-      onTouchStart={e => { if(e.touches.length > 1) onUserInteract?.(); }}
       className={`map-canvas basemap-${basemap} ${pick ? "picking" : ""}`}
       role="region"
       aria-label="臺北地圖，可使用方向鍵移動，加減鍵縮放。"

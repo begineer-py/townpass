@@ -59,7 +59,14 @@
   --tp-black: #000000;
   --tp-transparent: transparent;
   --tp-font-family:
-    "PingFang TC", "PingFangTC", "Microsoft JhengHei", system-ui, sans-serif;
+    "PingFang TC", "PingFangTC", "Noto Sans TC", "Microsoft JhengHei",
+    -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  /* Structural tokens from .agents/skills/townpass-web-design. */
+  --tp-shadow-card: 0 4px 12px rgba(0, 0, 0, 0.04);
+  --tp-shadow-bottom-sheet: 0 0 6px rgba(0, 0, 0, 0.1);
+  --tp-radius-btn: 10px;
+  --tp-radius-card: 12px;
+  --tp-radius-dialog: 10px;
   --tp-text-h1Regular-size: 2.57142857rem;
   --tp-text-h1Regular-weight: 400;
   --tp-text-h1SemiBold-size: 2.57142857rem;

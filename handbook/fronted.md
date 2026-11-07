@@ -1,13 +1,15 @@
 # 前端設計
 
-遵循 `.agents/skills/design` 與 `townpass-web-design`：手機優先、16px頁面邊距、白色內容區、灰底輸入欄、10px按鈕圓角。只有400與600字重，字色來自TPColors，字級來自TPTextStyles。
+以main的地圖介面與 `.agents/skills/townpass-web-design/SKILL.md` 為準。
 
-首頁不重複繪製台北通AppBar，使用功能選單開啟內容。瀏覽器頁籤標題維持好好走。主按鈕使用primary500；為閱讀對比採primary950文字，高對比模式改primary800配白字。
+- 地圖為背景，手機底部常駐搜尋面板；peek／half／full三段高度，可拖曳或點把手切換。
+- 主要功能使用底部分頁：找設施、規劃路線、捷運出口、收藏。圖層與定位用右上浮動工具。
+- 主按鈕primary500底、白字、10px圓角、16px字級；按下primary600。次按鈕白底、primary500文字及邊框。
+- 字體只用400／600字重，文字及色票取自TPTextStyles／TPColors；手機內容邊距16px。
+- 高對比模式使用較深的同色系；色覺友善模式保留設施文字。語音可輸入、朗讀、調速及停止。
+- 不重複繪製台北通AppBar；HTML title供宿主使用。
+- 畫面保留距離、路線分段、施工位置／時間、電梯出口與保養時間；技術證據在本手冊及reports。
 
-- App.jsx：功能狀態、查詢、面板與對話框。
-- MapView.jsx：底圖、標記、縮放與手勢。
-- VoiceSearch.jsx：點按後啟動語音，關閉時停止。
-- style.css／tp-tokens.css：元件樣式與共用色票。
-- route-worker.js：資料載入及路線幾何驗證。
+元件：App.jsx管理互動，MapView.jsx管理地圖，VoiceSearch.jsx管理收音，route-worker.js執行路線驗證及避讓。
 
-手機操作地圖時面板向下收；把手可展開。減少動態效果時不播放動畫。地圖控制保留44px點按範圍。
+資料與部署：[路由參考](routing-reference.md)、[Vercel](../deployment/vercel.md)。
