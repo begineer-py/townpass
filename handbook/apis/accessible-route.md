@@ -6,7 +6,7 @@
 
 回應是候選路線。前端Worker仍需檢查人行空間、行穿線及入口，不能直接把HTTP 200當成可通行。
 
-上游固定為臺北市無障礙通行路線平臺。不得轉傳身分、cookies或任意目的網址。位置請求不快取；上游內部檔案路徑不回傳前端。
+上游固定為臺北市無障礙通行路線平臺，逾時 20 秒。市府 CORS 未完整開放 POST JSON，瀏覽器改打同源代理。不得轉傳身分、cookies或任意目的網址。位置請求不快取；上游內部檔案路徑不回傳前端。
 
 本機Vite與Vercel共用api/accessible-route.js。市府端回應欄位與服務狀態可能變動，測試見tests/route-api.test.mjs及tests/route-request.test.mjs。
 

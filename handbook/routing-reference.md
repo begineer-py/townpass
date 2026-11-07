@@ -2,8 +2,6 @@
 
 可嵌入台北通 WebView 的手機網頁微服務。搜尋地點、地址或直接點選地圖上的起終點，查看公開路網的路線參考、捷運電梯出口、無障礙廁所、休息座椅、飲水與附近設施。
 
-團隊導覽：[handbook/intro.md](intro.md)。部署設定：[deployment/README.md](../deployment/README.md)。
-
 ## 開始使用
 
 ```sh
@@ -11,18 +9,7 @@ npm ci
 npm run dev
 ```
 
-開啟 `http://localhost:5173/`。同網路手機可開發機的區網 IP 與 5173 port。定位使用瀏覽器 Geolocation API；正式環境需 HTTPS，並由使用者授權。頁面不讀取台北通會員或身分資料。
-
-正式環境部署方式請參閱 [Vercel 部署說明](../deployment/vercel.md)。
-
-```sh
-npm test
-node scripts/smoke_routes.mjs
-npm run build
-npm run preview
-```
-
-部署需要同源 `/api/accessible-route` 轉接端點及 `dist/data` 靜態資料。線上路線由市府服務回傳，再由本機 Web Worker 驗證；離線路線由 Worker 計算。不呼叫商用導航、雲端 LLM 或付費導航 API。
+開啟 `http://localhost:5173/`。同網路手機可開發機的區網 IP 與 5173 port。定位使用瀏覽器 Geolocation API；正式環境需 HTTPS，並由使用者授權。頁面不讀取台北通會員或身分資料。線上路線由市府服務回傳，再由本機 Web Worker 驗證；離線路線由 Worker 計算。
 
 ## 功能
 
@@ -127,12 +114,7 @@ curl -L --fail --retry 3 -C - -o data/raw/taiwan.osm.pbf https://download.geofab
 
 官方介面不提供逐段淨寬/坡度及各偏好模式的比較；不假裝已套用這些條件。要求尺寸完整時拒絕缺值路線。線上模式不顯示離線專用的坡度/過街次數排序選項。資料不是即時現場認證。
 
-早期僅檢查官方標記的樣本留在 reports/official-router-benchmark.json，不能當作目前可用路線驗收。新版完整幾何檢查結果見 reports/official-geometry-audit.json：原9組全部拒絕（7組人行圖資缺口、1組入口銜接、1組官方障礙替代路線）；另以大安實際路網端點重新向官方查詢，684公尺完整通過。拒絕表示缺少足夠圖資依據，不等於現場必然無路可走。
-
-### 路線服務部署
-
-市府端的 CORS 預檢未完整開放 POST JSON，因此瀏覽器透過本站 `POST /api/accessible-route` 查詢；Vite dev/preview 使用同一個 handler，Vercel 使用 `api/accessible-route.js` 函式。其他部署平台必須提供相同 Node API，不能只上傳 dist 到純靜態空間。轉接端接受起終點及最多一個途經點（共2–3個臺北範圍座標）、固定市府上游、20秒逾時，不轉傳 cookies/身分資料、不快取位置查詢，剔除上游內部路徑欄位。正式上線需依主機平台配置流量限制與位置日誌保存政策。
-
+早期僅檢查官方標記的樣本留在 reports/official-router-benchmark.json，不能當作目前可用路線驗收。新版完整幾何檢查結果見 reports/official-geometry-audit.json：原9組全部拒絕（7組人行圖資缺口、1組入口銜接、1組官方障礙替代路線）；另以大安實際路網端點重新向官方查詢，684公尺完整通過。拒絕表示缺少足夠圖資依據，不等於現場必然無路可走。代理契約見 [accessible-route](apis/accessible-route.md)，部署見 [Vercel](../deployment/vercel.md)。
 
 ### 線上獨立幾何驗證
 
@@ -207,6 +189,4 @@ npm run build
 
 執行 `node scripts/sync-official-conditions.mjs` 更新公開圖台 `missing_v2` 回傳的淨寬不足及行穿線未設路緣斜坡點位。資料只代表該介面返回的兩類快照，不等於所有障礙；檔案記錄擷取時間與來源雜湊，來源未提供實際更新日期。資料缺失時介面顯示不可取得，而非視為零筆。
 
-路線上顯示距線 10 公尺內的紀錄；候選評分與獨立行人路段的搜索成本參考 2 公尺內的紀錄。距離只能表示附近，不能確認點位所屬方向、所在樓層或是否仍存在；不因此將道路標成封閉。請依現場與其他來源確認。
-
-路線頁可查官方紀錄的具體缺失原因與活動區域分類；查詢只傳記錄類型與 ID 到同源固定代理 `/api/official-condition-detail`。使用者可逐筆選擇紀錄嘗試繞路：重算時保留先前所選紀錄，排除各點 10 公尺範圍，並重新檢查路網與施工；找不到時保留原路線。避開紀錄點不代表現場已確認或避開其他障礙。
+路線上顯示距線 10 公尺內的紀錄；候選評分與獨立行人路段的搜索成本參考 2 公尺內的紀錄。距離只能表示附近，不能確認點位所屬方向、所在樓層或是否仍存在；不因此將道路標成封閉。請依現場與其他來源確認。細節與繞路見 [official-condition-detail](apis/official-condition-detail.md)。

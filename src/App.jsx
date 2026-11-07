@@ -1747,7 +1747,7 @@ export default function App() {
                     {conditionDetourState.status === "loading" && (
                       <p role="status">
                         正在尋找繞路…{" "}
-                        <button type="button" onClick={() => conditionDetourSearch.current.cancel()}>
+                        <button type="button" className="text-button" onClick={() => conditionDetourSearch.current.cancel()}>
                           取消
                         </button>
                       </p>
@@ -1757,7 +1757,7 @@ export default function App() {
                     )}
                     {route.conditionDetour && (
                       <p className="quiet-note" role="note">
-                        已規劃避開 {route.conditionDetour.targets.length} 筆所選官方紀錄點 10 公尺內的路線；點位與實際路況仍需現場確認。
+                        已避開 {route.conditionDetour.targets.length} 筆所選紀錄點 10 公尺。
                       </p>
                     )}
                     {routeWorks.length > 0 && (
