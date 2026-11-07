@@ -1206,7 +1206,7 @@ export default function App() {
     });
   }, [retryWithEntrance,data,start,end]);
   const errorText = {
-    CONSTRUCTION_UNAVAILABLE: '施工資料暫時無法更新。請連上網路再查一次，附近設施仍可查看。',
+    CONSTRUCTION_UNAVAILABLE: '施工資料暫時無法更新。請確認網路或稍後再試，附近設施仍可查看。',
     CONSTRUCTION_BLOCKED: '路線或入口遇到影響通行的施工通報，目前沒有找到通過檢查的替代路線。可以換個出入口再試。',
 
     OFFICIAL_PATH_UNVERIFIED: '這次還沒找到合適的走法。可以改從附近的電梯出口出發，或選擇另一個目的地入口。',
