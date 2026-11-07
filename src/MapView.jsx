@@ -20,6 +20,8 @@ export default function MapView({
   items,
   route,
   constructionConflict,
+  nearbyCandidates,
+  onNearbySelect,
   start,
   end,
   location,
@@ -41,11 +43,12 @@ export default function MapView({
     marks = useRef(),
     path = useRef(),
     blocked = useRef(),
+    nearby = useRef(),
     ends = useRef();
   const baseLayers = useRef([]);
   const paddingReader=useRef(getBottomInset);paddingReader.current=getBottomInset;
-  const cb = useRef({ onPick, onSelect, onViewport, onGesture, pick });
-  cb.current = { onPick, onSelect, onViewport, onGesture, pick };
+  const cb = useRef({ onPick, onSelect, onViewport, onGesture, onNearbySelect, pick });
+  cb.current = { onPick, onSelect, onViewport, onGesture, onNearbySelect, pick };
   useEffect(() => {
     const m = L.map(root.current, {
       zoomControl: false,
@@ -58,6 +61,7 @@ export default function MapView({
     marks.current = L.layerGroup().addTo(m);
     path.current = L.layerGroup().addTo(m);
     blocked.current = L.layerGroup().addTo(m);
+    nearby.current = L.layerGroup().addTo(m);
     ends.current = L.layerGroup().addTo(m);
     const viewport = () => {
       const b = m.getBounds(),
@@ -241,6 +245,18 @@ export default function MapView({
     }
     if (bounds.length && !route) map.current.fitBounds(L.latLngBounds(bounds), {maxZoom:17, padding:[60,60], animate:false});
   }, [constructionConflict, route]);
+  useEffect(() => {
+    if(!nearby.current)return;
+    nearby.current.clearLayers();
+    const bounds=[];
+    for(const [index,candidate] of (nearbyCandidates||[]).entries()){
+      const point=[candidate.point.lat,candidate.point.lon];bounds.push(point);
+      const marker=L.circleMarker(point,{radius:9,color:TPColors.white,weight:3,fillColor:TPColors.primary700,fillOpacity:1}).addTo(nearby.current);
+      marker.bindTooltip(`${candidate.side==='start'?'起點':'目的地'}候選 ${index+1}：距原地點直線約 ${candidate.straightMetres} 公尺；不代表建物入口`);
+      marker.on('click',event=>{L.DomEvent.stopPropagation(event);cb.current.onNearbySelect?.(candidate);});
+    }
+    if(bounds.length&&!route){const height=map.current.getSize().y;map.current.fitBounds(L.latLngBounds(bounds),{maxZoom:17,animate:false,paddingTopLeft:[24,40],paddingBottomRight:[24,Math.min(height-120,(paddingReader.current?.()||0)+24)]});}
+  },[nearbyCandidates,route]);
   useEffect(() => {
     if (!ends.current) return;
     ends.current.clearLayers();

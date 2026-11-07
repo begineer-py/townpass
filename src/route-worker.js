@@ -6,7 +6,8 @@ import {routeAroundConstruction,resolveVerifiedRoute} from './construction-routi
 import {createConstructionChecker} from './construction.mjs';
 import {createDetourWaypoints} from './alternative-routes.mjs';
 import {createLocalRouteVerifier,planPlaces,diagnoseConstruction} from './local-route-verifier.mjs';
-let router, verifyOfficial, verifyLocal, facilities, initialization, detourWaypoints;
+import {createNearbyRoutes} from './nearby-routes.mjs';
+let router, verifyOfficial, verifyLocal, facilities, initialization, detourWaypoints, nearbyRoutes, routeGraph;
 function combineRoutes(a, b, viaName) {
   if (a.error) return a;
   if (b.error) return b;
@@ -52,6 +53,7 @@ self.onmessage = async ({ data }) => {
           ? JSON.parse(new TextDecoder().decode(gunzipSync(bytes)))
           : JSON.parse(new TextDecoder().decode(bytes));
       validateNetwork(graph);
+      routeGraph=graph;
       const baseRouter=createRouter(graph);
       router=(a,b,options={})=>baseRouter(a,b,{...options,approachAllowed:(p,n,side)=>verifyLocal.approachAllowed(p,n,side==='start'?options.startPlace:options.endPlace,options)});
       verifyOfficial = createOfficialRouteVerifier(graph);
@@ -65,6 +67,12 @@ self.onmessage = async ({ data }) => {
       })();
       await initialization;
       postMessage({ type: "ready" });
+    } else if(data.type==='nearby-positions'){
+      await initialization;
+      let checker;try{checker=createConstructionChecker(data.construction);}catch{postMessage({type:'nearby-positions',id:data.id,result:{error:'CONSTRUCTION_UNAVAILABLE'}});return;}
+      if(!nearbyRoutes)nearbyRoutes=createNearbyRoutes(routeGraph,{router,verifyLocal,facilities});
+      const result=nearbyRoutes(data.startPlace,data.endPlace,data.options||{},data.construction,checker);
+      postMessage({type:'nearby-positions',id:data.id,result});
     } else if(data.type==='plan-places'){
       await initialization;
       let checker;try{checker=createConstructionChecker(data.construction);}catch{postMessage({type:'route',id:data.id,result:{error:'CONSTRUCTION_UNAVAILABLE'}});return;}

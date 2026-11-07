@@ -59,6 +59,8 @@ import {searchVerifiedAlternatives} from "./alternative-routes.mjs";
 import {fetchConstruction} from "./construction-client.mjs";
 import {canFallbackAfterVerification, startLocalFallback} from "./local-fallback.mjs";
 import {constructionFresh, CONSTRUCTION_MAX_AGE} from "./construction.mjs";
+import {nearbyReplacement,nearbyWarnings} from "./nearby-presentation.mjs";
+import {createNearbySearch} from "./nearby-search.mjs";
 import { requestOfficialRoute } from "./official-router.mjs";
 import { ROUTING_POLICY } from "./routing.mjs";
 import { BASEMAPS } from "./basemaps.mjs";
@@ -323,6 +325,9 @@ export default function App() {
   const locationRequest=useRef(0);
   const pendingVerifications = useRef(new Map());
   const lastConstruction = useRef(null);
+  const [nearbyState,setNearbyState]=useState({status:'idle',candidates:[]});
+  const nearbySearch=useRef(null);
+  if(!nearbySearch.current)nearbySearch.current=createNearbySearch({fetchSnapshot:fetchConstruction,createWorker:()=>new Worker(new URL('./route-worker.js',import.meta.url),{type:'module'}),onState:setNearbyState,onSnapshot:s=>{lastConstruction.current=s;}});
   const [constructionConflict,setConstructionConflict] = useState(null);
   const [routeAttempt,setRouteAttempt]=useState(0);
   function verifyOnlineRoute(route, start, end, id, construction, options=prefs) {
@@ -536,7 +541,7 @@ export default function App() {
         location.href,
       ).href,
     });
-    return () => { w.terminate(); for(const resolve of pendingVerifications.current.values()) resolve({error:'UNVERIFIED_NETWORK'}); pendingVerifications.current.clear(); };
+    return () => { w.terminate(); nearbySearch.current?.cancel(false); for(const resolve of pendingVerifications.current.values()) resolve({error:'UNVERIFIED_NETWORK'}); pendingVerifications.current.clear(); };
   }, [graphRequested]);
   const changePoint = (which, p) => {
     locationRequest.current++;
@@ -552,6 +557,7 @@ export default function App() {
     setFocus({ ...p, token: Date.now() });
   };
   function clearRoute() {
+    cancelNearby();
     setConstructionConflict(null);
     setRouteAttempt(0);
     for(const resolve of pendingVerifications.current.values()) resolve({error:'UNVERIFIED_NETWORK'});
@@ -562,6 +568,20 @@ export default function App() {
     setSpeaking(false);
     setRouting(false);
     setRoute(null);
+  }
+  function cancelNearby(){
+    nearbySearch.current.cancel();
+  }
+  function findNearbyPositions(){
+    if(!start||!end||!graphReady)return;
+    void nearbySearch.current.start({startPlace:start,endPlace:end,options:{...prefs,avoidPoints},url:new URL(dataUrl('graph')+'?policy='+ROUTING_POLICY,location.href).href,online:navigator.onLine,offlineSnapshot:lastConstruction.current});
+  }
+  function chooseNearby(candidate){
+    if(!constructionFresh(lastConstruction.current)){cancelNearby();announce('施工資料已過期，請重新搜尋附近位置。');return;}
+    const original=candidate.side==='start'?start:end,point=nearbyReplacement(candidate,original);
+    const points=candidate.side==='start'?{start:point,end}:{start,end:point};
+    if(candidate.side==='start')setStart(point);else setEnd(point);
+    setFocus({...point,token:Date.now()});setRouteError('');cancelNearby();calculate(points);
   }
   function selectPoint(p) {
     if (pick) changePoint(pick, p);
@@ -602,7 +622,7 @@ export default function App() {
       setCurrentLocation(p);
       setFocus({ ...p, token: Date.now() });
       if(p.needsConfirmation){announce(p.accuracy == null ? "已取得大致位置，精度暫時不明；請在地圖確認出發地。" : `已取得大致位置，誤差約 ${Math.round(p.accuracy)} 公尺；請在地圖確認出發地。`);return;}
-      if (useAsStart) setStart(p);
+      if (useAsStart) { cancelNearby(); setStart(p); }
       if (which) changePoint(which, p);
       else if (!useAsStart) announce("已找到你的位置，可以看看附近有哪些設施。");
     } catch (error) {
@@ -967,7 +987,7 @@ export default function App() {
       route.policyVersion !== ROUTING_POLICY
     )
       return;
-    const text = `從${start.name}前往${end.name}，路線長約${formatDistance(route.distance)}。${route.approaches?.some(p=>p.estimated) ? "起終點銜接為直線位置估算，入口與實際通行狀況未確認，請先確認現場。" : ""}${route.steps.map((s) => `${stepText(s)}約${Math.round(s.distance)}公尺。${stepConditions(s) ? stepConditions(s)+'。' : ''}`).join("")}路況仍需留意現場，這是路線預覽。`;
+    const text = `從${start.name}前往${end.name}，路線長約${formatDistance(route.distance)}。${nearbyWarnings(start,end).join(' ')}${route.approaches?.some(p=>p.estimated) ? "起終點銜接為直線位置估算，入口與實際通行狀況未確認，請先確認現場。" : ""}${route.steps.map((s) => `${stepText(s)}約${Math.round(s.distance)}公尺。${stepConditions(s) ? stepConditions(s)+'。' : ''}`).join("")}路況仍需留意現場，這是路線預覽。`;
     speakText(text);
   }
   function speakText(text) {
@@ -1013,7 +1033,7 @@ export default function App() {
     const text = `好好走｜${start.name} → ${end.name}\n約 ${formatDistance(route.distance)}\n${route.steps
       .slice(0, 20)
       .map((s) => `${s.name} ${Math.round(s.distance)}公尺${stepConditions(s) ? `（${stepConditions(s)}）` : ''}`)
-      .join("\n")}\n${route.approaches?.some(p=>p.estimated) ? '起終點入口與實際通行狀況未確認，銜接為直線位置估算。\n' : ''}路線依公開路網規劃，部分通行條件尚未確認，請留意現場。`;
+      .join("\n")}\n${nearbyWarnings(start,end).join('\n')}${nearbyWarnings(start,end).length?'\n':''}${route.approaches?.some(p=>p.estimated) ? '起終點入口與實際通行狀況未確認，銜接為直線位置估算。\n' : ''}路線依公開路網規劃，部分通行條件尚未確認，請留意現場。`;
     try {
       if (navigator.share)
         await navigator.share({ title: "好好走・行程", text });
@@ -1159,6 +1179,7 @@ export default function App() {
                 key={id}
                 className={tab === id ? "active" : ""}
                 onClick={() => {
+                  if(id!=='plan')cancelNearby();
                   setTab(id);
                   setPick(null);
                   setSheetSnap((v) => Math.max(v, 1));
@@ -1405,6 +1426,18 @@ export default function App() {
                     </div>}
                     {constructionConflict?.blocked?.length > 0 && <p>地圖已標出影響路線的施工位置；點線位置的周邊範圍是估計，並非精確封閉邊界。</p>}
                     {constructionConflict?.blocked?.slice(0,3).map(w => <p key={w.id}>{w.address}：{w.match === 'vicinity' ? '鄰近影響通行的施工位置' : '與影響通行的施工範圍交會'}。{w.plan}</p>)}
+                    {(retryWithEntrance||routeError==='CONSTRUCTION_BLOCKED') && start && end && graphReady && <div className="entrance-choices">
+                      <button type="button" onClick={findNearbyPositions} disabled={nearbyState.status==='loading'}>尋找附近可達人行路網位置</button>
+                      {nearbyState.status==='loading'&&<p>正在檢查附近路網和施工… <button type="button" onClick={cancelNearby}>取消搜尋</button></p>}
+                      {nearbyState.status==='error'&&<p>{nearbyState.message}</p>}
+                      {nearbyState.status==='ready'&&<>
+                        <p>以下是附近可達的人行路網位置，不一定是入口。距離為與原地點的直線距離；選擇後路線不含兩者間的路程，通行與樓層仍需確認。</p>
+                        {!nearbyState.candidates.length&&<p>目前未找到能與另一端連通的候選位置；若兩端都無法接入，請先選擇其中一端的已知可達點，再重新搜尋。</p>}
+                        {nearbyState.candidates.length>0&&['start','end'].some(side=>!nearbyState.candidates.some(c=>c.side===side))&&<p>未列出的那一側沒有找到能與另一端連通的候選；如兩端都無法接入，請先選擇其中一端的已知可達點。</p>}
+                        {nearbyState.candidates.map((c,i)=><button type="button" key={`${c.side}-${c.point.id}`} onClick={()=>chooseNearby(c)}><span>{c.side==='start'?'起點':'目的地'}候選 {i+1}<small>距原地點直線約 {formatDistance(c.straightMetres)}；路線約 {formatDistance(c.routeDistance)}</small></span><ChevronRight size={18}/></button>)}
+                        {nearbyState.truncated&&<p>已檢查部分附近位置；可能還有其他位置未列出。</p>}
+                      </>}
+                    </div>}
                     {(retryWithEntrance || ["OFFICIAL_OUTSIDE_COVERAGE", "OFFICIAL_INVALID_POINTS", "OFFICIAL_ENTRY_UNVERIFIED", "OFFICIAL_PATH_UNVERIFIED", "OFFICIAL_ROAD_CONFLICT", "OFFICIAL_CROSSING_UNVERIFIED", "CONSTRUCTION_BLOCKED"].includes(routeError)) && (
                       <div className="route-tools">
                         <button onClick={() => openSearch("start")}>重選出發地</button>
@@ -1416,6 +1449,7 @@ export default function App() {
                 )}
                 {route && (
                   <>
+                    {nearbyWarnings(start,end).map(text=><div className="notice" role="note" key={text}><AlertTriangle aria-hidden="true"/><p>{text}</p></div>)}
                     {route.construction && <p className="quiet-note">施工資料更新：{new Date(route.construction.sourceUpdatedAt).toLocaleString('zh-TW', {timeZone:'Asia/Taipei'})}{route.construction.unmapped > 0 ? ` · ${route.construction.unmapped} 處施工位置待確認` : ''}</p>}
                     {route.construction?.avoided > 0 && (
                       <p className="quiet-note">
@@ -1732,6 +1766,8 @@ export default function App() {
             onBasemapStatus={setBasemapStatus}
             route={tab ? route : null}
             constructionConflict={tab ? constructionConflict : null}
+            nearbyCandidates={tab==='plan' ? nearbyState.candidates : []}
+            onNearbySelect={chooseNearby}
             start={tab ? start : null}
             end={tab ? end : null}
             location={currentLocation}
