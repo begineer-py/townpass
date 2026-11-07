@@ -99,11 +99,6 @@ button.icon-action {
 .detail-actions.icon-actions {
   justify-content: flex-start;
 }
-.panel-footer .icon-action {
-  margin: 0;
-  color: var(--tp-grayscale700);
-  text-decoration: none;
-}
 .load-more.icon-action {
   margin: 12px auto;
 }
@@ -168,11 +163,6 @@ button.icon-action {
 .section-top h2 {
   font-size: 20px;
 }
-.panel-footer {
-  margin-top: 8px;
-  padding-block: 8px;
-}
-
 @media (max-width: 700px) {
   :root {
     --nav-h: calc(56px + env(safe-area-inset-bottom));
@@ -675,6 +665,18 @@ button.icon-action {
   font: inherit;
   font-size: var(--tp-text-h3Regular-size);
   text-align: left;
+}
+.settings-entry {
+  justify-content: flex-start;
+}
+.settings-entry > span {
+  flex: 1;
+}
+.settings-entry > svg:first-child {
+  color: var(--tp-primary700);
+}
+.settings-entry > svg:last-child {
+  color: var(--tp-grayscale600);
 }
 .settings-row + .settings-row,
 .settings-list > * + * {

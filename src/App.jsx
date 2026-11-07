@@ -1508,22 +1508,6 @@ export default function App() {
                   ))}
               </>
             )}
-            <footer className="panel-footer">
-              <button
-                className="icon-action"
-                aria-label="資料來源"
-                onClick={() => setModal("sources")}
-              >
-                <Info size={20} aria-hidden="true" />
-              </button>
-              <button
-                className="icon-action"
-                aria-label="關於服務"
-                onClick={() => setModal("about")}
-              >
-                <HelpCircle size={20} aria-hidden="true" />
-              </button>
-            </footer>
           </div>
         </aside>
         <main className="map-area" aria-label="地圖與設施">
@@ -2177,6 +2161,24 @@ export default function App() {
           <section className="settings-group" aria-labelledby="set-data">
             <h3 id="set-data">資料</h3>
             <div className="settings-list">
+              <button
+                type="button"
+                className="settings-row settings-entry"
+                onClick={() => setModal("sources")}
+              >
+                <Info size={20} aria-hidden="true" />
+                <span>資料來源</span>
+                <ChevronRight size={18} aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                className="settings-row settings-entry"
+                onClick={() => setModal("about")}
+              >
+                <HelpCircle size={20} aria-hidden="true" />
+                <span>關於</span>
+                <ChevronRight size={18} aria-hidden="true" />
+              </button>
               {!confirmClear ? (
                 <button type="button" className="settings-row settings-danger" onClick={() => setConfirmClear(true)}>
                   清除這支手機上的資料
@@ -2195,7 +2197,7 @@ export default function App() {
         </Sheet>
       )}
       {modal === "about" && (
-        <Sheet title="關於好好走" onClose={() => setModal(null)}>
+        <Sheet title="關於好好走" onClose={() => setModal("prefs")}>
           <div className="about-logo">
             <Route size={35} />
           </div>
@@ -2225,7 +2227,7 @@ export default function App() {
         </Sheet>
       )}
       {modal === "sources" && (
-        <Sheet title="資料從哪裡來" onClose={() => setModal(null)}>
+        <Sheet title="資料從哪裡來" onClose={() => setModal("prefs")}>
           <p>
             下載時間與現場調查時間不同。這些資料不是即時感測，設施狀況仍請留意現場。
           </p>
