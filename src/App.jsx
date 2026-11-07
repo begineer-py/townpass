@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   MapPin,
   ArrowUpDown,
   ArrowRight,
-  ArrowLeft,
   ChevronRight,
   ChevronDown,
   Navigation,
@@ -41,7 +40,7 @@ import {
   Clock,
   WifiOff,
   Compass,
-  HelpCircle,
+  Menu,
 } from "lucide-react";
 import MapView from "./MapView";
 import VoiceSearch from "./VoiceSearch";
@@ -61,7 +60,7 @@ import {
   saveLocal,
   currentConstruction,
 } from "./data";
-import { getLocation } from "./bridge";
+import { getLocation } from "./location";
 import { addressSearch } from "./address-search";
 import { maintenanceText, stationKey, stepText } from "./format.mjs";
 const icons = {
@@ -83,18 +82,29 @@ const icons = {
   road: Route,
 };
 const filters = [
-  ["all", "常用設施", Layers],
-  ["elevator", "電梯出口", ArrowUpFromLine],
-  ["toilet", "無障礙廁所", Toilet],
-  ["rest", "歇歇腳", Armchair],
-  ["water", "飲水處", GlassWater],
-  ["ramp", "坡道", Accessibility],
-  ["park", "公園", TreePine],
-  ["friendly", "友善店家", Store],
-  ["bus", "公車站", BusFront],
-  ["parking", "停車設施", Car],
-  ["health", "醫療與藥局", Hospital],
+  ["all", "常用設施"],
+  ["elevator", "電梯出口"],
+  ["toilet", "無障礙廁所"],
+  ["rest", "歇歇腳"],
+  ["water", "飲水處"],
+  ["ramp", "坡道"],
+  ["park", "公園"],
+  ["friendly", "友善店家"],
+  ["bus", "公車站"],
+  ["parking", "停車設施"],
+  ["health", "醫療與藥局"],
 ];
+const features = [
+  ["explore", "找設施", Compass],
+  ["plan", "規劃路線", Route],
+  ["stations", "捷運出口", TrainFront],
+  ["saved", "收藏", Heart],
+];
+const routeModes = {
+  balanced: "均衡走法",
+  gentle: "偏好平緩",
+  crossings: "減少過街",
+};
 const basePrefs = {
   avoidSteps: true,
   minWidth: 0.8,
@@ -114,16 +124,23 @@ function Icon({ kind, ...props }) {
 }
 function Sheet({ title, onClose, children }) {
   const ref = useRef();
-  useEffect(() => {
-    const old = document.activeElement;
-    ref.current?.showModal();
-    return () => old?.focus();
+  useLayoutEffect(() => {
+    const dialog = ref.current;
+    const trigger = document.activeElement;
+    dialog.showModal();
+    return () => {
+      dialog.close();
+      trigger?.focus();
+    };
   }, []);
   return (
     <dialog
       ref={ref}
       className="sheet-dialog"
-      onCancel={onClose}
+      onCancel={(e) => {
+        e.preventDefault();
+        onClose();
+      }}
       onClick={(e) => {
         if (e.target === ref.current) onClose();
       }}
@@ -173,9 +190,9 @@ function FacilityRow({ p, from, onSelect, saved, onSave }) {
 }
 export default function App() {
   const [data, setData] = useState(null),
-    [loading, setLoading] = useState(true),
+    [loading, setLoading] = useState(false),
     [loadError, setLoadError] = useState(false);
-  const [tab, setTab] = useState("plan"),
+  const [tab, setTab] = useState(null),
     [filter, setFilter] = useState("all"),
     [viewport, setViewport] = useState({
       lat: 25.0478,
@@ -202,6 +219,7 @@ export default function App() {
   const [route, setRoute] = useState(null),
     [routeError, setRouteError] = useState(""),
     [routing, setRouting] = useState(false),
+    [graphRequested, setGraphRequested] = useState(false),
     [graphReady, setGraphReady] = useState(false),
     [graphError, setGraphError] = useState(false),
     [status, setStatus] = useState(""),
@@ -212,8 +230,8 @@ export default function App() {
     [stepIndex, setStepIndex] = useState(0),
     [online, setOnline] = useState(navigator.onLine);
   const [basemap, setBasemap] = useState(() => {
-    const v = readSaved("hhz-basemap", "hybrid");
-    return BASEMAPS[v] ? v : "hybrid";
+    const v = readSaved("hhz-basemap", "street");
+    return Object.prototype.hasOwnProperty.call(BASEMAPS, v) ? v : "street";
   });
   const [basemapStatus, setBasemapStatus] = useState("loading");
   const [showMapFacilities, setShowMapFacilities] = useState(false);
@@ -223,9 +241,9 @@ export default function App() {
     if (window.matchMedia('(max-width: 700px)').matches) setPanelCollapsed(true);
   }
   useEffect(() => { if (route || routeError) setPanelCollapsed(false); }, [route, routeError]);
-  useEffect(() => {
-    setShowMapFacilities(tab !== "plan");
-  }, [tab]);
+  const needsData =
+    showMapFacilities || (tab !== null && tab !== "saved") || modal === "sources";
+  const waitingForData = needsData && !data && !loadError;
   useEffect(() => {
     saveLocal("hhz-basemap", basemap);
   }, [basemap]);
@@ -251,10 +269,13 @@ export default function App() {
     return new Promise(resolve => {
       const timer=setTimeout(()=>{pendingVerifications.current.delete(id);resolve({error:'UNVERIFIED_NETWORK'});},30000);
       pendingVerifications.current.set(id,result=>{clearTimeout(timer);resolve(result);});
+      if (!worker.current) { clearTimeout(timer); pendingVerifications.current.delete(id); resolve({error:'UNVERIFIED_NETWORK'}); return; }
       worker.current.postMessage({type:'verify-official',id,route,start,end});
     });
   }
   const panelScroll = useRef();
+  const panel = useRef();
+  const menuButton = useRef();
   const routeFeedback = useRef();
   useEffect(() => {
     if (routeError)
@@ -264,10 +285,14 @@ export default function App() {
       });
   }, [routeError]);
   useEffect(() => {
-    if (panelScroll.current) panelScroll.current.scrollTop = 0;
+    if (tab) {
+      panelScroll.current.scrollTop = 0;
+      panel.current.focus();
+    }
   }, [tab]);
   const worker = useRef(),
     request = useRef(0),
+    panelVersion = useRef(0),
     map = useRef(),
     announceTimer = useRef();
   const announce = (text) => {
@@ -275,7 +300,7 @@ export default function App() {
     clearTimeout(announceTimer.current);
     announceTimer.current = setTimeout(() => setStatus(""), 7000);
   };
-  async function boot() {
+  const boot = useCallback(async () => {
     setLoading(true);
     setLoadError(false);
     try {
@@ -292,9 +317,11 @@ export default function App() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
   useEffect(() => {
-    boot();
+    if (needsData && !data && !loadError && !loading) boot();
+  }, [needsData, data, loadError, loading, boot]);
+  useEffect(() => {
     const off = () => setOnline(false),
       on = () => setOnline(true);
     window.addEventListener("online", on);
@@ -313,6 +340,7 @@ export default function App() {
     document.documentElement.classList.toggle("color-friendly", prefs.colorFriendly);
   }, [prefs]);
   useEffect(() => {
+    if (!graphRequested) return;
     const w = new Worker(new URL("./route-worker.js", import.meta.url), {
       type: "module",
     });
@@ -355,7 +383,24 @@ export default function App() {
       ).href,
     });
     return () => { w.terminate(); for(const resolve of pendingVerifications.current.values()) resolve({error:'UNVERIFIED_NETWORK'}); pendingVerifications.current.clear(); };
-  }, []);
+  }, [graphRequested]);
+  function openPanel(nextTab) {
+    setPanelCollapsed(false);
+    if (nextTab !== tab) {
+      panelVersion.current++;
+      setShowMapFacilities(nextTab === "explore");
+      setPick(null);
+    }
+    if (nextTab === "plan") setGraphRequested(true);
+    setTab(nextTab);
+  }
+  function closePanel() {
+    openPanel(null);
+    setStatus("");
+    window.speechSynthesis?.cancel();
+    setSpeaking(false);
+    menuButton.current?.focus();
+  }
   const changePoint = (which, p) => {
     request.current++;
     setRouting(false);
@@ -365,7 +410,7 @@ export default function App() {
     setSearchFor(null);
     setQuery("");
     setPick(null);
-    setTab("plan");
+    openPanel("plan");
     setFocus({ ...p, token: Date.now() });
   };
   function clearRoute() {
@@ -400,9 +445,11 @@ export default function App() {
     setQuery("");
   }
   async function locate(which) {
+    const version = panelVersion.current;
     setLocating(true);
     try {
       const p = await getLocation();
+      if (which && version !== panelVersion.current) return;
       if (p.lat < 24.94 || p.lat > 25.24 || p.lon < 121.42 || p.lon > 121.69) {
         announce(
           "你目前的位置在服務範圍外。可以搜尋臺北的地點，或直接在地圖上選擇。",
@@ -413,13 +460,15 @@ export default function App() {
       if (which) changePoint(which, p);
       else announce("已找到你的位置，可以看看附近有哪些設施。");
     } catch {
-      announce("目前無法取得位置。你仍可以搜尋地點，或在地圖上選擇。");
+      if (!which || version === panelVersion.current)
+        announce("目前無法取得位置。你仍可以搜尋地點，或在地圖上選擇。");
     } finally {
       setLocating(false);
     }
   }
   async function calculate() {
     if (start && end && navigator.onLine) {
+      setGraphRequested(true);
       clearRoute();
       setRouteError("");
       setRouting(true);
@@ -466,7 +515,6 @@ export default function App() {
     clearRoute();
     setRouting(true);
     setRouteError("");
-    setTab("plan");
     worker.current.postMessage({
       type: "route",
       id: ++request.current,
@@ -509,7 +557,7 @@ export default function App() {
     [facilities, viewport],
   );
   const searchResults = useMemo(() => {
-    if (!data) return [];
+    if (!searchFor || !data) return [];
     const q = normalize(query);
     const list = q
       ? data.all.filter((p) =>
@@ -686,46 +734,15 @@ export default function App() {
       <a className="skip-link" href="#main-content">
         跳至服務內容
       </a>
-      <header className="app-header">
-        <a
-          href="#"
-          className="brand"
-          onClick={(e) => {
-            e.preventDefault();
-            setTab("explore");
-          }}
+      <div className={`workspace${tab ? " with-panel" : ""}${panelCollapsed ? " panel-collapsed" : ""}`}>
+        <aside
+          className="panel"
+          hidden={!tab}
+          ref={panel}
+          id="feature-panel"
+          tabIndex={-1}
+          aria-label={features.find(([id]) => id === tab)?.[1]}
         >
-          <span className="brand-mark">
-            <Route size={25} />
-          </span>
-          <span>
-            <b>好好走</b>
-            <small>臺北友善出行</small>
-          </span>
-        </a>
-        <div className="header-right">
-          <span className="city-label">
-            <span /> 臺北市
-          </span>
-          <button
-            className="text-button"
-            aria-label="關於服務"
-            onClick={() => setModal("about")}
-          >
-            <Info size={18} />
-            <span>關於服務</span>
-          </button>
-          <button
-            className="icon-button"
-            aria-label="閱讀與通行偏好"
-            onClick={() => setModal("prefs")}
-          >
-            <SlidersHorizontal size={20} />
-          </button>
-        </div>
-      </header>
-      <div className={`workspace ${panelCollapsed ? 'panel-collapsed' : ''}`}>
-        <aside className="panel" id="main-content">
           <button className="panel-handle" aria-expanded={!panelCollapsed} aria-controls="panel-content"
             onPointerDown={e => { panelDrag.current=e.clientY; suppressPanelClick.current=false; e.currentTarget.setPointerCapture(e.pointerId); }}
             onPointerUp={e => { if(panelDrag.current!==null && Math.abs(e.clientY-panelDrag.current)>24){setPanelCollapsed(e.clientY>panelDrag.current);suppressPanelClick.current=true;} panelDrag.current=null; }}
@@ -735,35 +752,18 @@ export default function App() {
             {panelCollapsed ? '展開內容' : '收起內容，看大地圖'}
             <ChevronDown size={16} aria-hidden="true" />
           </button>
-          <nav className="main-nav" aria-label="主要功能">
-            {[
-              ["explore", "找設施", Compass],
-              ["plan", "規劃路線", Route],
-              ["stations", "捷運出口", TrainFront],
-              ["saved", "收藏", Heart],
-            ].map(([id, label, C]) => (
-              <button
-                key={id}
-                className={tab === id ? "active" : ""}
-                onClick={() => {
-                  setTab(id);
-                  setPanelCollapsed(false);
-                  setPick(null);
-                }}
-                aria-current={tab === id ? "page" : undefined}
-              >
-                <C size={20} />
-                <span>{label}</span>
-              </button>
-            ))}
-          </nav>
+          <div className="panel-toolbar">
+            <button className="text-button" onClick={closePanel}>
+              <X size={18} /> 回到地圖
+            </button>
+          </div>
           <div className="panel-scroll" id="panel-content" ref={panelScroll}>
-            {loading && (
+            {waitingForData && (
               <div className="loading-note">
                 <LoaderCircle className="spin" size={18} /> 正在載入設施…
               </div>
             )}
-            {loadError && (
+            {needsData && loadError && (
               <div className="empty-state">
                 <WifiOff />
                 <h2>資料暫時沒有載入</h2>
@@ -786,37 +786,22 @@ export default function App() {
                   <span>搜尋地點、捷運站或路名</span>
                   <span className="search-kbd">找地點</span>
                 </button>
-                <div className="section-top">
-                  <h2>設施類別</h2>
-                  <button
-                    className="text-button"
-                    onClick={() => locate()}
-                    disabled={locating}
+                <label className="select-row">
+                  設施類別
+                  <select
+                    value={filter}
+                    onChange={(e) => {
+                      setFilter(e.target.value);
+                      setListLimit(12);
+                    }}
                   >
-                    {locating ? (
-                      <LoaderCircle size={15} className="spin" />
-                    ) : (
-                      <LocateFixed size={15} />
-                    )}
-                    我的附近
-                  </button>
-                </div>
-                <div className="filter-grid">
-                  {filters.map(([id, label, C]) => (
-                    <button
-                      key={id}
-                      className={filter === id ? "selected" : ""}
-                      aria-pressed={filter === id}
-                      onClick={() => {
-                        setFilter(id);
-                        setListLimit(12);
-                      }}
-                    >
-                      <C size={17} />
-                      {label}
-                    </button>
-                  ))}
-                </div>
+                    {filters.map(([id, label]) => (
+                      <option key={id} value={id}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
                 <div className="list-caption">
                   <span>依地圖中心，從近到遠</span>
                   <span>{nearby.length.toLocaleString()} 處</span>
@@ -831,7 +816,7 @@ export default function App() {
                     onSave={toggleSave}
                   />
                 ))}
-                {!loading && !nearby.length && (
+                {data && !nearby.length && (
                   <p className="quiet-note">
                     這類設施的資料還在補齊，可以先看看其他設施。
                   </p>
@@ -913,45 +898,17 @@ export default function App() {
                     在地圖選點
                   </button>
                 </div>
-                <div className="preference-bar">
-                  <Accessibility size={20} />
-                  <span>
-                    {online ? "市府通道路線 · 淨寬與坡度未完整提供" : `避開階梯 · ${prefs.minWidth}m 以上已知寬度`}
-                  </span>
-                  <button
-                    onClick={() => setModal("prefs")}
-                    aria-label="調整通行偏好"
-                  >
-                    <SlidersHorizontal size={18} />
-                  </button>
-                </div>
-                {!online && (
-                  <div className="mode-tabs" aria-label="路線偏好">
-                    {[
-                      ["balanced", "均衡走法"],
-                      ["gentle", "偏好平緩"],
-                      ["crossings", "減少過街"],
-                    ].map(([id, name]) => (
-                      <button
-                        key={id}
-                        aria-pressed={prefs.mode === id}
-                        className={prefs.mode === id ? "active" : ""}
-                        onClick={() => updatePrefs({ mode: id })}
-                      >
-                        {name}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {online && (
-                  <p className="quiet-note">
-                    使用市府無障礙通道規劃。送出時只將起終點位置傳給市府路線服務，不傳送身分資料。
-                  </p>
-                )}
+                <button
+                  className="text-button route-settings"
+                  onClick={() => setModal("prefs")}
+                >
+                  <SlidersHorizontal size={18} /> 通行設定
+                </button>
+                {online && <p className="quiet-note">查詢時會將起終點位置傳給市府路線服務，不傳送身分資料。</p>}
                 <button
                   className="primary full"
                   onClick={calculate}
-                  disabled={routing || loading}
+                  disabled={routing || waitingForData}
                 >
                   {routing ? (
                     <LoaderCircle className="spin" size={19} />
@@ -1171,7 +1128,7 @@ export default function App() {
                     </button>
                   );
                 })}
-                {!stations.length && !loading && (
+                {!stations.length && data && (
                   <p className="quiet-note">
                     還沒找到這個站名，試試少打幾個字。
                   </p>
@@ -1200,7 +1157,7 @@ export default function App() {
                             avoidSteps: true,
                             officialOnly: true,
                           });
-                          setTab("plan");
+                          openPanel("plan");
                           setRouteError("");
                           setRouting(false);
                           announce(
@@ -1258,22 +1215,22 @@ export default function App() {
                 )}
               </>
             )}
-            <footer className="panel-footer">
-              <span className="tiny-brand">好好走</span>
-              <span>臺北市開放資料</span>
-              <button onClick={() => setModal("sources")}>資料來源</button>
-            </footer>
           </div>
         </aside>
-        <main className="map-area" aria-label="地圖與設施">
+        <main
+          className="map-area"
+          id="main-content"
+          tabIndex={-1}
+          aria-label="地圖與設施"
+        >
           <MapView
             items={showMapFacilities ? mapItems : []}
             basemap={basemap}
             colorFriendly={prefs.colorFriendly}
             onBasemapStatus={setBasemapStatus}
-            route={route}
-            start={start}
-            end={end}
+            route={tab ? route : null}
+            start={tab ? start : null}
+            end={tab ? end : null}
             focus={{ ...viewport, ...focus }}
             pick={pick}
             onPick={selectPoint}
@@ -1282,30 +1239,14 @@ export default function App() {
             onMapReady={(m) => (map.current = m)}
             onUserInteract={collapseForMap}
           />
-          <div className="map-top">
-            <button
-              className="map-tag"
-              aria-label="查看全臺北地圖"
-              onClick={() =>
-                map.current?.fitBounds([
-                  [24.95, 121.45],
-                  [25.22, 121.67],
-                ])
-              }
-            >
-              <span className="live-dot" />
-              全臺北
-              <ChevronDown size={13} />
-            </button>
-            <button
-              className="map-pill"
-              aria-pressed={showMapFacilities}
-              onClick={() => setShowMapFacilities((v) => !v)}
-            >
-              <Layers size={17} />
-              {showMapFacilities ? "隱藏設施" : "顯示設施"}
-            </button>
-          </div>
+          <button
+            className="map-menu-button"
+            ref={menuButton}
+            aria-haspopup="dialog"
+            onClick={() => setModal("menu")}
+          >
+            <Menu size={21} aria-hidden="true" /> 選單
+          </button>
           <div className="map-controls">
             <button aria-label="放大地圖" onClick={() => {collapseForMap(); map.current?.zoomIn();}}>
               <Plus />
@@ -1336,18 +1277,7 @@ export default function App() {
               </button>
             </div>
           )}
-          <div className="basemap-controls" aria-label="底圖類型">
-            {Object.entries(BASEMAPS).map(([id, spec]) => (
-              <button
-                key={id}
-                aria-pressed={basemap === id}
-                onClick={() => setBasemap(id)}
-              >
-                {spec.label}
-              </button>
-            ))}
-          </div>
-          {basemapStatus === "error" && (
+          {basemap !== "street" && basemapStatus === "error" && (
             <button
               className="basemap-error"
               onClick={() => setBasemap("street")}
@@ -1355,27 +1285,22 @@ export default function App() {
               影像暫時讀取不到，切回一般地圖
             </button>
           )}
-          <div className="map-bottom">
-            <div className="map-legend">
-              <span>
-                <i className="legend-elevator" />
-                電梯
-              </span>
-              <span>
-                <i className="legend-toilet" />
-                廁所
-              </span>
-              <span>
-                <i className="legend-rest" />
-                休息
-              </span>
+          {showMapFacilities && (
+            <div className="map-bottom">
+              <div className="map-legend">
+                <span>
+                  <i className="legend-elevator" /> 電梯
+                </span>
+                <span>
+                  <i className="legend-toilet" /> 廁所
+                </span>
+                <span>
+                  <i className="legend-rest" /> 休息
+                </span>
+              </div>
+              <span className="map-footnote">設施開放情形請留意現場</span>
             </div>
-            <span className="map-footnote">
-              {basemap === "street"
-                ? "設施開放情形請留意現場"
-                : "航照為歷史拍攝影像，非即時路況"}
-            </span>
-          </div>
+          )}
         </main>
       </div>
       {!online && (
@@ -1435,9 +1360,9 @@ export default function App() {
             </button>
             <button
               onClick={() => {
+                openPanel("plan");
                 setPick(searchFor === "explore" ? "end" : searchFor);
                 setSearchFor(null);
-                setTab("plan");
               }}
             >
               <MapPin size={20} />
@@ -1644,7 +1569,7 @@ export default function App() {
                   className="full text-button"
                   onClick={() => {
                     setStationQuery(selected.station);
-                    setTab("stations");
+                    openPanel("stations");
                     setSelected(null);
                   }}
                 >
@@ -1664,9 +1589,96 @@ export default function App() {
           )}
         </Sheet>
       )}
+      {modal === "menu" && (
+        <Sheet title="好好走 · 功能選單" onClose={() => setModal(null)}>
+          <nav className="menu-actions" aria-label="主要功能">
+            {features.map(([id, label, C]) => (
+              <button
+                key={id}
+                aria-current={tab === id ? "page" : undefined}
+                onClick={() => {
+                  setModal(null);
+                  openPanel(id);
+                }}
+              >
+                <C size={20} aria-hidden="true" />
+                {label}
+                <ChevronRight size={16} aria-hidden="true" />
+              </button>
+            ))}
+          </nav>
+          <h3>地圖顯示</h3>
+          <label className="select-row">
+            底圖類型
+            <select value={basemap} onChange={(e) => setBasemap(e.target.value)}>
+              {Object.entries(BASEMAPS).map(([id, spec]) => (
+                <option key={id} value={id}>
+                  {spec.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          {basemap !== "street" && (
+            <p className="quiet-note">航照為歷史拍攝影像，非即時路況。</p>
+          )}
+          <label className="toggle-row">
+            <span>在地圖上顯示設施</span>
+            <input
+              type="checkbox"
+              checked={showMapFacilities}
+              onChange={(e) => setShowMapFacilities(e.target.checked)}
+            />
+          </label>
+          {showMapFacilities && waitingForData && (
+            <p className="quiet-note" role="status">
+              正在載入設施…
+            </p>
+          )}
+          {showMapFacilities && loadError && (
+            <button className="text-button" onClick={boot}>
+              設施載入失敗，再試一次
+            </button>
+          )}
+          <div className="menu-actions">
+            <button
+              onClick={() => {
+                map.current?.fitBounds([
+                  [24.95, 121.45],
+                  [25.22, 121.67],
+                ]);
+                setModal(null);
+              }}
+            >
+              <MapPin size={20} aria-hidden="true" /> 查看全臺北地圖
+            </button>
+            <button onClick={() => setModal("prefs")}>
+              <SlidersHorizontal size={20} aria-hidden="true" /> 通行與閱讀設定
+            </button>
+            <button onClick={() => setModal("about")}>
+              <Info size={20} aria-hidden="true" /> 關於服務
+            </button>
+            <button onClick={() => setModal("sources")}>
+              <Layers size={20} aria-hidden="true" /> 資料來源
+            </button>
+          </div>
+        </Sheet>
+      )}
       {modal === "prefs" && (
         <Sheet title="通行與閱讀設定" onClose={() => setModal(null)}>
           <p className="modal-lead">選擇這次出門需要的條件，隨時都可以調整。</p>
+          {!online && <label className="select-row">
+            路線偏好
+            <select
+              value={prefs.mode}
+              onChange={(e) => updatePrefs({ mode: e.target.value })}
+            >
+              {Object.entries(routeModes).map(([id, name]) => (
+                <option key={id} value={id}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>}
           <label className="toggle-row">
             <span>
               <b>使用人行通道資料規劃</b>
@@ -1812,8 +1824,15 @@ export default function App() {
             本次資料整理：
             {data?.sources.generatedAt
               ? new Date(data.sources.generatedAt).toLocaleString("zh-TW")
-              : "讀取中"}
+              : loadError
+                ? "暫時無法載入"
+                : "讀取中"}
           </p>
+          {loadError && (
+            <button className="text-button" onClick={boot}>
+              再試一次
+            </button>
+          )}
           {data?.sources.sources.map((s) => (
             <div className="source-card" key={s.id}>
               <b>{s.name}</b>

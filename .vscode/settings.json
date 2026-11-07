@@ -1,0 +1,1 @@
+{"files.exclude":{"**/node_modules":true,"**/dist":true,"**/.venv":true,"**/__pycache__":true,"tests":true,"data/raw":true,"data/processed":true},"search.exclude":{"**/node_modules":true,"**/dist":true,"**/data/raw":true}}

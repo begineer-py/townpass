@@ -1,27 +1,25 @@
-# 台北通微服務串接
+# 台北通嵌入
 
-1. `npm run build`，將 `dist/` 佈署到可供手機存取的 HTTPS 網址。
-2. 在台北通的 `MyServiceItemId` 與 `MyServiceIdExt` 新增「好好走」入口，destinationUrl 指向該網址。
-3. `townpass-entry.patch` 是針對官方 Flutter 框架的最小整合 patch，修改服務清單與預設釘選。先於 Flutter checkout 執行 `git apply --check <patch完整路徑>`，確認適用後再 `git apply`。
-4. 執行 Flutter 時帶入 `--dart-define=FRIENDLY_PATH_URL=https://你的網頁網址/`。未指定時預設 Android 模擬器開發網址 `http://10.0.2.2:5173/`；實機請使用 HTTPS 部署網址。
+本專案是獨立的 HTTPS 網頁微服務。台北通只需將部署後的服務網址加入服務入口，並以 WebView 開啟；本專案不需要修改或編譯 Flutter App，也不需要設定 Flutter build 參數。
 
-## 原生橋接
+## 串接步驟
 
-網頁僅在使用者點選定位時送出：
+1. 依照[部署說明](../DEPLOYMENT.md)將網站部署至 Vercel。
+2. 確認正式網址使用 HTTPS，且首頁與地圖資料都能由手機瀏覽器開啟。
+3. 將正式網址交給台北通服務維運者，加入服務目錄並設定為此微服務的開啟網址。
+4. 由台北通 App 開啟該網址，確認頁面能在 WebView 內正常顯示。
 
-```json
-{ "name": "location", "data": null }
-```
+服務網址由部署平台管理；切換 Vercel 網域或自訂網域時，請同步更新台北通服務目錄中的網址。
 
-接收 `flutterObject` 的 `message` 事件，檢查 `name`、有限數值的 latitude/longitude；15 秒逾時顯示手動選點替代。普通瀏覽器採 Geolocation。未請求 userinfo/deviceinfo，無須台北通會員。
+## 定位
 
-正式宿主應只對核准的服務 origin 注入橋接，並驗證 sourceOrigin、isMainFrame 和 command capability。這個網站本身無法替代宿主端的安全檢查。
+定位使用標準瀏覽器 Geolocation API，只在使用者點選定位功能時提出權限要求。不讀取台北通會員、身分或裝置資料，也不呼叫 Flutter JavaScript bridge。Vercel 提供 HTTPS；若 WebView 未授權網頁定位，使用者仍可搜尋地點或直接在地圖上選點。
 
-## 驗收
+## 上線驗收
 
-- Android / iOS 各測 WebView 定位成功、拒絕與逾時。
-- 從服務入口進入，縮放拖曳不與 App 手勢衝突。
-- 系統返回與頁面 dialog 關閉行為。
-- VoiceOver / TalkBack、系統大字、橫向與低階裝置。
-- HTTPS、子路徑部署、gzip 回應有無 Content-Encoding 皆可讀取。
-- 目前已做桌面瀏覽器／手機尺寸檢查；尚未宣稱真機整合通過。
+- 從台北通服務入口開啟正式 HTTPS 網址。
+- 首頁、地圖圖磚和地圖資料載入正常。
+- 定位允許、拒絕與逾時時都能繼續以搜尋或地圖選點操作。
+- iOS 與 Android 的 WebView 版面、返回操作、系統字級和輔助使用功能均需在宿主 App 中另行驗收。
+
+目前尚未宣稱已在台北通正式服務目錄上架，也尚未完成 iOS／Android 真機驗收。

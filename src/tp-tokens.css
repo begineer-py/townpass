@@ -1,4 +1,4 @@
-/* Mirrors the checked-in Flutter TPColors and TPTextStyles. No separate font-color palette. */
+/* Web-side tokens following the Town Pass visual style; no Flutter runtime dependency. */
 :root {
   --tp-primary50: #edf8fa;
   --tp-primary100: #dbf1f5;
