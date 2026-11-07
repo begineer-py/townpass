@@ -1077,6 +1077,8 @@ export default function App() {
     [data, stationQuery],
   );
   const routeWorks = groupConstructionNotices(route?.construction?.nearby);
+  const destinationNotice = end && category(end) === 'public-toilet'
+    ? '目的地為一般公廁，無障礙廁所與設施狀況尚未確認，請先確認現場。' : '';
   useEffect(() => {
     if(!route?.construction)return;
     const until=Date.parse(route.construction.sourceUpdatedAt)+CONSTRUCTION_MAX_AGE-Date.now();
@@ -1099,7 +1101,7 @@ export default function App() {
       route.policyVersion !== ROUTING_POLICY
     )
       return;
-    const text = `從${start.name}前往${end.name}，路線長約${formatDistance(route.distance)}。${nearbyWarnings(start,end).join(' ')}${route.approaches?.some(p=>p.estimated) ? "起終點銜接為直線位置估算，入口與實際通行狀況未確認，請先確認現場。" : ""}${route.steps.map((s) => `${stepText(s)}約${Math.round(s.distance)}公尺。${stepConditions(s) ? stepConditions(s)+'。' : ''}`).join("")}路況仍需留意現場，這是路線預覽。`;
+    const text = `從${start.name}前往${end.name}，路線長約${formatDistance(route.distance)}。${destinationNotice}${nearbyWarnings(start,end).join(' ')}${route.approaches?.some(p=>p.estimated) ? "起終點銜接為直線位置估算，入口與實際通行狀況未確認，請先確認現場。" : ""}${route.steps.map((s) => `${stepText(s)}約${Math.round(s.distance)}公尺。${stepConditions(s) ? stepConditions(s)+'。' : ''}`).join("")}路況仍需留意現場，這是路線預覽。`;
     speakText(text);
   }
   function speakText(text) {
@@ -1145,7 +1147,7 @@ export default function App() {
     const text = `好好走｜${start.name} → ${end.name}\n約 ${formatDistance(route.distance)}\n${route.steps
       .slice(0, 20)
       .map((s) => `${s.name} ${Math.round(s.distance)}公尺${stepConditions(s) ? `（${stepConditions(s)}）` : ''}`)
-      .join("\n")}\n${nearbyWarnings(start,end).join('\n')}${nearbyWarnings(start,end).length?'\n':''}${route.approaches?.some(p=>p.estimated) ? '起終點入口與實際通行狀況未確認，銜接為直線位置估算。\n' : ''}路線依公開路網規劃，部分通行條件尚未確認，請留意現場。`;
+      .join("\n")}\n${destinationNotice ? destinationNotice+'\n' : ''}${nearbyWarnings(start,end).join('\n')}${nearbyWarnings(start,end).length?'\n':''}${route.approaches?.some(p=>p.estimated) ? '起終點入口與實際通行狀況未確認，銜接為直線位置估算。\n' : ''}路線依公開路網規劃，部分通行條件尚未確認，請留意現場。`;
     try {
       if (navigator.share)
         await navigator.share({ title: "好好走・行程", text });
@@ -1582,6 +1584,7 @@ export default function App() {
                 )}
                 {route && (
                   <>
+                    {destinationNotice && <div className="notice" role="note"><AlertTriangle aria-hidden="true"/><p>{destinationNotice}</p></div>}
                     {route.construction && <p className="quiet-note">施工資料更新：{new Date(route.construction.sourceUpdatedAt).toLocaleString('zh-TW', {timeZone:'Asia/Taipei'})}{route.construction.unmapped > 0 ? ` · ${route.construction.unmapped} 處施工位置待確認` : ''}</p>}
                     {route.construction?.avoided > 0 && (
                       <p className="quiet-note">
