@@ -82,3 +82,21 @@ test("location failures explain the cause", async () => {
   assert.match(locationErrorText({ code: 2 }), /定位服務/);
   assert.match(locationErrorText({ code: 3 }), /逾時/);
 });
+
+test("browser location comes first; Town Pass location is the fallback", async () => {
+  const { getLocation } = await import("../src/location.js");
+  const bridge = fakeBridge(() => ({ name: "location", data: { latitude: 25.05, longitude: 121.52, accuracy: 8 } }));
+  globalThis.isSecureContext = true;
+  globalThis.window = { flutterObject: bridge };
+  const geo = { getCurrentPosition: (ok) => ok({ coords: { latitude: 25.03, longitude: 121.56, accuracy: 20 } }) };
+  Object.defineProperty(globalThis, "navigator", { value: { geolocation: geo }, configurable: true });
+  assert.equal((await getLocation()).lat, 25.03);
+  assert.equal(bridge.sent.length, 0);
+
+  geo.getCurrentPosition = (_, fail) => fail({ code: 1 });
+  assert.equal((await getLocation()).lat, 25.05);
+  assert.deepEqual(bridge.sent, [{ name: "location", data: null }]);
+
+  globalThis.window = {};
+  await assert.rejects(getLocation(), (e) => e.code === 1);
+});
