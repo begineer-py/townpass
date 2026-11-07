@@ -5,6 +5,7 @@ import {createLocalRouteVerifier} from '../src/local-route-verifier.mjs';
 import {planPlaces} from '../src/local-route-verifier.mjs';
 import {createConstructionChecker} from '../src/construction.mjs';
 import {createNearbyRoutes, verifyNearbyRoutes} from '../src/nearby-routes.mjs';
+import {nearbyReplacement, nearbyWarnings} from '../src/nearby-presentation.mjs';
 
 const a=[25,121.5],b=[25,121.501],p=[25+30/111195,121.501];
 const proof={schemaVersion:2,coverage:0,maxUncoveredMetres:100,crossingCoverage:0,roadCrossingVerified:true,crossingVerified:true};
@@ -67,4 +68,19 @@ test('a vehicle crossing or closer blocked node prevents the detached point cand
  assert.equal(find(other,poi,{},snap,checker).candidates.filter(c=>c.side==='end').length,0);
  const g2=graph();g2.nodes.push([25+20/111195,121.501,1,3]);const r2=createRouter(g2),v2=createLocalRouteVerifier(g2,[],[poi]),find2=createNearbyRoutes(g2,{router:r2,verifyLocal:v2,facilities:[]});
  assert.equal(find2(other,poi,{},snap,checker).candidates.filter(c=>c.side==='end').length,0);
+});
+
+test('nearby search includes eligible shared streets while preserving road and construction checks',()=>{
+ const g=graph(),snap=snapshot([]),shared={...proof,sharedRoad:true,sourceTopologyVerified:true,junctionsVerified:true,roadIntersectionsVerified:true,barriersVerified:true};
+ g.ways=[{name:'共行路',highway:'residential',source:'osm-shared-street'}];g.edges[0][5]=shared;
+ const router=createRouter(g),verifyLocal=createLocalRouteVerifier(g),checker=createConstructionChecker(snap),find=createNearbyRoutes(g,{router,verifyLocal,facilities:[]});
+ const original={id:'point-1',name:'地圖選點',originKind:'map',lat:p[0],lon:p[1]};
+ const candidate=find(other,original,{},snap,checker).candidates.find(c=>c.side==='end');
+ assert.ok(candidate);assert.equal(candidate.point.nearbyNetwork,'shared');assert.match(candidate.point.name,/人車共行/);
+ const replacement=nearbyReplacement(candidate,original);assert.match(replacement.name,/人車共行/);assert.match(nearbyWarnings(other,replacement)[0],/人車共行/);
+ assert.equal(find(other,original,{officialOnly:true},snap,checker).candidates.length,0);
+ assert.equal(find(other,original,{},snap,{allowed:()=>false}).candidates.length,0);
+ g.roadGeometries=[[[121.499,25+15/111195],[121.502,25+15/111195]]];
+ const blockedFind=createNearbyRoutes(g,{router,verifyLocal,facilities:[]});
+ assert.equal(blockedFind(other,original,{},snap,checker).candidates.filter(c=>c.side==='end').length,0);
 });

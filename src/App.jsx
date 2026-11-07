@@ -68,7 +68,7 @@ import {createTripAlertLedger} from "./trip-alert-ledger.mjs";
 import {canFallbackAfterVerification, startLocalFallback} from "./local-fallback.mjs";
 import {constructionFresh, CONSTRUCTION_MAX_AGE} from "./construction.mjs";
 import {groupConstructionNotices} from "./construction-display.mjs";
-import {nearbyReplacement,nearbyWarnings} from "./nearby-presentation.mjs";
+import {nearbyReplacement,nearbyWarnings,verifiedNearbyChoice} from "./nearby-presentation.mjs";
 import {createNearbySearch,shouldAutoSearchNearby} from "./nearby-search.mjs";
 import {createRouteWorkerLifecycle} from "./route-worker-lifecycle.mjs";
 import {createLiveFollow,displayedRouteCoordinates} from "./live-follow.mjs";
@@ -1440,6 +1440,16 @@ export default function App() {
     // completion must never restart the lookup by itself.
     return ()=>nearbySearch.current?.cancel(false);
   },[routeError,routing,graphReady,tab,start,end,prefs,avoidPoints,partialRoute]);
+  useEffect(()=>{
+    if(nearbyState.status!=='ready'||!routeError||nearbyState.startPlace!==start||nearbyState.endPlace!==end||nearbyState.constructionSourceUpdatedAt!==lastConstruction.current?.sourceUpdatedAt)return;
+    const choice=(nearbyState.verifiedCandidates||[]).map(candidate=>verifiedNearbyChoice(candidate,start,end,lastConstruction.current)).find(Boolean);
+    if(!choice)return;
+    stopFollowing();
+    setStart(choice.start);setEnd(choice.end);setRoute(choice.route);
+    setRouteCandidates([]);setSelectedRouteCandidate(null);setStepIndex(0);
+    setConstructionConflict(null);setRouteGap(null);setPartialRoute(null);setRouteError('');
+    cancelNearby();
+  },[nearbyState,routeError,start,end]);
   const entranceChoices = useMemo(() => {
     if (!retryWithEntrance) return [];
     return nearbyEntranceChoices(start, end, data?.fac);
@@ -1477,7 +1487,7 @@ export default function App() {
     UNVERIFIED_NETWORK:
       "人行路網資料尚未完成驗證，暫時無法規劃。請重新載入後再試。",
     NO_CONNECTION:
-      "選擇實際使用的人行入口，我們再幫你找路。",
+      "尚未找到連接兩地的路線。",
     NO_ROUTE:
       "這次還沒找到合適的走法，可以換個入口，或先看看附近設施。",
     SAME_POINT: "這兩個位置很接近，可以再確認一下目的地入口。",
@@ -1739,7 +1749,7 @@ export default function App() {
                     <Info />
                     <div>
                     <p>
-                      {errorText[routeError] || "暫時無法規劃，請稍後再試。"}
+                      {nearbyState.status==='loading' ? '正在尋找附近可連通的路線…' : (errorText[routeError] || "暫時無法規劃，請稍後再試。")}
                     </p>
                     {partialRoute && <section aria-label="未連接的部分路段">
                       <p>{partialRoute.message}</p>
@@ -1766,15 +1776,13 @@ export default function App() {
                     {constructionConflict?.blocked?.length > 0 && <p>地圖已標出影響路線的施工位置；點線位置的周邊範圍是估計，並非精確封閉邊界。</p>}
                     {constructionConflict?.blocked?.slice(0,3).map(w => <p key={w.id}>{w.address}：{w.match === 'vicinity' ? '鄰近影響通行的施工位置' : '與影響通行的施工範圍交會'}。{w.plan}</p>)}
                     {(retryWithEntrance||routeError==='CONSTRUCTION_BLOCKED') && start && end && graphReady && <div className="entrance-choices">
-                      {(nearbyState.status==='idle'||nearbyState.status==='error')&&<button type="button" onClick={findNearbyPositions}>重新搜尋附近人行路網位置</button>}
-                      {nearbyState.status==='loading'&&<p>正在檢查附近路網和施工… <button type="button" onClick={cancelNearby}>取消搜尋</button></p>}
+                      {(nearbyState.status==='idle'||nearbyState.status==='error')&&<button type="button" onClick={findNearbyPositions}>重新找路</button>}
+                      {nearbyState.status==='loading'&&<button type="button" onClick={cancelNearby}>取消搜尋</button>}
                       {nearbyState.status==='error'&&<p>{nearbyState.message}</p>}
                       {nearbyState.status==='ready'&&<>
-                        <p>以下為附近的人行路網位置，不一定是入口，也尚未確認能否與另一端連通。選擇後會重新規劃；與原地點之間的通行及樓層仍需確認。</p>
-                        {!nearbyState.candidates.length&&<p>目前未找到符合條件的附近路網位置。</p>}
-                        {nearbyState.candidates.length>0&&['start','end'].some(side=>!nearbyState.candidates.some(c=>c.side===side))&&<p>未列出的那一側目前沒有找到符合條件的附近位置。</p>}
-                        {nearbyState.candidates.map((c,i)=><button type="button" key={`${c.side}-${c.point.id}`} onClick={()=>chooseNearby(c)}><span>{c.side==='start'?'起點':'目的地'}候選 {i+1}<small>距原地點直線約 {formatDistance(c.straightMetres)}；路線需重新規劃</small></span><ChevronRight size={18}/></button>)}
-                        {nearbyState.truncated&&<p>已檢查部分附近位置；可能還有其他位置未列出。</p>}
+                        <p>附近仍未找到可連通的路線，請重新選點。</p>
+                        {nearbyState.candidates.length>0&&<details><summary>查看附近路網位置</summary><p>這些位置尚未確認能否連通，選擇後會重新找路。</p>{nearbyState.candidates.map((c,i)=><button type="button" key={`${c.side}-${c.point.id}`} onClick={()=>chooseNearby(c)}><span>{c.side==='start'?'起點':'目的地'}附近位置 {i+1}<small>距原點約 {formatDistance(c.straightMetres)}{c.point.nearbyNetwork==='shared'?' · 人車共行':''}</small></span><ChevronRight size={18}/></button>)}</details>}
+                        {nearbyState.truncated&&<p>搜尋未完成，可再試一次。</p>}
                       </>}
                     </div>}
                     {(retryWithEntrance || ["OFFICIAL_OUTSIDE_COVERAGE", "OFFICIAL_INVALID_POINTS", "OFFICIAL_ENTRY_UNVERIFIED", "OFFICIAL_PATH_UNVERIFIED", "OFFICIAL_ROAD_CONFLICT", "OFFICIAL_CROSSING_UNVERIFIED", "CONSTRUCTION_BLOCKED"].includes(routeError)) && (

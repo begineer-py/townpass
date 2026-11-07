@@ -515,7 +515,7 @@ export default function MapView({
     for(const [index,candidate] of (nearbyCandidates||[]).entries()){
       const point=[candidate.point.lat,candidate.point.lon];bounds.push(point);
       const marker=L.circleMarker(point,{radius:9,color:TPColors.white,weight:3,fillColor:TPColors.primary700,fillOpacity:1}).addTo(nearby.current);
-      marker.bindTooltip(`${candidate.side==='start'?'起點':'目的地'}候選 ${index+1}：距原地點直線約 ${candidate.straightMetres} 公尺；不代表建物入口`);
+      marker.bindTooltip(`${candidate.side==='start'?'起點':'目的地'}附近位置 ${index+1}：距原點約 ${candidate.straightMetres} 公尺${candidate.point.nearbyNetwork==='shared'?'；人車共行':''}；尚未確認連通`);
       marker.on('click',event=>{L.DomEvent.stopPropagation(event);cb.current.onNearbySelect?.(candidate);});
     }
     if(bounds.length&&!route){const height=map.current.getSize().y;map.current.fitBounds(L.latLngBounds(bounds),{maxZoom:17,animate:false,...routePadding(height)});}

@@ -4,13 +4,15 @@ import {constructionFresh} from './construction.mjs';
 import {roadConnectorChecker} from './geometry.mjs';
 import {officialGeometryEvidence} from './supplemental-evidence.mjs';
 
-// An alternative is a ground pedestrian-network point on an existing edge,
+// An alternative is a ground walking-network point on an existing edge,
 // not an entrance or a claim that the original point can be reached from it.
 export function createNearbyRoutes(graph,{router,verifyLocal,facilities}){
  const grid=new Map(),cell=.001,roadClear=roadConnectorChecker(graph.roadGeometries,officialGeometryEvidence(graph).crossings);
  for(let i=0;i<graph.edges.length;i++){
   const e=graph.edges[i],w=graph.ways[e[3]];
-  if(!['footway','path','pedestrian','corridor'].includes(w.highway)||w.gradeSeparatedPedestrian||
+  const pedestrian=['footway','path','pedestrian','corridor'].includes(w.highway);
+  const shared=w.source==='osm-shared-street'&&['living_street','residential','unclassified','service'].includes(w.highway);
+  if((!pedestrian&&!shared)||w.gradeSeparatedPedestrian||
      (w.bridge&&w.bridge!=='no')||(w.tunnel&&w.tunnel!=='no')||
      (w.layer!=null&&String(w.layer)!=='0')||(w.level!=null&&String(w.level)!=='0'))continue;
   if(graph.nodes[e[0]][2]||graph.nodes[e[1]][2])continue;
@@ -62,7 +64,8 @@ export function createNearbyRoutes(graph,{router,verifyLocal,facilities}){
      if(accepted.some(p=>metres(p,coordinate)<10))continue;
      sideAttempts++;attempts++;
      if(!roadClear(point,coordinate)||!checker.allowed([point,coordinate]))continue;
-     const pointPlace={id:`nearby-edge-${item.index}-${item.segment}-${item.variant}`,name:'附近人行路網位置',lat:coordinate[0],lon:coordinate[1]};
+     const shared=graph.ways[graph.edges[item.index][3]].source==='osm-shared-street';
+     const pointPlace={id:`nearby-edge-${item.index}-${item.segment}-${item.variant}`,name:shared?'附近人車共行路網位置':'附近人行路網位置',lat:coordinate[0],lon:coordinate[1],...(shared?{nearbyNetwork:'shared'}:{})};
      // Do not claim that this is an entrance, that the original point can be
      // reached, or that the full route to the other endpoint has been tested.
      result.push({side,point:pointPlace,straightMetres:Math.round(item.d),routeVerified:false,routeDistance:null,searchRadius:limit});

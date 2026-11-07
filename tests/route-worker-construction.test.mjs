@@ -92,6 +92,34 @@ test('worker offers an unverified nearby point for an upstairs POI',async()=>{
   await self.onmessage({data:{type:'nearby-positions',id:51,startPlace:poi,endPlace,options:{},construction}});
   const result=replies.find(m=>m.id===51)?.result,candidate=result.candidates.find(c=>c.side==='start');
   assert.ok(candidate);assert.deepEqual([candidate.point.lat,candidate.point.lon],a);assert.equal(candidate.routeVerified,false);assert.equal(candidate.routeDistance,null);assert.ok(!('coordinates' in candidate));
+  const verified=result.verifiedCandidates.find(c=>c.start && !c.end);
+  assert.ok(verified);assert.deepEqual([verified.start.point.lat,verified.start.point.lon],a);
+  assert.equal(verified.route.geometryVerification,'pedestrian-network-v1');
+  assert.equal(verified.route.construction.sourceUpdatedAt,construction.sourceUpdatedAt);
+  assert.deepEqual(verified.route.coordinates[0],a);assert.deepEqual(verified.route.coordinates.at(-1),b);
+  assert.ok(!verified.route.coordinates.some(point=>point[0]===poi.lat&&point[1]===poi.lon));
+ }finally{globalThis.fetch=oldFetch;globalThis.self=oldSelf;globalThis.postMessage=oldPost;}
+});
+
+test('worker searches a verified route between two replacement positions',async()=>{
+ const a=[25,121.5],b=[25,121.501];
+ const start={id:'s',kind:'place',name:'二樓起點',lat:25+20/111195,lon:a[1],level:'1'};
+ const end={id:'e',kind:'place',name:'二樓終點',lat:25+20/111195,lon:b[1],level:'1'};
+ const proof={schemaVersion:2,coverage:0,maxUncoveredMetres:100,crossingCoverage:0,roadCrossingVerified:true,crossingVerified:true};
+ const area={type:'Polygon',coordinates:[[[121.51,25],[121.511,25],[121.511,25.001],[121.51,25.001],[121.51,25]]]};
+ const graph={officialPathEvidence:{schemaVersion:2},officialAreas:[area],officialCrossingAreas:[],roadGeometries:[[[121.51,25],[121.51,25.01]]],nodes:[[...a,0,1],[...b,0,2]],ways:[{highway:'footway',width:2,slope:0}],edges:[[0,1,100,0,[],proof]]};
+ const oldFetch=globalThis.fetch,oldSelf=globalThis.self,oldPost=globalThis.postMessage,replies=[];
+ try{
+  globalThis.self={};globalThis.postMessage=message=>replies.push(message);
+  globalThis.fetch=async url=>({ok:true,arrayBuffer:async()=>new TextEncoder().encode(JSON.stringify(String(url).includes('facilities')?[]:String(url).includes('places')?[start,end]:graph)).buffer});
+  await import('../src/route-worker.js?nearby-both-test');await self.onmessage({data:{type:'init',url:'https://example.test/graph.json'}});
+  const stamp=new Date().toISOString(),construction={schemaVersion:1,fetchedAt:stamp,sourceUpdatedAt:stamp,works:[]};
+  await self.onmessage({data:{type:'nearby-positions',id:52,startPlace:start,endPlace:end,options:{},construction}});
+  const result=replies.find(m=>m.id===52)?.result,choice=result.verifiedCandidates.find(c=>c.start&&c.end);
+  assert.ok(choice);assert.equal(choice.route.geometryVerification,'pedestrian-network-v1');
+  assert.deepEqual(choice.route.coordinates[0],[choice.start.point.lat,choice.start.point.lon]);
+  assert.deepEqual(choice.route.coordinates.at(-1),[choice.end.point.lat,choice.end.point.lon]);
+  assert.equal(choice.route.construction.sourceUpdatedAt,stamp);
  }finally{globalThis.fetch=oldFetch;globalThis.self=oldSelf;globalThis.postMessage=oldPost;}
 });
 
