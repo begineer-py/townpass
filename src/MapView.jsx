@@ -4,7 +4,8 @@ import L from "leaflet";
 import "leaflet-rotate";
 import { category, cleanName } from "./data";
 import { BASEMAPS } from "./basemaps.mjs";
-import { metroExitIconUrl, metroExitLabel } from "./metro-exits.mjs";
+import { metroStationIconUrl } from "./metro-station-icons.mjs";
+import { isNumberedStationExit, metroExitIconUrl, metroExitLabel } from "./metro-exits.mjs";
 import {
   loadOfficialSidewalks,
   loadSidewalkIssues,
@@ -49,13 +50,8 @@ const ImageMark = L.CircleMarker.extend({
 });
 // 標記（圖形＋店名）隨縮放一起變大變小：縮放 18 為原尺寸，最小 0.9 倍免得太難點。
 const pinScale = (z) => Math.min(1.15, Math.max(0.9, 1 + (z - 18) * 0.13));
-// 縮放越大，設施標記用越小的格子分群。
-const markerClusterCell = (z) =>
-  z < 14 ? 140 : z < 16 ? 120 : z < 17 ? 100 : z < 18 ? 80 : z < 19 ? 60 : 40;
 // Dense issue records are sampled more sparsely at lower zooms to keep the map responsive.
 const issueMarkerCell = (z) => z >= 19 ? 38 : z >= 18 ? 46 : z >= 17 ? 54 : 64;
-const transitMarkerLimit = (z) => z >= 19 ? 180 : z >= 18 ? 120 : z >= 17 ? 70 : 40;
-const otherMarkerLimit = (z) => z >= 19 ? 260 : z >= 18 ? 160 : z >= 17 ? 80 : z >= 16 ? 50 : 30;
 // 店家與地標在圖形下方顯示名稱。
 const hasLabel = (p) =>
   p.landmark || ["place", "friendly"].includes(category(p));
@@ -380,54 +376,39 @@ export default function MapView({
   useEffect(() => {
     if (!marks.current) return;
     marks.current.clearLayers();
-    const m = map.current,
-      b = m.getBounds(),
-      z = m.getZoom(),
-      viewportSize = m.getSize();
-    const inView = items.filter((p) => b.contains([p.lat, p.lon]));
-    const byDistanceToCenter = (places) => places
-      .map((p) => {
-        const pos = m.latLngToContainerPoint([p.lat, p.lon]);
-        return { p, distance: Math.hypot(pos.x - viewportSize.x / 2, pos.y - viewportSize.y / 2) };
-      })
-      .sort((a, b) => a.distance - b.distance)
-      .map(({ p }) => p);
-    const transit = byDistanceToCenter(inView.filter((p) => p.kind === "metro-elevator" || category(p) === "station"));
-    const other = byDistanceToCenter(inView.filter((p) => p.kind !== "metro-elevator" && category(p) !== "station"));
-    const visible = [...transit.slice(0, transitMarkerLimit(z)), ...other.slice(0, otherMarkerLimit(z))];
-    const cell = markerClusterCell(z),
-      buckets = new Map();
-    for (const p of visible) {
-      const pos = m.latLngToContainerPoint([p.lat, p.lon]),
-        key =
-          p.kind === "metro-elevator"
-            ? `metro-exit:${p.id}`
-            : p.overview || category(p) === "station"
-              ? `landmark:${p.lat.toFixed(5)}:${p.lon.toFixed(5)}`
-              : `${Math.floor(pos.x / cell)}:${Math.floor(pos.y / cell)}`;
-      if (!buckets.has(key)) buckets.set(key, []);
-      buckets.get(key).push(p);
+    const m = map.current;
+    const bounds = m.getBounds(), z = m.getZoom(), size = m.getSize();
+    const s = pinScale(z);
+    const spacing = z <= 13 ? 88 : z === 14 ? 78 : z === 15 ? 68 : z === 16 ? 57 : z === 17 ? 49 : z === 18 ? 43 : 38;
+    const cap = z <= 13 ? 4 : z === 14 ? 5 : z === 15 ? 7 : z === 16 ? 16 : z === 17 ? 32 : z === 18 ? 54 : 85;
+    const limit = Math.min(cap, Math.max(3, Math.floor(size.x * size.y / (spacing * spacing * 1.6))));
+    const ranked = items.filter(p => bounds.contains([p.lat, p.lon])).map((p, order) => {
+      const pos = m.latLngToContainerPoint([p.lat, p.lon]);
+      const station = p.stationCodes?.length > 0;
+      const transit = station || p.kind === "metro-elevator" || category(p) === "bus";
+      const priority = p.mapPriority ?? (z >= 16 && (station || (z >= 17 && transit)) ? 2 : p.landmark ? 1 : 0);
+      const distance = Math.hypot(pos.x - size.x / 2, pos.y - size.y / 2);
+      return { p, pos, order, distance, priority };
+    }).sort((a, b) => b.priority - a.priority || (z < 16 ? a.order - b.order : a.distance - b.distance));
+    const endpointPositions = [start, end].filter(Boolean)
+      .map(p => m.latLngToContainerPoint([p.lat, p.lon]));
+    const pins = [];
+    for (const candidate of ranked) {
+      if (endpointPositions.some(pos => pos.distanceTo(candidate.pos) < spacing * 0.7)) continue;
+      if (pins.some(({ pos }) => pos.distanceTo(candidate.pos) < spacing)) continue;
+      pins.push(candidate);
+      if (pins.length === limit) break;
     }
-    // 名稱互相重疊、或蓋到別的標記時就不顯示：地標優先，其次離畫面中心近的。
-    const s = pinScale(m.getZoom()),
-      size = m.getSize(),
-      boxes = [],
-      labelled = new Set();
-    const overlaps = (r) =>
-      boxes.some(
-        (b) => r.x0 < b.x1 && r.x1 > b.x0 && r.y0 < b.y1 && r.y1 > b.y0,
-      );
-    const pins = [...buckets.values()].map((bucket) => ({
-      p: bucket[0],
-      single: bucket.length === 1,
-      pos: m.latLngToContainerPoint([bucket[0].lat, bucket[0].lon]),
-    }));
+    const boxes = [], labelled = new Set();
+    const overlaps = (r) => boxes.some(
+      b => r.x0 < b.x1 && r.x1 > b.x0 && r.y0 < b.y1 && r.y1 > b.y0,
+    );
     for (const { pos } of pins) {
       const r = 15 * s;
       boxes.push({ x0: pos.x - r, x1: pos.x + r, y0: pos.y - r, y1: pos.y + r });
     }
     pins
-      .filter(({ p, single }) => single && hasLabel(p) && cleanName(p.name))
+      .filter(({ p }) => hasLabel(p) && cleanName(p.name))
       .sort(
         (a, b) =>
           !!b.p.landmark - !!a.p.landmark ||
@@ -442,81 +423,69 @@ export default function MapView({
         boxes.push(r);
         labelled.add(p);
       });
-    for (const bucket of buckets.values()) {
-      const p = bucket[0],
-        count = bucket.length,
-        color = colorFriendly ? TPColors.primary900 : colors[category(p)] || TPColors.primary700;
+    for (const { p } of pins) {
+      const color = colorFriendly ? TPColors.primary900 : colors[category(p)] || TPColors.primary700;
       const face = document.createElement("span");
       face.style.setProperty("--pin", color);
-      let marker;
-      const keepTransitIcon = p.kind === "metro-elevator" || category(p) === "station";
-      if (count > 1 && !keepTransitIcon) {
-        face.textContent = count;
-        marker = L.marker([p.lat, p.lon], {
-          icon: L.divIcon({ className: "cluster-pin", html: face, iconSize: null }),
-          keyboard: false,
-          title: `${count} 個地點，點一下放大`,
-        }).addTo(marks.current);
-        marker.on("click", () =>
-          m.setView([p.lat, p.lon], Math.min(19, m.getZoom() + 2)),
-        );
+      const exitIcon = metroExitIconUrl(p);
+      const stationIcon = p.stationCodes?.map(metroStationIconUrl).find(Boolean);
+      const iconUrl = exitIcon || stationIcon;
+      const isExit = p.kind === "metro-elevator" || isNumberedStationExit(p);
+      if (iconUrl || isExit) face.classList.add("metro-exit-face");
+      if (iconUrl) {
+        face.classList.add("has-exit-icon");
+        const img = document.createElement("img");
+        img.src = iconUrl;
+        img.alt = "";
+        face.appendChild(img);
+      } else if (isExit && metroExitLabel(p) !== "梯") {
+        face.textContent = metroExitLabel(p);
+      } else if (p.kind === "metro-elevator") {
+        face.classList.add("has-glyph");
+        face.appendChild(mapIconElement("elevator", 16));
       } else {
-        const exitIcon = metroExitIconUrl(p);
-        if (exitIcon || p.kind === "metro-elevator") face.classList.add("metro-exit-face");
-        if (exitIcon) {
-          face.classList.add("has-exit-icon");
-          const img = document.createElement("img");
-          img.src = exitIcon;
-          img.alt = "";
-          face.appendChild(img);
-        } else if (p.kind === "metro-elevator" && metroExitLabel(p) !== "梯") {
-          face.textContent = metroExitLabel(p);
-        } else if (p.kind === "metro-elevator") {
-          face.classList.add("has-glyph");
-          face.appendChild(mapIconElement("elevator", 16));
-        } else {
-          face.classList.add("has-glyph");
-          face.appendChild(mapIconElement(iconKind(category(p)), 16));
-        }
-        // 圖形和名稱包在同一個元素裡，一起縮放。名稱用 div，避免套到 .fac-pin span 的圓點樣式。
-        const body = document.createElement("div");
-        body.className = "pin-body";
-        body.appendChild(face);
-        const showLabel = labelled.has(p);
-        if (showLabel) {
-          const label = document.createElement("div");
-          label.className = "pin-label";
-          label.textContent = cleanName(p.name);
-          body.appendChild(label);
-        }
-        marker = L.marker([p.lat, p.lon], {
-          icon: L.divIcon({
-            className:
-              exitIcon || p.kind === "metro-elevator"
-                ? "fac-pin metro-exit-pin"
-                : p.landmark
-                  ? "fac-pin landmark"
-                  : "fac-pin",
-            html: body,
-            iconSize: p.landmark ? [32, 32] : [28, 28],
-            iconAnchor: p.landmark ? [16, 16] : [14, 14],
-          }),
-          keyboard: false,
-        }).addTo(marks.current);
-        // 名稱已經顯示在地圖上就不再用滑鼠提示重複一次。
-        if (!showLabel) {
-          const tip = document.createElement("span");
-          tip.textContent = cleanName(p.name);
-          marker.bindTooltip(tip, { direction: "top", offset: [0, -14] });
-        }
-        marker.on("click", (ev) => {
-          L.DomEvent.stopPropagation(ev);
-          if (cb.current.pick) cb.current.onPick(p);
-          else cb.current.onSelect(p);
-        });
+        face.classList.add("has-glyph");
+        face.appendChild(mapIconElement(iconKind(category(p)), 16));
       }
+      // 圖形和名稱包在同一個元素裡，一起縮放。名稱用 div，避免套到 .fac-pin span 的圓點樣式。
+      const body = document.createElement("div");
+      body.className = "pin-body";
+      body.appendChild(face);
+      const showLabel = labelled.has(p);
+      if (showLabel) {
+        const label = document.createElement("div");
+        label.className = "pin-label";
+        label.textContent = cleanName(p.name);
+        body.appendChild(label);
+      }
+      const marker = L.marker([p.lat, p.lon], {
+        icon: L.divIcon({
+          className:
+            iconUrl || isExit
+              ? "fac-pin metro-exit-pin"
+              : p.landmark
+                ? "fac-pin landmark"
+                : "fac-pin",
+          html: body,
+          iconSize: p.landmark ? [32, 32] : [28, 28],
+          iconAnchor: p.landmark ? [16, 16] : [14, 14],
+        }),
+        keyboard: false,
+        title: cleanName(p.name),
+      }).addTo(marks.current);
+      // 名稱已經顯示在地圖上就不再用滑鼠提示重複一次。
+      if (!showLabel) {
+        const tip = document.createElement("span");
+        tip.textContent = cleanName(p.name);
+        marker.bindTooltip(tip, { direction: "top", offset: [0, -14] });
+      }
+      marker.on("click", (ev) => {
+        L.DomEvent.stopPropagation(ev);
+        if (cb.current.pick) cb.current.onPick(p);
+        else cb.current.onSelect(p);
+      });
     }
-  }, [items, colorFriendly]);
+  }, [items, start, end, colorFriendly]);
   useEffect(() => {
     if (!path.current) return;
     path.current.clearLayers();

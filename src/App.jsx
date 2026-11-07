@@ -103,7 +103,7 @@ import {
   metroStationCodes,
   metroStationIconUrl,
 } from "./metro-station-icons.mjs";
-import { metroExitIconUrl, metroExitLabel } from "./metro-exits.mjs";
+import { isNumberedStationExit, metroExitIconUrl, metroExitLabel } from "./metro-exits.mjs";
 import {
   maintenanceText,
   sourceCountLabel,
@@ -306,7 +306,9 @@ export default function App() {
       address: p.address, station: p.station, exit: p.exit, sourceId: p.sourceId,
     };
     setRecents((list) => {
-      const next = [keep, ...list.filter((x) => x.id !== p.id)].slice(0, 10);
+      const previous = list.find(x => x.id === p.id);
+      const next = [{ ...keep, selections: (previous?.selections ?? (previous ? 1 : 0)) + 1 },
+        ...list.filter(x => x.id !== p.id)].slice(0, 10);
       saveLocal("hhz-recent-places", next);
       return next;
     });
@@ -680,6 +682,7 @@ export default function App() {
     return () => { w.terminate(); conditionDetourSearch.current?.cancel(false); for(const resolve of pendingVerifications.current.values()) resolve({error:'UNVERIFIED_NETWORK'}); pendingVerifications.current.clear(); };
   }, [graphRequested]);
   const changePoint = (which, p) => {
+    rememberPlace(p);
     request.current++;
     setRouting(false);
     clearRoute();
@@ -1111,6 +1114,7 @@ export default function App() {
     }
     return bands;
   }, [data]);
+  const busStops = useMemo(() => (data?.fac || []).filter(p => category(p) === "bus"), [data?.fac]);
   const { landmarkItems, poiItems } = useMemo(() => {
     const zoom = viewport.zoom ?? 15;
     const [south, west, north, east] = viewport.bounds;
@@ -1119,26 +1123,28 @@ export default function App() {
       ? user
       : viewport;
     const landmarks = [], shops = [];
+    for (const p of busStops) {
+      if (p.lat < south || p.lat > north || p.lon < west || p.lon > east) continue;
+      landmarks.push({ p, rank: zoom < 16 ? distance(anchor, p) * 1.5 + 180 : distance(viewport, p) + 100 });
+    }
     for (let band = Math.floor(south * 100); band <= Math.floor(north * 100); band++) {
       for (const p of placeBands.get(band) || []) {
         if (p.lat < south || p.lat > north || p.lon < west || p.lon > east) continue;
         if (p.kind === "place") {
           if (zoom >= 17) shops.push({ p, metres: distance(viewport, p) });
-        } else if (zoom >= 16 || (p.kind !== "health" && !metroExitIconUrl(p))) {
+        } else if (zoom >= 16 || (p.kind !== "health" && !isNumberedStationExit(p))) {
           const metres = distance(zoom < 16 ? anchor : viewport, p);
           landmarks.push({ p, rank: zoom < 16 && p.kind === "station" ? metres * 0.65 : metres });
         }
       }
     }
     const seen = new Set(), landmarkItems = [];
-    const limit = zoom < 16 ? 6 : zoom < 18 ? 36 : 70;
-    // Keep overview icons roughly a pin width apart on screen.
-    const overviewSpacing = 44 * 156543 * Math.cos(anchor.lat * Math.PI / 180) / 2 ** zoom;
+    const limit = zoom < 16 ? 24 : zoom < 18 ? 36 : 70;
     for (const { p } of landmarks.sort((a, b) => a.rank - b.rank)) {
       const key = p.kind === "station" ? stationKey(p.name) : p.id;
-      if (seen.has(key) || (zoom < 16 && landmarkItems.some(item => distance(item, p) < overviewSpacing))) continue;
+      if (seen.has(key)) continue;
       seen.add(key);
-      landmarkItems.push({ ...p, landmark: true, overview: zoom < 16 });
+      landmarkItems.push({ ...p, landmark: true });
       if (landmarkItems.length === limit) break;
     }
     return {
@@ -1147,7 +1153,7 @@ export default function App() {
         .slice(0, zoom < 18 ? 60 : zoom < 19 ? 100 : 160)
         .map(({ p }) => p),
     };
-  }, [placeBands, viewport, currentLocation]);
+  }, [placeBands, busStops, viewport, currentLocation]);
   const avoidPoints = useMemo(() => activeElevatorStops(data), [data]);
 
   // 沒有搜尋紀錄時的推薦：附近的捷運站、公園、醫院與無障礙廁所，由近到遠 8 個。
@@ -1220,15 +1226,15 @@ export default function App() {
     data?.fac.filter(
       (p) => p.kind === "metro-elevator" && stationKey(p.station) === stationKey(name),
     ) || [];
-  const stationCodesFor = (name) =>
-    metroStationCodes(
-      (data?.metro["metro-elevators"] || [])
-        .filter(
-          (record) =>
-            stationKey(record["車站名稱"]) === stationKey(name),
-        )
-        .map((record) => record["車站編號"]),
-    );
+  const stationCodesByName = useMemo(() => {
+    const codes = new Map();
+    for (const record of data?.metro["metro-elevators"] || []) {
+      const key = stationKey(record["車站名稱"]);
+      codes.set(key, metroStationCodes(codes.get(key), record["車站編號"]));
+    }
+    return codes;
+  }, [data?.metro]);
+  const stationCodesFor = (name) => metroStationCodes(stationCodesByName.get(stationKey(name)), name);
   const selectSearchPlace = (p) => {
     if (searchFor === "explore") {
       rememberPlace(p);
@@ -1246,7 +1252,6 @@ export default function App() {
       });
       return;
     }
-    rememberPlace(p);
     changePoint(searchFor, p);
   };
   const exitUnderMaintenance = (p) =>
@@ -1307,17 +1312,23 @@ export default function App() {
   }, [routeFacilities, endpointStationExits]);
   // 地圖上的標記：路線模式只顯示路線相關點；否則加上地標與商店（放大才出現），同一地點只畫一次。
   const mapLayerItems = useMemo(() => {
-    const base = route
-      ? routeMapItems
-      : tab === "explore"
-        ? mapItems
-        : endpointStationExits;
-    const extra = route ? [] : [...landmarkItems, ...poiItems];
+    const overview = viewport.zoom < 16;
+    const [south, west, north, east] = viewport.bounds;
+    const preferred = [...saved, ...recents.filter(p => (p.selections ?? 1) > 1)
+      .sort((a, b) => b.selections - a.selections)]
+      .filter(p => p.lat >= south && p.lat <= north && p.lon >= west && p.lon <= east)
+      .filter((p, index, list) => list.findIndex(other => other.id === p.id) === index)
+      .slice(0, overview ? 2 : 8)
+      .map(p => ({ ...p, landmark: true, mapPriority: 3 }));
+    const base = route ? routeMapItems : tab === "explore" && !overview ? mapItems : endpointStationExits;
+    const points = route ? base : [...preferred, ...landmarkItems, ...base, ...poiItems];
     const seen = new Set();
-    return [...base, ...extra].filter((p) =>
-      seen.has(p.id) ? false : seen.add(p.id),
-    );
-  }, [route, routeMapItems, tab, mapItems, endpointStationExits, landmarkItems, poiItems]);
+    return points.filter(p => !seen.has(p.id) && seen.add(p.id)).map(p => {
+      if (category(p) !== "station" || isNumberedStationExit(p)) return p;
+      const stationCodes = metroStationCodes(stationCodesByName.get(stationKey(p.name)), p.name);
+      return { ...p, stationCodes };
+    });
+  }, [route, routeMapItems, tab, mapItems, endpointStationExits, landmarkItems, poiItems, saved, recents, viewport, stationCodesByName]);
   const avoidedWorks = route?.construction?.avoidedWorks || [];
   const avoidedStairs = route?.avoidedStairs || [];
   useEffect(() => {
@@ -2399,8 +2410,8 @@ export default function App() {
           </div>
           {stationMatches.map(({ s, name, exits }) => {
             const pickExit = (p) => {
-              rememberPlace(p);
               if (searchFor === "explore") {
+                rememberPlace(p);
                 setSearchFor(null);
                 inspect(p);
               } else changePoint(searchFor, p);
