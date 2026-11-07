@@ -70,16 +70,20 @@ export function createLocalRouteVerifier(graph,facilities=[],places=[]){
   return !osm||known.osmRestrictionsMatched===true;
  }
  function userPoint(point,place,side){
-  if(!['start','end'].includes(side)||!place||!same(point,[place.lat,place.lon])||place.kind!=null||place.sourceId!=null)return null;
-  if(place.originKind==='map'&&/^point-\d+$/.test(String(place.id||'')))return 'map';
-  if(side==='start'&&place.originKind==='gps'&&place.id==='my-location'&&['browser','townpass'].includes(place.locationSource)&&
+  if(!['start','end'].includes(side)||!place||!same(point,[place.lat,place.lon]))return null;
+  if(place.originKind==='map'&&place.kind==null&&place.sourceId==null&&/^point-\d+$/.test(String(place.id||'')))return 'map';
+  if(side==='start'&&place.originKind==='gps'&&place.kind==null&&place.sourceId==null&&place.id==='my-location'&&['browser','townpass'].includes(place.locationSource)&&
      Number.isFinite(place.accuracy)&&place.accuracy>=0&&place.accuracy<=100&&place.needsConfirmation===false)return 'gps';
+  // User-selected search results can be positional estimates even when the
+  // search provider has no registered POI record. Do not use this path to
+  // bypass an ambiguous/registered ID or an unverified OSM object identity.
+  if(place.selectionKind==='user'&&place.originKind==null&&place.id&&!registered.has(place.id)&&!/^osm-[nw]\d+$/.test(String(place.id)))return 'selected';
   return null;
  }
  function endpointAllowed(point,place,side){
   if(!Array.isArray(point)||point.length!==2||!point.every(Number.isFinite))return false;
   const known=matchedPoint(point,place),origin=userPoint(point,place,side);
-  return !(prohibitedPoints.has(pointKey(point))||prohibited(known)||(origin&&(prohibited(place)||unmatchedOsmPoints.has(pointKey(point))))||
+  return !(prohibitedPoints.has(pointKey(point))||prohibited(known)||prohibited(place)||(origin&&unmatchedOsmPoints.has(pointKey(point)))||
     (place?.originKind!=null&&!origin)||(place?.id&&registered.has(place.id)&&!known));
  }
  function allowed(point,target,place,options={},side=null){
@@ -89,7 +93,7 @@ export function createLocalRouteVerifier(graph,facilities=[],places=[]){
   // This matters for a shared-street centreline, which is itself in the road mask.
   if(gap<=.001)return true;
   if(origin&&gap>.05&&options.knownOnly)return false;
-  return gap<=SNAP_METRES&&roadClear(point,target)&&(gap<=.05||covered(point,target)||((known&&estimateSourceMatched(known)||origin)&&!unmatchedOsmPoints.has(pointKey(point))&&!options.knownOnly));
+  return !!(gap<=SNAP_METRES&&roadClear(point,target)&&(gap<=.05||covered(point,target)||((known&&estimateSourceMatched(known)||origin)&&!unmatchedOsmPoints.has(pointKey(point))&&!options.knownOnly)));
  }
  const verify=(route,start,end,options={})=>{
   if(route.error)return route;
@@ -132,6 +136,9 @@ export function createLocalRouteVerifier(graph,facilities=[],places=[]){
  };
  verify.approachAllowed=allowed;
  verify.endpointAllowed=endpointAllowed;
+ // The worker uses the same endpoint policy to classify an official
+ // connector; a source marker alone never proves access or safety.
+ verify.userPointKind=(point,place,side)=>endpointAllowed(point,place,side)?userPoint(point,place,side):null;
  return verify;
 }
 export function stationEntrances(place,facilities){

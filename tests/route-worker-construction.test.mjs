@@ -136,11 +136,30 @@ test('official routes obey the same endpoint restriction and mark a GPS approach
   await self.onmessage({data:{type:'init',url:'https://example.test/graph.json'}});
   await self.onmessage({data:{type:'verify-official',id:81,start:p,end:b,route:candidate,options:{startPlace:gps},construction}});
   const result=replies.find(m=>m.id===81)?.result;assert.equal(result.error,undefined);assert.equal(result.approaches[0].estimated,true);assert.equal(result.approaches[0].unconfirmed,true);assert.equal(result.approaches[0].originKind,'gps');
-  assert.deepEqual(result.approaches[0].coordinates,[p,a]);assert.deepEqual(result.networkCoordinates,[a,b]);
+  assert.deepEqual(result.approaches[0].coordinates,[p,a]);assert.deepEqual(result.networkCoordinates,[a,b]);assert.equal(result.pedestrianImprovement.status,'unsupported-official-provenance');
+  const q=[25+3/111195,121.501],selectedStart={id:'address-start',kind:'place',sourceId:'osm',selectionKind:'user',lat:p[0],lon:p[1]},selectedEnd={id:'address-end',kind:'place',sourceId:'osm',selectionKind:'user',lat:q[0],lon:q[1]};
+  await self.onmessage({data:{type:'verify-official',id:83,start:p,end:q,route:candidate,options:{startPlace:selectedStart,endPlace:selectedEnd},construction}});
+  const selected=replies.find(m=>m.id===83)?.result;assert.equal(selected.error,undefined);assert.deepEqual(selected.approaches.map(x=>[x.side,x.originKind,x.unconfirmed]),[['start','selected',true],['end','selected',true]]);
   const end=[25+3/111195,121.501],mapEnd={id:'point-123',originKind:'map',lat:end[0],lon:end[1]};
   await self.onmessage({data:{type:'verify-official',id:82,start:p,end,route:candidate,options:{startPlace:gps,endPlace:mapEnd},construction}});
   const both=replies.find(m=>m.id===82)?.result;assert.equal(both.error,undefined);assert.deepEqual(both.networkCoordinates,[a,b]);
   assert.equal(both.approaches.length,2);assert.deepEqual(both.approaches.map(x=>[x.side,x.originKind,x.unconfirmed]),[['start','gps',true],['end','map',true]]);
   assert.deepEqual(both.approaches[1].coordinates,[b,end]);
+ }finally{globalThis.fetch=oldFetch;globalThis.self=oldSelf;globalThis.postMessage=oldPost;}
+});
+
+test('worker applies the same verified local pedestrian improvement as shared planning',async()=>{
+ const n=(x,y)=>[25+y/111195,121.5+x/100700,0,Math.round(x*100+y)+1],nodes=[n(0,0),n(10,0),n(110,0),n(0,15),n(10,15)];
+ const proof={schemaVersion:2,coverage:0,maxUncoveredMetres:100,crossingCoverage:0,roadCrossingVerified:true,crossingVerified:true},shared={...proof,sharedRoad:true,sourceTopologyVerified:true,junctionsVerified:true,roadIntersectionsVerified:true,barriersVerified:true};
+ const area={type:'Polygon',coordinates:[[[121.51,25],[121.511,25],[121.511,25.001],[121.51,25.001],[121.51,25]]]};
+ const graph={officialPathEvidence:{schemaVersion:2},nodeIdentity:'OSM node ID; coincident coordinates do not create connectivity',officialAreas:[area],officialCrossingAreas:[],roadGeometries:[[[121.51,25],[121.51,25.01]]],nodes,ways:[{name:'共行',highway:'residential',source:'osm-shared-street',width:null,slope:null},{name:'步道',highway:'footway',width:1.5,slope:0}],edges:[[0,1,10,0,[],shared],[1,2,100,1,[],proof],[0,3,15,1,[],proof],[3,4,10,1,[],proof],[4,1,15,1,[],proof]]};
+ const oldFetch=globalThis.fetch,oldSelf=globalThis.self,oldPost=globalThis.postMessage,replies=[];
+ try{
+  globalThis.self={};globalThis.postMessage=message=>replies.push(message);
+  globalThis.fetch=async url=>({ok:true,arrayBuffer:async()=>new TextEncoder().encode(JSON.stringify(/facilities|places/.test(String(url))?[]:graph)).buffer});
+  await import('../src/route-worker.js?pedestrian-improvement-test');await self.onmessage({data:{type:'init',url:'https://example.test/graph.json'}});
+  const stamp=new Date().toISOString(),construction={schemaVersion:1,fetchedAt:stamp,sourceUpdatedAt:stamp,works:[]},startPlace={lat:nodes[0][0],lon:nodes[0][1]},endPlace={lat:nodes[2][0],lon:nodes[2][1]};
+  await self.onmessage({data:{type:'plan-places',id:90,startPlace,endPlace,options:{},construction}});
+  const result=replies.find(m=>m.id===90)?.result;assert.equal(result.error,undefined);assert.equal(result.distance,140);assert.equal(result.pedestrianImprovement.status,'improved');assert.equal(result.pedestrianImprovement.sharedMetres,0);
  }finally{globalThis.fetch=oldFetch;globalThis.self=oldSelf;globalThis.postMessage=oldPost;}
 });

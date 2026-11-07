@@ -1,11 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createNearbySearch} from '../src/nearby-search.mjs';
+import {createNearbySearch,shouldAutoSearchNearby} from '../src/nearby-search.mjs';
 import {nearbyReplacement,nearbyWarnings} from '../src/nearby-presentation.mjs';
 
 const fresh=()=>{const t=new Date().toISOString();return {schemaVersion:1,fetchedAt:t,sourceUpdatedAt:t,works:[]};};
 const args={startPlace:{lat:25,lon:121.5},endPlace:{lat:25.01,lon:121.51},options:{},url:'https://example.test/graph',online:true};
 function fakeWorker(){return {sent:[],terminated:false,postMessage(x){this.sent.push(x);},terminate(){this.terminated=true;}};}
+
+test('automatic recovery only starts after a completed eligible route failure',()=>{
+ const ready={error:'NO_CONNECTION',routing:false,graphReady:true,tab:'plan',start:{lat:25,lon:121.5},end:{lat:25.01,lon:121.51}};
+ for(const error of ['NO_CONNECTION','NO_ROUTE','OFFICIAL_ENTRY_UNVERIFIED','OFFICIAL_CROSSING_UNVERIFIED','CONSTRUCTION_BLOCKED'])assert.equal(shouldAutoSearchNearby({...ready,error}),true,error);
+ for(const patch of [{routing:true},{graphReady:false},{tab:'saved'},{start:null},{end:null},{error:''},{error:'CONSTRUCTION_UNAVAILABLE'},{error:'UNVERIFIED_NETWORK'},{error:'OFFICIAL_OUTSIDE_COVERAGE'}])assert.equal(shouldAutoSearchNearby({...ready,...patch}),false,JSON.stringify(patch));
+});
 
 test('cancel aborts construction fetch and ignores a late result',async()=>{
  let finishFetch,signal,created=0;const states=[];

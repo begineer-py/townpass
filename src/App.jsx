@@ -61,7 +61,7 @@ import {canFallbackAfterVerification, startLocalFallback} from "./local-fallback
 import {constructionFresh, CONSTRUCTION_MAX_AGE} from "./construction.mjs";
 import {groupConstructionNotices} from "./construction-display.mjs";
 import {nearbyReplacement,nearbyWarnings} from "./nearby-presentation.mjs";
-import {createNearbySearch} from "./nearby-search.mjs";
+import {createNearbySearch,shouldAutoSearchNearby} from "./nearby-search.mjs";
 import {createLiveFollow,displayedRouteCoordinates} from "./live-follow.mjs";
 import {createLiveFollowSearch} from "./live-follow-search.mjs";
 import {routeGapPresentation} from "./route-gap-presentation.mjs";
@@ -623,7 +623,7 @@ export default function App() {
     stopFollowing();
     // Discard any earlier one-shot positioning response before subscribing.
     locationRequest.current++;
-    const destination=end,options={...prefs,avoidPoints};
+    const destination={...end,selectionKind:'user'},options={...prefs,avoidPoints};
     const session={engine:null,search:null,stopWatch:null,latest:null,referenceRoute:route};
     followSession.current=session;
     session.search=createLiveFollowSearch({
@@ -791,7 +791,11 @@ export default function App() {
   );
   async function calculate(points) {
     stopFollowing();
-    const from=points?.start||start,to=points?.end||end;
+    const fromPoint=points?.start||start,toPoint=points?.end||end;
+    // Route endpoints here come from an explicit selection, location action,
+    // or a chosen nearby point. The flag permits an unregistered search
+    // result's positional estimate; it is not a safety or access certificate.
+    const from=fromPoint?{...fromPoint,selectionKind:'user'}:fromPoint,to=toPoint?{...toPoint,selectionKind:'user'}:toPoint;
     const requestPrefs={...(points?.prefs||prefs),avoidPoints,startPlace:from,endPlace:to};
     if(!from||!to){announce('請先選擇出發地和目的地。');return;}
     setGraphRequested(true);
@@ -1173,6 +1177,14 @@ export default function App() {
     setFocus({ ...p, token: Date.now() });
   };
   const retryWithEntrance = ['OFFICIAL_PATH_UNVERIFIED','OFFICIAL_ROAD_CONFLICT','OFFICIAL_CROSSING_UNVERIFIED','OFFICIAL_ENTRY_UNVERIFIED','OFFICIAL_NO_ROUTE','OFFICIAL_GAP','NO_CONNECTION','NO_ROUTE'].includes(routeError);
+  useEffect(()=>{
+    if(!shouldAutoSearchNearby({error:routeError,routing,graphReady,tab,start,end}))return;
+    findNearbyPositions();
+    // A new route request, changed endpoint or changed preference invalidates
+    // the search. Nearby status is deliberately not a dependency: cancel or
+    // completion must never restart the lookup by itself.
+    return ()=>nearbySearch.current?.cancel(false);
+  },[routeError,routing,graphReady,tab,start,end,prefs,avoidPoints]);
   const entranceChoices = useMemo(() => {
     if(!retryWithEntrance)return [];
     return [['start',start],['end',end]].flatMap(([which,point]) => {
@@ -1521,7 +1533,7 @@ export default function App() {
                       : "路網正在背景準備，請先選擇起點與終點。"}
                   </p>
                 )}
-                {nearbyWarnings(start,end).map(text=><div className="notice" role="note" key={text}><AlertTriangle aria-hidden="true"/><p>{text}</p></div>)}
+                {nearbyWarnings(start,end).map(text=><p className="quiet-note" role="note" key={text}>{text}</p>)}
                 {routeError && (
                   <div className={`notice ${retryWithEntrance ? "route-recovery" : ""}`} role="status" ref={routeFeedback}>
                     <Info />
@@ -1539,7 +1551,7 @@ export default function App() {
                     {constructionConflict?.blocked?.length > 0 && <p>地圖已標出影響路線的施工位置；點線位置的周邊範圍是估計，並非精確封閉邊界。</p>}
                     {constructionConflict?.blocked?.slice(0,3).map(w => <p key={w.id}>{w.address}：{w.match === 'vicinity' ? '鄰近影響通行的施工位置' : '與影響通行的施工範圍交會'}。{w.plan}</p>)}
                     {(retryWithEntrance||routeError==='CONSTRUCTION_BLOCKED') && start && end && graphReady && <div className="entrance-choices">
-                      <button type="button" onClick={findNearbyPositions} disabled={nearbyState.status==='loading'}>尋找附近人行路網位置</button>
+                      {(nearbyState.status==='idle'||nearbyState.status==='error')&&<button type="button" onClick={findNearbyPositions}>重新搜尋附近人行路網位置</button>}
                       {nearbyState.status==='loading'&&<p>正在檢查附近路網和施工… <button type="button" onClick={cancelNearby}>取消搜尋</button></p>}
                       {nearbyState.status==='error'&&<p>{nearbyState.message}</p>}
                       {nearbyState.status==='ready'&&<>
@@ -1575,7 +1587,7 @@ export default function App() {
                     {route.viaName && (
                       <p className="quiet-note">順路停靠：{route.viaName}</p>
                     )}
-                    {route.approaches?.some(p=>p.estimated) && <div className="notice" role="note"><AlertTriangle aria-hidden="true"/><p><strong>起終點入口與實際通行狀況未確認。</strong>虛線為直線位置估算，約 {route.approaches.filter(p=>p.estimated).map(p=>p.distance).join('／')} 公尺；可能穿過建物或圍牆，請確認現場入口及通行方式。</p></div>}
+                    {route.approaches?.some(p=>p.estimated) && <p className="quiet-note" role="note">位置估算，實際通行狀況未確認；虛線約 {route.approaches.filter(p=>p.estimated).map(p=>p.distance).join('／')} 公尺。</p>}
                     <div className="route-key" aria-label="路段狀況圖例">
                       {[...new Set([...(route.tierSegments?.length ? route.tierSegments.map(conditionForSegment) : ['unknown']), ...(route.approaches?.length ? ['approach'] : [])])].map(key => {
                         const condition = ROUTE_CONDITIONS[key];
@@ -1584,7 +1596,7 @@ export default function App() {
                     </div>
                     <p className="quiet-note">線條反映已知資料，實際路況請留意現場。</p>
                     {route.tierSegments?.some(segment => segment.sharedRoad === true) && (
-                      <div className="notice" role="note"><AlertTriangle aria-hidden="true"/><p>路線包含可能人車共行的道路；步行許可、通行條件與無障礙狀況未確認。請留意車輛，依現場標示與狀況判斷是否通行。</p></div>
+                      <p className="quiet-note" role="note">部分路段可能人車共行，通行與無障礙狀況未確認。</p>
                     )}
                     <div className="route-summary">
                       <div>

@@ -218,12 +218,15 @@ export function createRouter(graph) {
     const heap = new MinHeap();
     for(const source of starts.chosen){const cost=source.distance*ROUTE_TIERS.connector.factor;dist[source.index]=cost;heap.push([cost+heuristicScale*metres(graph.nodes[source.index],end),source.index,cost]);}
     let bestTotal=Infinity,goal=-1;
+    const optimizeDeadline=Number.isFinite(options._optimizeDeadline)?options._optimizeDeadline:Infinity;
+    const optimizeMaxVisited=Number.isInteger(options._optimizeMaxVisited)?options._optimizeMaxVisited:Infinity;
     let found = false,
       visited = 0;
     while (heap.a.length) {
       const [lowerBound, u, cost] = heap.pop();
       if (cost !== dist[u]) continue;
       if(lowerBound>=bestTotal)break;
+      if(visited>=optimizeMaxVisited||((visited&255)===0&&Date.now()>optimizeDeadline))return {error:'OPTIMIZATION_BUDGET',visited};
       if(targets.has(u)){
         const total=cost+targets.get(u).distance*ROUTE_TIERS.connector.factor;
         if(total<bestTotal){bestTotal=total;goal=u;found=true;}
@@ -234,6 +237,8 @@ export function createRouter(graph) {
           w = graph.ways[e[3]];
         if (graph.nodes[v][2] || !canTraverse(ei)) continue;
         let factor = edgeCostFactor(w,e[5],options);
+        if(w.source==='osm-shared-street'&&Number.isFinite(options._optimizeSharedPenalty))factor+=Math.max(0,Math.min(20,options._optimizeSharedPenalty));
+        if(w.highway==='path'&&Number.isFinite(options._optimizePathPenalty))factor+=Math.max(0,Math.min(10,options._optimizePathPenalty));
         const mid = [
           (graph.nodes[u][0] + graph.nodes[v][0]) / 2,
           (graph.nodes[u][1] + graph.nodes[v][1]) / 2,

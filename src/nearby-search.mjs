@@ -1,5 +1,12 @@
 import {constructionFresh} from './construction.mjs';
 
+const recoveryErrors=new Set(['OFFICIAL_PATH_UNVERIFIED','OFFICIAL_ROAD_CONFLICT','OFFICIAL_CROSSING_UNVERIFIED','OFFICIAL_ENTRY_UNVERIFIED','OFFICIAL_NO_ROUTE','OFFICIAL_GAP','NO_CONNECTION','NO_ROUTE','CONSTRUCTION_BLOCKED']);
+// Only a finished route search can start a nearby lookup; unavailable or
+// invalid data must not be converted into apparently reachable candidates.
+export function shouldAutoSearchNearby({error,routing,graphReady,tab,start,end}){
+ return recoveryErrors.has(error)&&!routing&&graphReady&&tab==='plan'&&!!start&&!!end;
+}
+
 // Owns a disposable worker so cancellation really interrupts graph search.
 export function createNearbySearch({fetchSnapshot,createWorker,onState,onSnapshot=()=>{},timeoutMs=45000}){
  let version=0,worker=null,controller=null,timer=null;

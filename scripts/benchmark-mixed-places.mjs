@@ -2,8 +2,9 @@ import fs from 'node:fs';
 import {gunzipSync} from 'node:zlib';
 import {pathToFileURL} from 'node:url';
 import {createHash} from 'node:crypto';
-import {createRouter,metres} from '../src/routing.mjs';
-import {createLocalRouteVerifier,planPlaces} from '../src/local-route-verifier.mjs';
+import {metres} from '../src/routing.mjs';
+import {createLocalRouteVerifier} from '../src/local-route-verifier.mjs';
+import {createVerifiedRouter,planImprovedPlaces} from '../src/pedestrian-planning.mjs';
 import {createConstructionChecker} from '../src/construction.mjs';
 
 export const MIXED_SEED=20261110;
@@ -47,16 +48,18 @@ export async function main(){
  const sample=sampleMixed(facilities,places,facilities,{seed});
  let snapshot;if(process.env.BENCHMARK_SNAPSHOT)snapshot=JSON.parse(fs.readFileSync(process.env.BENCHMARK_SNAPSHOT,'utf8'));
  else{const response=await fetch(process.env.BENCHMARK_URL||'http://127.0.0.1:5173/api/construction');if(!response.ok)throw Error(`Construction HTTP ${response.status}`);snapshot=await response.json();}
- const checker=createConstructionChecker(snapshot),router=createRouter(graph),verifyLocal=createLocalRouteVerifier(graph,facilities,places),results=[];
+ const checker=createConstructionChecker(snapshot),verifyLocal=createLocalRouteVerifier(graph,facilities,places),router=createVerifiedRouter(graph,verifyLocal),results=[];
  for(const [index,c] of sample.cases.entries()){
-  const r=planPlaces(c.start,c.end,{officialOnly:false},snapshot,{router,verifyLocal,facilities,checker});
-  const sharedMetres=(r.tierSegments||[]).filter(s=>s.sharedRoad).reduce((n,s)=>n+s.distance,0),est=(r.approaches||[]).filter(a=>a.estimated);
+  const r=planImprovedPlaces(c.start,c.end,{officialOnly:false},snapshot,{graph,router,verifyLocal,facilities,checker});
+  const sharedMetres=(r.tierSegments||[]).filter(s=>s.sharedRoad).reduce((n,s)=>n+s.distance,0),pedestrianMetres=(r.tierSegments||[]).filter(s=>!s.sharedRoad).reduce((n,s)=>n+s.distance,0),est=(r.approaches||[]).filter(a=>a.estimated);
   const describe=p=>({id:p.id,name:p.name,kind:p.kind,sourceId:p.sourceId||null,coordinate:[p.lat,p.lon]});
-  results.push({bin:c.bin,type:c.type,start:describe(c.start),end:describe(c.end),straightMetres:c.straightMetres,success:!r.error,error:r.error||null,attemptErrors:r.attemptErrors||null,distance:r.distance??null,sharedMetres:Math.round(sharedMetres),sharedPct:r.distance?Math.round(sharedMetres/r.distance*100):null,estimatedApproaches:est.map(a=>({side:a.side,distance:a.distance})),estimatedMetres:est.reduce((n,a)=>n+a.distance,0)});
+  results.push({bin:c.bin,type:c.type,start:describe(c.start),end:describe(c.end),straightMetres:c.straightMetres,success:!r.error,error:r.error||null,attemptErrors:r.attemptErrors||null,distance:r.distance??null,sharedMetres:Math.round(sharedMetres),pedestrianMetres:Math.round(pedestrianMetres),sharedPct:r.distance?Math.round(sharedMetres/r.distance*100):null,footwayMetres:r.pedestrianImprovement?.footwayMetres??null,explicitSidewalkMetres:r.pedestrianImprovement?.explicitSidewalkMetres??null,pedestrianImprovement:r.pedestrianImprovement||null,estimatedApproaches:est.map(a=>({side:a.side,distance:a.distance})),estimatedMetres:est.reduce((n,a)=>n+a.distance,0)});
   console.log(`${index+1}/${sample.cases.length} ${c.bin} ${c.type} ${c.start.name} → ${c.end.name}: ${r.error||'OK'}`);
  }
  const summary=DISTANCES.map(bin=>{const a=results.filter(r=>r.bin===bin.label),ok=a.filter(r=>r.success);return {bin:bin.label,total:a.length,success:ok.length,errors:Object.fromEntries([...new Set(a.filter(r=>r.error).map(r=>r.error))].map(e=>[e,a.filter(r=>r.error===e).length]))};});
  const ok=results.filter(r=>r.success),report={checkedAt:new Date().toISOString(),constructionFetchedAt:snapshot.fetchedAt,constructionUpdatedAt:snapshot.sourceUpdatedAt,graphSha256:createHash('sha256').update(fs.readFileSync('public/data/graph.json.gz')).digest('hex'),constructionWorksSha256:createHash('sha256').update(JSON.stringify(snapshot.works)).digest('hex'),seed,method:'Fixed-seed sample of station + public POI pairs, two per type per straight-line distance bin; sample POIs without checking graph connectivity. Bounds are a rectangle, not the Taipei administrative boundary. Local routing only; no online official route, current elevator maintenance, field verification, or citywide representativeness. Shared and estimated distances are routing output, not evidence of safe accessibility.',dataSources:['public/data/places.json.gz (OpenStreetMap)','public/data/facilities.json.gz (Taipei official / OpenStreetMap)','public/data/graph.json.gz (OSM and official geometry)','live construction snapshot'],stationCount:sample.stationCount,placePools:sample.placePools,availability:sample.availability,total:results.length,success:ok.length,sharedRoutes:ok.filter(r=>r.sharedMetres>0).length,estimatedRoutes:ok.filter(r=>r.estimatedApproaches.length>0).length,sharedMetres:ok.reduce((n,r)=>n+r.sharedMetres,0),estimatedMetres:ok.reduce((n,r)=>n+r.estimatedMetres,0),successfulDistanceMetres:ok.reduce((n,r)=>n+r.distance,0),summary,results};
- fs.writeFileSync(process.env.BENCHMARK_OUTPUT||'reports/mixed-place-benchmark.json',JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify({summary,total:report.total,success:report.success,sharedRoutes:report.sharedRoutes,estimatedRoutes:report.estimatedRoutes,sharedMetres:report.sharedMetres,estimatedMetres:report.estimatedMetres,successfulDistanceMetres:report.successfulDistanceMetres}));
+ report.pedestrianMetres=ok.reduce((n,r)=>n+r.pedestrianMetres,0);
+ report.method+=' Pedestrian metres include mapped footway, path, pedestrian, corridor and verified connectors; they do not certify that all segments are sidewalks.';
+ fs.writeFileSync(process.env.BENCHMARK_OUTPUT||'reports/mixed-place-benchmark.json',JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify({summary,total:report.total,success:report.success,sharedRoutes:report.sharedRoutes,estimatedRoutes:report.estimatedRoutes,sharedMetres:report.sharedMetres,pedestrianMetres:report.pedestrianMetres,estimatedMetres:report.estimatedMetres,successfulDistanceMetres:report.successfulDistanceMetres}));
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href)await main();
