@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {createRouter} from '../src/routing.mjs';
 import {createLocalRouteVerifier} from '../src/local-route-verifier.mjs';
 import {createConstructionChecker} from '../src/construction.mjs';
-import {improvePedestrianRoute,hasNewPedestrianNearShared,hasNewSidewalkNearReplaced} from '../src/pedestrian-improvement.mjs';
+import {improvePedestrianRoute,hasNewPedestrianNearShared,hasNewSidewalkNearReplaced,measureUnconfirmedApproaches,compareUnconfirmedApproaches} from '../src/pedestrian-improvement.mjs';
 import {planImprovedPlaces} from '../src/pedestrian-planning.mjs';
 const n=(x,y)=>[25+y/111195,121.5+x/100700,0];
 const proof={schemaVersion:2,coverage:0,maxUncoveredMetres:100,crossingCoverage:0,roadCrossingVerified:true,crossingVerified:true};
@@ -12,6 +12,62 @@ const graph=(height=15)=>({officialPathEvidence:{schemaVersion:2},officialAreas:
 const snapshot=works=>{const t=new Date().toISOString();return {schemaVersion:1,fetchedAt:t,sourceUpdatedAt:t,works};};
 function setup(height=15,works=[]){const g=graph(height),snap=snapshot(works),router=createRouter(g),verifyLocal=createLocalRouteVerifier(g),checker=createConstructionChecker(snap),start=g.nodes[0].slice(0,2),end=g.nodes[2].slice(0,2),options={approachAllowed:(p,q)=>p[0]===q[0]&&p[1]===q[1]},raw=router(start,end,{...options,lineAllowed:checker.allowed}),base=verifyLocal(raw,start,end,options);return {g,snap,router,verifyLocal,checker,start,end,options,base};}
 const improve=x=>improvePedestrianRoute(x.base,x.start,x.end,x.options,x.snap,{graph:x.g,router:x.router,verifyLocal:x.verifyLocal,checker:x.checker});
+
+// Test the acceptance rule after verification has supplied actual approach
+// geometries. Labels deliberately round lengths so only geometry is authoritative.
+function approachFixture({baseStart=0,baseEnd=0,nextStart=0,nextEnd=0,baseExtra=[],nextExtra=[]}={}){
+ const start=n(0,0).slice(0,2),end=n(200,0).slice(0,2),nodes=[n(baseStart,0),n(200-baseEnd,0),n(nextStart,0),n(200-nextEnd,0)];
+ const g={nodes,ways:[{highway:'residential',source:'osm-shared-street'},{highway:'footway',footway:'sidewalk'}],
+  edges:[[0,1,200-baseStart-baseEnd,0,[],shared],[2,3,200-nextStart-nextEnd,1,[],proof]]};
+ const route=(edge,a,b,sa,ea,extra)=>({edgeIds:[edge],nodeIds:[a,b],coordinates:[start,nodes[a].slice(0,2),nodes[b].slice(0,2),end],distance:200,costBreakdown:{base:200},
+  approaches:[...(sa?[{side:'start',coordinates:[start,nodes[a].slice(0,2)],distance:Math.round(sa),estimated:true}]:[]),
+              ...(ea?[{side:'end',coordinates:[nodes[b].slice(0,2),end],distance:Math.round(ea),estimated:true}]:[]),...extra]});
+ const base=route(0,0,1,baseStart,baseEnd,baseExtra),candidate=route(1,2,3,nextStart,nextEnd,nextExtra),snap=snapshot([]);
+ const deps={graph:g,router:()=>candidate,verifyLocal:c=>c,checker:{allowed:()=>true,inspect:()=>({blocked:[]})}};
+ return {g,start,end,base,candidate,snap,deps,run:config=>improvePedestrianRoute(base,start,end,{},snap,deps,{maxIterations:1,penalties:[1],sidewalkPenalties:[0],...config})};
+}
+
+test('optimizer refuses a newly unconfirmed start even if sidewalk share improves',()=>{
+ const x=approachFixture({nextStart:41}),r=x.run();
+ assert.deepEqual(r.edgeIds,x.base.edgeIds);assert.ok(r.pedestrianImprovement.iterations[0].reasons.includes('unconfirmed-approach-added'));
+});
+test('per-side unconfirmed lengths cannot cancel each other out',()=>{
+ const x=approachFixture({baseStart:10,baseEnd:30,nextStart:30,nextEnd:10}),r=x.run();
+ assert.deepEqual(r.edgeIds,x.base.edgeIds);assert.ok(r.pedestrianImprovement.iterations[0].reasons.includes('unconfirmed-approach-lengthened'));
+});
+test('shortening already unconfirmed approaches permits a verified sidewalk improvement',()=>{
+ const x=approachFixture({baseStart:30,baseEnd:30,nextStart:20,nextEnd:20}),r=x.run();
+ assert.deepEqual(r.edgeIds,x.candidate.edgeIds);assert.equal(r.pedestrianImprovement.iterations[0].result,'improved');
+});
+test('a new zero-length unconfirmed connector is still an added uncertain entrance',()=>{
+ const zero={side:'start',coordinates:[n(0,0).slice(0,2),n(0,0).slice(0,2)],distance:0,estimated:true};
+ const x=approachFixture({nextExtra:[zero]}),r=x.run();
+ assert.deepEqual(r.edgeIds,x.base.edgeIds);assert.ok(r.pedestrianImprovement.iterations[0].reasons.includes('unconfirmed-approach-added'));
+});
+test('invalid or omitted approach geometry is not used as evidence',()=>{
+ const x=approachFixture({nextStart:20});x.candidate.approaches[0].coordinates[1]=[NaN,121.5];
+ const r=x.run();assert.deepEqual(r.edgeIds,x.base.edgeIds);assert.ok(r.pedestrianImprovement.iterations[0].reasons.includes('invalid-approach-evidence'));
+ assert.equal(measureUnconfirmedApproaches(x.g,{...x.base,approaches:undefined},x.start,x.end),null);
+});
+test('confirmed approach geometry is not counted as unconfirmed',()=>{
+ const x=approachFixture({baseStart:20});x.base.approaches[0].estimated=false;
+ const measured=measureUnconfirmedApproaches(x.g,x.base,x.start,x.end);
+ assert.equal(measured.start.count,0);assert.equal(measured.start.metres,0);
+});
+test('via leg cannot trade longer unconfirmed approach for other-leg improvements',()=>{
+ const x=approachFixture({baseStart:10,nextStart:20});const r=x.run({parentBaselineDistance:500,otherLegDistance:300,otherLegSidewalkMetres:100});
+ assert.deepEqual(r.edgeIds,x.base.edgeIds);assert.ok(r.pedestrianImprovement.iterations[0].reasons.includes('unconfirmed-approach-lengthened'));
+});
+test('a later round cannot lengthen an approach that an earlier round shortened',()=>{
+ const m=x=>({start:{count:1,metres:x},end:{count:0,metres:0}});
+ assert.equal(compareUnconfirmedApproaches(m(30),m(25)),null);
+ assert.equal(compareUnconfirmedApproaches(m(20),m(25)),'unconfirmed-approach-lengthened');
+});
+test('only microscopic floating difference is tolerated in exact-length comparison',()=>{
+ const m=x=>({start:{count:1,metres:x},end:{count:0,metres:0}});
+ assert.equal(compareUnconfirmedApproaches(m(10),m(10.0000005)),null);
+ assert.equal(compareUnconfirmedApproaches(m(10),m(10.00001)),'unconfirmed-approach-lengthened');
+});
 
 test('reduces actual shared-road length using a connected nearby pedestrian detour inside both limits',()=>{
  const x=setup();assert.equal(x.base.distance,110);assert.equal(x.base.roadPct,9);
@@ -39,7 +95,7 @@ test('shared reduction is rejected if full-route explicit sidewalk share decreas
 });
 test('compares exact sidewalk share before distance rounding',()=>{
  const g={nodes:[n(0,0),n(10,0),n(100,0)],ways:[{highway:'residential',source:'osm-shared-street'},{highway:'footway',footway:'sidewalk'},{highway:'path'}],edges:[[0,1,10,0,[],shared],[1,2,90,1,[],proof],[0,1,10.001,2,[],proof]]};
- const base={edgeIds:[0,1],nodeIds:[0,1,2],coordinates:g.nodes.map(p=>p.slice(0,2)),distance:100},candidate={...base,edgeIds:[2,1],distance:100,costBreakdown:{base:100.001}};
+ const base={edgeIds:[0,1],nodeIds:[0,1,2],coordinates:g.nodes.map(p=>p.slice(0,2)),approaches:[],distance:100},candidate={...base,edgeIds:[2,1],distance:100,costBreakdown:{base:100.001}};
  const snapshotNow=snapshot([]),checker={allowed:()=>true,inspect:()=>({blocked:[]})},result=improvePedestrianRoute(base,g.nodes[0].slice(0,2),g.nodes[2].slice(0,2),{},snapshotNow,{graph:g,router:()=>candidate,verifyLocal:x=>x,checker});
  assert.deepEqual(result.edgeIds,[0,1]);assert.ok(result.pedestrianImprovement.iterations[0].reasons.includes('sidewalk-share-regression'));
 });
@@ -73,7 +129,7 @@ test('a via leg uses the whole original journey budget rather than a separate le
 });
 test('repeated improvements keep the original distance budget rather than compounding it',()=>{
  const g={nodes:[n(0,0),n(10,0),n(100,0),n(1,10),n(1,20)],ways:[{highway:'residential',source:'osm-shared-street'},{highway:'footway'}],edges:[[0,1,100,0,[],shared],[1,2,900,1,[],proof],[0,3,80,0,[],shared],[3,2,1120,1,[],proof],[0,4,60,0,[],shared],[4,2,1340,1,[],proof]]};
- const route=(ids,nodes,distance)=>({edgeIds:ids,nodeIds:nodes,coordinates:nodes.map(i=>g.nodes[i].slice(0,2)),distance,costBreakdown:{base:distance}}),base=route([0,1],[0,1,2],1000),first=route([2,3],[0,3,2],1200),second=route([4,5],[0,4,2],1400);
+ const route=(ids,nodes,distance)=>({edgeIds:ids,nodeIds:nodes,coordinates:nodes.map(i=>g.nodes[i].slice(0,2)),approaches:[],distance,costBreakdown:{base:distance}}),base=route([0,1],[0,1,2],1000),first=route([2,3],[0,3,2],1200),second=route([4,5],[0,4,2],1400);
  let calls=0;const router=()=>++calls<=9?first:second,verifyLocal=c=>c,checker={allowed:()=>true,inspect:()=>({blocked:[]})},snap=snapshot([]);
  const result=improvePedestrianRoute(base,g.nodes[0].slice(0,2),g.nodes[2].slice(0,2),{},snap,{graph:g,router,verifyLocal,checker});
  assert.equal(result.distance,1200);assert.equal(result.pedestrianImprovement.maxDistanceMetres,1300);

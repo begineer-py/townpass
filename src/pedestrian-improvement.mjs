@@ -64,6 +64,37 @@ function fullDistance(graph,route,start,end,parts){
 export function measurePedestrianRoute(graph,route,start,end){
  const parts=portions(graph,route);return parts?{...parts,distance:fullDistance(graph,route,start,end,parts)}:null;
 }
+// Measure unconfirmed approaches from geometry, not their rounded UI labels.
+// Missing or inconsistent geometry cannot establish a safe comparison.
+export function measureUnconfirmedApproaches(graph,route,start,end){
+ if(!Array.isArray(route?.approaches)||!Array.isArray(route.nodeIds)||!route.nodeIds.length)return null;
+ const first=graph.nodes[route.nodeIds[0]],last=graph.nodes[route.nodeIds.at(-1)];
+ if(!first||!last)return null;
+ const result={start:{count:0,metres:0},end:{count:0,metres:0}},seen={start:0,end:0};
+ const valid=p=>Array.isArray(p)&&p.length>=2&&Number.isFinite(p[0])&&Number.isFinite(p[1]);
+ const same=(a,b)=>valid(a)&&valid(b)&&metres(a,b)<=1e-6;
+ if(!valid(start)||!valid(end))return null;
+ for(const a of route.approaches){
+  if(!a||!['start','end'].includes(a.side)||!Array.isArray(a.coordinates)||a.coordinates.length<2||a.coordinates.some(p=>!valid(p)))return null;
+  if(a.estimated!==true&&a.estimated!==false&&a.unconfirmed!==true&&a.entryStatus!=='unconfirmed')return null;
+  const expectedStart=a.side==='start'?start:last,expectedEnd=a.side==='start'?first:end;
+  if(!same(a.coordinates[0],expectedStart)||!same(a.coordinates.at(-1),expectedEnd))return null;
+  seen[a.side]++;
+  if(a.estimated===true||a.unconfirmed===true||a.entryStatus==='unconfirmed'){
+   result[a.side].count++;
+   for(let i=1;i<a.coordinates.length;i++)result[a.side].metres+=metres(a.coordinates[i-1],a.coordinates[i]);
+  }
+ }
+ if((metres(start,first)>.05&&!seen.start)||(metres(end,last)>.05&&!seen.end))return null;
+ return result;
+}
+export function compareUnconfirmedApproaches(baseline,candidate){
+ for(const side of ['start','end']){
+  if(candidate[side].count>baseline[side].count)return 'unconfirmed-approach-added';
+  if(candidate[side].metres>baseline[side].metres+1e-6)return 'unconfirmed-approach-lengthened';
+ }
+ return null;
+}
 // Search the full segment geometries, not just vertices. This only identifies
 // nearby existing edges; graph connectivity is checked by the normal router.
 const sharedEdge=w=>w?.source==='osm-shared-street';
@@ -101,13 +132,15 @@ export function improvePedestrianRoute(base,start,end,options,snapshot,{graph,ro
  if(!base.edgeIds)return {...base,pedestrianImprovement:{status:'missing-local-provenance',iterations:[]}};
  const original=portions(graph,base);
  if(!original)return {...base,pedestrianImprovement:{status:'missing-local-provenance',iterations:[]}};
+ const originalApproaches=measureUnconfirmedApproaches(graph,base,start,end);
+ if(!originalApproaches)return {...base,pedestrianImprovement:{status:'missing-approach-evidence',iterations:[]}};
  const originalDistance=fullDistance(graph,base,start,end,original),parent=config.parentBaselineDistance,other=config.otherLegDistance;
  const hasParent=Number.isFinite(parent)&&parent>0&&Number.isFinite(other)&&other>=0;
  const otherSidewalk=hasParent&&Number.isFinite(config.otherLegSidewalkMetres)&&config.otherLegSidewalkMetres>=0?config.otherLegSidewalkMetres:0;
  const maxDistance=hasParent
   ?Math.min(parent*1.3,parent+300)-other:Math.min(originalDistance*1.3,originalDistance+300);
  const deadline=Date.now()+totalMs,iterations=[];
- let current=base,currentParts=original,currentDistance=originalDistance,status=original.total-original.sidewalk<5?'no-non-sidewalk-segments':'no-improvement';
+ let current=base,currentParts=original,currentDistance=originalDistance,currentApproaches=originalApproaches,status=original.total-original.sidewalk<5?'no-non-sidewalk-segments':'no-improvement';
  for(let round=0;round<maxIterations&&currentParts.total-currentParts.sidewalk>=5;round++){
   if(Date.now()>deadline){status='time-limit';break;}
   let best=null,sawLimited=false,timedOut=false;const reasons=[],attempts=[];
@@ -134,18 +167,23 @@ export function improvePedestrianRoute(base,start,end,options,snapshot,{graph,ro
    if(!near.near){reject(attempt,near.limited?'proximity-limit':'no-connected-pedestrian-within-50m');if(near.limited)sawLimited=true;continue;}
    const verified=verifyLocal(candidate,start,end,options);if(verified.error){reject(attempt,'verification-failed');continue;}
    if(Date.now()>deadline){attempt.reason='time-limit';timedOut=true;break;}
+   const candidateApproaches=measureUnconfirmedApproaches(graph,verified,start,end);
+   if(!candidateApproaches){reject(attempt,'invalid-approach-evidence');continue;}
+   attempt.unconfirmedApproaches=candidateApproaches;
+   const approachReason=compareUnconfirmedApproaches(originalApproaches,candidateApproaches)||compareUnconfirmedApproaches(currentApproaches,candidateApproaches);
+   if(approachReason){reject(attempt,approachReason);continue;}
    const work=checker.inspect(verified.coordinates);if(work.blocked.length){reject(attempt,'construction-blocked');continue;}
    if(Date.now()>deadline){attempt.reason='time-limit';timedOut=true;break;}
    attempt.reason='eligible';attempt.improvementKind=reason;
    const value={...verified,provider:base.provider,construction:work,resolvedStart:base.resolvedStart,resolvedEnd:base.resolvedEnd,weightedCost:Object.values(candidate.costBreakdown||{}).reduce((a,b)=>a+b,0)};
-   if(!best||candidateShare>best.share+1e-12||(Math.abs(candidateShare-best.share)<=1e-12&&(parts.shared<best.parts.shared||(parts.shared===best.parts.shared&&distance<best.distance))))best={value,parts,distance,share:candidateShare,penalty,sidewalkPenalty,attempt};
+   if(!best||candidateShare>best.share+1e-12||(Math.abs(candidateShare-best.share)<=1e-12&&(parts.shared<best.parts.shared||(parts.shared===best.parts.shared&&distance<best.distance))))best={value,parts,distance,approaches:candidateApproaches,share:candidateShare,penalty,sidewalkPenalty,attempt};
   }
   if(!constructionFresh(snapshot))return {error:'CONSTRUCTION_UNAVAILABLE'};
   if(timedOut||Date.now()>deadline){iterations.push({round:round+1,result:'time-limit',reasons:[...new Set(reasons)],attempts});status='time-limit';break;}
   if(!best){iterations.push({round:round+1,result:sawLimited?'search-limit':'no-improvement',reasons:[...new Set(reasons)],attempts});status=sawLimited?'search-limit':iterations.length>1?'improved':'no-improvement';break;}
   best.attempt.selected=true;
   iterations.push({round:round+1,result:'improved',improvementKind:best.attempt.improvementKind,previousSharedMetres:currentParts.shared,sharedMetres:best.parts.shared,previousSidewalkShare:(currentParts.sidewalk+otherSidewalk)/(currentDistance+(hasParent?other:0)),sidewalkShare:best.share,distanceMetres:best.distance,penalty:best.penalty,sidewalkPenalty:best.sidewalkPenalty,attempts});
-  current=best.value;currentParts=best.parts;currentDistance=best.distance;status=round+1===maxIterations?'iteration-limit':'improved';
+  current=best.value;currentParts=best.parts;currentDistance=best.distance;currentApproaches=best.approaches;status=round+1===maxIterations?'iteration-limit':'improved';
  }
  if(!constructionFresh(snapshot))return {error:'CONSTRUCTION_UNAVAILABLE'};
  // A synchronous router cannot be preempted during projection/verification.

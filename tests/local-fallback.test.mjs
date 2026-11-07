@@ -23,3 +23,8 @@ test('local fallback never bypasses missing or stale construction data', () => {
   assert.equal(startLocalFallback(worker,1,{}, {}, {}, {schemaVersion:1,fetchedAt:'2020-01-01',sourceUpdatedAt:'2020-01-01',works:[]}),false);
   assert.equal(startLocalFallback(null,1,{}, {}, {}, null),false);
 });
+test('local fallback reports an unavailable worker instead of pretending it started',()=>{
+ const t=new Date().toISOString(),snapshot={schemaVersion:1,fetchedAt:t,sourceUpdatedAt:t,works:[]};
+ assert.equal(startLocalFallback({postMessage:()=>false},1,{}, {}, {}, snapshot),false);
+ assert.equal(startLocalFallback({postMessage:()=>{throw Error('closed');}},1,{}, {}, {}, snapshot),false);
+});

@@ -62,6 +62,7 @@ import {constructionFresh, CONSTRUCTION_MAX_AGE} from "./construction.mjs";
 import {groupConstructionNotices} from "./construction-display.mjs";
 import {nearbyReplacement,nearbyWarnings} from "./nearby-presentation.mjs";
 import {createNearbySearch,shouldAutoSearchNearby} from "./nearby-search.mjs";
+import {createRouteWorkerLifecycle} from "./route-worker-lifecycle.mjs";
 import {createLiveFollow,displayedRouteCoordinates} from "./live-follow.mjs";
 import {createLiveFollowSearch} from "./live-follow-search.mjs";
 import {routeGapPresentation} from "./route-gap-presentation.mjs";
@@ -347,10 +348,11 @@ export default function App() {
   const [routeAttempt,setRouteAttempt]=useState(0);
   function verifyOnlineRoute(route, start, end, id, construction, options=prefs) {
     return new Promise(resolve => {
-      const timer=setTimeout(()=>{pendingVerifications.current.delete(id);resolve({error:'UNVERIFIED_NETWORK'});},30000);
-      pendingVerifications.current.set(id,result=>{clearTimeout(timer);resolve(result);});
-      if (!worker.current) { clearTimeout(timer); pendingVerifications.current.delete(id); resolve({error:'UNVERIFIED_NETWORK'}); return; }
-      worker.current.postMessage({type:'verify-official',id,route,start,end,construction,options});
+      let settled=false;
+      const finish=result=>{if(settled)return;settled=true;clearTimeout(timer);if(pendingVerifications.current.get(id)===finish)pendingVerifications.current.delete(id);resolve(result);};
+      const timer=setTimeout(()=>{if(pendingVerifications.current.get(id)!==finish)return;pendingVerifications.current.delete(id);worker.current?.cancelIfActive('verify-official',id);finish({error:'UNVERIFIED_NETWORK'});},30000);
+      pendingVerifications.current.set(id,finish);
+      if (!worker.current || worker.current.postMessage({type:'verify-official',id,route,start,end,construction,options})===false)finish({error:'UNVERIFIED_NETWORK'});
     });
   }
   const panelScroll = useRef();
@@ -512,17 +514,18 @@ export default function App() {
   }, [prefs, profileStorageKey]);
   useEffect(() => {
     if (!graphRequested) return;
-    const w = new Worker(new URL("./route-worker.js", import.meta.url), {
-      type: "module",
-    });
-    worker.current = w;
-    w.onmessage = ({ data: d }) => {
+    let wasReady=false;
+    const lifecycle=createRouteWorkerLifecycle({
+      createWorker:()=>new Worker(new URL("./route-worker.js",import.meta.url),{type:'module'}),
+      initMessage:{type:'init',url:new URL(dataUrl('graph')+'?policy='+ROUTING_POLICY,location.href).href},
+      onReady:ready=>{setGraphReady(ready);if(ready){wasReady=true;setGraphError(false);}else if(wasReady)announce('正在重新準備路線資料。');},
+      onDropped:message=>{if(message.type==='verify-official')pendingVerifications.current.get(message.id)?.({error:'CANCELLED'});},
+      onMessage:d=>{
       if (d.type === 'verified-official') {
         pendingVerifications.current.get(d.id)?.(d.result);
         pendingVerifications.current.delete(d.id);
         return;
       }
-      if (d.type === "ready") setGraphReady(true);
       if (d.type === "route" && d.id === request.current) {
         setRouting(false);
         if (d.result.error || d.result.policyVersion !== ROUTING_POLICY) {
@@ -540,24 +543,19 @@ export default function App() {
           setStepIndex(0);
         }
       }
-      if (d.type === "error") {
+      },
+      onError:d=>{
         for(const resolve of pendingVerifications.current.values()) resolve({error:'UNVERIFIED_NETWORK'});
         pendingVerifications.current.clear();
-        if (d.id != null && d.id !== request.current) return;
+        if (d?.id != null && d.id !== request.current) return;
         clearRoute();
         setRouting(false);
         setGraphError(true);
         setRouteError('UNVERIFIED_NETWORK');
-      }
-    };
-    w.postMessage({
-      type: "init",
-      url: new URL(
-        dataUrl("graph") + "?policy=" + ROUTING_POLICY,
-        location.href,
-      ).href,
+      },
     });
-    return () => { w.terminate(); nearbySearch.current?.cancel(false); for(const resolve of pendingVerifications.current.values()) resolve({error:'UNVERIFIED_NETWORK'}); pendingVerifications.current.clear(); };
+    worker.current=lifecycle;lifecycle.start();
+    return () => { lifecycle.dispose();if(worker.current===lifecycle)worker.current=null;nearbySearch.current?.cancel(false);for(const resolve of pendingVerifications.current.values()) resolve({error:'UNVERIFIED_NETWORK'});pendingVerifications.current.clear(); };
   }, [graphRequested]);
   const changePoint = (which, p) => {
     stopFollowing();
@@ -576,6 +574,8 @@ export default function App() {
   };
   function clearRoute() {
     cancelNearby();
+    pendingRoute.current=null;
+    worker.current?.cancel();
     setConstructionConflict(null);
     setRouteGap(null);
     setRouteAttempt(0);
@@ -1545,11 +1545,11 @@ export default function App() {
                 {(followState.active || followState.message) && <p className="quiet-note" role="status">
                   {followState.message || ({following:'位置跟隨中；偏離門檻依定位精度調整，輕微偏離可能不會觸發。',replanning:'偵測到偏離，正在重新規劃。',uncertain:'定位精度或時間不足，暫停自動重新規劃。',failed:'暫時無法重新規劃。',unavailable:'目前路線資料不足，暫停位置跟隨。'}[followState.status]||'')}
                 </p>}
-                {!graphReady && !online && (
-                  <p className="quiet-note">
+                {!graphReady && (
+                  <p className="quiet-note" role="status">
                     {graphError
                       ? "路線資料暫時讀取不到，請重新整理再試。"
-                      : "路網正在背景準備，請先選擇起點與終點。"}
+                      : "正在準備路線資料。"}
                   </p>
                 )}
                 {nearbyWarnings(start,end).map(text=><p className="quiet-note" role="note" key={text}>{text}</p>)}
