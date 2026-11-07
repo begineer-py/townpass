@@ -25,7 +25,7 @@ export function createRouteWorkerLifecycle({createWorker,initMessage,onReady=()=
     if(data.id!=null&&(!active||data.id!==active.id))return;
     fail(data);return;
    }
-   const expected=active?.type==='verify-official'?'verified-official':active?.type==='reference-route'?'reference-route':'route';
+   const expected=active?.type==='verify-official'?'verified-official':active?.type==='reference-route'?'reference-route':active?.type==='snap-map-point'?'snap-map-point':'route';
    if(!active||data?.type!==expected||data.id!==active.id)return;
    active=null;onMessage(data);
    if(!disposed&&worker===current&&generation===epoch)pump();
@@ -34,9 +34,9 @@ export function createRouteWorkerLifecycle({createWorker,initMessage,onReady=()=
   try{current.postMessage(initMessage);}catch(error){fail(error);}
  }
  function postMessage(message){
-  if(disposed||!worker||!['route','plan-places','verify-official','reference-route'].includes(message?.type))return false;
+  if(disposed||!worker||!['route','plan-places','verify-official','reference-route','snap-map-point'].includes(message?.type))return false;
   // Optional reference work must never displace a normal route request.
-  if(message.type==='reference-route'&&(active||queued))return false;
+  if((message.type==='reference-route'||message.type==='snap-map-point')&&(active||queued))return false;
   if(queued)drop(queued);queued=message;pump();return !!worker;
  }
  function cancel(){

@@ -1,0 +1,192 @@
+{
+  "inputSha256": {
+    "facilities": "914e019fa1b52f4ed44da95dd265a2568127ec787a566e345a8077fe82bf541c",
+    "places": "f6d28df1737b45a41beb7e515c2125c38e15e2bef664af79b1999d89dea03d41"
+  },
+  "before": {
+    "records": 141993,
+    "changedNames": 0,
+    "sourceCodeNames": 1823,
+    "capacityInName": 1709,
+    "htmlInName": 148,
+    "unmatchedClosing": 665,
+    "addressInName": 378,
+    "questionMarkNames": 32,
+    "genericNames": 2602,
+    "possibleTruncatedParkingNames": 349,
+    "groupedRecords": 0,
+    "groups": 0
+  },
+  "after": {
+    "records": 141993,
+    "changedNames": 2792,
+    "sourceCodeNames": 0,
+    "capacityInName": 0,
+    "htmlInName": 0,
+    "unmatchedClosing": 0,
+    "addressInName": 0,
+    "questionMarkNames": 31,
+    "genericNames": 2602,
+    "possibleTruncatedParkingNames": 349,
+    "groupedRecords": 982,
+    "groups": 483
+  },
+  "unresolvedNames": [
+    {
+      "id": "w3-2",
+      "sourceId": "wheel-3",
+      "name": "無障礙電梯(新糖?公園地下停車場)"
+    },
+    {
+      "id": "w4-290",
+      "sourceId": "wheel-4",
+      "name": "?公圳公園"
+    },
+    {
+      "id": "w4-291",
+      "sourceId": "wheel-4",
+      "name": "?公公園"
+    },
+    {
+      "id": "w4-317",
+      "sourceId": "wheel-4",
+      "name": "糖?公園"
+    },
+    {
+      "id": "w4-324",
+      "sourceId": "wheel-4",
+      "name": "糖?文化園區公園"
+    },
+    {
+      "id": "w7-713",
+      "sourceId": "wheel-7",
+      "name": "?公圳公園_7號出入口"
+    },
+    {
+      "id": "w7-714",
+      "sourceId": "wheel-7",
+      "name": "?公圳公園_6號出入口"
+    },
+    {
+      "id": "w7-715",
+      "sourceId": "wheel-7",
+      "name": "?公圳公園_5號出入口"
+    },
+    {
+      "id": "w7-716",
+      "sourceId": "wheel-7",
+      "name": "?公圳公園_4號出入口"
+    },
+    {
+      "id": "w7-717",
+      "sourceId": "wheel-7",
+      "name": "?公圳公園_3號出入口"
+    },
+    {
+      "id": "w7-718",
+      "sourceId": "wheel-7",
+      "name": "?公圳公園_2號出入口"
+    },
+    {
+      "id": "w7-719",
+      "sourceId": "wheel-7",
+      "name": "?公圳公園_1號出入口"
+    },
+    {
+      "id": "w8-1",
+      "sourceId": "wheel-8",
+      "name": "?足益足體養身館"
+    },
+    {
+      "id": "w8-5",
+      "sourceId": "wheel-8",
+      "name": "?油木子-108台北市萬華區廣州街77號"
+    },
+    {
+      "id": "w8-6",
+      "sourceId": "wheel-8",
+      "name": "西門町芒?冰"
+    },
+    {
+      "id": "w15-670",
+      "sourceId": "wheel-15",
+      "name": "Times林森五?通"
+    },
+    {
+      "id": "w15-820",
+      "sourceId": "wheel-15",
+      "name": "芝?停車場"
+    },
+    {
+      "id": "w15-1388",
+      "sourceId": "wheel-15",
+      "name": "新糖?公園地下停車場"
+    },
+    {
+      "id": "w16-87",
+      "sourceId": "wheel-16",
+      "name": "謙?有限公司東吳有容場"
+    },
+    {
+      "id": "w16-324",
+      "sourceId": "wheel-16",
+      "name": "吉?-行善停車場"
+    },
+    {
+      "id": "w16-432",
+      "sourceId": "wheel-16",
+      "name": "BELLAVITA寶麗廣?停車場"
+    },
+    {
+      "id": "w16-1093",
+      "sourceId": "wheel-16",
+      "name": "公?路228巷平面停車場"
+    },
+    {
+      "id": "w16-1115",
+      "sourceId": "wheel-16",
+      "name": "?公國中停車場"
+    },
+    {
+      "id": "w16-1268",
+      "sourceId": "wheel-16",
+      "name": "?旺停車場瑞光站"
+    },
+    {
+      "id": "w16-1622",
+      "sourceId": "wheel-16",
+      "name": "芝?停車場"
+    },
+    {
+      "id": "w18-189",
+      "sourceId": "wheel-18",
+      "name": "承德公?路口"
+    },
+    {
+      "id": "w18-196",
+      "sourceId": "wheel-18",
+      "name": "承德公?路口"
+    },
+    {
+      "id": "w18-294",
+      "sourceId": "wheel-18",
+      "name": "承德公?路口"
+    },
+    {
+      "id": "w18-494",
+      "sourceId": "wheel-18",
+      "name": "?公公園"
+    },
+    {
+      "id": "w18-498",
+      "sourceId": "wheel-18",
+      "name": "?公公園"
+    },
+    {
+      "id": "toilets-1448",
+      "sourceId": "toilets",
+      "name": "新糖?公園地下停車場"
+    }
+  ],
+  "method": "source IDs and coordinates retained; conservative same-category map grouping only; unknown characters remain unchanged"
+}

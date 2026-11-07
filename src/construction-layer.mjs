@@ -24,11 +24,12 @@ export function constructionLabel(work,geometry){
  return geometry.type==='Polygon'?`${kind}；顯示通報範圍`:`${kind}；僅顯示通報位置`;
 }
 // Geometry is retained; viewport filtering is not an assertion of closure.
-export function selectVisibleConstruction(snapshot,bounds,now=Date.now(),limit=200,maxGeometries=600,priorityIds=[]){
+export function selectVisibleConstruction(snapshot,bounds,now=Date.now(),limit=200,maxGeometries=600,priorityIds=[],priorityOnly=false){
  if(!constructionFresh(snapshot,now))return {status:'stale',items:[],total:0,truncated:false};
  if(!Array.isArray(bounds)||bounds.length!==4||bounds.some(n=>!Number.isFinite(n))||bounds[0]>bounds[2]||bounds[1]>bounds[3]||!Number.isInteger(limit)||limit<1||!Number.isInteger(maxGeometries)||maxGeometries<1)return {status:'invalid',items:[],total:0,truncated:false};
  const center=[(bounds[0]+bounds[2])/2,(bounds[1]+bounds[3])/2],groupsByKey=new Map(),priority=new Set(Array.isArray(priorityIds)?priorityIds.map(String):[]);
  for(const work of snapshot.works){
+  if(priorityOnly&&!priority.has(String(work?.id)))continue;
   if(!work||!workActive({...work,hours:typeof work.hours==='string'?work.hours:''},now)||!Array.isArray(work.geometries))continue;
   const visible=[];
   for(const geometry of work.geometries){

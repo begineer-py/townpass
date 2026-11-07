@@ -60,3 +60,10 @@ test('an already scheduled viewport update survives popup opening',()=>{
  let id=0,redraws=0;const timers=new Map(),setTimer=fn=>{const key=++id;timers.set(key,fn);return key;},clearTimer=key=>timers.delete(key);
  const gate=createConstructionRedrawGate({redraw:()=>redraws++,setTimer,clearTimer}),popup={};gate.move();assert.equal(timers.size,1);gate.open(popup);assert.equal(timers.size,0);gate.close(popup);assert.equal(redraws,1);gate.dispose();
 });
+
+test('hidden icon mode renders only explicitly route-associated construction',()=>{
+ const works=[make('route','blocked',[point(25.005,121.505)]),make('elsewhere','blocked',[point(25.006,121.506)])];
+ const r=selectVisibleConstruction(snapshot(works),bounds,now,200,600,['route'],true);
+ assert.equal(r.total,1);assert.deepEqual(r.items.map(x=>x.work.id),['route']);
+ assert.equal(selectVisibleConstruction(snapshot(works),bounds,now,200,600,[],true).items.length,0);
+});

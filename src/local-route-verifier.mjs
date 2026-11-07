@@ -13,9 +13,9 @@ const localFirstFloorAddress=p=>/^(?:1|1f|一樓|一楼)$/i.test(String(p?.['add
 // or indoor metadata on its own is not evidence that the point is ground.
 function incompatibleFloor(p){
  if(!p)return false;
- const text=[p.name,p.description].filter(x=>typeof x==='string').join(' ');
+ const text=[p.name,p.sourceName,p.address,p.description].filter(x=>typeof x==='string').join(' ');
  if(/地下|地庫|地下室|頂樓|屋頂|basement|underground|rooftop/i.test(text))return true;
- if(/(?:^|[^A-Za-z0-9])B\s*\d+(?:\s*F)?(?=$|[^A-Za-z])/i.test(text))return true;
+ if(/(?:^|[^A-Za-z0-9])B\s*\d{1,2}(?:\s*F)?(?=$|[^A-Za-z0-9])/i.test(text))return true;
  let textGround=false;
  for(const m of text.matchAll(/(?:^|[^A-Za-z0-9])(\d{1,2})\s*F(?=$|[^A-Za-z])/gi)){
   if(Number(m[1])!==1)return true;textGround=true;

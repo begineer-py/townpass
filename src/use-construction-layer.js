@@ -22,7 +22,7 @@ function iconFor(work){
 }
 // A dedicated viewport layer. It does not participate in route planning or
 // infer that any point/line is an exact work-zone boundary.
-export function useConstructionLayer(mapRef,snapshot,show,onStatus=()=>{},priorityIds=[]){
+export function useConstructionLayer(mapRef,snapshot,show,onStatus=()=>{},priorityIds=[],priorityOnly=false){
  const callback=useRef(onStatus);callback.current=onStatus;
  const priorityKey=JSON.stringify(Array.isArray(priorityIds)?priorityIds.map(String).sort():[]);
  useEffect(()=>{
@@ -38,7 +38,7 @@ export function useConstructionLayer(mapRef,snapshot,show,onStatus=()=>{},priori
   function draw(){
    if(!active||mapRef.current!==map)return;
    layer.clearLayers();
-   const b=map.getBounds(),result=selectVisibleConstruction(snapshot,[b.getSouth(),b.getWest(),b.getNorth(),b.getEast()],Date.now(),200,600,JSON.parse(priorityKey));
+   const b=map.getBounds(),result=selectVisibleConstruction(snapshot,[b.getSouth(),b.getWest(),b.getNorth(),b.getEast()],Date.now(),200,600,JSON.parse(priorityKey),priorityOnly);
    callback.current({status:result.status,shown:result.items.length,total:result.total,truncated:result.truncated});
    if(result.status!=='ready')return;
    for(const {work,geometries,point,anchorGeometry,count} of result.items){
@@ -62,5 +62,5 @@ export function useConstructionLayer(mapRef,snapshot,show,onStatus=()=>{},priori
   const fetched=Date.parse(snapshot?.fetchedAt),source=Date.parse(snapshot?.sourceUpdatedAt),expires=Math.min(fetched,source)+CONSTRUCTION_MAX_AGE-Date.now();
   if(Number.isFinite(expires)&&expires>0)expiryTimer=setTimeout(gate.expire,expires+20);
   return ()=>{active=false;gate.dispose();clearTimeout(expiryTimer);map.off('moveend',gate.move);map.off('rotate',gate.move);map.off('popupopen',popupOpen);map.off('popupclose',popupClose);layer.remove();renderer.remove();};
- },[mapRef,snapshot,show,priorityKey]);
+ },[mapRef,snapshot,show,priorityKey,priorityOnly]);
 }

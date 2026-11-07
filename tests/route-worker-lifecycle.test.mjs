@@ -56,3 +56,7 @@ test('optional reference work does not displace normal work and reports failed a
  let worker,failed,dropped=[];const lifecycle=createRouteWorkerLifecycle({createWorker:()=>worker={postMessage(){},terminate(){},emit(data){this.onmessage({data});},fail(){this.onerror(new Error('broken'));}},initMessage:{type:'init'},onDropped:x=>dropped.push(x),onError:(e,m)=>failed=m});
  lifecycle.start();worker.emit({type:'ready'});const normal={type:'route',id:1};lifecycle.postMessage(normal);assert.equal(lifecycle.postMessage({type:'reference-route',id:2}),false);worker.emit({type:'route',id:1});const ref={type:'reference-route',id:3};assert.equal(lifecycle.postMessage(ref),true);worker.fail();assert.deepEqual(failed,ref);assert.deepEqual(dropped,[ref]);
 });
+
+test('map snap work is serialized and never displaces normal routing',()=>{
+ const x=fixture(),w=x.workers[0];w.emit({type:'ready'});x.lifecycle.postMessage({type:'route',id:1});assert.equal(x.lifecycle.postMessage({type:'snap-map-point',id:2}),false);w.emit({type:'route',id:1});assert.equal(x.lifecycle.postMessage({type:'snap-map-point',id:3}),true);w.emit({type:'snap-map-point',id:3,result:{}});assert.equal(x.messages.at(-1).type,'snap-map-point');x.lifecycle.dispose();
+});

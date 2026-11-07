@@ -1,4 +1,5 @@
 import {generalSidewalkSegment} from './general-sidewalk.mjs';
+import {snapMapPoint} from './map-snap.mjs';
 import { metres, ROUTING_POLICY } from "./routing.mjs";
 import {verifiedPartialRoute} from "./partial-route.mjs";
 import { gunzipSync } from "fflate";
@@ -23,7 +24,21 @@ import {selectReferenceRegion} from './reference-region.mjs';
 import {decodeReferenceAsset} from './reference-integrity.mjs';
 import {verifyOfficialReferenceRoute} from './official-reference-validator.mjs';
 let router, verifyOfficial, verifyLocal, facilities, routePlaces, initialization, detourWaypoints, nearbyRoutes, routeGraph;
-let routeGraphUrl, referenceAsset;
+let routeGraphUrl, referenceAsset, referenceAssetPromise;
+async function ensureReferenceAsset(){
+ if(referenceAsset)return referenceAsset;
+ if(referenceAssetPromise)return referenceAssetPromise;
+ const base=routeGraphUrl;
+ const pending=(async()=>{
+  const [response,metadata]=await Promise.all([fetch(new URL('./official-sidewalk-reference.json.gz',base)),fetch(new URL('./official-sidewalk-reference.meta.json',base))]);
+  if(!response.ok||!metadata.ok)throw Error('REFERENCE_DATA_UNAVAILABLE');
+  const result=await decodeReferenceAsset(new Uint8Array(await response.arrayBuffer()),await metadata.json());
+  if(routeGraphUrl!==base)throw Error('REFERENCE_DATA_CHANGED');
+  referenceAsset=result;return result;
+ })();
+ referenceAssetPromise=pending;
+ try{return await pending;}finally{if(referenceAssetPromise===pending)referenceAssetPromise=null;}
+}
 function prepareTask(){if(router?.resetProjectionsIfNeeded?.())nearbyRoutes=null;}
 function avoidance(start,end,prefs,checker,known=[]){
   const avoidedStairs=diagnoseAvoidedStairs(router,start,end,prefs);
@@ -117,7 +132,7 @@ function combineRoutes(a, b, viaName) {
 self.onmessage = async ({ data }) => {
   try {
     if (data.type === "init") {
-      routeGraphUrl=data.url;referenceAsset=null;
+      routeGraphUrl=data.url;referenceAsset=null;referenceAssetPromise=null;
       initialization = (async () => {
       const r = await fetch(data.url);
       if (!r.ok) throw Error("graph");
@@ -162,11 +177,7 @@ self.onmessage = async ({ data }) => {
     } else if(data.type==='reference-route'){
       await initialization;
       if(!constructionFresh(data.construction)){postMessage({type:'reference-route',id:data.id,result:{error:'CONSTRUCTION_UNAVAILABLE'}});return;}
-      if(!referenceAsset){
-        const [response,metadata]=await Promise.all([fetch(new URL('./official-sidewalk-reference.json.gz',routeGraphUrl)),fetch(new URL('./official-sidewalk-reference.meta.json',routeGraphUrl))]);
-        if(!response.ok||!metadata.ok)throw Error('REFERENCE_DATA_UNAVAILABLE');
-        referenceAsset=await decodeReferenceAsset(new Uint8Array(await response.arrayBuffer()),await metadata.json());
-      }
+      await ensureReferenceAsset();
       // A dense 1 km corridor can exceed the graph budget. Retry smaller
       // corridors only after a limit; they cannot establish a global no-route.
       let region,comparison,limited=false;
@@ -199,6 +210,12 @@ self.onmessage = async ({ data }) => {
         }
       }
       postMessage({type:'reference-route',id:data.id,result});
+    } else if(data.type==='snap-map-point'){
+      await initialization;
+      if(!constructionFresh(data.construction)){postMessage({type:'snap-map-point',id:data.id,result:{error:'CONSTRUCTION_UNAVAILABLE'}});return;}
+      prepareTask();let asset=null;try{asset=await ensureReferenceAsset();}catch{/* An available OSM line can still be used. */}
+      let result;try{result=snapMapPoint({point:data.point,place:data.place,side:data.side,graph:routeGraph,router,verifyLocal,asset,snapshot:data.construction,options:data.options||{}});}catch{result={error:'SNAP_UNAVAILABLE'};}
+      postMessage({type:'snap-map-point',id:data.id,result});
     } else if(data.type==='nearby-positions'){
       await initialization;
       prepareTask();

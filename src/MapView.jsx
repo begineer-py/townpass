@@ -5,7 +5,7 @@ import { category, cleanName, labels } from "./data";
 import { BASEMAPS } from "./basemaps.mjs";
 import { ROUTE_CONDITIONS, conditionForSegment, fallbackRouteCondition } from "./route-conditions.mjs";
 import { TPColors } from "./tp-colors.mjs";
-import { focusOffsetForInset, groupMarkers, isMetroStation, metroExitLabelForAccessibility, selectMapMarkers } from "./marker-layout.mjs";
+import { focusOffsetForInset, layoutMapMarkers, isMetroStation, metroExitLabelForAccessibility, selectMapMarkers } from "./marker-layout.mjs";
 import { useSidewalkLayer } from "./use-sidewalk-layer.js";
 import { isNumberedStationExit, metroExitIconUrl, metroExitLabel } from "./metro-exits.mjs";
 import { loadSidewalkIssues, visibleSidewalkIssues } from "./official-sidewalks.mjs";
@@ -49,8 +49,6 @@ const ImageMark = L.CircleMarker.extend({
   },
 });
 const pinScale = (zoom) => Math.min(1.15, Math.max(0.9, 1 + (zoom - 18) * 0.13));
-const hasLabel = (p) => p.landmark || ["place", "friendly"].includes(category(p));
-const labelWidth = (name) => Math.min(99, [...name].reduce((w, ch) => w + (ch.charCodeAt(0) > 0x2e80 ? 11 : 6.5), 0)) + 4;
 export default function MapView({
   items,
   recentPlaces = [],
@@ -72,6 +70,7 @@ export default function MapView({
   basemap = "street",
   showOfficialSidewalk = true,
   hideMapIcons = false,
+  activeFilter = "all",
   colorFriendly = false,
   onBasemapStatus,
   onOfficialSidewalkStatus,
@@ -98,9 +97,9 @@ export default function MapView({
     nearby = useRef(),
     ends = useRef();
   const baseLayers = useRef([]);
-  const markerData = useRef({ items, recentPlaces, colorFriendly, hideMapIcons });
+  const markerData = useRef({ items, recentPlaces, colorFriendly, hideMapIcons, activeFilter });
   const markerRedraw = useRef();
-  markerData.current = { items, recentPlaces, colorFriendly, hideMapIcons };
+  markerData.current = { items, recentPlaces, colorFriendly, hideMapIcons, activeFilter };
   const paddingReader=useRef(getBottomInset);paddingReader.current=getBottomInset;
   const fitPaddingReader=useRef(fitPadding);fitPaddingReader.current=fitPadding;
   const routePadding = (height) => fitPaddingReader.current?.() || {paddingTopLeft:[24,40],paddingBottomRight:[24,Math.min(height-120,(paddingReader.current?.()||0)+24)]};
@@ -175,9 +174,9 @@ export default function MapView({
       m.remove();
     };
   }, []);
-  useSidewalkLayer(map, location, showOfficialSidewalk && !hideMapIcons, onOfficialSidewalkStatus);
+  useSidewalkLayer(map, location, showOfficialSidewalk, onOfficialSidewalkStatus);
   const constructionPriorityIds=[...(route?.construction?.nearby||[]),...(constructionConflict?.blocked||[]),...(partialRoute?.segments||[]).flatMap(segment=>segment.construction?.nearby||[])].map(work=>work.id).filter(Boolean);
-  useConstructionLayer(map,constructionSnapshot,showConstruction && !hideMapIcons,onConstructionStatus,constructionPriorityIds);
+  useConstructionLayer(map,constructionSnapshot,showConstruction,onConstructionStatus,constructionPriorityIds,hideMapIcons);
   useEffect(() => {
     const m = map.current;
     if (!m || !showOfficialSidewalk || hideMapIcons) return;
@@ -244,26 +243,24 @@ export default function MapView({
     baseLayers.current = [];
     root.current?.removeAttribute("data-tile-error");
     onBasemapStatus?.("loading");
-    let failed = false;
+    let active=true;
+    const tileStates=[];
+    const updateStatus=()=>{
+      if(!active)return;
+      const zoom=m.getZoom(),visible=tileStates.filter(item=>zoom>=(item.layer.options.minZoom??0)&&zoom<=(item.layer.options.maxZoom??Infinity));
+      const failed=visible.some(item=>item.failed);
+      if(failed){root.current?.setAttribute("data-tile-error", "true");onBasemapStatus?.("error");}
+      else {root.current?.removeAttribute("data-tile-error");onBasemapStatus?.(visible.some(item=>item.loading)?"loading":"ready");}
+    };
     const watch = (layer) => {
-      layer.on("loading", () => {
-        failed = false;
-        onBasemapStatus?.("loading");
-      });
-      layer.on("tileerror", () => {
-        failed = true;
-        onBasemapStatus?.("error");
-        root.current?.setAttribute("data-tile-error", "true");
-      });
-      layer.on("load", () => {
-        if (!failed) {
-          root.current?.removeAttribute("data-tile-error");
-          onBasemapStatus?.("ready");
-        }
-      });
+      const item={layer,loading:true,failed:false};tileStates.push(item);
+      layer.on("loading", () => {item.loading=true;item.failed=false;updateStatus();});
+      layer.on("tileerror", () => {item.failed=true;updateStatus();});
+      layer.on("load", () => {item.loading=false;updateStatus();});
       layer.addTo(m);
       baseLayers.current.push(layer);
     };
+    m.on("zoomend",updateStatus);
     // spec.close：放大到 minZoom 以上改用另一組圖磚（例如不印店名的底圖）。
     const close = spec.close && hideMapIcons ? {...spec.close, minZoom: 11} : spec.close;
     if (!close || close.minZoom > 11) watch(
@@ -275,7 +272,7 @@ export default function MapView({
       }),
     );
     if (close) {
-      if (!hideMapIcons) watch(
+      watch(
         L.tileLayer(close.url, {
           minZoom: close.minZoom,
           maxZoom: 19,
@@ -292,8 +289,7 @@ export default function MapView({
           zIndex: 2,
           attribution: hideMapIcons ? close.attribution : undefined,
         });
-        roads.addTo(m);
-        baseLayers.current.push(roads);
+        watch(roads);
       }
     }
     if (spec.overlay) {
@@ -303,10 +299,10 @@ export default function MapView({
         zIndex: 2,
         opacity: 0.85,
       });
-      overlay.addTo(m);
-      baseLayers.current.push(overlay);
+      watch(overlay);
     }
     return () => {
+      active=false;m.off("zoomend",updateStatus);
       for (const layer of baseLayers.current) {
         // Leaflet's own remove listener unregisters the layer's map events.
         // Clearing listeners first leaves zoom/viewreset callbacks on the map.
@@ -330,32 +326,19 @@ export default function MapView({
       marks.current.clearLayers();
       const bounds = m.getBounds();
       const visible = [];
-      for (const p of selectMapMarkers(markerData.current.items, markerData.current.recentPlaces, m.getZoom())) {
+      const visibleRecent = markerData.current.recentPlaces.filter(p=>Number.isFinite(p?.lat)&&Number.isFinite(p?.lon)&&bounds.contains([p.lat,p.lon]));
+      for (const p of selectMapMarkers(markerData.current.items, visibleRecent, m.getZoom(), markerData.current.activeFilter)) {
         if (category(p) === "ramp") continue;
         if (!Number.isFinite(p.lat) || !Number.isFinite(p.lon) || !bounds.contains([p.lat, p.lon])) continue;
         const pos = m.latLngToContainerPoint([p.lat, p.lon]);
         visible.push({ p, x: pos.x, y: pos.y });
       }
-      // Keep the newest Apple pin size/scale while grouping only overlapping
-      // icons. Each group is anchored at one of its real locations.
+      // Choose one readable marker per occupied screen area; known duplicates
+      // are filtered earlier and exact colocated places remain in a list.
       const size = Math.ceil(32 * pinScale(m.getZoom()));
-      const groups = groupMarkers(visible, size);
-      const boxes = groups.map(({ x, y }) => ({ x0: x - size / 2, x1: x + size / 2, y0: y - size / 2, y1: y + size / 2 }));
-      const labelled = new Set();
-      const scale = pinScale(m.getZoom());
       const center = m.getSize().divideBy(2);
-      groups.filter((g) => g.points.length === 1 && hasLabel(g.points[0].p) && cleanName(g.points[0].p.name))
-        .sort((a, b) => Number(!!b.points[0].p.landmark) - Number(!!a.points[0].p.landmark) ||
-          Math.hypot(a.x - center.x, a.y - center.y) - Math.hypot(b.x - center.x, b.y - center.y))
-        .forEach((g) => {
-          const p = g.points[0].p, half = labelWidth(cleanName(p.name)) * scale / 2;
-          const top = g.y + (p.landmark ? 17 : 15) * scale;
-          const box = { x0: g.x - half, x1: g.x + half, y0: top, y1: top + 15 * scale };
-          if (boxes.some((other) => box.x0 < other.x1 && box.x1 > other.x0 && box.y0 < other.y1 && box.y1 > other.y0)) return;
-          boxes.push(box);
-          labelled.add(p);
-        });
-      for (const { points } of groups) {
+      const groups = layoutMapMarkers(visible,{size,center,recentPlaces:visibleRecent,activeFilter:markerData.current.activeFilter});
+      for (const { points, label: markerText } of groups) {
         const p = points[0].p, kind = category(p), multiple = points.length > 1;
         const name = cleanName(p.name) || labels[kind] || "地點";
         const color = markerData.current.colorFriendly ? TPColors.primary900 : colors[kind] || TPColors.primary700;
@@ -392,20 +375,18 @@ export default function MapView({
             body.appendChild(lift);
           }
         }
-        if (multiple) {
-          const more = document.createElement("i"); more.textContent = "+"; more.setAttribute("aria-hidden", "true"); body.appendChild(more);
-        } else if (labelled.has(p)) {
-          const label = document.createElement("div"); label.className = "pin-label"; label.textContent = name; body.appendChild(label);
+        if (markerText) {
+          const label = document.createElement("div"); label.className = "pin-label"; label.textContent = markerText; body.appendChild(label);
         }
         const marker = L.marker([p.lat, p.lon], {
-          title: multiple ? "選擇鄰近設施" : `${markerKindLabel(p)}：${name}`,
+          title: multiple ? `${markerKindLabel(p)}：${name}（同位置 ${points.length} 個地點）` : `${markerKindLabel(p)}：${name}`,
           icon: L.divIcon({
             className: isExitSymbol(p) && m.getZoom() >= 16 ? "fac-pin metro-exit-pin" : p.landmark ? "fac-pin landmark" : "fac-pin",
             html: body, iconSize: p.landmark ? [32, 32] : [28, 28], iconAnchor: p.landmark ? [16, 16] : [14, 14],
           }),
         }).addTo(marks.current);
-        if (!labelled.has(p)) {
-          const tip = document.createElement("span"); tip.textContent = multiple ? "選擇鄰近設施" : name;
+        if (!markerText) {
+          const tip = document.createElement("span"); tip.textContent = multiple ? `${name}（同位置 ${points.length} 個地點）` : name;
           marker.bindTooltip(tip, { direction: "top", offset: [0, -14] });
         }
         marker.on("click", (event) => {
@@ -416,7 +397,7 @@ export default function MapView({
           }
           cb.current.onGesture?.();
           const list = document.createElement("div"); list.className = "facility-marker-choices";
-          const heading = document.createElement("strong"); heading.textContent = "選擇設施"; list.append(heading);
+          const heading = document.createElement("strong"); heading.textContent = "同位置的地點"; list.append(heading);
           for (const { p: choice } of points) {
             const choiceKind = category(choice), button = document.createElement("button"); button.type = "button";
             const iconUrl = isMetroStation(choice)
@@ -472,7 +453,7 @@ export default function MapView({
       m.off("popupclose", close);
     };
   }, []);
-  useEffect(() => { markerRedraw.current?.(); }, [items, recentPlaces, colorFriendly, hideMapIcons]);
+  useEffect(() => { markerRedraw.current?.(); }, [items, recentPlaces, colorFriendly, hideMapIcons, activeFilter]);
   useEffect(() => {
     if(!referencePath.current||!referenceRenderer.current)return;
     referencePath.current.clearLayers();
@@ -553,7 +534,6 @@ export default function MapView({
         const note=document.createElement('span');note.textContent=highlight.label;
         L.polyline(highlight.coordinates,{pane:'route-issue-line',color:'#7036a3',weight:4,dashArray:'3 4',opacity:1}).bindTooltip(note).addTo(routeIssues.current);
       }
-      if(hideMapIcons)continue;
       for(const marker of markers){
         const key=`${marker.lat},${marker.lon}`;if(seen.has(key))continue;seen.add(key);
         const icon=document.createElement('span');icon.className='route-issue-pin';icon.textContent='!';

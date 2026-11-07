@@ -6,6 +6,7 @@ export function createVerifiedRouter(graph,verifyLocal){
  const base=createRouter(graph);
  const router=(a,b,options={})=>base(a,b,{...options,approachAllowed:(p,n,side)=>verifyLocal.approachAllowed(p,n,side==='start'?options.startPlace:options.endPlace,options,side)});
  router.resetProjectionsIfNeeded=base.resetProjectionsIfNeeded;
+ router.mapSnapCandidates=(point,options={},side='end',radius=30)=>base.mapSnapCandidates(point,{...options,approachAllowed:(p,n,which)=>verifyLocal.approachAllowed(p,n,which==='start'?options.startPlace:options.endPlace,options,which)},side,radius);
  return router;
 }
 

@@ -242,3 +242,11 @@ test('place planning prefers a verified alternative to the blocked direct route'
  const result=planPlaces({lat:a[0],lon:a[1]},{lat:b[0],lon:b[1]}, {},snapshot,{router:createRouter(g),verifyLocal:createLocalRouteVerifier(g),facilities:[],checker:createConstructionChecker(snapshot,now)});
  assert.equal(result.error,undefined);assert.ok(result.coordinates.some(p=>p[0]===c[0]));assert.equal(result.construction.blocked.length,0);
 });
+
+test('cleaned names retain original floor restrictions',()=>{
+ const g=base(),p=[25+30/111195,121.5],v=createLocalRouteVerifier(g);
+ for(const place of [{id:'p1',kind:'place',name:'店家',sourceName:'店家<br />2F',lat:p[0],lon:p[1]},{id:'p2',kind:'place',name:'店家',address:'臺北市中正區中山路 1 號 B1',lat:p[0],lon:p[1]}]){
+  assert.equal(v.endpointAllowed(p,place,'start'),false);
+ }
+ assert.equal(v.endpointAllowed(p,{id:'p3',kind:'place',name:'幸安學坊',sourceName:'B02050001-幸安學坊',lat:p[0],lon:p[1]},'start'),true);
+});

@@ -188,6 +188,26 @@ export function createRouter(graph) {
     const line=edgeGeometry(e),ys=line.map(p=>p[0]),xs=line.map(p=>p[1]);
     for(let y=Math.floor(Math.min(...ys)/cellSize);y<=Math.floor(Math.max(...ys)/cellSize);y++)for(let x=Math.floor(Math.min(...xs)/cellSize);x<=Math.floor(Math.max(...xs)/cellSize);x++){const k=x+','+y;if(!edgeGrid.has(k))edgeGrid.set(k,[]);edgeGrid.get(k).push(ei);}
   }
+  // Read-only map-pick projections reuse the existing edge index; no graph
+  // node or edge is created until the real route is independently verified.
+  function mapSnapCandidates(point,options={},side='end',radius=30){
+    if(!Array.isArray(point)||point.length!==2||!point.every(Number.isFinite)||!Number.isFinite(radius)||radius<=0||radius>30)return [];
+    const ids=new Set(),found=[],lat=radius/111195,lon=radius/100700;
+    for(let y=Math.floor((point[0]-lat)/cellSize);y<=Math.floor((point[0]+lat)/cellSize);y++)for(let x=Math.floor((point[1]-lon)/cellSize);x<=Math.floor((point[1]+lon)/cellSize);x++)for(const ei of edgeGrid.get(x+','+y)||[])ids.add(ei);
+    let checked=0;const checkBudget=()=>{if((++checked&127)===0&&Date.now()>options._mapSnapDeadline){const error=new Error('map snap limit');error.code='SNAP_LIMIT';throw error;}};
+    for(const ei of ids){checkBudget();const e=graph.edges[ei],way=graph.ways[e?.[3]];
+      if(!e||!way||!groundEdge(e,options)||graph.nodes[e[0]][2]||graph.nodes[e[1]][2]||way.source==='osm-shared-street'||e[5]?.sharedRoad===true||way.gradeSeparatedPedestrian||!['footway','path','pedestrian','corridor'].includes(way.highway))continue;
+      const line=edgeGeometry(e);
+      for(let j=0;j<line.length-1;j++){checkBudget();
+        const a=line[j],b=line[j+1],dy=(b[0]-a[0])*111195,dx=(b[1]-a[1])*100700,t=Math.max(0,Math.min(1,((point[0]-a[0])*111195*dy+(point[1]-a[1])*100700*dx)/(dy*dy+dx*dx||1))),p=[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t],distance=metres(point,p);
+        if(distance>radius+1e-7||!approachClear(point,p)||options.lineAllowed&&!options.lineAllowed([point,p])||options.approachAllowed&&!options.approachAllowed(point,p,side))continue;
+        const left=[...line.slice(0,j+1),p],right=[p,...line.slice(j+1)];
+        if(options.lineAllowed && ![left,right].some(part=>part.length>=2&&metres(part[0],part.at(-1))>.001&&options.lineAllowed(part)))continue;
+        found.push({point:p,distanceMetres:distance,edgeId:ei,source:'osm'});
+      }
+    }
+    return found.sort((a,b)=>a.distanceMetres-b.distanceMetres||a.edgeId-b.edgeId);
+  }
   function projectPoint(point,options,side){
     const ids=new Set(),found=[];
     for(let y=Math.floor((point[0]-.0005)/cellSize);y<=Math.floor((point[0]+.0005)/cellSize);y++)for(let x=Math.floor((point[1]-.0005)/cellSize);x<=Math.floor((point[1]+.0005)/cellSize);x++)for(const ei of edgeGrid.get(x+','+y)||[])ids.add(ei);
@@ -508,6 +528,7 @@ export function createRouter(graph) {
   }
   // Called only at a worker task boundary, after every verifier and candidate
   // comparison using the preceding task's derived IDs has finished.
+  route.mapSnapCandidates=mapSnapCandidates;
   route.resetProjectionsIfNeeded=()=>{
     if(routerGroup.current&&routerGroup.current!==route)return routerGroup.current.resetProjectionsIfNeeded();
     if(!graphIntact())throw new Error('Router graph was replaced');
