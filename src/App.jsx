@@ -92,7 +92,7 @@ import {
   nearestStop,
   activeElevatorStops,
 } from "./trip-extras.mjs";
-import { addressSearch } from "./address-search";
+import { addressSearch, landmarkSearch } from "./address-search";
 import { maintenanceText, sourceCountLabel, stationKey, stepText } from "./format.mjs";
 const icons = {
   elevator: ArrowUpFromLine,
@@ -303,17 +303,18 @@ export default function App() {
     const ctl = new AbortController();
     setAddressResults([]);
     const t = setTimeout(() => {
-      addressSearch(query, ctl.signal)
-        .then((r) => {
-          if (!ctl.signal.aborted) setAddressResults(r);
-        })
-        .catch(() => {});
+      if (!searchFor) return;
+      for (const request of [addressSearch(query, ctl.signal), landmarkSearch(query, ctl.signal)]) {
+        request.then(results => {
+          if (!ctl.signal.aborted) setAddressResults(previous => [...previous, ...results]);
+        }).catch(() => {});
+      }
     }, 350);
     return () => {
       clearTimeout(t);
       ctl.abort();
     };
-  }, [query]);
+  }, [query, searchFor]);
   const officialRequest = useRef();
   const locationRequest=useRef(0);
   const pendingVerifications = useRef(new Map());

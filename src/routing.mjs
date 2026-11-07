@@ -121,7 +121,7 @@ export function createRouter(graph) {
     const line=edgeGeometry(e),ys=line.map(p=>p[0]),xs=line.map(p=>p[1]);
     for(let y=Math.floor(Math.min(...ys)/cellSize);y<=Math.floor(Math.max(...ys)/cellSize);y++)for(let x=Math.floor(Math.min(...xs)/cellSize);x<=Math.floor(Math.max(...xs)/cellSize);x++){const k=x+','+y;if(!edgeGrid.has(k))edgeGrid.set(k,[]);edgeGrid.get(k).push(ei);}
   }
-  function projectPoint(point,options){
+  function projectPoint(point,options,side){
     const ids=new Set(),found=[];
     for(let y=Math.floor((point[0]-.0005)/cellSize);y<=Math.floor((point[0]+.0005)/cellSize);y++)for(let x=Math.floor((point[1]-.0005)/cellSize);x<=Math.floor((point[1]+.0005)/cellSize);x++)for(const ei of edgeGrid.get(x+','+y)||[])ids.add(ei);
     for(const ei of ids){const e=graph.edges[ei];if(!groundEdge(e,options)||graph.nodes[e[0]][2]||graph.nodes[e[1]][2])continue;const line=edgeGeometry(e);let best;
@@ -129,7 +129,14 @@ export function createRouter(graph) {
       if(best&&best.d<=SNAP_METRES&&metres(best.p,line[0])>.01&&metres(best.p,line.at(-1))>.01)found.push(best);
     }
     found.sort((a,b)=>a.d-b.d);
-    for(const f of found.slice(0,12)){
+    // Check the actual approach before limiting candidates: nearer segments may
+    // be across a road, closed, or outside a verified entrance connection.
+    let eligible=0;
+    for(const f of found){
+      if (!((f.d <= 0.001 || approachClear(point,f.p)) &&
+          (!options.lineAllowed || options.lineAllowed([point,f.p])) &&
+          (!options.approachAllowed || options.approachAllowed(point,f.p,side)))) continue;
+      if (++eligible > 12) break;
       const key=f.ei+':'+f.p.map(v=>v.toFixed(10)).join(',');if(derived.has(key)||derived.size>=2048)continue;
       const e=graph.edges[f.ei],index=graph.nodes.length;graph.nodes.push([...f.p,0]);adjacency.push([]);derived.set(key,index);
       const previous=edgeProjections.get(f.ei)||[];
@@ -186,7 +193,7 @@ export function createRouter(graph) {
     return { chosen, nearestDist };
   }
   return function route(start, end, options = {}) {
-    projectPoint(start,options);projectPoint(end,options);
+    projectPoint(start,options,'start');projectPoint(end,options,'end');
     const starts=endpoints(start,options,'start'),ends=endpoints(end,options,'end');
     if(!starts.chosen.length||!ends.chosen.length)return {error:'NO_CONNECTION',startGap:starts.nearestDist,endGap:ends.nearestDist};
     if(metres(start,end)<.001)return {error:'SAME_POINT'};

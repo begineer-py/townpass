@@ -1,0 +1,411 @@
+{
+  "checkedAt": "2026-11-07T11:52:58.054Z",
+  "constructionUpdatedAt": "Sat, 07 Nov 2026 11:50:51 GMT",
+  "method": "Seeded sample of Taipei-address metro stations, one destination 500–3000 m away per origin; public route data only. Not a citywide or physical accessibility success rate.",
+  "seed": 20261107,
+  "stationsAvailable": 86,
+  "total": 40,
+  "success": 24,
+  "results": [
+    {
+      "start": "台北車站(R10)",
+      "end": "松江南京(G15)",
+      "startId": "w20-41",
+      "endId": "w20-74",
+      "straightMetres": 1709,
+      "success": true,
+      "error": null,
+      "distance": 1802
+    },
+    {
+      "start": "景美(G05)",
+      "end": "公館(G07)",
+      "startId": "w20-82",
+      "endId": "w20-80",
+      "straightMetres": 2524,
+      "success": true,
+      "error": null,
+      "distance": 2751
+    },
+    {
+      "start": "松江南京(G15)",
+      "end": "中山(G14)",
+      "startId": "w20-74",
+      "endId": "w20-75",
+      "straightMetres": 1257,
+      "success": true,
+      "error": null,
+      "distance": 1390
+    },
+    {
+      "start": "信義安和(R04)",
+      "end": "公館(G07)",
+      "startId": "w20-3",
+      "endId": "w20-80",
+      "straightMetres": 2764,
+      "success": true,
+      "error": null,
+      "distance": 5311
+    },
+    {
+      "start": "北投(R22)",
+      "end": "復興崗(R23)",
+      "startId": "w20-29",
+      "endId": "w20-2",
+      "straightMetres": 1470,
+      "success": false,
+      "error": "NO_CONNECTION",
+      "distance": null
+    },
+    {
+      "start": "石牌(R19)",
+      "end": "唭哩岸(R20)",
+      "startId": "w20-32",
+      "endId": "w20-31",
+      "straightMetres": 1179,
+      "success": true,
+      "error": null,
+      "distance": 1403
+    },
+    {
+      "start": "後山埤(BL20)",
+      "end": "象山(R02)",
+      "startId": "w20-108",
+      "endId": "w20-5",
+      "straightMetres": 1805,
+      "success": false,
+      "error": "NO_ROUTE",
+      "distance": null
+    },
+    {
+      "start": "松山機場(BR13)",
+      "end": "忠孝復興(BL15)",
+      "startId": "w20-16",
+      "endId": "w20-18",
+      "straightMetres": 2516,
+      "success": true,
+      "error": null,
+      "distance": 4191
+    },
+    {
+      "start": "市政府(BL18)",
+      "end": "象山(R02)",
+      "startId": "w20-110",
+      "endId": "w20-5",
+      "straightMetres": 1025,
+      "success": true,
+      "error": null,
+      "distance": 1424
+    },
+    {
+      "start": "萬芳社區(BR03)",
+      "end": "辛亥(BR05)",
+      "startId": "w20-102",
+      "endId": "w20-100",
+      "straightMetres": 1350,
+      "success": false,
+      "error": "NO_CONNECTION",
+      "distance": null
+    },
+    {
+      "start": "善導寺(BL13)",
+      "end": "民權西路(R13)",
+      "startId": "w20-113",
+      "endId": "w20-38",
+      "straightMetres": 2012,
+      "success": true,
+      "error": null,
+      "distance": 3056
+    },
+    {
+      "start": "辛亥(BR05)",
+      "end": "萬芳醫院(BR04)",
+      "startId": "w20-100",
+      "endId": "w20-101",
+      "straightMetres": 690,
+      "success": false,
+      "error": "NO_CONNECTION",
+      "distance": null
+    },
+    {
+      "start": "大直(BR14)",
+      "end": "劍潭(R15)",
+      "startId": "w20-93",
+      "endId": "w20-36",
+      "straightMetres": 2262,
+      "success": false,
+      "error": "NO_ROUTE",
+      "distance": null
+    },
+    {
+      "start": "中山國小(O10)",
+      "end": "中山國中(BR12)",
+      "startId": "w20-61",
+      "endId": "w20-94",
+      "straightMetres": 1784,
+      "success": false,
+      "error": "NO_CONNECTION",
+      "distance": null
+    },
+    {
+      "start": "大安森林公園(R06)",
+      "end": "台北小巨蛋(G17)",
+      "startId": "w20-45",
+      "endId": "w20-72",
+      "straightMetres": 2620,
+      "success": true,
+      "error": null,
+      "distance": 3487
+    },
+    {
+      "start": "東門(R07)",
+      "end": "公館(G07)",
+      "startId": "w20-44",
+      "endId": "w20-80",
+      "straightMetres": 2199,
+      "success": true,
+      "error": null,
+      "distance": 3326
+    },
+    {
+      "start": "內湖(BR19)",
+      "end": "文德(BR18)",
+      "startId": "w20-89",
+      "endId": "w20-15",
+      "straightMetres": 1103,
+      "success": false,
+      "error": "NO_CONNECTION",
+      "distance": null
+    },
+    {
+      "start": "國父紀念館(BL17)",
+      "end": "台北小巨蛋(G17)",
+      "startId": "w20-111",
+      "endId": "w20-72",
+      "straightMetres": 1247,
+      "success": true,
+      "error": null,
+      "distance": 1675
+    },
+    {
+      "start": "南港(BL22)",
+      "end": "南港展覽館(BR24)",
+      "startId": "w20-106",
+      "endId": "w20-85",
+      "straightMetres": 1046,
+      "success": false,
+      "error": "NO_ROUTE",
+      "distance": null
+    },
+    {
+      "start": "忠孝敦化(BL16)",
+      "end": "市政府(BL18)",
+      "startId": "w20-112",
+      "endId": "w20-110",
+      "straightMetres": 1535,
+      "success": true,
+      "error": null,
+      "distance": 1456
+    },
+    {
+      "start": "東湖(BR22)",
+      "end": "大湖公園(BR20)",
+      "startId": "w20-86",
+      "endId": "w20-88",
+      "straightMetres": 2046,
+      "success": false,
+      "error": "NO_CONNECTION",
+      "distance": null
+    },
+    {
+      "start": "南京三民(G18)",
+      "end": "松山(G19)",
+      "startId": "w20-71",
+      "endId": "w20-70",
+      "straightMetres": 1319,
+      "success": true,
+      "error": null,
+      "distance": 1752
+    },
+    {
+      "start": "木柵(BR02)",
+      "end": "萬芳醫院(BR04)",
+      "startId": "w20-103",
+      "endId": "w20-101",
+      "straightMetres": 1519,
+      "success": false,
+      "error": "NO_CONNECTION",
+      "distance": null
+    },
+    {
+      "start": "昆陽(BL21)",
+      "end": "南港(BL22)",
+      "startId": "w20-107",
+      "endId": "w20-106",
+      "straightMetres": 1395,
+      "success": false,
+      "error": "NO_ROUTE",
+      "distance": null
+    },
+    {
+      "start": "東門(O06)",
+      "end": "雙連(R12)",
+      "startId": "w20-64",
+      "endId": "w20-39",
+      "straightMetres": 2756,
+      "success": true,
+      "error": null,
+      "distance": 4001
+    },
+    {
+      "start": "芝山(R17)",
+      "end": "明德(R18)",
+      "startId": "w20-34",
+      "endId": "w20-33",
+      "straightMetres": 875,
+      "success": false,
+      "error": "NO_ROUTE",
+      "distance": null
+    },
+    {
+      "start": "大安(R05)",
+      "end": "台北小巨蛋(G17)",
+      "startId": "w20-46",
+      "endId": "w20-72",
+      "straightMetres": 2269,
+      "success": true,
+      "error": null,
+      "distance": 2801
+    },
+    {
+      "start": "動物園(BR01)",
+      "end": "木柵(BR02)",
+      "startId": "w20-104",
+      "endId": "w20-103",
+      "straightMetres": 642,
+      "success": false,
+      "error": "NO_CONNECTION",
+      "distance": null
+    },
+    {
+      "start": "忠孝復興(BL15)",
+      "end": "中正紀念堂(G10)",
+      "startId": "w20-18",
+      "endId": "w20-77",
+      "straightMetres": 2750,
+      "success": true,
+      "error": null,
+      "distance": 3540
+    },
+    {
+      "start": "忠義(R24)",
+      "end": "復興崗(R23)",
+      "startId": "w20-1",
+      "endId": "w20-2",
+      "straightMetres": 1418,
+      "success": true,
+      "error": null,
+      "distance": 1509
+    },
+    {
+      "start": "六張犁(BR07)",
+      "end": "忠孝復興(BR10)",
+      "startId": "w20-98",
+      "endId": "w20-17",
+      "straightMetres": 2140,
+      "success": false,
+      "error": "NO_CONNECTION",
+      "distance": null
+    },
+    {
+      "start": "科技大樓(BR08)",
+      "end": "忠孝復興(BL15)",
+      "startId": "w20-97",
+      "endId": "w20-18",
+      "straightMetres": 1725,
+      "success": true,
+      "error": null,
+      "distance": 1756
+    },
+    {
+      "start": "中正紀念堂(G10)",
+      "end": "台電大樓(G08)",
+      "startId": "w20-77",
+      "endId": "w20-79",
+      "straightMetres": 1667,
+      "success": true,
+      "error": null,
+      "distance": 1871
+    },
+    {
+      "start": "圓山(R14)",
+      "end": "民權西路(R13)",
+      "startId": "w20-37",
+      "endId": "w20-38",
+      "straightMetres": 1009,
+      "success": true,
+      "error": null,
+      "distance": 989
+    },
+    {
+      "start": "公館(G07)",
+      "end": "麟光(BR06)",
+      "startId": "w20-80",
+      "endId": "w20-99",
+      "straightMetres": 2499,
+      "success": true,
+      "error": null,
+      "distance": 5931
+    },
+    {
+      "start": "南港展覽館(BL23)",
+      "end": "昆陽(BL21)",
+      "startId": "w20-105",
+      "endId": "w20-107",
+      "straightMetres": 2431,
+      "success": true,
+      "error": null,
+      "distance": 2614
+    },
+    {
+      "start": "南港展覽館(BR24)",
+      "end": "葫洲(BR21)",
+      "startId": "w20-85",
+      "endId": "w20-87",
+      "straightMetres": 2207,
+      "success": false,
+      "error": "NO_CONNECTION",
+      "distance": null
+    },
+    {
+      "start": "大湖公園(BR20)",
+      "end": "葫洲(BR21)",
+      "startId": "w20-88",
+      "endId": "w20-87",
+      "straightMetres": 1330,
+      "success": false,
+      "error": "NO_CONNECTION",
+      "distance": null
+    },
+    {
+      "start": "忠孝復興(BR10)",
+      "end": "台北車站(BL12)",
+      "startId": "w20-17",
+      "endId": "w20-114",
+      "straightMetres": 2710,
+      "success": true,
+      "error": null,
+      "distance": 2988
+    },
+    {
+      "start": "小南門(G11)",
+      "end": "松江南京(G15)",
+      "startId": "w20-11",
+      "endId": "w20-74",
+      "straightMetres": 2922,
+      "success": true,
+      "error": null,
+      "distance": 3930
+    }
+  ]
+}
