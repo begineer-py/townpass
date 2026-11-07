@@ -1,3 +1,8 @@
+---
+name: design
+description: 好好走（臺北通無障礙地圖微服務）的專案設計與協作規範：KISS 介面、沿用 townpass-web-design 設計系統、臺北通 WebView 與 Flutter hook 整合、Vercel 部署、程式碼與 README 風格、handbook/bugs/plan/review 目錄慣例及自動審查格式。建立或修改本專案的頁面、元件、文件、部署設定或審查紀錄時使用。
+---
+
 # 設計指南
 ## KISS原則
 - 使用者只需要看到夠用的資訊,不要無關標語,一個搜尋框預設界面
