@@ -1249,3 +1249,32 @@ button.icon-action {
   color: var(--tp-primary700);
   font-weight: var(--tp-text-bodySemiBold-weight);
 }
+
+/* 地圖標記改為 Apple 地圖式：彩色圓底、白色圖形、白框與柔和陰影 */
+.fac-pin span.has-glyph {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 2px solid var(--tp-white);
+  border-radius: 50%;
+  background: var(--pin, var(--tp-primary700));
+  color: var(--tp-white);
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--tp-grayscale950) 30%, transparent);
+}
+.fac-pin span.has-glyph svg {
+  display: block;
+}
+.fac-pin.landmark span.has-glyph {
+  width: 32px;
+  height: 32px;
+}
+.fac-pin.landmark span.has-glyph svg {
+  width: 18px;
+  height: 18px;
+}
+.color-friendly .fac-pin span.has-glyph,
+.high-contrast .fac-pin span.has-glyph {
+  background: var(--tp-grayscale900);
+}

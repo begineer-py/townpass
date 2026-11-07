@@ -860,7 +860,25 @@ export default function App() {
       .sort((a, b) => distance(viewport, a) - distance(viewport, b))
       .slice(0, 250);
   }, [data, viewport]);
+  // 地標：公園、捷運站、醫院與診所。縮放 16 以上才顯示，最多 150 個，由近到遠。
+  const LANDMARK_KINDS = new Set(["park", "station", "health"]);
+  const landmarkItems = useMemo(() => {
+    if (!data || (viewport.zoom ?? 15) < 16) return [];
+    return data.places
+      .filter(
+        (p) =>
+          LANDMARK_KINDS.has(p.kind) &&
+          p.lat >= viewport.bounds[0] &&
+          p.lat <= viewport.bounds[2] &&
+          p.lon >= viewport.bounds[1] &&
+          p.lon <= viewport.bounds[3],
+      )
+      .sort((a, b) => distance(viewport, a) - distance(viewport, b))
+      .slice(0, 150)
+      .map((p) => ({ ...p, landmark: true }));
+  }, [data, viewport]);
   const avoidPoints = useMemo(() => activeElevatorStops(data), [data]);
+
   const searchResults = useMemo(() => {
     if (!searchFor || !data || !profileReady) return [];
     const q = normalize(query);
@@ -1000,6 +1018,19 @@ export default function App() {
       unique.set(place.id, place);
     return [...unique.values()];
   }, [routeFacilities, endpointStationExits]);
+  // 地圖上的標記：路線模式只顯示路線相關點；否則加上地標與商店（放大才出現），同一地點只畫一次。
+  const mapLayerItems = useMemo(() => {
+    const base = route
+      ? routeMapItems
+      : tab === "explore"
+        ? mapItems
+        : endpointStationExits;
+    const extra = route ? [] : [...landmarkItems, ...poiItems];
+    const seen = new Set();
+    return [...base, ...extra].filter((p) =>
+      seen.has(p.id) ? false : seen.add(p.id),
+    );
+  }, [route, routeMapItems, tab, mapItems, endpointStationExits, landmarkItems, poiItems]);
   const avoidedWorks = route?.construction?.avoidedWorks || [];
   const avoidedStairs = route?.avoidedStairs || [];
   useEffect(() => {
@@ -1738,14 +1769,7 @@ export default function App() {
         </aside>
         <main className="map-area" aria-label="地圖與設施">
           <MapView
-            items={[
-              ...(route
-                ? routeMapItems
-                : tab === "explore"
-                  ? mapItems
-                  : endpointStationExits),
-              ...(route ? [] : poiItems),
-            ]}
+            items={mapLayerItems}
             basemap={basemap}
             showOfficialSidewalk={showOfficialSidewalk}
             colorFriendly={prefs.colorFriendly}

@@ -11,8 +11,12 @@ import {
   visibleSidewalkLines,
 } from "./official-sidewalks.mjs";
 import { TPColors } from "./tp-colors.mjs";
+import { mapIconElement } from "./map-icons.mjs";
+// 標記底色（白色圖形放在上面，與白色的對比都在 3:1 以上）。
 const colors = {
-  place: TPColors.grayscale600,
+  place: TPColors.orange700,
+  bus: TPColors.primary900,
+  entrance: TPColors.grayscale700,
   elevator: TPColors.primary700,
   toilet: TPColors.grayscale700,
   rest: TPColors.secondary800,
@@ -24,22 +28,9 @@ const colors = {
   parking: TPColors.grayscale600,
   health: TPColors.red700,
 };
-// 每個設施都有文字代號，不只靠顏色辨認。
-const glyphs = {
-  place: "店",
-  elevator: "梯",
-  toilet: "廁",
-  "public-toilet": "廁",
-  rest: "休",
-  water: "水",
-  park: "園",
-  ramp: "坡",
-  station: "站",
-  friendly: "店",
-  parking: "停",
-  bus: "車",
-  health: "醫",
-};
+// 每種地點用不同圖形（Lucide），不只靠顏色辨認。
+const iconKind = (k) =>
+  ({ place: "store", "public-toilet": "toilet" })[k] || k;
 export default function MapView({
   items,
   route,
@@ -263,6 +254,8 @@ export default function MapView({
         key =
           p.kind === "metro-elevator"
             ? `metro-exit:${p.id}`
+            : p.landmark
+              ? `landmark:${p.id}`
             : `${Math.floor(pos.x / cell)}:${Math.floor(pos.y / cell)}`;
       if (!buckets.has(key)) buckets.set(key, []);
       buckets.get(key).push(p);
@@ -294,20 +287,23 @@ export default function MapView({
           img.src = exitIcon;
           img.alt = "";
           face.appendChild(img);
-        } else
-          face.textContent =
-            p.kind === "metro-elevator"
-              ? metroExitLabel(p)
-              : glyphs[category(p)] || "點";
+        } else if (p.kind === "metro-elevator") {
+          face.textContent = metroExitLabel(p);
+        } else {
+          face.classList.add("has-glyph");
+          face.appendChild(mapIconElement(iconKind(category(p)), 16));
+        }
         marker = L.marker([p.lat, p.lon], {
           icon: L.divIcon({
             className:
               p.kind === "metro-elevator"
                 ? "fac-pin metro-exit-pin"
-                : "fac-pin",
+                : p.landmark
+                  ? "fac-pin landmark"
+                  : "fac-pin",
             html: face,
-            iconSize: [28, 28],
-            iconAnchor: [14, 14],
+            iconSize: p.landmark ? [32, 32] : [28, 28],
+            iconAnchor: p.landmark ? [16, 16] : [14, 14],
           }),
           keyboard: false,
         }).addTo(marks.current);
