@@ -169,15 +169,16 @@ curl -L --fail --retry 3 -C - -o data/raw/taiwan.osm.pbf https://download.geofab
 
 ## 人車共道路網重建
 
-人車共道只使用 OSM 標為 `living_street` 的地面道路；資料未證實實際路寬、坡度、即時障礙或輪椅可通行性。路由會優先既有人行路段，共道路段需顯示提醒；禁止通行、私人通道、明確障礙及無法確認的車道交會仍排除。
+候選道路涵蓋 OSM 的 `living_street`、`residential`、`unclassified`、`service` 地面道路。後三者並不證明步行權利或有人行道，僅作為「可能人車共行、通行條件未確認」的路線；路寬、坡度及即時障礙同樣未知，不能視為輪椅可通行保證。路由優先既有人行路段；明確禁行、私人通道、已知障礙、橋隧、無法解析的步行條件及無法確認的高等級道路交會均排除。
 
 若重新建立或更新 `public/data/graph.json.gz`，需使用相同的 OSM PBF 更新候選並再次整合：
 
 ```powershell
 .\.venv\Scripts\python.exe scripts\extract_shared_candidates.py
 .\.venv\Scripts\python.exe scripts\integrate_shared_roads.py
+.\.venv\Scripts\python.exe tests\shared_road_rules_test.py
 npm test
 npm run build
 ```
 
-整合腳本只依原始 OSM 節點編號建立連接，不因座標相近自行連接；與其他車道的交會須在官方行穿區內，或是與另一條 `living_street` 共用原始端點。候選資料及路網都不是現場安全保證；施工封閉仍由現有檢查排除。OSM 的共道標籤可能不足，未標記的道路不會因缺乏禁止資料而自動納入。
+整合腳本只依原始 OSM 節點編號建立連接，不因座標相近自行連接；與其他車道交會須在官方行穿區內，或與另一條合格候選道路共用原始端點。共用節點只表示資料拓樸，不證明路口可安全過街。候選資料不是現場通行保證；施工封閉仍由現有檢查排除。可用環境變數 `TOWNPASS_OSM_PBF` 指定 PBF 檔；Windows pyosmium 在部分環境無法讀取中文路徑時，可在工作區以 ASCII 路徑建立唯讀硬連結。

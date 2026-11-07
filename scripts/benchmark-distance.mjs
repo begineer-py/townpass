@@ -32,7 +32,7 @@ for(const bin of bins){
   const r=planPlaces(start,end,{officialOnly:false},snapshot,deps);
   let withoutConstruction=null;
   if(r.error){const d=planPlaces(start,end,{officialOnly:false},empty,{...deps,checker:emptyChecker});withoutConstruction={success:!d.error,error:d.error||null};}
-  const row={bin:bin.label,start:start.name,end:end.name,startId:start.id,endId:end.id,startCoordinate:[start.lat,start.lon],endCoordinate:[end.lat,end.lon],straightMetres,success:!r.error,error:r.error||null,distance:r.distance??null,sharedRoad:!!r.tierSegments?.some(s=>s.sharedRoad),withoutConstruction};
+  const row={bin:bin.label,start:start.name,end:end.name,startId:start.id,endId:end.id,startCoordinate:[start.lat,start.lon],endCoordinate:[end.lat,end.lon],straightMetres,success:!r.error,error:r.error||null,distance:r.distance??null,sharedRoad:!!r.tierSegments?.some(s=>s.sharedRoad),estimatedApproaches:(r.approaches||[]).filter(a=>a.estimated).map(a=>({side:a.side,distance:a.distance})),withoutConstruction};
   results.push(row);console.log(`${results.length}/60 ${bin.label} ${start.name} → ${end.name}: ${r.error||'OK'}${withoutConstruction?.success?' (without works OK)':''}`);
  }
 }

@@ -27,7 +27,7 @@ export function createLocalRouteVerifier(graph,facilities=[]){
    // rather than trusting annotations on the candidate route.
    const tier=edgeTier(e[5]),unknownWidth=way.width==null,unknownSlope=way.slope==null,
     roughSurface=edgeCostDetails(way,e[5],options).surface>0,
-    sharedRoad=way.highway==='living_street'&&way.source==='osm-shared-street';
+    sharedRoad=way.source==='osm-shared-street';
    const last=tierSegments.at(-1);
    if(last?.tier===tier&&last.unknownWidth===unknownWidth&&last.unknownSlope===unknownSlope&&last.roughSurface===roughSurface&&last.sharedRoad===sharedRoad){
     last.coordinates.push(...segmentCoordinates.slice(1));last.distance+=e[2];
@@ -38,7 +38,7 @@ export function createLocalRouteVerifier(graph,facilities=[]){
   if(!Array.isArray(route.steps)||route.steps.some(step=>!wayIds.has(step.way)))return {error:'UNVERIFIED_NETWORK'};
   const steps=route.steps.map(step=>{
    const way=graph.ways[step.way];
-   return {...step,sharedRoad:way.highway==='living_street'&&way.source==='osm-shared-street'};
+   return {...step,sharedRoad:way.source==='osm-shared-street'};
   });
   const approaches=[];
   for(const [point,target,place,side]of [[start,coordinates[0],options.startPlace,'start'],[end,coordinates.at(-1),options.endPlace,'end']]){

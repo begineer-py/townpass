@@ -11,7 +11,8 @@ test('only explicitly audited shared streets are routable',()=>{
  assert.equal(edgeAllowed(way,{officialOnly:true},shared),false);
  assert.equal(edgeAllowed(way,{knownOnly:true},shared),false);
  for(const key of ['sharedRoad','sourceTopologyVerified','junctionsVerified','roadIntersectionsVerified','barriersVerified'])assert.equal(edgeAllowed(way,{}, {...shared,[key]:false}),false,key);
- for(const attrs of [{foot:'no'},{access:'private'},{wheelchair:'no'},{highway:'residential'},{bridge:'yes'}])assert.equal(edgeAllowed({...way,...attrs},{},shared),false);
+ for(const attrs of [{foot:'no'},{access:'private'},{wheelchair:'no'},{highway:'primary'},{bridge:'yes'},{'foot:conditional':'yes @ (Mo-Fr)'}])assert.equal(edgeAllowed({...way,...attrs},{},shared),false);
+ for(const highway of ['living_street','residential','unclassified','service'])assert.equal(edgeAllowed({...way,highway,sidewalk:'no'},{},shared),true);
  assert.equal(edgeAllowed({highway:'footway'}, {},shared),false);
  assert.equal(edgeTier(shared),'shared');
  assert.ok(edgeCostFactor(way,shared,{preferOfficial:false})>edgeCostFactor({width:null,slope:null},base,{preferOfficial:false}));

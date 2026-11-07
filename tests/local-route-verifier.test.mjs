@@ -64,6 +64,15 @@ test('a verified shared street remains marked through local verification and fai
  assert.equal(routeAroundConstruction(result,a,b,{},construction,{router:createRouter(g),verifyLocal:verify},now).error,'CONSTRUCTION_BLOCKED');
  g.ways[0].foot='no';assert.equal(verify(candidate,a,b).error,'UNVERIFIED_NETWORK');
 });
+test('residential, service and unclassified roads retain shared-road warnings after verification',()=>{
+ for(const highway of ['residential','service','unclassified']){
+  const g=base();g.ways[0]={name:'道路',highway,source:'osm-shared-street',width:null,slope:null};
+  g.edges[0][5]={...proof,sharedRoad:true,sourceTopologyVerified:true,junctionsVerified:true,roadIntersectionsVerified:true,barriersVerified:true};
+  const candidate=createRouter(g)(a,b),result=createLocalRouteVerifier(g)(candidate,a,b);
+  assert.equal(result.error,undefined,highway);assert.equal(result.tierSegments[0].sharedRoad,true,highway);
+  assert.equal(result.tierSegments[0].unknownWidth,true,highway);assert.equal(result.steps[0].sharedRoad,true,highway);
+ }
+});
 test('place planning reports a closure when it is the only way, without returning the diagnostic route',()=>{
  const g=base(),now=Date.parse('2026-11-07T08:00:00Z'),stamp=new Date(now).toISOString();
  const snapshot={schemaVersion:1,fetchedAt:stamp,sourceUpdatedAt:stamp,works:[{id:'closure',start:'115/11/07',end:'115/11/07',hours:'24小時施工',impact:'blocked',geometries:[{type:'Point',coordinates:[[25,121.5005]]}]}]};

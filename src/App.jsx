@@ -1431,7 +1431,7 @@ export default function App() {
                     </div>
                     <p className="quiet-note">線條反映已知資料，實際路況請留意現場。</p>
                     {route.tierSegments?.some(segment => segment.sharedRoad === true) && (
-                      <div className="notice" role="note"><AlertTriangle aria-hidden="true"/><p>路線包含人車共道，可能與車輛共用道路；請留意車輛，並依現場狀況判斷是否通行。圖資標示不代表已確認無障礙。</p></div>
+                      <div className="notice" role="note"><AlertTriangle aria-hidden="true"/><p>路線包含可能人車共行的道路；步行許可、通行條件與無障礙狀況未確認。請留意車輛，依現場標示與狀況判斷是否通行。</p></div>
                     )}
                     <div className="route-summary">
                       <div>

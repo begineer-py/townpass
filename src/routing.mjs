@@ -77,7 +77,7 @@ export function edgeAllowed(way, options = {}, evidence = null) {
       (way.level != null && !((mappedBridge?['0','1']:['0']).includes(String(way.level))))) return false;
   if (way.wheelchair === "no") return false;
   if (
-    way.sidewalk === "no" &&
+    !sharedRoad && way.sidewalk === "no" &&
     [
       "primary",
       "primary_link",
