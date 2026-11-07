@@ -30,3 +30,13 @@ test('grade-separated evidence requires original node identities in exported dat
  assert.throws(()=>validateNetwork(g),/MISSING_GRADE_NODE_IDENTITY/);
  g.nodeIdentity='OSM node ID; coincident coordinates do not create connectivity';g.nodes[0].push(100);g.nodes[1].push(200);assert.equal(validateNetwork(g),true);
 });
+
+test('endpoint approach can use a later official crossing without relaxing road safety',()=>{
+ const crossing={type:'Polygon',coordinates:[[[121.5002,25.00004],[121.5003,25.00004],[121.5003,25.00006],[121.5002,25.00006],[121.5002,25.00004]]]};
+ const area={type:'Polygon',coordinates:[[[121.499,24.999],[121.502,24.999],[121.502,25.001],[121.499,25.001],[121.499,24.999]]]};
+ const g={officialPathEvidence:{schemaVersion:2},officialAreas:[area],officialCrossingAreas:[],roadGeometries:[[[121.499,25.00005],[121.502,25.00005]]],nodes:[[25,121.5,0],[25,121.5005,0]],ways:[w],edges:[[0,1,50,0,[],proof()]],supplementalEvidence:{schemaVersion:1,sources:[{id:'marked-sidewalk-2026'}],features:[{sourceId:'marked-sidewalk-2026',crossing:true,geometry:crossing}]}};
+ const start=[25.0001,121.50025],end=[25,121.5005];
+ assert.equal(createRouter(structuredClone(g))(start,end).error,undefined);
+ delete g.supplementalEvidence;
+ assert.equal(createRouter(g)(start,end).error,'NO_CONNECTION');
+});

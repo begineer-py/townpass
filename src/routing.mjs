@@ -1,4 +1,5 @@
 import { roadConnectorChecker } from "./geometry.mjs";
+import { officialGeometryEvidence } from "./supplemental-evidence.mjs";
 import {edgeTier,edgeCostFactor,ROUTE_TIERS} from "./route-tiers.mjs";
 export const ROUTING_POLICY = "pedestrian-evidence-v4";
 // Building entrances sit back from the mapped footway. 50m reaches a sidewalk;
@@ -101,7 +102,7 @@ export function createRouter(graph) {
   const connectorRoadVerified =
     Array.isArray(graph.roadGeometries) &&
     Array.isArray(graph.officialCrossingAreas)
-      ? roadConnectorChecker(graph.roadGeometries, graph.officialCrossingAreas)
+      ? roadConnectorChecker(graph.roadGeometries, graph.supplementalEvidence ? officialGeometryEvidence(graph).crossings : graph.officialCrossingAreas)
       : null;
   let heuristicScale=1;
   for(const e of graph.edges){const direct=metres(graph.nodes[e[0]],graph.nodes[e[1]]);if(direct>0)heuristicScale=Math.min(heuristicScale,e[2]/direct);}
