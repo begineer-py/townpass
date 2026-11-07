@@ -217,6 +217,12 @@ export default function App() {
   });
   const [basemapStatus, setBasemapStatus] = useState("loading");
   const [showMapFacilities, setShowMapFacilities] = useState(false);
+  const [panelCollapsed, setPanelCollapsed] = useState(false);
+  const panelDrag = useRef(null), suppressPanelClick = useRef(false);
+  function collapseForMap() {
+    if (window.matchMedia('(max-width: 700px)').matches) setPanelCollapsed(true);
+  }
+  useEffect(() => { if (route || routeError) setPanelCollapsed(false); }, [route, routeError]);
   useEffect(() => {
     setShowMapFacilities(tab !== "plan");
   }, [tab]);
@@ -694,8 +700,17 @@ export default function App() {
           </button>
         </div>
       </header>
-      <div className="workspace">
+      <div className={`workspace ${panelCollapsed ? 'panel-collapsed' : ''}`}>
         <aside className="panel" id="main-content">
+          <button className="panel-handle" aria-expanded={!panelCollapsed} aria-controls="panel-content"
+            onPointerDown={e => { panelDrag.current=e.clientY; suppressPanelClick.current=false; e.currentTarget.setPointerCapture(e.pointerId); }}
+            onPointerUp={e => { if(panelDrag.current!==null && Math.abs(e.clientY-panelDrag.current)>24){setPanelCollapsed(e.clientY>panelDrag.current);suppressPanelClick.current=true;} panelDrag.current=null; }}
+            onPointerCancel={() => {panelDrag.current=null;}}
+            onClick={() => {if(suppressPanelClick.current){suppressPanelClick.current=false;return;}setPanelCollapsed(v=>!v);}}>
+            <span className="panel-grip" aria-hidden="true" />
+            {panelCollapsed ? '展開內容' : '收起內容，看大地圖'}
+            <ChevronDown size={16} aria-hidden="true" />
+          </button>
           <nav className="main-nav" aria-label="主要功能">
             {[
               ["explore", "找設施", Compass],
@@ -708,6 +723,7 @@ export default function App() {
                 className={tab === id ? "active" : ""}
                 onClick={() => {
                   setTab(id);
+                  setPanelCollapsed(false);
                   setPick(null);
                 }}
                 aria-current={tab === id ? "page" : undefined}
@@ -717,7 +733,7 @@ export default function App() {
               </button>
             ))}
           </nav>
-          <div className="panel-scroll" ref={panelScroll}>
+          <div className="panel-scroll" id="panel-content" ref={panelScroll}>
             {loading && (
               <div className="loading-note">
                 <LoaderCircle className="spin" size={18} /> 正在載入設施…
@@ -1277,6 +1293,7 @@ export default function App() {
             onSelect={inspect}
             onViewport={setViewport}
             onMapReady={(m) => (map.current = m)}
+            onUserInteract={collapseForMap}
           />
           <div className="map-top">
             <button
@@ -1303,12 +1320,12 @@ export default function App() {
             </button>
           </div>
           <div className="map-controls">
-            <button aria-label="放大地圖" onClick={() => map.current?.zoomIn()}>
+            <button aria-label="放大地圖" onClick={() => {collapseForMap(); map.current?.zoomIn();}}>
               <Plus />
             </button>
             <button
               aria-label="縮小地圖"
-              onClick={() => map.current?.zoomOut()}
+              onClick={() => {collapseForMap(); map.current?.zoomOut();}}
             >
               <Minus />
             </button>

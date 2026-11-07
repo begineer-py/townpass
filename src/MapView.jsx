@@ -29,6 +29,7 @@ export default function MapView({
   onSelect,
   onViewport,
   onMapReady,
+  onUserInteract,
 }) {
   const root = useRef(),
     map = useRef(),
@@ -37,7 +38,7 @@ export default function MapView({
     ends = useRef();
   const baseLayers = useRef([]);
   const cb = useRef({ onPick, onSelect, onViewport, pick });
-  cb.current = { onPick, onSelect, onViewport, pick };
+  cb.current = { onPick, onSelect, onViewport, pick, onUserInteract };
   useEffect(() => {
     const m = L.map(root.current, {
       zoomControl: false,
@@ -61,6 +62,7 @@ export default function MapView({
       });
     };
     m.on("moveend", viewport);
+    m.on("dragstart", () => cb.current.onUserInteract?.());
     m.on("click", (e) => {
       if (cb.current.pick)
         cb.current.onPick({
@@ -234,6 +236,9 @@ export default function MapView({
   return (
     <div
       ref={root}
+      onWheelCapture={() => onUserInteract?.()}
+      onDoubleClick={() => onUserInteract?.()}
+      onTouchStart={e => { if(e.touches.length > 1) onUserInteract?.(); }}
       className={`map-canvas basemap-${basemap} ${pick ? "picking" : ""}`}
       role="region"
       aria-label="臺北友善設施地圖，可使用方向鍵移動，加減鍵縮放。也可透過附近設施清單操作。"
