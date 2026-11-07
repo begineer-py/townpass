@@ -1640,39 +1640,16 @@ export default function App() {
           }
           onClose={() => setSearchFor(null)}
         >
-          <label className="search-launch input">
-            <Search size={21} />
+          <div className="search-launch input search-with-voice">
+            <Search size={21} aria-hidden="true" />
             <input
               autoFocus
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="輸入地點、捷運站、地址或路名"
+              placeholder="地點、捷運站、地址"
               aria-label="搜尋地點"
             />
-          </label>
-          <div className="search-options">
             <VoiceSearch onResult={setQuery} />
-            <button onClick={() => speakText(searchResults.length ? `找到${searchResults.length}個地方。${searchResults.slice(0, 8).map((p, i) => `${i + 1}，${cleanName(p.name)}。`).join('')}請從清單選擇地點。` : '目前還沒找到地點，可以換個名稱再試一次。')}><Volume2 size={18} aria-hidden="true"/>{speaking ? "停止朗讀" : "朗讀搜尋結果"}</button>
-            <button
-              onClick={() => {
-                const which = searchFor === "explore" ? null : searchFor;
-                setSearchFor(null);
-                locate(which);
-              }}
-            >
-              <LocateFixed size={20} />
-              <span>使用我的位置</span>
-            </button>
-            <button
-              onClick={() => {
-                setPick(searchFor === "explore" ? "end" : searchFor);
-                setSearchFor(null);
-                setTab("plan");
-              }}
-            >
-              <MapPin size={20} />
-              <span>直接在地圖上選擇</span>
-            </button>
           </div>
           {stationMatches.map(({ s, name, exits }) => {
             const pickExit = (p) => {
@@ -1723,9 +1700,9 @@ export default function App() {
               </section>
             );
           })}
-          <p className="list-caption">
-            {query ? "找到這些地方" : "最近行程、收藏與附近車站"}
-          </p>
+          {query && searchResults.length > 0 && (
+            <p className="list-caption">找到 {searchResults.length} 個地方</p>
+          )}
           {searchResults.map((p) => (
             <FacilityRow
               key={p.id}
@@ -2114,6 +2091,9 @@ export default function App() {
           </p>
           <p>
             你可以搜尋地點、直接在地圖選兩點，或先找一個附近的設施。收藏與通行偏好留在你的裝置，不需要登入。
+          </p>
+          <p>
+            語音輸入：按搜尋框旁的麥克風後才會收音；辨識可能由瀏覽器的線上語音服務處理，本服務不儲存錄音。
           </p>
           <div className="notice">
             <Info />
