@@ -5,28 +5,46 @@ import {edgeTier,edgeCostDetails} from './route-tiers.mjs';
 const same=(a,b)=>a&&b&&a[0]===b[0]&&a[1]===b[1];
 export function createLocalRouteVerifier(graph,facilities=[],places=[]){
  const {areas,crossings}=officialGeometryEvidence(graph),covered=polygonConnectorChecker(areas),roadClear=roadConnectorChecker(graph.roadGeometries,crossings);
- const entrances=new Map(facilities.filter(p=>p.kind==='metro-elevator').map(p=>[p.id,p]));
- const poiKinds=new Set(['place','health','park','rest','water','toilet','public-toilet','elevator','1','3','4','7','8','9','14','15','16','18']);
- const pois=new Map();
+ const poiKinds=new Set(['metro-elevator','place','health','park','rest','water','toilet','public-toilet','elevator','1','3','4','7','8','9','14','15','16','18']);
+ const registered=new Map(),prohibitedPoints=new Set(),unmatchedOsmPoints=new Set();
+ const pointKey=p=>`${p[0]}:${p[1]}`;
+ function prohibited(p){
+  if(!p)return false;
+  const ok=new Set(['yes','designated','permissive']);
+  if([p.access,p.foot].some(v=>v!=null&&!ok.has(v))||p.wheelchair==='no')return true;
+  if(p.barrier!=null&&!['no','kerb'].includes(p.barrier))return true;
+  if(p.kerb==='raised'||['no','private'].includes(p.entrance)||p.door==='locked'||p['door:locked']==='yes')return true;
+  if(p['kerb:height']!=null){const height=Number(String(p['kerb:height']).replace(/\s*m\s*$/,''));if(!Number.isFinite(height)||height>.03)return true;}
+  return Object.keys(p).some(k=>k.startsWith('access:')||k.startsWith('foot:')||k==='oneway:foot'||k==='wheelchair:conditional'||k==='wheelchair:forward'||k==='wheelchair:backward');
+ }
  for(const p of [...facilities,...places]){
-  if(!p?.id||!poiKinds.has(String(p.kind))||!Number.isFinite(p.lat)||!Number.isFinite(p.lon))continue;
+  if(!p||!Number.isFinite(p.lat)||!Number.isFinite(p.lon))continue;
+  if(prohibited(p))prohibitedPoints.add(pointKey([p.lat,p.lon]));
+  if(!p.id||!poiKinds.has(String(p.kind)))continue;
+  if((p.sourceId==='osm'||/^osm-[nw]\d+$/.test(String(p.id)))&&p.osmRestrictionsMatched!==true)unmatchedOsmPoints.add(pointKey([p.lat,p.lon]));
   // Duplicate IDs are ambiguous, even if coordinates match: the two records
   // could disagree about access restrictions.
-  if(pois.has(p.id))pois.set(p.id,null);
-  else pois.set(p.id,p);
+  if(registered.has(p.id))registered.set(p.id,null);
+  else registered.set(p.id,p);
  }
  function matchedPoint(point,place){
-  const known=entrances.get(place?.id)||pois.get(place?.id);
+  const known=registered.get(place?.id);
   return known&&same(point,[known.lat,known.lon])?known:null;
  }
- function prohibited(p){return p&&(['no','private'].includes(p.access)||['no','private'].includes(p.foot)||p.wheelchair==='no'||p['access:conditional']!=null||p['foot:conditional']!=null);}
+ function estimateSourceMatched(known){
+  // PBF identity mismatch means the source restrictions for this OSM point
+  // are unknown; do not turn it into an estimated connector.
+  const osm=known?.sourceId==='osm'||/^osm-[nw]\d+$/.test(String(known?.id||''));
+  return !osm||known.osmRestrictionsMatched===true;
+ }
  function allowed(point,target,place,options={}){
   const gap=metres(point,target),known=matchedPoint(point,place);
-  if(prohibited(known))return false;
+  if(prohibitedPoints.has(pointKey(point))||prohibited(known)||
+     (place?.id&&registered.has(place.id)&&!known))return false;
   // A point already on a verified network node has no approach to cross a road.
   // This matters for a shared-street centreline, which is itself in the road mask.
   if(gap<=.001)return true;
-  return gap<=SNAP_METRES&&roadClear(point,target)&&(gap<=.05||covered(point,target)||(known&&!options.knownOnly));
+  return gap<=SNAP_METRES&&roadClear(point,target)&&(gap<=.05||covered(point,target)||(known&&estimateSourceMatched(known)&&!unmatchedOsmPoints.has(pointKey(point))&&!options.knownOnly));
  }
  const verify=(route,start,end,options={})=>{
   if(route.error)return route;

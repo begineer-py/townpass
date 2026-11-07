@@ -1,0 +1,26 @@
+{
+  "checkedAt": "2026-11-07T13:54:10.302790+00:00",
+  "source": "OSM PBF",
+  "sourceSha256": "2859e277e04702b911ae5cd033f60e92aef963ad0e62c2bc66ca855d9c971eb3",
+  "placesSha256Before": "77eec290d7b78de6291ec42f603342884d45fdf7a04f4ae30626155380617090",
+  "method": "exact node/way ID and original extraction coordinate check; matching is not an accessibility certification",
+  "nodeRecords": 53519,
+  "wayRecords": 6401,
+  "matchedNodes": 53519,
+  "matchedWays": 6401,
+  "mismatchedOrDuplicate": 0,
+  "missingFromSource": 0,
+  "duplicateIdentities": 0,
+  "mismatchExampleIds": [],
+  "missingExampleIds": [],
+  "restrictionCounts": {
+    "access=no": 30,
+    "access=private": 158,
+    "foot=no": 3,
+    "foot=private": 0,
+    "wheelchair=no": 2553
+  },
+  "conditionalCount": 1,
+  "applied": true,
+  "placesSha256After": "7f761150226a4f126ff757d6515d102d246f0849437a0ed5117b7c4a4d463350"
+}

@@ -38,12 +38,33 @@ test('registered POI estimates require exact id, coordinate and permitted source
  assert.equal(verify(r,[p[0]+.000001,p[1]],b,{startPlace:poi}).error,'OFFICIAL_ENTRY_UNVERIFIED');
  assert.equal(verify(r,p,b,{startPlace:poi,knownOnly:true}).error,'OFFICIAL_ENTRY_UNVERIFIED');
  const distant=[25+51/111195,121.5],far={...poi,lat:distant[0]};assert.equal(createLocalRouteVerifier(g,[],[far])(r,distant,b,{startPlace:far}).error,'OFFICIAL_ENTRY_UNVERIFIED');
- for(const patch of [{access:'no'},{access:'private'},{foot:'no'},{wheelchair:'no'},{'foot:conditional':'no @ night'}]){
+ for(const patch of [{access:'no'},{access:'private'},{access:'customers'},{foot:'no'},{foot:'use_sidepath'},{wheelchair:'no'},{'foot:conditional':'no @ night'},{'foot:forward':'no'},{'access:forward':'private'},{'oneway:foot':'yes'},{'wheelchair:conditional':'no @ night'},{barrier:'gate'},{kerb:'raised'},{'kerb:height':'0.05'},{'door:locked':'yes'}]){
   const blocked={...poi,...patch},v=createLocalRouteVerifier(g,[],[blocked]);assert.equal(v(r,p,b,{startPlace:poi}).error,'OFFICIAL_ENTRY_UNVERIFIED');assert.equal(v.approachAllowed(p,p,poi),false);
  }
  const road={...poi,kind:'road'};assert.equal(createLocalRouteVerifier(g,[],[road])(r,p,b,{startPlace:road}).error,'OFFICIAL_ENTRY_UNVERIFIED');
  const different={...poi,lat:p[0]+.00001};assert.equal(createLocalRouteVerifier(g,[],[poi,different])(r,p,b,{startPlace:poi}).error,'OFFICIAL_ENTRY_UNVERIFIED');
  const restrictedDuplicate={...poi,access:'private'};assert.equal(createLocalRouteVerifier(g,[],[poi,restrictedDuplicate])(r,p,b,{startPlace:poi}).error,'OFFICIAL_ENTRY_UNVERIFIED');
+});
+test('registered restrictions cannot be bypassed using forged ids, same-coordinate aliases or zero-gap snapping',()=>{
+ const g=base(),p=a,closed={id:'closed',kind:'place',lat:p[0],lon:p[1],access:'private'},alias={id:'alias',kind:'place',lat:p[0],lon:p[1]},exit={id:'exit',kind:'metro-elevator',lat:p[0],lon:p[1]};
+ const verifier=createLocalRouteVerifier(g,[exit],[closed,alias]),candidate=createRouter(g)(a,b);
+ for(const place of [closed,alias,exit,{...alias,id:'forged'},null]){
+  assert.equal(verifier.approachAllowed(p,p,place),false);
+  assert.equal(verifier(candidate,p,b,{startPlace:place}).error,'OFFICIAL_ENTRY_UNVERIFIED');
+ }
+ // A genuine known ID with altered coordinates cannot fall through to a
+ // zero-gap or covered-connector case either.
+ const open={id:'open',kind:'place',lat:25.0001,lon:121.5},v=createLocalRouteVerifier(g,[],[open]);
+ assert.equal(v.approachAllowed(a,a,{...open,lat:a[0]}),false);
+});
+test('OSM POI estimate requires a verified source match; non-OSM sources remain explicitly estimated',()=>{
+ const g=base(),p=[25+30/111195,121.5],r=createRouter(g)(a,b),osm={id:'osm-n123',kind:'park',sourceId:'osm',lat:p[0],lon:p[1]};
+ for(const match of [undefined,false]){const point={...osm,osmRestrictionsMatched:match},v=createLocalRouteVerifier(g,[],[point]);assert.equal(v(r,p,b,{startPlace:point}).error,'OFFICIAL_ENTRY_UNVERIFIED');}
+ const matched={...osm,osmRestrictionsMatched:true},result=createLocalRouteVerifier(g,[],[matched])(r,p,b,{startPlace:matched});
+ assert.equal(result.error,undefined);assert.equal(result.approaches[0].estimated,true);
+ const official={id:'official-1',kind:'park',sourceId:'wheel',lat:p[0],lon:p[1]};assert.equal(createLocalRouteVerifier(g,[],[official])(r,p,b,{startPlace:official}).approaches[0].estimated,true);
+ const sharedLocation=createLocalRouteVerifier(g,[official],[{...osm,osmRestrictionsMatched:false}]);
+ assert.equal(sharedLocation(r,p,b,{startPlace:official}).error,'OFFICIAL_ENTRY_UNVERIFIED');
 });
 test('POI estimated approach cannot cross vehicle way or active construction',()=>{
  const g=base(),p=[25+30/111195,121.5],poi={id:'poi',kind:'park',lat:p[0],lon:p[1]},r=createRouter(g)(a,b);
