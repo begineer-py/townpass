@@ -132,11 +132,13 @@ test('official routes obey the same endpoint restriction and mark a GPS approach
   await self.onmessage({data:{type:'verify-official',id:80,start:p,end:b,route:candidate,options:{startPlace:gps},construction}});
   assert.equal(replies.find(m=>m.id===80)?.result.error,'OFFICIAL_ENTRY_UNVERIFIED');
   // Reinitialize with no forbidden POI to test a genuine user origin.
-  globalThis.fetch=async url=>({ok:true,arrayBuffer:async()=>new TextEncoder().encode(JSON.stringify(/facilities|places/.test(String(url))?[]:graph)).buffer});
+  const conditions={schemaVersion:1,fetchedAt:new Date().toISOString(),points:[{type:'missing_noCurbSlope',id:'near',lat:25,lon:121.5005}]};
+  globalThis.fetch=async url=>({ok:true,arrayBuffer:async()=>new TextEncoder().encode(JSON.stringify(String(url).includes('official-conditions')?conditions:/facilities|places/.test(String(url))?[]:graph)).buffer});
   await self.onmessage({data:{type:'init',url:'https://example.test/graph.json'}});
   await self.onmessage({data:{type:'verify-official',id:81,start:p,end:b,route:candidate,options:{startPlace:gps},construction}});
   const result=replies.find(m=>m.id===81)?.result;assert.equal(result.error,undefined);assert.equal(result.approaches[0].estimated,true);assert.equal(result.approaches[0].unconfirmed,true);assert.equal(result.approaches[0].originKind,'gps');
   const officialChoice=result.routeCandidates?.candidates?.find(c=>c.id==='official');assert.ok(officialChoice);assert.equal(officialChoice.metrics.explicitSidewalkMetres,null);assert.equal(officialChoice.metrics.sharedMetres,null);assert.ok(Number.isFinite(officialChoice.score));
+  assert.ok(officialChoice.route.tierSegments.some(s=>s.nearbyOfficialCondition===true));
   assert.deepEqual(result.approaches[0].coordinates,[p,a]);assert.deepEqual(result.networkCoordinates,[a,b]);assert.equal(result.pedestrianImprovement.status,'unsupported-official-provenance');
   const q=[25+3/111195,121.501],selectedStart={id:'address-start',kind:'place',sourceId:'osm',selectionKind:'user',lat:p[0],lon:p[1]},selectedEnd={id:'address-end',kind:'place',sourceId:'osm',selectionKind:'user',lat:q[0],lon:q[1]};
   await self.onmessage({data:{type:'verify-official',id:83,start:p,end:q,route:candidate,options:{startPlace:selectedStart,endPlace:selectedEnd},construction}});

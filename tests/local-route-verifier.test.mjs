@@ -5,6 +5,14 @@ import{createConstructionChecker}from'../src/construction.mjs';
 const a=[25,121.5],b=[25,121.501],proof={schemaVersion:2,coverage:0,maxUncoveredMetres:100,crossingCoverage:0,roadCrossingVerified:true,crossingVerified:true};
 const base=()=>({officialPathEvidence:{schemaVersion:2},nodes:[[...a,0],[...b,0]],ways:[{highway:'footway',width:2,slope:0}],edges:[[0,1,100,0,[],proof]],officialAreas:[],officialCrossingAreas:[],roadGeometries:[[[121.51,25],[121.51,25.01]]]});
 test('mapped footway provenance replaces an unrelated full-city polygon coverage requirement',()=>{const g=base(),r=createRouter(g)(a,b);const v=createLocalRouteVerifier(g)(r,a,b);assert.equal(v.error,undefined);assert.equal(v.geometryVerification,'pedestrian-network-v1');});
+test('sidewalk markers use verified way data and split when the tag changes',()=>{
+ const g=base(),middle=[25,121.5005];g.nodes=[[...a,0],[...middle,0],[...b,0]];
+ g.ways=[{highway:'footway',footway:'sidewalk',width:2,slope:0},{highway:'footway',width:2,slope:0}];g.edges=[[0,1,50,0,[],proof],[1,2,50,1,[],proof]];
+ const r=createRouter(g)(a,b);r.tierSegments=[{explicitSidewalk:true,coordinates:[a,b]}];
+ const v=createLocalRouteVerifier(g)(r,a,b);
+ assert.equal(v.error,undefined);assert.deepEqual(v.tierSegments.map(s=>s.explicitSidewalk),[true,false]);
+ assert.deepEqual(v.tierSegments.map(s=>s.coordinates),[[a,middle],[middle,b]]);
+});
 test('revalidating a route reconstructs network distance without counting an approach twice',()=>{
  const g=base(),p=[25+30/111195,121.5],exit={id:'exit',kind:'metro-elevator',lat:p[0],lon:p[1]},v=createLocalRouteVerifier(g,[exit]),raw=createRouter(g)(a,b),opts={startPlace:exit};
  const first=v(raw,p,b,opts),second=v({...first,coordinates:first.networkCoordinates,distance:9999},p,b,opts);

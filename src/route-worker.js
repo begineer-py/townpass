@@ -15,6 +15,7 @@ import {findRouteCandidates} from './route-candidates.mjs';
 import {compareOfficialAndLocal} from './cross-source-candidates.mjs';
 import {planConditionDetour} from './official-condition-detour.mjs';
 import {diagnoseAvoidedStairs} from './route-avoidance.mjs';
+import {createNearbyConditionAnnotator} from './route-nearby-conditions.mjs';
 let router, verifyOfficial, verifyLocal, facilities, initialization, detourWaypoints, nearbyRoutes, routeGraph;
 function avoidance(start,end,prefs,checker,known=[]){
   const avoidedStairs=diagnoseAvoidedStairs(router,start,end,prefs);
@@ -109,13 +110,22 @@ self.onmessage = async ({ data }) => {
         const dataset=JSON.parse(new TextDecoder().decode(hb[0]===31&&hb[1]===139?gunzipSync(hb):hb));
         graph.officialConditionIndex=createOfficialConditionIndex(dataset);
       }catch{graph.officialConditionIndex=null;}
-      verifyOfficial = createOfficialRouteVerifier(graph);
+      const annotateNearbyConditions=createNearbyConditionAnnotator(graph.officialConditionIndex);
+      const rawVerifyOfficial=createOfficialRouteVerifier(graph);
+      verifyOfficial=(candidate,...args)=>{
+        const result=rawVerifyOfficial(candidate,...args);
+        if(result.error)return result;
+        // The verified official geometry lacks OSM way attributes. Preserve
+        // that uncertainty; proximity only describes nearby observations.
+        return annotateNearbyConditions({...result,tierSegments:[{coordinates:result.coordinates,distance:result.distance,unknownWidth:true,unknownSlope:true,roughSurface:false,sharedRoad:false,tier:'official'}]});
+      };
       const fr=await fetch(new URL('./facilities.json.gz',data.url));if(!fr.ok)throw Error('facilities');
       const fb=new Uint8Array(await fr.arrayBuffer());facilities=JSON.parse(new TextDecoder().decode(fb[0]===31&&fb[1]===139?gunzipSync(fb):fb));
       const pr=await fetch(new URL('./places.json.gz',data.url));if(!pr.ok)throw Error('places');
       const pb=new Uint8Array(await pr.arrayBuffer()),places=JSON.parse(new TextDecoder().decode(pb[0]===31&&pb[1]===139?gunzipSync(pb):pb));
       if(!Array.isArray(facilities)||!Array.isArray(places))throw Error('places');
-      verifyLocal=createLocalRouteVerifier(graph,facilities,places);
+      const rawVerifyLocal=createLocalRouteVerifier(graph,facilities,places);
+      verifyLocal=Object.assign((...args)=>annotateNearbyConditions(rawVerifyLocal(...args)),rawVerifyLocal);
       router=createVerifiedRouter(graph,verifyLocal);
       detourWaypoints=createDetourWaypoints(graph);
       })();

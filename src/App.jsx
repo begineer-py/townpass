@@ -58,7 +58,7 @@ import { routeFitPadding } from "./route-fit.mjs";
 import OfficialConditions from "./OfficialConditions";
 import {createConditionDetourSearch} from "./condition-detour-search.mjs";
 import {presentRouteCandidates, sortRouteCandidates} from "./route-candidates-presentation.mjs";
-import {ROUTE_CONDITIONS, conditionForSegment} from "./route-conditions.mjs";
+import {ROUTE_CONDITIONS, conditionForSegment, fallbackRouteCondition} from "./route-conditions.mjs";
 import {TPColors} from "./tp-colors.mjs";
 import VoiceSearch from "./VoiceSearch";
 import {searchVerifiedAlternatives} from "./alternative-routes.mjs";
@@ -167,7 +167,7 @@ const basePrefs = {
 };
 function RouteLegend({ segments, colorFriendly }) {
   const keys = [...new Set(segments.flatMap(route => [
-    ...(route.tierSegments?.length ? route.tierSegments.map(conditionForSegment) : ['unknown']),
+    ...(route.tierSegments?.length ? route.tierSegments.map(conditionForSegment) : [fallbackRouteCondition(route)]),
     ...(route.approaches?.length ? ['approach'] : []),
   ]))];
   return <div className="route-key" role="group" aria-label="路線線條說明">
@@ -176,6 +176,7 @@ function RouteLegend({ segments, colorFriendly }) {
       const condition = ROUTE_CONDITIONS[key];
       return <span key={key}><svg width="52" height="16" aria-hidden="true"><line x1="2" y1="8" x2="50" y2="8" stroke={colorFriendly ? TPColors.primary900 : condition.color} strokeWidth="6" strokeDasharray={condition.dash}/></svg>{condition.label}</span>;
     })}
+    {segments.some(route => route.tierSegments?.some(segment => segment.nearbyOfficialCondition === true)) && <span><svg width="52" height="16" aria-hidden="true"><line x1="2" y1="8" x2="50" y2="8" stroke="#7036a3" strokeWidth="4" strokeDasharray="3 4"/></svg>2 公尺內有官方不利通行紀錄，位置及影響未確認</span>}
     {segments.some(route => route.crossingUncertainties?.length > 0) && <span><svg width="52" height="16" aria-hidden="true"><line x1="2" y1="8" x2="50" y2="8" stroke={TPColors.primary900} strokeWidth="3" strokeDasharray="2 5"/></svg>過街位置來自 OSM，官方資料未完整確認</span>}
     <small>線條表示資料狀況，並不代表已確認安全。</small>
   </div>;
@@ -1790,10 +1791,31 @@ export default function App() {
                     <div className="route-summary"><h2>全程 {formatDistance(route.distance)}</h2></div>
                     {(route.requiresEntryConfirmation || route.approaches?.some(point => point.estimated) || route.startGap > 10 || route.endGap > 10) && <p className="quiet-note" role="note">請先確認入口和銜接路段能否通行。</p>}
                     {(route.roadPct > 0 || route.tierSegments?.some(segment => segment.sharedRoad === true)) && <p className="quiet-note" role="note">部分路段可能人車共用，請留意來車。</p>}
-                    {route.officialConditions?.points?.length > 0 && <p className="quiet-note" role="note">沿途附近有通行問題紀錄，請查看路線詳情。</p>}
+                    {route.officialConditions?.points?.length > 0 && <p className="quiet-note" role="note">沿途附近有通行問題紀錄，請查看下方說明。</p>}
                     {route.officialConditions?.status === "unavailable" && <p className="quiet-note" role="note">目前查不到沿途通行問題紀錄。</p>}
                     {routeWorks.length > 0 && <p className="quiet-note" role="note">附近有施工，請留意現場指引。</p>}
                     <RouteLegend segments={[route]} colorFriendly={prefs.colorFriendly}/>
+                    <OfficialConditions conditions={route.officialConditions} onAvoid={avoidOfficialCondition} avoiding={conditionDetourState.status==='loading'}/>
+                    {conditionDetourState.status==='loading'&&<p role="status">正在尋找繞路… <button type="button" onClick={()=>conditionDetourSearch.current.cancel()}>取消</button></p>}
+                    {conditionDetourState.status==='error'&&<p role="status">{conditionDetourState.message}</p>}
+                    {route.conditionDetour&&<p className="quiet-note" role="note">已規劃避開 {route.conditionDetour.targets.length} 筆所選官方紀錄點 10 公尺內的路線；點位與實際路況仍需現場確認。</p>}
+                    {routeCandidates.length > 0 && <section className="route-alternatives" aria-label="選擇路線">
+                      <h3>選擇路線</h3>
+                      <p className="quiet-note">依已知的人行道、路面、坡度、通行紀錄及距離比較。地圖顯示目前選擇的路線，資料不足不代表好走。</p>
+                      {routeCandidates.length===1 && <p className="quiet-note">本次搜尋找到一條可比較的路線。</p>}
+                      {routeCandidates.length>1 && <div className="candidate-sort" role="group" aria-label="路線排序">
+                        <button type="button" aria-pressed={candidateSort==='score'} onClick={()=>setCandidateSort('score')}>較好走優先</button>
+                        <button type="button" aria-pressed={candidateSort==='distance'} onClick={()=>setCandidateSort('distance')}>依距離</button>
+                      </div>}
+                      {sortedRouteCandidates.map((candidate,index)=>{const m=candidate.metrics; const length=v=>Number.isFinite(v)?formatDistance(v):"資料不足"; return <button type="button" className="route-alternative" key={candidate.id ?? index} aria-pressed={selectedRouteCandidate===candidate.id} onClick={()=>selectRouteCandidate(candidate)}>
+                        <strong>路線 {index+1} · {candidate.route.provider==='taipei-official' ? '官方路線' : '本機路線'} · {length(m.distanceMetres)} · 分數 {candidate.score.toFixed(1)}</strong>
+                        <span>明示人行道 {length(m.explicitSidewalkMetres)} · 其他人行路網 {length(m.otherPedestrianMetres)} · 人車共行 {length(m.sharedMetres)}</span>
+                        <span>路寬、坡度、路面或過街資料未知 {length(m.unknownMetres)} · 估算銜接 {length(m.estimatedMetres)}</span>
+                        <span>較顛簸路面 {length(m.roughMetres)} · 較短候選多走 {length(m.detourMetres)}</span>
+                        <span>官方不利通行紀錄（2 公尺內）：{m.officialConditionCount == null ? '資料不足' : `${m.officialConditionCount} 筆`}</span>
+                        {candidate.assumptions?.includes('official-attributes-missing-whole-route-penalty') && <span>官方資料不足，部分路段特徵未計入；評分包含資料缺失扣分。</span>}
+                      </button>;})}
+                    </section>}
                     {(followState.active || !route.viaName) && <button type="button" className="primary full" disabled={routing && !followState.active} onClick={followState.active ? stopFollowing : startFollowing}>
                       <LocateFixed size={20} aria-hidden="true" />{followState.active ? "停止跟隨" : "開始跟隨"}
                     </button>}
@@ -1845,31 +1867,10 @@ export default function App() {
                     )}
                     {route.approaches?.some(p=>p.estimated) && <p className="quiet-note" role="note">位置估算，實際通行狀況未確認；虛線約 {route.approaches.filter(p=>p.estimated).map(p=>p.distance).join('／')} 公尺。</p>}
                     <p className="quiet-note">線條反映已知資料，實際路況請留意現場。</p>
-                    <OfficialConditions conditions={route.officialConditions} onAvoid={avoidOfficialCondition} avoiding={conditionDetourState.status==='loading'}/>
-                    {conditionDetourState.status==='loading'&&<p role="status">正在尋找繞路… <button type="button" onClick={()=>conditionDetourSearch.current.cancel()}>取消</button></p>}
-                    {conditionDetourState.status==='error'&&<p role="status">{conditionDetourState.message}</p>}
-                    {route.conditionDetour&&<p className="quiet-note" role="note">已規劃避開 {route.conditionDetour.targets.length} 筆所選官方紀錄點 10 公尺內的路線；點位與實際路況仍需現場確認。</p>}
                     {route.pedestrianImprovement?.status === 'unsupported-official-provenance' && <p className="quiet-note">使用官方原路；此路線暫無法比較沿線人行道替代路段。</p>}
                     {route.tierSegments?.some(segment => segment.sharedRoad === true) && (
                       <p className="quiet-note" role="note">部分路段可能人車共行，通行與無障礙狀況未確認。</p>
                     )}
-                    {routeCandidates.length > 0 && <section className="route-alternatives" aria-label="選擇路線">
-                      <h3>選擇路線</h3>
-                      <p className="quiet-note">分數僅供比較，不代表安全保證。地圖顯示目前選擇的路線。</p>
-                      {routeCandidates.length===1 && <p className="quiet-note">本次搜尋找到一條可比較的路線。</p>}
-                      {routeCandidates.length>1 && <div className="candidate-sort" role="group" aria-label="路線排序">
-                        <button type="button" aria-pressed={candidateSort==='score'} onClick={()=>setCandidateSort('score')}>依分數</button>
-                        <button type="button" aria-pressed={candidateSort==='distance'} onClick={()=>setCandidateSort('distance')}>依距離</button>
-                      </div>}
-                      {sortedRouteCandidates.map((candidate,index)=>{const m=candidate.metrics; const length=v=>Number.isFinite(v)?formatDistance(v):"資料不足"; return <button type="button" className="route-alternative" key={candidate.id ?? index} aria-pressed={selectedRouteCandidate===candidate.id} onClick={()=>selectRouteCandidate(candidate)}>
-                        <strong>路線 {index+1} · {candidate.route.provider==='taipei-official' ? '官方路線' : '本機路線'} · {length(m.distanceMetres)} · 分數 {candidate.score.toFixed(1)}</strong>
-                        <span>明示人行道 {length(m.explicitSidewalkMetres)} · 其他人行路網 {length(m.otherPedestrianMetres)} · 人車共行 {length(m.sharedMetres)}</span>
-                        <span>路寬、坡度、路面或過街資料未知 {length(m.unknownMetres)} · 估算銜接 {length(m.estimatedMetres)}</span>
-                        <span>較顛簸路面 {length(m.roughMetres)} · 較短候選多走 {length(m.detourMetres)}</span>
-                        <span>官方不利通行紀錄（2 公尺內）：{m.officialConditionCount == null ? '資料不足' : `${m.officialConditionCount} 筆`}</span>
-                        {candidate.assumptions?.includes('official-attributes-missing-whole-route-penalty') && <span>官方資料不足，部分路段特徵未計入；評分包含資料缺失扣分。</span>}
-                      </button>;})}
-                    </section>}
                     <p className="quiet-note">{route.provider === "mapped-pedestrian" ? "路網參考路線" : route.provider === "local-verified" ? "另一條人行路線" : route.provider === "local-detour" ? "已改走避開施工的人行路線" : route.provider === "taipei-official" ? "臺北市無障礙通行路線圖台回傳" : "離線人行路網參考"}</p>
                     {route.costBreakdown && <p className="quiet-note">這條路依距離、路況資料、坡度與寬度等條件綜合比較；資料未知不代表無障礙。</p>}
                     {route.unknownPct > 0 && <p className="quiet-note">路寬／坡度：尚無完整資料{Number.isFinite(route.unknownWidthMetres) && Number.isFinite(route.unknownSlopeMetres) ? `（路網中約 ${Math.round(route.unknownWidthMetres)} 公尺寬度未知、${Math.round(route.unknownSlopeMetres)} 公尺坡度未知）` : ''}。</p>}

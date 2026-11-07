@@ -3,7 +3,7 @@ import L from "leaflet";
 import "leaflet-rotate";
 import { category, cleanName, labels } from "./data";
 import { BASEMAPS } from "./basemaps.mjs";
-import { ROUTE_CONDITIONS, conditionForSegment } from "./route-conditions.mjs";
+import { ROUTE_CONDITIONS, conditionForSegment, fallbackRouteCondition } from "./route-conditions.mjs";
 import { TPColors } from "./tp-colors.mjs";
 import { focusOffsetForInset, groupMarkers, isMetroStation, metroExitLabelForAccessibility, selectMapMarkers } from "./marker-layout.mjs";
 import { useSidewalkLayer } from "./use-sidewalk-layer.js";
@@ -434,10 +434,10 @@ export default function MapView({
         opacity: 1,
       }).addTo(path.current);
       if(route.tierSegments?.length){
-        for(const segment of route.tierSegments){const style=ROUTE_CONDITIONS[conditionForSegment(segment)];const line=L.polyline(segment.coordinates,{color:colorFriendly?TPColors.primary900:style.color,weight:8,dashArray:style.dash,opacity:1}).addTo(path.current);if(segment.sharedRoad===true)line.bindTooltip(`${style.label}；請留意車輛及現場通行狀況`);}
+        for(const segment of route.tierSegments){const style=ROUTE_CONDITIONS[conditionForSegment(segment)];const line=L.polyline(segment.coordinates,{color:colorFriendly?TPColors.primary900:style.color,weight:8,dashArray:style.dash,opacity:1}).addTo(path.current);if(segment.sharedRoad===true)line.bindTooltip(`${style.label}；請留意車輛及現場通行狀況`);if(segment.nearbyOfficialCondition===true)L.polyline(segment.coordinates,{color:'#7036a3',weight:4,dashArray:'3 4',opacity:1}).bindTooltip('附近有官方不利通行紀錄，位置及影響未確認').addTo(path.current);}
       }else {
         // The online response does not certify width or slope.
-        const style=ROUTE_CONDITIONS.unknown;
+        const style=ROUTE_CONDITIONS[fallbackRouteCondition(route)];
         L.polyline(route.networkCoordinates||route.coordinates,{color:colorFriendly?TPColors.primary900:style.color,weight:8,dashArray:style.dash,opacity:1}).addTo(path.current);
       }
       for (const crossing of route.crossingUncertainties || []) {
@@ -462,9 +462,9 @@ export default function MapView({
       bounds.push(...segment.coordinates);
       L.polyline(segment.networkCoordinates,{color:TPColors.white,weight:10,opacity:1}).addTo(partialPath.current);
       if(segment.tierSegments.length){
-        for(const tier of segment.tierSegments){const style=ROUTE_CONDITIONS[conditionForSegment(tier)];L.polyline(tier.coordinates,{color:colorFriendly?TPColors.primary900:style.color,weight:5,dashArray:style.dash,opacity:1}).addTo(partialPath.current);}
+        for(const tier of segment.tierSegments){const style=ROUTE_CONDITIONS[conditionForSegment(tier)];L.polyline(tier.coordinates,{color:colorFriendly?TPColors.primary900:style.color,weight:5,dashArray:style.dash,opacity:1}).addTo(partialPath.current);if(tier.nearbyOfficialCondition===true)L.polyline(tier.coordinates,{color:'#7036a3',weight:3,dashArray:'3 4',opacity:1}).bindTooltip('附近有官方不利通行紀錄，位置及影響未確認').addTo(partialPath.current);}
       }else{
-        const style=ROUTE_CONDITIONS.unknown;L.polyline(segment.networkCoordinates,{color:colorFriendly?TPColors.primary900:style.color,weight:5,dashArray:style.dash,opacity:1}).addTo(partialPath.current);
+        const style=ROUTE_CONDITIONS[fallbackRouteCondition(segment)];L.polyline(segment.networkCoordinates,{color:colorFriendly?TPColors.primary900:style.color,weight:5,dashArray:style.dash,opacity:1}).addTo(partialPath.current);
       }
       for(const crossing of segment.crossingUncertainties||[]){const coords=crossing.coordinates;if(!Array.isArray(coords)||coords.length<2||!coords.every(p=>Array.isArray(p)&&p.length>=2&&Number.isFinite(p[0])&&Number.isFinite(p[1])))continue;L.polyline(coords,{color:TPColors.primary900,weight:3,dashArray:'2 5',opacity:.9}).bindTooltip('OSM 過街位置，官方資料未完整確認').addTo(partialPath.current);}
       for(const approach of segment.approaches){const style=ROUTE_CONDITIONS.approach;L.polyline(approach.coordinates,{color:TPColors.white,weight:8,opacity:1}).addTo(partialPath.current);const l=L.polyline(approach.coordinates,{color:colorFriendly?TPColors.primary900:style.color,weight:4,dashArray:style.dash}).addTo(partialPath.current);if(approach.estimated)l.bindTooltip('入口銜接為位置估算，實際通行狀況未確認');}
