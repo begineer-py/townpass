@@ -186,7 +186,10 @@ export default function MapView({
     }
     const m = map.current;
     const pane =
-      m.getPane("official-sidewalks") || m.createPane("official-sidewalks");
+      m.getPane("official-sidewalks") ||
+      // 地圖可旋轉時，底圖在 rotatePane（z-index 400）裡；通行線也要放進同一層，
+      // 否則會被底圖蓋住，且不會跟著地圖旋轉。
+      m.createPane("official-sidewalks", m.getPane("rotatePane") || undefined);
     pane.style.zIndex = "350";
     pane.style.pointerEvents = "none";
     const renderer = L.canvas({ pane: "official-sidewalks", padding: 0.25 });

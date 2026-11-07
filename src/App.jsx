@@ -320,7 +320,13 @@ export default function App() {
     return Object.prototype.hasOwnProperty.call(BASEMAPS, v) ? v : "street";
   });
   const [basemapStatus, setBasemapStatus] = useState("loading");
-  const [showOfficialSidewalk, setShowOfficialSidewalk] = useState(false);
+  // 官方通行線（人行道）預設顯示；使用者關掉後會記住。
+  const [showOfficialSidewalk, setShowOfficialSidewalk] = useState(() =>
+    readSaved("hhz-show-sidewalk", true),
+  );
+  useEffect(() => {
+    saveLocal("hhz-show-sidewalk", showOfficialSidewalk);
+  }, [showOfficialSidewalk]);
   const [officialSidewalkStatus, setOfficialSidewalkStatus] = useState("idle");
   const [layersOpen, setLayersOpen] = useState(false),
     layersRef = useRef();
