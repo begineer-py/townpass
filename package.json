@@ -10,11 +10,13 @@
     "test": "node --test tests/*.test.mjs",
     "data:sync": "python scripts/sync_data.py",
     "data:graph": "python scripts/build_graph.py",
-    "data:pack": "python scripts/pack_data.py"
+    "data:pack": "python scripts/pack_data.py",
+    "data:map-index": "node scripts/build-landmarks.mjs && node scripts/build-facility-tiles.mjs"
   },
   "dependencies": {
     "fflate": "^0.8.3",
     "leaflet": "1.9.4",
+    "leaflet-rotate": "0.2.8",
     "lucide-react": "^0.468.0",
     "proj4": "^2.22.0",
     "react": "^19.0.0",

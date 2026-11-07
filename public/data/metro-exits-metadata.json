@@ -1,0 +1,31 @@
+{
+  "sources": {
+    "coordinates": {
+      "url": "https://data.taipei/api/dataset/cfa4778c-62c1-497b-b704-756231de348b/resource/307a7f61-e302-4108-a817-877ccbfca7c1/download",
+      "sha256": "134d8488c240fb23e04535db6a94da73006f890c83617eeedaa9b26c9f120015"
+    },
+    "access": {
+      "url": "https://data.taipei/api/dataset/19a3a425-1b95-4e72-a1c4-9eadaef52fc9/resource/c6582350-0d86-437f-b912-29486f4c00a6/download",
+      "sha256": "04e38c8278caa2ec002973b1acf7ddd283447c4585afe5cb5fdba916cbba2bad"
+    }
+  },
+  "stationIndex": {
+    "url": "https://web.metro.taipei/pages2026/WebStation/076/8",
+    "sha256": "1f3723390a3c1d392f7b26b75b4bac50a4d8617c06d4b7e6053804719f1bfba0",
+    "fallbackSourceId": "wheel-20",
+    "facilitiesSha256": "914e019fa1b52f4ed44da95dd265a2568127ec787a566e345a8077fe82bf541c"
+  },
+  "sourceRows": {
+    "coordinates": 390,
+    "access": 365
+  },
+  "outputRows": 390,
+  "matching": {
+    "matched": 360,
+    "elevator_confirmed": 162,
+    "different_access_and_elevator_fields": 10,
+    "unmatched": 30,
+    "unlocated_access_rows": 5,
+    "with_station_codes": 390
+  }
+}

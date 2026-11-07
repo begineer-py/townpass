@@ -1,11 +1,20 @@
 import { useEffect, useRef } from "react";
 import L from "leaflet";
-import { category, cleanName } from "./data";
+import "leaflet-rotate";
+import { category, cleanName, labels } from "./data";
 import { BASEMAPS } from "./basemaps.mjs";
 import { ROUTE_CONDITIONS, conditionForSegment } from "./route-conditions.mjs";
 import { TPColors } from "./tp-colors.mjs";
+import { focusOffsetForInset, groupMarkers, isMetroStation, metroExitLabelForAccessibility, selectMapMarkers } from "./marker-layout.mjs";
+import { useSidewalkLayer } from "./use-sidewalk-layer.js";
+import { metroExitIconUrl, metroExitLabel } from "./metro-exits.mjs";
+import { metroStationCodes, metroStationIconUrl } from "./metro-station-icons.mjs";
+import { mapIconElement } from "./map-icons.mjs";
 import { mapPickPoint } from "./location.js";
 const colors = {
+  place: TPColors.orange700,
+  bus: TPColors.primary900,
+  entrance: TPColors.grayscale700,
   elevator: TPColors.primary700,
   toilet: TPColors.grayscale700,
   rest: TPColors.secondary800,
@@ -17,6 +26,14 @@ const colors = {
   parking: TPColors.grayscale600,
   health: TPColors.red700,
 };
+const iconKind = (kind) => ({ place: "store", "public-toilet": "toilet" })[kind] || kind;
+const isMetroExit = (p) => p.kind === "metro-elevator" || p.kind === "metro-exit";
+const markerKindLabel = (p) => p.kind === "metro-exit"
+  ? metroExitLabelForAccessibility(p)
+  : labels[category(p)] || "地點";
+const pinScale = (zoom) => Math.min(1.15, Math.max(0.9, 1 + (zoom - 18) * 0.13));
+const hasLabel = (p) => p.landmark || ["place", "friendly"].includes(category(p));
+const labelWidth = (name) => Math.min(99, [...name].reduce((w, ch) => w + (ch.charCodeAt(0) > 0x2e80 ? 11 : 6.5), 0)) + 4;
 function drawOfficialConditions(group,conditions){
   for(const point of conditions?.points||[]){
     if(!Number.isFinite(point.lat)||!Number.isFinite(point.lon))continue;
@@ -26,6 +43,7 @@ function drawOfficialConditions(group,conditions){
 }
 export default function MapView({
   items,
+  recentPlaces = [],
   route,
   partialRoute,
   constructionConflict,
@@ -38,13 +56,16 @@ export default function MapView({
   focus,
   pick,
   basemap = "street",
+  showOfficialSidewalk = true,
   colorFriendly = false,
   onBasemapStatus,
+  onOfficialSidewalkStatus,
   onPick,
   onSelect,
   onViewport,
   onMapReady,
   onGesture,
+  onBearing,
   getBottomInset,
   sheetSnap,
 }) {
@@ -58,9 +79,12 @@ export default function MapView({
     nearby = useRef(),
     ends = useRef();
   const baseLayers = useRef([]);
+  const markerData = useRef({ items, recentPlaces, colorFriendly });
+  const markerRedraw = useRef();
+  markerData.current = { items, recentPlaces, colorFriendly };
   const paddingReader=useRef(getBottomInset);paddingReader.current=getBottomInset;
-  const cb = useRef({ onPick, onSelect, onViewport, onGesture, onNearbySelect, pick });
-  cb.current = { onPick, onSelect, onViewport, onGesture, onNearbySelect, pick };
+  const cb = useRef({ onPick, onSelect, onViewport, onGesture, onNearbySelect, onBearing, pick });
+  cb.current = { onPick, onSelect, onViewport, onGesture, onNearbySelect, onBearing, pick };
   useEffect(() => {
     const m = L.map(root.current, {
       zoomControl: false,
@@ -68,8 +92,11 @@ export default function MapView({
       minZoom: 11,
       maxZoom: 19,
       zoomAnimation: !matchMedia("(prefers-reduced-motion: reduce)").matches,
+      rotate: true, touchRotate: true, shiftKeyRotate: true, rotateControl: false, bearing: 0,
     }).setView([25.0478, 121.517], 15);
     map.current = m;
+    if (import.meta.env.DEV) window.__haohaoMap = m;
+    m.attributionControl?.setPrefix(false);
     marks.current = L.layerGroup().addTo(m);
     path.current = L.layerGroup().addTo(m);
     partialPath.current = L.layerGroup().addTo(m);
@@ -88,6 +115,11 @@ export default function MapView({
       });
     };
     m.on("moveend", viewport);
+    const scale = (zoom) => root.current?.style.setProperty("--pin-scale", pinScale(zoom).toFixed(3));
+    scale(m.getZoom());
+    m.on("zoomanim", (event) => scale(event.zoom));
+    m.on("zoomend", () => scale(m.getZoom()));
+    m.on("rotate", () => cb.current.onBearing?.(m.getBearing()));
     m.on("click", (e) => {
       if (cb.current.pick)
         cb.current.onPick(mapPickPoint(e.latlng.lat,e.latlng.lng,cb.current.pick));
@@ -112,6 +144,7 @@ export default function MapView({
       m.remove();
     };
   }, []);
+  useSidewalkLayer(map, location, showOfficialSidewalk, onOfficialSidewalkStatus);
   useEffect(() => {
     if (!map.current) return;
     const m = map.current,
@@ -121,29 +154,56 @@ export default function MapView({
     root.current?.removeAttribute("data-tile-error");
     onBasemapStatus?.("loading");
     let failed = false;
-    const base = L.tileLayer(spec.url, {
-      maxZoom: 19,
-      maxNativeZoom: 19,
-      attribution: spec.attribution,
-      zIndex: 1,
-    });
-    base.on("loading", () => {
-      failed = false;
-      onBasemapStatus?.("loading");
-    });
-    base.on("tileerror", () => {
-      failed = true;
-      onBasemapStatus?.("error");
-      root.current?.setAttribute("data-tile-error", "true");
-    });
-    base.on("load", () => {
-      if (!failed) {
-        root.current?.removeAttribute("data-tile-error");
-        onBasemapStatus?.("ready");
+    const watch = (layer) => {
+      layer.on("loading", () => {
+        failed = false;
+        onBasemapStatus?.("loading");
+      });
+      layer.on("tileerror", () => {
+        failed = true;
+        onBasemapStatus?.("error");
+        root.current?.setAttribute("data-tile-error", "true");
+      });
+      layer.on("load", () => {
+        if (!failed) {
+          root.current?.removeAttribute("data-tile-error");
+          onBasemapStatus?.("ready");
+        }
+      });
+      layer.addTo(m);
+      baseLayers.current.push(layer);
+    };
+    // spec.close：放大到 minZoom 以上改用另一組圖磚（例如不印店名的底圖）。
+    const close = spec.close;
+    watch(
+      L.tileLayer(spec.url, {
+        maxZoom: close ? close.minZoom - 1 : 19,
+        maxNativeZoom: 19,
+        attribution: spec.attribution,
+        zIndex: 1,
+      }),
+    );
+    if (close) {
+      watch(
+        L.tileLayer(close.url, {
+          minZoom: close.minZoom,
+          maxZoom: 19,
+          maxNativeZoom: 19,
+          attribution: close.attribution,
+          zIndex: 1,
+        }),
+      );
+      if (close.overlay) {
+        const roads = L.tileLayer(close.overlay, {
+          minZoom: close.minZoom,
+          maxZoom: 19,
+          maxNativeZoom: 19,
+          zIndex: 2,
+        });
+        roads.addTo(m);
+        baseLayers.current.push(roads);
       }
-    });
-    base.addTo(m);
-    baseLayers.current.push(base);
+    }
     if (spec.overlay) {
       const overlay = L.tileLayer(spec.overlay, {
         maxZoom: 19,
@@ -163,57 +223,161 @@ export default function MapView({
     };
   }, [basemap]);
   useEffect(() => {
-    if (!marks.current) return;
-    marks.current.clearLayers();
-    const m = map.current,
-      b = m.getBounds();
-    const visible = items.filter((p) => b.contains([p.lat, p.lon]));
-    const cell = m.getZoom() < 14 ? 75 : 55,
-      buckets = new Map();
-    for (const p of visible) {
-      const pos = m.latLngToContainerPoint([p.lat, p.lon]),
-        key = `${Math.floor(pos.x / cell)}:${Math.floor(pos.y / cell)}`;
-      if (!buckets.has(key)) buckets.set(key, []);
-      buckets.get(key).push(p);
-    }
-    for (const bucket of buckets.values()) {
-      const p = bucket[0],
-        count = bucket.length,
-        color = colorFriendly ? TPColors.primary900 : colors[category(p)] || TPColors.primary700;
-      const marker = L.circleMarker([p.lat, p.lon], {
-        radius: count > 1 || colorFriendly ? 12 : 6,
-        color: TPColors.white,
-        weight: 2,
-        fillColor: color,
-        fillOpacity: 0.96,
-      }).addTo(marks.current);
-      const tip = document.createElement("span");
-      tip.textContent = cleanName(p.name);
-      if (count > 1) {
-        const label = document.createElement("span");
-        label.textContent = count;
-        marker.bindTooltip(label, {
-          permanent: true,
-          direction: "center",
-          className: "cluster-label",
+    const m = map.current;
+    if (!m || !marks.current) return;
+    let openPopup = null;
+    let redrawPending = false;
+    let rotationTimer;
+    let redrawTimer;
+    const renderMarkers = () => {
+      // The popup can pan the map. Keep its source marker until the user
+      // chooses or closes it, then draw the new viewport.
+      if (openPopup) { redrawPending = true; return; }
+      marks.current.clearLayers();
+      const bounds = m.getBounds();
+      const visible = [];
+      for (const p of selectMapMarkers(markerData.current.items, markerData.current.recentPlaces, m.getZoom())) {
+        if (!Number.isFinite(p.lat) || !Number.isFinite(p.lon) || !bounds.contains([p.lat, p.lon])) continue;
+        const pos = m.latLngToContainerPoint([p.lat, p.lon]);
+        visible.push({ p, x: pos.x, y: pos.y });
+      }
+      // Keep the newest Apple pin size/scale while grouping only overlapping
+      // icons. Each group is anchored at one of its real locations.
+      const size = Math.ceil(32 * pinScale(m.getZoom()));
+      const groups = groupMarkers(visible, size);
+      const boxes = groups.map(({ x, y }) => ({ x0: x - size / 2, x1: x + size / 2, y0: y - size / 2, y1: y + size / 2 }));
+      const labelled = new Set();
+      const scale = pinScale(m.getZoom());
+      const center = m.getSize().divideBy(2);
+      groups.filter((g) => g.points.length === 1 && hasLabel(g.points[0].p) && cleanName(g.points[0].p.name))
+        .sort((a, b) => Number(!!b.points[0].p.landmark) - Number(!!a.points[0].p.landmark) ||
+          Math.hypot(a.x - center.x, a.y - center.y) - Math.hypot(b.x - center.x, b.y - center.y))
+        .forEach((g) => {
+          const p = g.points[0].p, half = labelWidth(cleanName(p.name)) * scale / 2;
+          const top = g.y + (p.landmark ? 17 : 15) * scale;
+          const box = { x0: g.x - half, x1: g.x + half, y0: top, y1: top + 15 * scale };
+          if (boxes.some((other) => box.x0 < other.x1 && box.x1 > other.x0 && box.y0 < other.y1 && box.y1 > other.y0)) return;
+          boxes.push(box);
+          labelled.add(p);
         });
-        marker.on("click", () =>
-          m.setView([p.lat, p.lon], Math.min(19, m.getZoom() + 2)),
-        );
-      } else {
-        if (colorFriendly) {
-          const label = document.createElement('span');
-          label.textContent = ({elevator:'梯',toilet:'廁','public-toilet':'廁',rest:'休',water:'水',park:'園',ramp:'坡',station:'站',friendly:'店',parking:'停',bus:'車',health:'醫'})[category(p)] || '點';
-          marker.bindTooltip(label, {permanent:true,direction:'center',className:'cluster-label'});
-        } else marker.bindTooltip(tip, { direction: "top" });
-        marker.on("click", (ev) => {
-          L.DomEvent.stopPropagation(ev);
-          if (cb.current.pick) cb.current.onPick(p);
-          else cb.current.onSelect(p);
+      for (const { points } of groups) {
+        const p = points[0].p, kind = category(p), multiple = points.length > 1;
+        const name = cleanName(p.name) || labels[kind] || "地點";
+        const color = markerData.current.colorFriendly ? TPColors.primary900 : colors[kind] || TPColors.primary700;
+        const face = document.createElement("span");
+        face.style.setProperty("--pin", color);
+        const stationIcon = isMetroStation(p) ? metroStationIconUrl(metroStationCodes(p.name)[0]) : "";
+        const exitIcon = p.kind === "metro-exit" && m.getZoom() >= 16 ? metroExitIconUrl(p) : "";
+        if (p.kind === "metro-exit" && m.getZoom() >= 16) face.classList.add("metro-exit-face");
+        if (stationIcon) {
+          face.classList.add("metro-station-face");
+          const img = document.createElement("img"); img.src = stationIcon; img.alt = ""; face.appendChild(img);
+        } else if (exitIcon) {
+          face.classList.add("has-exit-icon");
+          const img = document.createElement("img"); img.src = exitIcon; img.alt = ""; face.appendChild(img);
+        } else if (p.kind === "metro-exit" && m.getZoom() >= 16 && metroExitLabel(p) !== "梯") {
+          face.textContent = metroExitLabel(p);
+        } else {
+          face.classList.add("has-glyph"); face.appendChild(mapIconElement(m.getZoom() < 16 && isMetroExit(p) ? "place" : p.kind === "metro-exit" ? "entrance" : p.kind === "metro-elevator" ? "elevator" : iconKind(kind), 16));
+        }
+        const body = document.createElement("div");
+        body.className = "pin-body";
+        body.appendChild(face);
+        if (p.kind === "metro-exit" && m.getZoom() >= 16) {
+          const stationBadge = metroStationIconUrl(p.stationCode);
+          if (stationBadge) {
+            const img = document.createElement("img");
+            img.className = "metro-station-badge"; img.src = stationBadge; img.alt = "";
+            body.classList.add("has-station-badge");
+            body.appendChild(img);
+          }
+          if (p.elevator === true) {
+            const lift = document.createElement("div");
+            lift.className = "metro-lift-badge"; lift.appendChild(mapIconElement("elevator", 11));
+            body.appendChild(lift);
+          }
+        }
+        if (multiple) {
+          const more = document.createElement("i"); more.textContent = "+"; more.setAttribute("aria-hidden", "true"); body.appendChild(more);
+        } else if (labelled.has(p)) {
+          const label = document.createElement("div"); label.className = "pin-label"; label.textContent = name; body.appendChild(label);
+        }
+        const marker = L.marker([p.lat, p.lon], {
+          title: multiple ? "選擇鄰近設施" : `${markerKindLabel(p)}：${name}`,
+          icon: L.divIcon({
+            className: p.kind === "metro-exit" && m.getZoom() >= 16 ? "fac-pin metro-exit-pin" : p.landmark ? "fac-pin landmark" : "fac-pin",
+            html: body, iconSize: p.landmark ? [32, 32] : [28, 28], iconAnchor: p.landmark ? [16, 16] : [14, 14],
+          }),
+        }).addTo(marks.current);
+        if (!labelled.has(p)) {
+          const tip = document.createElement("span"); tip.textContent = multiple ? "選擇鄰近設施" : name;
+          marker.bindTooltip(tip, { direction: "top", offset: [0, -14] });
+        }
+        marker.on("click", (event) => {
+          L.DomEvent.stopPropagation(event);
+          if (!multiple) {
+            if (cb.current.pick) cb.current.onPick(p); else cb.current.onSelect(p);
+            return;
+          }
+          cb.current.onGesture?.();
+          const list = document.createElement("div"); list.className = "facility-marker-choices";
+          const heading = document.createElement("strong"); heading.textContent = "選擇設施"; list.append(heading);
+          for (const { p: choice } of points) {
+            const choiceKind = category(choice), button = document.createElement("button"); button.type = "button";
+            const iconUrl = isMetroStation(choice)
+              ? metroStationIconUrl(metroStationCodes(choice.name)[0])
+              : choice.kind === "metro-exit" && m.getZoom() >= 16 ? metroExitIconUrl(choice) : "";
+            const icon = iconUrl ? document.createElement("img") : mapIconElement(iconKind(choiceKind), 16);
+            if (iconUrl) { icon.src = iconUrl; icon.alt = ""; }
+            const text = document.createElement("span");
+            const stationCode = choice.kind === "metro-exit" ? metroStationIconUrl(choice.stationCode) : "";
+            text.textContent = `${markerKindLabel(choice)}：${cleanName(choice.name) || "未命名"}${stationCode ? `（${choice.stationCode}）` : ""}`;
+            button.append(icon, text);
+            if (stationCode) {
+              const station = document.createElement("img"); station.src = stationCode; station.alt = ""; station.className = "metro-choice-station";
+              button.append(station);
+            }
+            button.addEventListener("click", () => {
+              m.closePopup(openPopup);
+              if (cb.current.pick) cb.current.onPick(choice); else cb.current.onSelect(choice);
+            });
+            list.append(button);
+          }
+          L.DomEvent.disableClickPropagation(list);
+          L.DomEvent.disableScrollPropagation(list);
+          const height = m.getSize().y;
+          const bottom = Math.min(Math.max(0, paddingReader.current?.() || 0), Math.max(0, height - 120));
+          const popup = L.popup({
+            maxHeight: Math.max(70, Math.min(260, height - bottom - 100)),
+            autoPanPaddingTopLeft: [16, 16], autoPanPaddingBottomRight: [16, bottom + 16],
+          }).setLatLng(marker.getLatLng()).setContent(list);
+          openPopup = popup;
+          popup.openOn(m);
+          requestAnimationFrame(() => list.querySelector("button")?.focus());
         });
       }
-    }
-  }, [items, focus, colorFriendly]);
+    };
+    const close = (event) => {
+      if (event.popup !== openPopup) return;
+      openPopup = null;
+      if (redrawPending) { redrawPending = false; redrawTimer = setTimeout(renderMarkers, 0); }
+    };
+    const rotate = () => { clearTimeout(rotationTimer); rotationTimer = setTimeout(renderMarkers, 120); };
+    markerRedraw.current = renderMarkers;
+    m.on("moveend", renderMarkers);
+    m.on("rotate", rotate);
+    m.on("popupclose", close);
+    renderMarkers();
+    return () => {
+      clearTimeout(rotationTimer);
+      clearTimeout(redrawTimer);
+      markerRedraw.current = undefined;
+      m.off("moveend", renderMarkers);
+      m.off("rotate", rotate);
+      m.off("popupclose", close);
+    };
+  }, []);
+  useEffect(() => { markerRedraw.current?.(); }, [items, recentPlaces, colorFriendly]);
   useEffect(() => {
     if (!path.current) return;
     path.current.clearLayers();
@@ -326,13 +490,19 @@ export default function MapView({
     }
     [start, end].forEach((p, i) => {
       if (!p) return;
+      const face = document.createElement("span");
+      face.className = i ? "destination" : "origin";
+      const glyph = mapIconElement(i ? "flag" : "start", 16);
+      glyph.classList.add("endpoint-glyph");
+      face.appendChild(glyph);
       const marker = L.marker([p.lat, p.lon], {
         icon: L.divIcon({
           className: "endpoint",
-          html: `<span class="${i ? "destination" : "origin"}">${i ? "終" : "起"}</span>`,
+          html: face,
           iconSize: [32, 40],
           iconAnchor: [16, 38],
         }),
+        title: `${i ? "終點" : "起點"}：${p.name}`,
       }).addTo(ends.current);
       const el = document.createElement("span");
       el.textContent = p.name;
@@ -341,20 +511,27 @@ export default function MapView({
     if (route?.requiresEntryConfirmation) {
       [route.coordinates[0], route.coordinates.at(-1)].forEach((p, i) => {
         const text = i ? "路線終點" : "路線起點";
+        const face = document.createElement("span");
+        face.appendChild(mapIconElement(i ? "flag" : "start", 16));
         L.marker(p, {
           icon: L.divIcon({
             className: "route-entry-marker",
-            html: `<span>${text}</span>`,
-            iconSize: [72, 28],
-            iconAnchor: [36, 14],
+            html: face,
+            iconSize: [28, 28],
+            iconAnchor: [14, 14],
           }),
+          title: text,
         }).addTo(ends.current);
       });
     }
   }, [start, end, route, location]);
   useEffect(() => {
-    if (focus?.lat && map.current)
-      map.current.setView([focus.lat, focus.lon], focus.zoom || 17);
+    if (focus?.lat && map.current) {
+      const m = map.current;
+      m.setView([focus.lat, focus.lon], focus.zoom || 17, { animate: false });
+      const offset = focusOffsetForInset(m.getSize().y, paddingReader.current?.());
+      if (offset) m.panBy([0, offset], { animate: false });
+    }
   }, [focus?.token]);
   return (
     <div

@@ -109,3 +109,31 @@ export async function saveTrips(profileKey, trips) {
   const databaseSaved = await writeRecord("trips", key, trips);
   return fallbackSaved || databaseSaved;
 }
+
+export async function clearLocalData() {
+  try {
+    for (const key of Object.keys(localStorage)) {
+      if (key.startsWith("hhz-")) localStorage.removeItem(key);
+    }
+  } catch {
+    // 無法存取本機儲存空間時略過。
+  }
+  try {
+    const database = await databasePromise;
+    database?.close();
+  } catch {
+    // 資料庫尚未開啟。
+  }
+  databasePromise = undefined;
+  if (!globalThis.indexedDB) return true;
+  return new Promise((resolve) => {
+    try {
+      const request = indexedDB.deleteDatabase(DATABASE_NAME);
+      request.onsuccess = () => resolve(true);
+      request.onerror = () => resolve(false);
+      request.onblocked = () => resolve(false);
+    } catch {
+      resolve(false);
+    }
+  });
+}
