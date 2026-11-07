@@ -1,9 +1,9 @@
 import {category} from './data.js';
-import {isNumberedStationExit} from './metro-exits.mjs';
+import {isNumberedStationExit,isMetroElevatorEntrance} from './metro-exits.mjs';
 
 export const isMetroStation = place => String(place?.kind)==='20';
 export function metroExitLabelForAccessibility(place) {
-  return `捷運出入口${place?.elevator === true ? '（有電梯）' : ''}`;
+  return `捷運出入口${place?.elevator === true || isMetroElevatorEntrance(place) ? '（有電梯）' : ''}`;
 }
 export function focusOffsetForInset(height, bottomInset) {
   const inset=Math.min(Math.max(0,Number(bottomInset)||0),Math.max(0,height-120));

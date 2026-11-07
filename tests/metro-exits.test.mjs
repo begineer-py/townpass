@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isNumberedStationExit, metroExitLabel, metroExitIconUrl } from "../src/metro-exits.mjs";
+import { isNumberedStationExit, isMetroExitSymbol, metroExitLabel, metroExitIconUrl } from "../src/metro-exits.mjs";
 
 test("uses each metro exit's published identifier", () => {
   assert.equal(metroExitLabel({ exit: "M2" }), "M2");
@@ -10,6 +10,21 @@ test("uses each metro exit's published identifier", () => {
 
 test("falls back to the elevator marker when no exit is published", () => {
   assert.equal(metroExitLabel({ name: "捷運站電梯" }), "梯");
+  assert.equal(metroExitLabel({kind:'metro-elevator',name:'台北車站出口電梯2'}), "梯");
+  assert.equal(isMetroExitSymbol({kind:'metro-elevator',name:'捷運站電梯'}), false);
+});
+
+test("numbered metro elevators use the exit symbol while other facilities do not", () => {
+  const lift={kind:'metro-elevator',name:'台北車站出口電梯2',exit:'M4'};
+  assert.equal(isMetroExitSymbol(lift),true);
+  assert.equal(metroExitIconUrl(lift),'./metro-icons/exits/M4.svg');
+  assert.equal(isMetroExitSymbol({kind:'metro-elevator',name:'善導寺站出口電梯',exit:'出口3'}),true);
+  assert.equal(isMetroExitSymbol({kind:'elevator',name:'電梯'}),false);
+  const wheel={kind:'3',sourceId:'wheel-3',name:'台北車站出口電梯2-M4'};
+  assert.equal(isMetroExitSymbol(wheel),true);assert.equal(metroExitIconUrl(wheel),'./metro-icons/exits/M4.svg');
+  assert.equal(metroExitLabel({kind:'3',sourceId:'wheel-3',name:'科技大樓站出口電梯4-出口2'}),'2');
+  assert.equal(isMetroExitSymbol({kind:'3',sourceId:'wheel-3',name:'新埔民生站出口電梯-單一出口'}),false);
+  assert.equal(isMetroExitSymbol({kind:'3',sourceId:'other',name:'台北車站出口電梯2-M4'}),false);
 });
 
 test("exit numbers use the bundled exit icons when one exists", async () => {

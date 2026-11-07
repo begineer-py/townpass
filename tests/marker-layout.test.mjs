@@ -27,6 +27,7 @@ test("focused places stay above the bottom drawer", () => {
 
 test("unknown elevator status is never presented as no elevator", () => {
   assert.equal(metroExitLabelForAccessibility({ elevator: true }), "捷運出入口（有電梯）");
+  assert.equal(metroExitLabelForAccessibility({kind:'3',sourceId:'wheel-3',name:'台北車站出口電梯2-M4'}), "捷運出入口（有電梯）");
   assert.equal(metroExitLabelForAccessibility({ elevator: null }), "捷運出入口");
   assert.equal(metroExitLabelForAccessibility({}), "捷運出入口");
   assert.equal(metroExitLabelForAccessibility({ elevator: false }), "捷運出入口");

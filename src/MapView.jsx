@@ -7,7 +7,7 @@ import { ROUTE_CONDITIONS, conditionForSegment, fallbackRouteCondition } from ".
 import { TPColors } from "./tp-colors.mjs";
 import { focusOffsetForInset, layoutMapMarkers, isMetroStation, metroExitLabelForAccessibility, selectMapMarkers } from "./marker-layout.mjs";
 import { useSidewalkLayer } from "./use-sidewalk-layer.js";
-import { isNumberedStationExit, metroExitIconUrl, metroExitLabel } from "./metro-exits.mjs";
+import { isNumberedStationExit, isMetroElevatorEntrance, isMetroExitSymbol, metroExitIconUrl, metroExitLabel } from "./metro-exits.mjs";
 import { loadSidewalkIssues, visibleSidewalkIssues } from "./official-sidewalks.mjs";
 import { NO_WALK_URLS, UNKNOWN_NO_WALK_URL } from "./issue-icons.mjs";
 import { groupVisibleIssues, hitIssueGroup, issueGroupLabel } from "./issue-presentation.mjs";
@@ -35,7 +35,7 @@ const colors = {
 };
 const iconKind = (kind) => ({ place: "store", "public-toilet": "toilet" })[kind] || kind;
 const isMetroExit = (p) => p.kind === "metro-elevator" || p.kind === "metro-exit" || isNumberedStationExit(p);
-const isExitSymbol = (p) => p.kind === "metro-exit" || isNumberedStationExit(p);
+const isExitSymbol = isMetroExitSymbol;
 const markerKindLabel = (p) => isExitSymbol(p)
   ? metroExitLabelForAccessibility(p)
   : labels[category(p)] || "地點";
@@ -373,7 +373,7 @@ export default function MapView({
             body.classList.add("has-station-badge");
             body.appendChild(img);
           }
-          if (p.elevator === true) {
+          if (p.elevator === true || isMetroElevatorEntrance(p)) {
             const lift = document.createElement("div");
             lift.className = "metro-lift-badge"; lift.appendChild(mapIconElement("elevator", 11));
             body.appendChild(lift);
