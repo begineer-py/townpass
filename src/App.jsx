@@ -52,6 +52,7 @@ import {
   Phone,
 } from "lucide-react";
 import MapView from "./MapView";
+import {ROUTE_TIERS} from "./route-tiers.mjs";
 import VoiceSearch from "./VoiceSearch";
 import {searchVerifiedAlternatives} from "./alternative-routes.mjs";
 import {fetchConstruction} from "./construction-client.mjs";
@@ -1414,6 +1415,7 @@ export default function App() {
                       <p className="quiet-note">順路停靠：{route.viaName}</p>
                     )}
                     {route.approaches?.some(p=>p.estimated) && <p className="quiet-note">電梯出口與人行路網銜接約 {route.approaches.filter(p=>p.estimated).map(p=>p.distance).join('／')} 公尺（位置估算，請確認現場入口）。</p>}
+                    {route.tierSegments?.length>0 && <div className="route-key" aria-label="路段圖例">{Object.entries(ROUTE_TIERS).map(([key,tier])=><span key={key}><svg width="25" height="12" aria-hidden="true"><line x1="1" y1="6" x2="24" y2="6" stroke={tier.color} strokeWidth="3" strokeDasharray={tier.dash}/></svg>{tier.label}</span>)}</div>}
                     <div className="route-summary">
                       <div>
                         <span className="eyebrow">路線預覽</span>

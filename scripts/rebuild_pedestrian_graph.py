@@ -8,12 +8,14 @@ no longer deletes the rest of a footway.
 import gzip
 import json
 import math
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 
 import osmium
 from pyproj import Transformer
 from shapely.geometry import LineString, shape
+from shapely import union_all
 from shapely.ops import transform
 from shapely.strtree import STRtree
 
@@ -55,6 +57,8 @@ class Extract(osmium.SimpleHandler):
         self.blocked = set()
         self.ways = []
         self.segments = []
+        self.ground_roads = []
+        self.separated_roads = 0
 
     def node(self, n):
         lat, lon = n.location.lat, n.location.lon
@@ -78,6 +82,14 @@ class Extract(osmium.SimpleHandler):
         tags = dict(w.tags)
         highway = tags.get("highway")
         if highway not in PED:
+            if highway in {'primary','primary_link','secondary','secondary_link','tertiary','tertiary_link','residential','unclassified','service','living_street','motorway','motorway_link','trunk','trunk_link'}:
+                separated = (tags.get('layer') not in [None,'0']) and ((tags.get('bridge') and tags['bridge']!='no') or (tags.get('tunnel') and tags['tunnel']!='no'))
+                if separated:self.separated_roads+=1
+                else:
+                    refs=[n.ref for n in w.nodes]
+                    for a,b in zip(refs,refs[1:]):
+                        if a in self.coords and b in self.coords:
+                            la,lo=self.coords[a];lb,lob=self.coords[b];self.ground_roads.append([(lo,la),(lob,lb)])
             return
         if (
             tags.get("area") == "yes"
@@ -86,11 +98,13 @@ class Extract(osmium.SimpleHandler):
             or tags.get("wheelchair") == "no"
         ):
             return
-        if (tags.get("bridge") and tags.get("bridge") != "no") or (
+        bridge_sidewalk = highway == "footway" and tags.get("bridge") == "yes" and (tags.get("footway") == "sidewalk" or tags.get("wheelchair") == "yes")
+        if (tags.get("bridge") and tags.get("bridge") != "no" and not bridge_sidewalk) or (
             tags.get("tunnel") and tags.get("tunnel") != "no"
         ):
             return
-        if tags.get("layer") not in [None, "0"] or tags.get("level") not in [None, "0"]:
+        allowed_levels = [None, "0", "1"] if bridge_sidewalk else [None, "0"]
+        if tags.get("layer") not in allowed_levels or tags.get("level") not in allowed_levels:
             return
         local = [self.coords[n.ref] for n in w.nodes if n.ref in self.coords]
         if len(local) < 2:
@@ -117,12 +131,14 @@ class Extract(osmium.SimpleHandler):
                 "layer": tags.get("layer"),
                 "level": tags.get("level"),
                 "bridge": tags.get("bridge"),
+                "footway": tags.get("footway"),
+                "gradeSeparatedPedestrian": bridge_sidewalk,
                 "tunnel": tags.get("tunnel"),
             }
         )
-        ids = [n.ref for n in w.nodes if n.ref in self.coords]
+        ids = [n.ref for n in w.nodes]
         for a, b in zip(ids, ids[1:]):
-            if a == b:
+            if a not in self.coords or b not in self.coords or a == b:
                 continue
             self.segments.append((a, b, index))
 
@@ -135,26 +151,23 @@ def projected_polygon(geometry):
 
 
 def main():
+    os.chdir(ROOT)
     print("reading current masks", flush=True)
     graph = json.loads(gzip.decompress((ROOT / "public/data/graph.json.gz").read_bytes()))
-    areas = [projected_polygon(g) for g in graph["officialAreas"]]
-    crossings = [projected_polygon(g) for g in graph["officialCrossingAreas"]]
+    areas = [projected_polygon(g) for g in graph["officialAreas"]]+[projected_polygon(f["geometry"]) for f in graph.get("supplementalEvidence",{}).get("features",[])]
+    crossings = [projected_polygon(g) for g in graph["officialCrossingAreas"]]+[projected_polygon(f["geometry"]) for f in graph.get("supplementalEvidence",{}).get("features",[]) if f["crossing"]]
     area_tree = STRtree(areas)
     cross_tree = STRtree(crossings)
-    roads = []
-    for line in graph["roadGeometries"]:
-        if len(line) < 2:
-            continue
-        xs, ys = project.transform(*zip(*line))
-        roads.append(LineString(zip(xs, ys)))
-    road_tree = STRtree(roads)
-    print("roads", len(roads), "areas", len(areas), "crossings", len(crossings), flush=True)
-
-    print("reading OSM footways", flush=True)
+    print("reading OSM footways and road levels", flush=True)
     extract = Extract()
-    extract.apply_file(str(ROOT / "data/raw/taiwan.osm.pbf"))
-    print("segments", len(extract.segments), "ways", len(extract.ways), flush=True)
-
+    extract.apply_file("data/raw/taiwan.osm.pbf")
+    print("segments", len(extract.segments), "ways", len(extract.ways), "grade separated vehicle ways",extract.separated_roads,flush=True)
+    roads=[]
+    for line in extract.ground_roads:
+        xs,ys=project.transform(*zip(*line));roads.append(LineString(zip(xs,ys)))
+    road_tree=STRtree(roads)
+    graph['roadLevelAudit']={'groundSegments':len(extract.ground_roads),'gradeSeparatedVehicleWays':extract.separated_roads}
+    graph.pop('groundRoadGeometries',None)
     kept = []
     cut = 0
     for count, (a, b, way_index) in enumerate(extract.segments):
@@ -164,13 +177,13 @@ def main():
         lat2, lon2 = extract.coords[b]
         x1, y1 = project.transform(lon1, lat1)
         x2, y2 = project.transform(lon2, lat2)
-        if math.hypot(x2 - x1, y2 - y1) < 0.4:
+        if math.hypot(x2 - x1, y2 - y1) < 0.001:
             continue
         line = LineString([(x1, y1), (x2, y2)])
         way = extract.ways[way_index]
         hits = [int(i) for i in road_tree.query(line, predicate="intersects")]
         pieces = [line]
-        if hits and not way["crossing"]:
+        if hits and not way["crossing"] and not way["gradeSeparatedPedestrian"]:
             # Touching a road at an endpoint is the curb. Only a vehicle way
             # crossing the interior is removed, so neighbouring crossings stay joined.
             crosses = False
@@ -186,15 +199,11 @@ def main():
                 cut += 1
         for piece in pieces:
             area_hits = area_tree.query(piece, predicate="intersects")
-            overlap = 0
-            for index in area_hits:
-                overlap += piece.intersection(areas[int(index)]).length
+            overlap = union_all([piece.intersection(areas[int(index)]) for index in area_hits]).length
             length = piece.length
             coverage = min(1, overlap / length) if length else 0
             cross_hits = cross_tree.query(piece, predicate="intersects")
-            cross_overlap = 0
-            for index in cross_hits:
-                cross_overlap += piece.intersection(crossings[int(index)]).length
+            cross_overlap = union_all([piece.intersection(crossings[int(index)]) for index in cross_hits]).length
             crossing_coverage = min(1, cross_overlap / length) if length else 0
             coordinates = [unproject.transform(x, y) for x, y in piece.coords]
             kept.append(
@@ -208,47 +217,31 @@ def main():
                         "crossingCoverage": round(crossing_coverage, 4),
                         "roadCrossingVerified": True,
                         "crossingVerified": True,
+                        "gradeSeparatedPedestrian": way["gradeSeparatedPedestrian"],
                     },
+                    (a, b),
                 )
             )
         if count and count % 40000 == 0:
             print("checked", count, "kept", len(kept), "cut", cut, flush=True)
 
-    nodes = {}
-    blockers = []
-    for node_id in extract.blocked:
-        if node_id in extract.coords:
-            blockers.append(extract.coords[node_id])
-
-    def node_index(lat, lon, blocked=0):
-        key = (round(lat, 7), round(lon, 7))
-        found = nodes.get(key)
-        if found is None:
-            index = len(nodes)
-            nodes[key] = (index, blocked)
-            return index
-        return found[0]
-
-    edges = []
-    for coordinates, way_index, evidence in kept:
-        ids = [node_index(lat, lon) for lon, lat in coordinates]
-        start = ids[0]
-        length = 0
-        previous = coordinates[0]
-        for lon, lat in coordinates[1:]:
-            length += metres((previous[1], previous[0]), (lat, lon))
-            previous = (lon, lat)
-        end = ids[-1]
-        if start == end or length <= 0:
-            continue
-        middle = [[round(lat, 7), round(lon, 7)] for lon, lat in coordinates[1:-1]]
-        edges.append([start, end, round(length, 1), way_index, middle, evidence])
-    for lat, lon in blockers:
-        key = (lat, lon)
-        if key not in nodes:
-            nodes[key] = (len(nodes), 1)
-    ordered = sorted(nodes.items(), key=lambda item: item[1][0])
-    graph["nodes"] = [[lat, lon, blocked] for (lat, lon), (_, blocked) in ordered]
+    nodes = {}; ordered=[]
+    def node_index(osm_id):
+        if osm_id not in nodes:
+            lat,lon=extract.coords[osm_id];nodes[osm_id]=len(ordered)
+            ordered.append([lat,lon,int(osm_id in extract.blocked),osm_id])
+        return nodes[osm_id]
+    edges=[]
+    for coordinates,way_index,evidence,source_nodes in kept:
+        start,end=[node_index(i) for i in source_nodes]
+        length=sum(metres((a[1],a[0]),(b[1],b[0])) for a,b in zip(coordinates,coordinates[1:]))
+        if start==end or length<.001:continue
+        middle=[[round(lat,7),round(lon,7)] for lon,lat in coordinates[1:-1]]
+        edges.append([start,end,round(length,4),way_index,middle,evidence])
+    for osm_id in extract.blocked:
+        if osm_id in extract.coords:node_index(osm_id)
+    graph["nodes"]=ordered
+    graph["nodeIdentity"]="OSM node ID; coincident coordinates do not create connectivity"
     graph["edges"] = edges
     graph["ways"] = extract.ways
     graph["generatedAt"] = datetime.now(timezone.utc).isoformat()
@@ -257,7 +250,7 @@ def main():
     graph["officialPathEvidence"]["method"] = (
         "OSM footway/path/pedestrian/corridor; vehicle centre lines excluded; "
         "untagged road crossings cut; mapped crossings and official crossing polygons kept; "
-        "official overlap is a preference, not a reason to delete the footway"
+        "explicit bridge sidewalks retained with original OSM node identities; official overlap is a preference"
     )
     out = ROOT / "public/data/graph.json.gz"
     temporary = out.with_suffix(".json.gz.next")

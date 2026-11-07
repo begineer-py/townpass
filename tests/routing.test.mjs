@@ -177,7 +177,7 @@ test("a nearby elevator maintenance point makes the router take the longer sidew
     125,
   );
 });
-test("official evidence influences route choice without claiming known slope", () => {
+test("tier weighting can choose a much shorter OSM path without claiming known slope", () => {
   const graph = {
     ...g,
     officialPathEvidence: { schemaVersion: 2, integratedAt: "2026-11-07" },
@@ -188,7 +188,8 @@ test("official evidence influences route choice without claiming known slope", (
     ]),
   };
   const result = createRouter(graph)(g.nodes[0], g.nodes[1]);
-  assert.equal(result.distance, 64);
-  assert.equal(result.officialCoveragePct, 100);
+  assert.equal(result.distance, 20);
+  assert.equal(result.officialCoveragePct, 0);
+  assert.equal(createRouter(graph)(g.nodes[0],g.nodes[1],{officialOnly:true}).distance,64);
   assert.equal(result.unknownPct, 100);
 });

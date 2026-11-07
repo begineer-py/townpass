@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import L from "leaflet";
 import { category, cleanName } from "./data";
 import { BASEMAPS } from "./basemaps.mjs";
+import { ROUTE_TIERS } from "./route-tiers.mjs";
 import { TPColors } from "./tp-colors.mjs";
 const colors = {
   elevator: TPColors.primary700,
@@ -206,18 +207,14 @@ export default function MapView({
         weight: 10,
         opacity: 1,
       }).addTo(path.current);
-      L.polyline(route.networkCoordinates || route.coordinates, {
-        color: TPColors.primary700,
-        weight: 6,
-        opacity: 1,
-        lineCap: "round",
-        dashArray: route.requiresEntryConfirmation ? "8 6" : undefined,
-      }).addTo(path.current);
-      for(const approach of route.approaches || []) L.polyline(approach.coordinates,{color:TPColors.primary700,weight:4,dashArray:'4 6'}).addTo(path.current);
+      if(route.tierSegments?.length){
+        for(const segment of route.tierSegments){const style=ROUTE_TIERS[segment.tier];L.polyline(segment.coordinates,{color:colorFriendly?TPColors.primary900:style.color,weight:5,dashArray:style.dash,opacity:1}).addTo(path.current);}
+      }else L.polyline(route.networkCoordinates||route.coordinates,{color:TPColors.primary700,weight:5,opacity:1}).addTo(path.current);
+      for(const approach of route.approaches || []) L.polyline(approach.coordinates,{color:ROUTE_TIERS.connector.color,weight:4,dashArray:ROUTE_TIERS.connector.dash}).addTo(path.current);
       const fit=()=>{const height=map.current.getSize().y;map.current.fitBounds(L.latLngBounds(route.coordinates),{animate:false,paddingTopLeft:[24,40],paddingBottomRight:[24,Math.min(height-120,(paddingReader.current?.()||0)+24)]});};
       fit();const timer=setTimeout(fit,350);return ()=>clearTimeout(timer);
     }
-  }, [route,sheetSnap]);
+  }, [route,sheetSnap,colorFriendly]);
   useEffect(() => {
     if (!ends.current) return;
     ends.current.clearLayers();
