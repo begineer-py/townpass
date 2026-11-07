@@ -1521,6 +1521,7 @@ export default function App() {
                       : "路網正在背景準備，請先選擇起點與終點。"}
                   </p>
                 )}
+                {nearbyWarnings(start,end).map(text=><div className="notice" role="note" key={text}><AlertTriangle aria-hidden="true"/><p>{text}</p></div>)}
                 {routeError && (
                   <div className={`notice ${retryWithEntrance ? "route-recovery" : ""}`} role="status" ref={routeFeedback}>
                     <Info />
@@ -1560,7 +1561,6 @@ export default function App() {
                 )}
                 {route && (
                   <>
-                    {nearbyWarnings(start,end).map(text=><div className="notice" role="note" key={text}><AlertTriangle aria-hidden="true"/><p>{text}</p></div>)}
                     {route.construction && <p className="quiet-note">施工資料更新：{new Date(route.construction.sourceUpdatedAt).toLocaleString('zh-TW', {timeZone:'Asia/Taipei'})}{route.construction.unmapped > 0 ? ` · ${route.construction.unmapped} 處施工位置待確認` : ''}</p>}
                     {route.construction?.avoided > 0 && (
                       <p className="quiet-note">
