@@ -1790,14 +1790,14 @@ export default function App() {
                 {end && <button
                   className="primary full"
                   onClick={() => calculate()}
-                  disabled={routing || waitingForData}
+                  disabled={routing || automaticComparisonLoading || waitingForData}
                 >
-                  {routing ? (
+                  {routing || automaticComparisonLoading ? (
                     <LoaderCircle className="spin" size={19} />
                   ) : (
                     <Route size={19} />
                   )}{" "}
-                  {routing ? (routeAttempt ? `正在嘗試第 ${routeAttempt} 條繞路…` : "正在找路線…") : "規劃路線"}
+                  {routing || automaticComparisonLoading ? (routeAttempt ? `正在嘗試第 ${routeAttempt} 條繞路…` : "正在找路線…") : "規劃路線"}
                   <ArrowRight size={19} />
                 </button>}
                 {graphRequested && !graphReady && graphError && (
@@ -1849,7 +1849,6 @@ export default function App() {
                     </div>
                   </div>
                 )}
-                {automaticComparisonLoading && <p role="status">正在比較路線…</p>}
                 {!mapRoutes.pending && unifiedRouteChoices?.length>0 && <section className="route-alternatives" aria-label="選擇路線">
                   <h3>選擇路線</h3>
                   {unifiedRouteChoices.length>1 && <div className="candidate-sort" role="group" aria-label="路線排序">
