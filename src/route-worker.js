@@ -135,6 +135,12 @@ self.onmessage = async ({ data }) => {
     if (data.type === "init") {
       routeGraphUrl=data.url;referenceAsset=null;referenceAssetPromise=null;detourWaypoints=null;
       initialization = (async () => {
+      // Start independent asset reads while the large graph is decompressed and
+      // validated. Keep failures in the result until each asset is consumed.
+      const assetBytes = name => fetch(new URL(`./${name}.json.gz`,data.url))
+        .then(async response => { if(!response.ok)throw Error(name);return new Uint8Array(await response.arrayBuffer()); })
+        .then(bytes => ({bytes}), error => ({error}));
+      const conditionBytes=assetBytes('official-conditions'),facilityBytes=assetBytes('facilities'),placeBytes=assetBytes('places');
       const r = await fetch(data.url);
       if (!r.ok) throw Error("graph");
       const bytes = new Uint8Array(await r.arrayBuffer());
@@ -147,9 +153,7 @@ self.onmessage = async ({ data }) => {
       // Data is optional for routing, but unavailable must not be presented as
       // zero conditions. Never use stale hard-coded observations as current.
       try{
-        const hr=await fetch(new URL('./official-conditions.json.gz',data.url));
-        if(!hr.ok)throw Error('conditions');
-        const hb=new Uint8Array(await hr.arrayBuffer());
+        const {bytes:hb,error}=await conditionBytes;if(error)throw error;
         const dataset=JSON.parse(new TextDecoder().decode(hb[0]===31&&hb[1]===139?gunzipSync(hb):hb));
         graph.officialConditionIndex=createOfficialConditionIndex(dataset);
       }catch{graph.officialConditionIndex=null;}
@@ -162,10 +166,10 @@ self.onmessage = async ({ data }) => {
         // that uncertainty; proximity only describes nearby observations.
         return annotateNearbyConditions({...result,tierSegments:[{coordinates:result.coordinates,distance:result.distance,unknownWidth:true,unknownSlope:true,roughSurface:false,sharedRoad:false,tier:'official'}]});
       };
-      const fr=await fetch(new URL('./facilities.json.gz',data.url));if(!fr.ok)throw Error('facilities');
-      const fb=new Uint8Array(await fr.arrayBuffer());facilities=JSON.parse(new TextDecoder().decode(fb[0]===31&&fb[1]===139?gunzipSync(fb):fb));
-      const pr=await fetch(new URL('./places.json.gz',data.url));if(!pr.ok)throw Error('places');
-      const pb=new Uint8Array(await pr.arrayBuffer()),places=JSON.parse(new TextDecoder().decode(pb[0]===31&&pb[1]===139?gunzipSync(pb):pb));
+      const {bytes:fb,error:facilityError}=await facilityBytes;if(facilityError)throw facilityError;
+      facilities=JSON.parse(new TextDecoder().decode(fb[0]===31&&fb[1]===139?gunzipSync(fb):fb));
+      const {bytes:pb,error:placeError}=await placeBytes;if(placeError)throw placeError;
+      const places=JSON.parse(new TextDecoder().decode(pb[0]===31&&pb[1]===139?gunzipSync(pb):pb));
       if(!Array.isArray(facilities)||!Array.isArray(places))throw Error('places');
       routePlaces=places;
       const rawVerifyLocal=createLocalRouteVerifier(graph,facilities,places);
