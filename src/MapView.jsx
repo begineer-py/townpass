@@ -543,7 +543,7 @@ export default function MapView({
     routeFlow.current.clearLayers();
     const coordinates=route?.coordinates;
     if(!animateRoute||!routeFlowRenderer.current||!Array.isArray(coordinates)||coordinates.length<2||!coordinates.every(p=>Array.isArray(p)&&p.length>=2&&p.slice(0,2).every(Number.isFinite)))return;
-    const line=L.polyline(coordinates,{pane:'route-flow',renderer:routeFlowRenderer.current,interactive:false,color:'#fff',weight:3,opacity:.95,className:'navigation-route-flow'}).addTo(routeFlow.current);
+    const line=L.polyline(coordinates,{pane:'route-flow',renderer:routeFlowRenderer.current,interactive:false,color:TPColors.white,weight:3,opacity:.95,className:'navigation-route-flow'}).addTo(routeFlow.current);
     line.getElement()?.setAttribute('pathLength','1');
   },[route,animateRoute]);
   useEffect(() => {

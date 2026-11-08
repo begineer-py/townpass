@@ -369,7 +369,7 @@ export default function App() {
   const [candidateSort, setCandidateSort] = useState("score");
   const [currentLocation, setCurrentLocation] = useState(null);
   const [followState,setFollowState] = useState({active:false,status:'idle',message:''});
-  const [tripStage,setTripStage]=useState('choices'),[navProgress,setNavProgress]=useState(null),[reportDemo,setReportDemo]=useState(false);
+  const [tripStage,setTripStage]=useState('choices'),[navProgress,setNavProgress]=useState(null);
   const navAlong=useRef(0),followMap=useRef(true);
   const followSession = useRef(null);
   const [basemap, setBasemap] = useState(() => {
@@ -790,7 +790,7 @@ export default function App() {
     cancelMapSnap();cancelLocation();stopFollowing();setEnd(null);setPick(null);setRouteError('');clearRoute();
   }
   function clearRoute() {
-    setTripStage('choices');setNavProgress(null);navAlong.current=0;setReportDemo(false);
+    setTripStage('choices');setNavProgress(null);navAlong.current=0;
     referenceBaseline.current=null;manualRouteSelection.current=false;setReferenceCollapsed(false);
     stopFollowing();
     dataGate.current.cancel();
@@ -846,8 +846,8 @@ export default function App() {
     if(!route||!constructionFresh(lastConstruction.current)||route.construction?.sourceUpdatedAt!==lastConstruction.current?.sourceUpdatedAt||!(isVerifiedNavigationRoute(route)||isCurrentOfficialRoute(route))){announce('路線資料已更新，請重新規劃。');return;}
     manualRouteSelection.current=true;setTripStage('preview');setSheetSnap(1);
   }
-  function returnToRoutes(){stopFollowing();restoreChoicePosition.current=true;setTripStage('choices');setNavProgress(null);setReportDemo(false);setSheetSnap(1);}
-  function endNavigation(){stopFollowing();setTripStage('preview');setNavProgress(null);setReportDemo(false);setSheetSnap(1);}
+  function returnToRoutes(){stopFollowing();restoreChoicePosition.current=true;setTripStage('choices');setNavProgress(null);setSheetSnap(1);}
+  function endNavigation(){stopFollowing();setTripStage('preview');setNavProgress(null);setSheetSnap(1);}
   function recenterNavigation(){followMap.current=true;const p=followSession.current?.latest;if(p){const progress=navigationProgress(followSession.current.referenceRoute,p,navAlong.current);setFocus({...p,zoom:18,bearing:progress?.bearing,token:Date.now()});}else announce('正在等待定位。');}
   function cancelNearby(){
     nearbySearch.current.cancel();
@@ -949,7 +949,7 @@ export default function App() {
     manualRouteSelection.current=true;
     if(referenceState.status==='loading'&&referenceBaseline.current?.automatic){referenceSearch.current.cancel();referenceSnapshot.current=null;referenceBaseline.current=null;}
     stopFollowing();
-    navAlong.current=0;setNavProgress(null);setReportDemo(false);followMap.current=true;setTripStage('navigation');setSheetSnap(0);
+    navAlong.current=0;setNavProgress(null);followMap.current=true;setTripStage('navigation');setSheetSnap(0);
     if(currentLocation?.originKind==='gps'&&Number.isFinite(currentLocation.lat)&&Number.isFinite(currentLocation.lon)&&Number.isFinite(currentLocation.timestamp)&&Date.now()-currentLocation.timestamp<=30000&&currentLocation.timestamp<=Date.now()+5000){
       const initial=navigationProgress(route,currentLocation,0);
       setFocus({...currentLocation,zoom:18,bearing:initial?.bearing,token:Date.now()});
@@ -1706,7 +1706,7 @@ export default function App() {
             </button>
           </nav>}
           <div className="panel-scroll" ref={panelScroll}>
-            {tripStage!=='choices' && route && <NavigationPanel stage={tripStage} route={route} end={end} progress={navProgress} followState={followState} onBack={returnToRoutes} onStart={startFollowing} onEnd={endNavigation} reportOpen={reportDemo} onReport={()=>setReportDemo(v=>!v)} constructionWorks={routeWorks.filter(w=>w.impact==='clear')} onAvoidConstruction={avoidConstruction} constructionDetourState={constructionDetourState} onCancelDetour={()=>constructionDetourSearch.current.cancel()} previewIndex={previewIndex} previewCount={previewChoices.length} onChangePreview={changePreview}/>}
+            {tripStage!=='choices' && route && <NavigationPanel stage={tripStage} route={route} end={end} progress={navProgress} followState={followState} onBack={returnToRoutes} onStart={startFollowing} onEnd={endNavigation} onReport={reportBlockage} constructionWorks={routeWorks.filter(w=>w.impact==='clear')} onAvoidConstruction={avoidConstruction} constructionDetourState={constructionDetourState} onCancelDetour={()=>constructionDetourSearch.current.cancel()} previewIndex={previewIndex} previewCount={previewChoices.length} onChangePreview={changePreview}/>}
             {tripStage==='choices' && <>
             {waitingForData && (
               <div className="loading-note">
