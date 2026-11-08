@@ -838,6 +838,10 @@ export default function App() {
     const ok=source==='reference'?selectOfficialCandidate(candidate):selectRouteCandidate(candidate);
     if(ok){setTripStage('preview');setSheetSnap(1);}
   }
+  function previewSelectedRoute(){
+    if(!route||!constructionFresh(lastConstruction.current)||route.construction?.sourceUpdatedAt!==lastConstruction.current?.sourceUpdatedAt||!(isVerifiedNavigationRoute(route)||isCurrentOfficialRoute(route))){announce('路線資料已更新，請重新規劃。');return;}
+    manualRouteSelection.current=true;setTripStage('preview');setSheetSnap(1);
+  }
   function returnToRoutes(){stopFollowing();setTripStage('choices');setNavProgress(null);setReportDemo(false);setSheetSnap(1);}
   function endNavigation(){stopFollowing();setTripStage('preview');setNavProgress(null);setReportDemo(false);setSheetSnap(1);}
   function recenterNavigation(){followMap.current=true;const p=followSession.current?.latest;if(p)setFocus({...p,zoom:17,token:Date.now()});else announce('正在等待定位。');}
@@ -1855,9 +1859,10 @@ export default function App() {
                   </div>}
                   {unifiedRouteSummaries.some(summary=>summary.hasUnknown && !summary.concern.includes('資料不足')) && <p className="route-choice__note">部分路況資料不足</p>}
                   {unifiedRouteChoices.map((item,index)=>{const candidate=item.candidate,source=item.source==='reference';return <RouteChoice key={`${item.source}:${candidate.id}`} number={index+1} distance={item.distance} summary={unifiedRouteSummaries[index]} selected={route===candidate.route || (!source&&selectedRouteCandidate===candidate.id)} disabled={source?!isCurrentOfficialRoute(candidate.route):!constructionFresh(lastConstruction.current)||candidate.route?.construction?.sourceUpdatedAt!==lastConstruction.current?.sourceUpdatedAt} onClick={()=>previewRoute(candidate,source?'reference':'local')}/>;})}
+                  <button type="button" className="primary full route-preview-action" disabled={!route} onClick={previewSelectedRoute}>查看選定路線</button>
                 </section>}
                 {referenceCollapsed && referenceState.status==='ready' && <button type="button" onClick={()=>setReferenceCollapsed(false)}>查看線條說明</button>}
-                {!simpleNoRoute && !mapRoutes.pending && <ReferenceRouteResult status={referenceCollapsed?'idle':referenceState.status} route={referenceRoute} candidates={displayedReferenceCandidates} selected={selectedRouteCandidate} onSelect={candidate=>previewRoute(candidate,'reference')} comparisonStatus={referenceState.comparisonStatus} showCandidates={!unifiedRouteChoices} showLegend={route?.kind==='official-passageway'||!route} showSelectedNotice={route?.kind==='official-passageway'||!route} showIssueIcons={true} start={start} end={end} message={referenceState.message} onClose={()=>{if(route?.kind==='official-passageway')setReferenceCollapsed(true);else {referenceSearch.current.cancel();referenceSnapshot.current=null;referenceBaseline.current=null;}}} />}
+                {!simpleNoRoute && !mapRoutes.pending && <ReferenceRouteResult status={referenceCollapsed?'idle':referenceState.status} route={referenceRoute} candidates={displayedReferenceCandidates} selected={selectedRouteCandidate} onSelect={candidate=>previewRoute(candidate,'reference')} onPreview={route?previewSelectedRoute:null} comparisonStatus={referenceState.comparisonStatus} showCandidates={!unifiedRouteChoices} showLegend={route?.kind==='official-passageway'||!route} showSelectedNotice={route?.kind==='official-passageway'||!route} showIssueIcons={true} start={start} end={end} message={referenceState.message} onClose={()=>{if(route?.kind==='official-passageway')setReferenceCollapsed(true);else {referenceSearch.current.cancel();referenceSnapshot.current=null;referenceBaseline.current=null;}}} />}
                 {route && !mapRoutes.pending && (
                   <>
                     <div className="route-summary"><h2>{start?.nearbyOriginal||end?.nearbyOriginal?'路網路線':'全程'} {formatDistance(route.distance)}</h2></div>
@@ -1879,6 +1884,7 @@ export default function App() {
                       </div>}
                       {localRouteSummaries.some(summary=>summary.hasUnknown && !summary.concern.includes('資料不足')) && <p className="route-choice__note">部分路況資料不足</p>}
                       {sortedRouteCandidates.map((candidate,index)=><RouteChoice key={candidate.id ?? index} number={index+1} distance={candidate.metrics.distanceMetres} summary={localRouteSummaries[index]} selected={selectedRouteCandidate===candidate.id || (candidate.id==='original-route' && route===candidate.route)} disabled={!constructionFresh(lastConstruction.current)||candidate.route?.construction?.sourceUpdatedAt!==lastConstruction.current?.sourceUpdatedAt} onClick={()=>previewRoute(candidate,'local')}/>)}
+                      <button type="button" className="primary full route-preview-action" onClick={previewSelectedRoute}>查看選定路線</button>
                     </section>}
                     {!unifiedRouteChoices?.length && !sortedRouteCandidates.length && !displayedReferenceCandidates.length && <button type="button" className="primary full" onClick={()=>setTripStage('preview')}>查看路線</button>}
                     {route.viaName && !followState.active && <p className="quiet-note">順路停靠的行程暫不支援位置跟隨。</p>}

@@ -3,7 +3,7 @@ import {describeRouteChoices} from './route-summary.mjs';
 import RouteChoice from './RouteChoice.jsx';
 import './ReferenceRouteResult.css';
 
-export default function ReferenceRouteResult({status,route,candidates=[],selected,onSelect,start,end,message,onClose,comparisonStatus,showCandidates=true,showLegend=true,showSelectedNotice=true,showIssueIcons=true}) {
+export default function ReferenceRouteResult({status,route,candidates=[],selected,onSelect,onPreview,start,end,message,onClose,comparisonStatus,showCandidates=true,showLegend=true,showSelectedNotice=true,showIssueIcons=true}) {
  if(!status||status==='idle')return null;
  const choices=Array.isArray(candidates)?candidates.filter(candidate=>candidate?.id&&referenceRouteLines(candidate.route,{start,end}).length):[];
  const summaries=describeRouteChoices(choices.map(candidate=>({candidate,source:'reference'})));
@@ -15,6 +15,7 @@ export default function ReferenceRouteResult({status,route,candidates=[],selecte
   {status==='loading'?<p>正在尋找路線…</p>:lines.length?<>
     {showCandidates && summaries.some(summary=>summary.hasUnknown && !summary.concern.includes('資料不足')) && <p className="route-choice__note">部分路況資料不足</p>}
     {showCandidates && choices.map((candidate,index)=><RouteChoice key={candidate.id} number={index+1} distance={candidate.route.distanceMetres} summary={summaries[index]} selected={selected===candidate.id} onClick={()=>onSelect(candidate)}/>)}
+    {showCandidates && choices.length>0 && onPreview && <button type="button" className="primary full route-preview-action" onClick={onPreview}>查看選定路線</button>}
     {comparisonStatus && comparisonStatus!=='complete' && <p>部分比較未完成。</p>}
     {(showSelectedNotice||showLegend) && <details className="route-disclosure"><summary>線條與路況說明</summary>
       {showSelectedNotice && <p>{REFERENCE_NOTICE}</p>}
