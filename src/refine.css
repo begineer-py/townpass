@@ -736,6 +736,7 @@ button.icon-action {
 .voice-button:hover {
   background: var(--tp-primary50);
 }
+.voice-feedback { margin:8px 4px; color:var(--tp-grayscale700); font-size:.875rem; line-height:1.5; }
 .voice-button.listening {
   background: var(--tp-red700);
   color: var(--tp-white);

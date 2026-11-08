@@ -329,6 +329,8 @@ export default function App() {
       avoidSteps: true,
       officialOnly: false,
     }));
+  const [voiceStatus,setVoiceStatus]=useState('');
+  useEffect(()=>{setVoiceStatus('');},[searchFor]);
   const selectedRef = useRef(null);
   selectedRef.current = selected;
   const [unlocatedExits, setUnlocatedExits] = useState(null);
@@ -2460,8 +2462,9 @@ export default function App() {
               placeholder="地點、捷運站、地址"
               aria-label="搜尋地點"
             />
-            <VoiceSearch onResult={setQuery} />
+            <VoiceSearch onResult={setQuery} onStatus={setVoiceStatus} />
           </div>
+          {voiceStatus && <p className="voice-feedback" role="status" aria-live="polite">{voiceStatus}</p>}
           <div className="search-options">
             <button
               onClick={() => {
