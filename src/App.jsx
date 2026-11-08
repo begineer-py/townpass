@@ -56,12 +56,14 @@ import {
 } from "lucide-react";
 import MapView from "./MapView";
 import { routeFitPadding } from "./route-fit.mjs";
+import {normalizeSavedFacility} from "./facility-display.mjs";
 import {mapRouteVisibility,routeViewLayers} from "./map-route-visibility.mjs";
 import {useReferenceComparison} from "./use-reference-comparison.js";
 import ReferenceRouteResult from "./ReferenceRouteResult";
 import RouteChoice from "./RouteChoice.jsx";
+import RouteLoading from "./RouteLoading.jsx";
 import NavigationPanel, {NavigationPrompt} from "./NavigationPanel.jsx";
-import {navigationProgress} from "./navigation-progress.mjs";
+import {navigationProgress,createNavigationSpeedEstimator} from "./navigation-progress.mjs";
 import {navigationCameraFocus} from "./navigation-camera.mjs";
 import {describeRouteChoices} from "./route-summary.mjs";
 import {createReferenceSearch} from "./reference-search.mjs";
@@ -945,7 +947,7 @@ export default function App() {
     // Discard any earlier one-shot positioning response before subscribing.
     cancelLocation();
     const destination={...end,selectionKind:'user'},options={...prefs,avoidPoints};
-    const session={engine:null,search:null,stopWatch:null,latest:null,displayPosition:initialFocus?currentLocation:null,referenceRoute:route};
+    const session={engine:null,search:null,stopWatch:null,latest:null,displayPosition:initialFocus?currentLocation:null,referenceRoute:route,speed:createNavigationSpeedEstimator()};
     followSession.current=session;
     session.search=createLiveFollowSearch({
       fetchSnapshot:fetchConstruction,
@@ -969,7 +971,7 @@ export default function App() {
             return;
           }
           session.referenceRoute=result;
-          navAlong.current=0;setNavProgress(null);
+          navAlong.current=0;session.speed.reset();setNavProgress(null);
           setStart(state.startPlace);
           setRoute(result);
           setRouteCandidates([]); setSelectedRouteCandidate(null);
@@ -992,11 +994,12 @@ export default function App() {
         }
         session.latest=p;setCurrentLocation(p);
         const progress=navigationProgress(session.referenceRoute,p,navAlong.current);
-        if(progress){navAlong.current=progress.along;setNavProgress(progress);}else setNavProgress(null);
+        if(progress){navAlong.current=progress.along;setNavProgress({...progress,speedMetresPerSecond:session.speed.sample({along:progress.along,timestamp:p.timestamp,accuracy:p.accuracy})});}else {session.speed.reset();setNavProgress(null);}
       },
       onUncertain:()=>{
         if(followSession.current!==session)return;
         session.latest=null;
+        session.speed.reset();
         setNavProgress(null);
         session.search.cancel();
       },
@@ -1450,8 +1453,9 @@ export default function App() {
       },
     });
   }, [route]);
-  const inspect = (p) => {
-    if(String(p?.kind)==='20'||p?.kind==='station')void prewarmRouteEngine();
+  const inspect = (place) => {
+    if(String(place?.kind)==='20'||place?.kind==='station')void prewarmRouteEngine();
+    const p=normalizeSavedFacility(place);
     cancelLocation();
     rememberPlace(p);
     setSelected(p);
@@ -1647,7 +1651,7 @@ export default function App() {
           <div className="panel-scroll" ref={panelScroll}>
             {tripStage!=='choices' && route && <NavigationPanel stage={tripStage} route={route} end={end} progress={navProgress} followState={followState} onBack={returnToRoutes} onStart={startFollowing} onEnd={endNavigation} reportOpen={reportDemo} onReport={()=>setReportDemo(v=>!v)} constructionWorks={routeWorks.filter(w=>w.impact==='clear')} onAvoidConstruction={avoidConstruction} constructionDetourState={constructionDetourState} onCancelDetour={()=>constructionDetourSearch.current.cancel()} previewIndex={previewIndex} previewCount={previewChoices.length} onChangePreview={changePreview}/>}
             {tripStage==='choices' && <>
-            {waitingForData && (
+            {waitingForData && !(tab==='plan' && planScreen==='results') && (
               <div className="loading-note">
                 <LoaderCircle className="spin" size={18} /> 正在載入設施…
               </div>
@@ -1774,7 +1778,7 @@ export default function App() {
                 </>}
                 {planScreen==='results' && <div className="route-results">
                   <button type="button" className="route-results__back" aria-label="返回起點與目的地" onClick={() => { cancelPendingNavigation(); clearRoute(); setRouteError(""); setPlanScreen("form"); setSheetSnap(1); if (panelScroll.current) panelScroll.current.scrollTop=0; }}><ArrowLeft size={22} aria-hidden="true" /></button>
-                  {(mapRoutes.pending || (nearbyState.status==='loading' && !route)) && <div className="route-results__loading" role="status" aria-label="正在尋找路線"><LoaderCircle className="spin" size={24} aria-hidden="true" /></div>}
+                  {(waitingForData || mapRoutes.pending || (nearbyState.status==='loading' && !route)) && <RouteLoading preparing={waitingForData || !graphReady} comparing={automaticComparisonLoading || referenceState.status==='loading'} nearby={nearbyState.status==='loading' && !route}/>}
                 {graphRequested && !graphReady && graphError && (
                   <p className="quiet-note" role="status">
                     路線資料暫時讀取不到，請重新整理再試。
@@ -2632,6 +2636,7 @@ export default function App() {
                 if (selected.description) rows.push(["description", MapPin, "位置", selected.description]);
                 if (selected.kind === "metro-exit" && typeof selected.officialAccessible === "boolean") rows.push(["official-accessible", Accessibility, "座標資料『是否為無障礙用』", selected.officialAccessible ? "是" : "否"]);
                 if (selected.address) rows.push(["addr", MapPin, "地址", selected.address]);
+                if (selected.district && !selected.address) rows.push(["district", MapPin, "地區", selected.district]);
                 if (selected.parkingDetails) rows.push(["parking-details", Car, "車位", selected.parkingDetails]);
                 if (selected.phone)
                   rows.push(["phone", Phone, "電話",

@@ -1,4 +1,5 @@
 import { gunzipSync } from "fflate";
+import {normalizeSavedFacility} from './facility-display.mjs';
 export const dataUrl = (name) =>
   `${import.meta.env.BASE_URL}data/${name}.json.gz`;
 export async function loadData(name) {
@@ -61,7 +62,8 @@ export const labels = {
 };
 export function readSaved(key, fallback) {
   try {
-    return JSON.parse(localStorage.getItem(key)) ?? fallback;
+    const value=JSON.parse(localStorage.getItem(key)) ?? fallback;
+    return ['hhz-recent-places','hhz-saved'].includes(key)&&Array.isArray(value)?value.map(normalizeSavedFacility):value;
   } catch {
     return fallback;
   }

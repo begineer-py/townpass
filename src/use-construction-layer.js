@@ -35,7 +35,8 @@ export function useConstructionLayer(mapRef,snapshot,show,onStatus=()=>{},priori
   if(!show){callback.current({status:'hidden',shown:0,total:0,truncated:false});return;}
   const shapePane=map.getPane('construction-work')||map.createPane('construction-work',map.getPane('rotatePane')||undefined);
   shapePane.style.zIndex='370';
-  const markerPane=map.getPane('construction-markers')||map.createPane('construction-markers',map.getPane('rotatePane')||undefined);
+  // Markers use Leaflet Rotate's non-rotating coordinates; shapes remain in rotatePane.
+  const markerPane=map.getPane('construction-markers')||map.createPane('construction-markers',map.getPane('norotatePane')||map.getPane('mapPane')||undefined);
   markerPane.style.zIndex='610';
   const renderer=L.canvas({pane:'construction-work',padding:.2}),layer=L.layerGroup().addTo(map);
   let active=true,expiryTimer;

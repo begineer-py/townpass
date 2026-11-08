@@ -1,0 +1,7 @@
+.route-results__loading.route-loading { display:flex; flex-direction:column; align-items:stretch; gap:10px; padding:24px 4px; }
+.route-loading__heading { display:flex; align-items:center; gap:10px; font-size:1.05rem; }
+.route-loading p { margin:0; color:var(--tp-grayscale600); font-size:.95rem; line-height:1.5; }
+.route-loading__track { height:5px; overflow:hidden; border-radius:5px; background:var(--tp-grayscale100); }
+.route-loading__track span { display:block; width:35%; height:100%; border-radius:inherit; background:var(--tp-primary700); animation:route-loading-progress 1.4s ease-in-out infinite; }
+@keyframes route-loading-progress { from { transform:translateX(-100%); } to { transform:translateX(286%); } }
+@media (prefers-reduced-motion:reduce) { .route-loading__track span,.route-loading__icon { animation:none; } }

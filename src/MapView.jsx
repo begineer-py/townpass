@@ -149,7 +149,8 @@ export default function MapView({
     path.current = L.layerGroup().addTo(m);
     partialPath.current = L.layerGroup().addTo(m);
     blocked.current = L.layerGroup().addTo(m);
-    const issuePane=m.getPane('route-issues')||m.createPane('route-issues',m.getPane('rotatePane')||undefined);
+    // Leaflet Rotate positions markers in the non-rotating coordinate space.
+    const issuePane=m.getPane('route-issues')||m.createPane('route-issues',m.getPane('norotatePane')||m.getPane('mapPane')||undefined);
     issuePane.style.zIndex='650';
     const issueLinePane=m.getPane('route-issue-line')||m.createPane('route-issue-line',m.getPane('rotatePane')||undefined);
     issueLinePane.style.zIndex='405';
@@ -711,14 +712,24 @@ export default function MapView({
     const initialBearing=m.getBearing?.()||0;
     const targetBearing=Number.isFinite(focus.bearing)?(360-focus.bearing)%360:initialBearing;
     const delta=((targetBearing-initialBearing+540)%360)-180;
-    const started=performance.now(), duration=1100;
+    const started=performance.now(), duration=1100, rotationDuration=350;
+    let rotationStarted=null;
     root.current?.classList.add("navigation-intro");
     m.flyTo([focus.lat,focus.lon],focus.zoom||17,{animate:true,duration:duration/1000});
     const tick=(now)=>{
       if(map.current!==m){intro.frame=0;return;}
-      const t=Math.min(1,(now-started)/duration), eased=1-Math.pow(1-t,3);
-      m.setBearing?.((initialBearing+delta*eased+360)%360);
-      if(t<1){intro.frame=requestAnimationFrame(tick);return;}
+      const elapsed=now-started;
+      // leaflet-rotate redraws vector renderers on every rotation. Rotating
+      // during flyTo's fractional zoom can rebase their coordinates mid-flight.
+      if(elapsed<duration){intro.frame=requestAnimationFrame(tick);return;}
+      if(rotationStarted===null){
+        rotationStarted=now;
+        m.stop();
+        m.setView([focus.lat,focus.lon],focus.zoom||17,{animate:false});
+      }
+      const t=Math.min(1,(now-rotationStarted)/rotationDuration), eased=1-Math.pow(1-t,3);
+      if(delta)m.setBearing?.((initialBearing+delta*eased+360)%360);
+      if(t<1&&delta){intro.frame=requestAnimationFrame(tick);return;}
       intro.frame=0;
       root.current?.classList.remove("navigation-intro");
       const pending=intro.pending;intro.pending=null;
