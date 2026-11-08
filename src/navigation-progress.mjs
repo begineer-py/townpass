@@ -34,4 +34,32 @@ export function navigationProgress(route,position,previous=0){
  const arrived=remainingMetres<=8&&Math.hypot(px-ex,py-ey)<=Math.max(8,Math.min(15,position.accuracy));
  return {along,remainingMetres,next,arrived,bearing:arrived?null:navigationBearing(line,along)};
 }
-export function estimatedWalkingMinutes(metres){return Number.isFinite(metres)&&metres>=0?Math.max(1,Math.ceil(metres/48)):null;}
+export const DEFAULT_SPEED_METRES_PER_SECOND=.8;
+export function estimatedWalkingMinutes(metres,speed=DEFAULT_SPEED_METRES_PER_SECOND){
+ if(!Number.isFinite(metres)||metres<0)return null;
+ const effective=Number.isFinite(speed)&&speed>=.15&&speed<=2?speed:DEFAULT_SPEED_METRES_PER_SECOND;
+ return Math.max(1,Math.ceil(metres/(effective*60)));
+}
+
+// Estimate from verified along-route movement rather than raw GPS speed.
+// Two meaningful intervals are required; a long gap or uncertain fix resets
+// the estimate. No location history is persisted or shared.
+export function createNavigationSpeedEstimator(){
+ let anchor=null,estimate=null,accepted=0;
+ function reset(){anchor=null;estimate=null;accepted=0;}
+ function sample({along,timestamp,accuracy}={}){
+  if(!Number.isFinite(along)||along<0||!Number.isFinite(timestamp)||!Number.isFinite(accuracy)||accuracy<0||accuracy>15){reset();return null;}
+  if(!anchor){anchor={along,timestamp,accuracy};return null;}
+  const seconds=(timestamp-anchor.timestamp)/1000;
+  if(seconds<=0)return accepted>=2?estimate:null;
+  if(seconds>180){reset();anchor={along,timestamp,accuracy};return null;}
+  const metres=along-anchor.along;
+  if(metres<0){reset();anchor={along,timestamp,accuracy};return null;}
+  if(seconds<15||metres<Math.max(10,anchor.accuracy+accuracy))return accepted>=2?estimate:null;
+  const speed=metres/seconds;anchor={along,timestamp,accuracy};
+  if(speed<.15||speed>2)return accepted>=2?estimate:null;
+  estimate=estimate==null?speed:estimate*.75+speed*.25;accepted++;
+  return accepted>=2?estimate:null;
+ }
+ return {sample,reset};
+}

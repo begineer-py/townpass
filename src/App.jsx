@@ -55,12 +55,13 @@ import {
 } from "lucide-react";
 import MapView from "./MapView";
 import { routeFitPadding } from "./route-fit.mjs";
+import {normalizeSavedFacility} from "./facility-display.mjs";
 import {mapRouteVisibility,routeViewLayers} from "./map-route-visibility.mjs";
 import {useReferenceComparison} from "./use-reference-comparison.js";
 import ReferenceRouteResult from "./ReferenceRouteResult";
 import RouteChoice from "./RouteChoice.jsx";
 import NavigationPanel, {NavigationPrompt} from "./NavigationPanel.jsx";
-import {navigationProgress} from "./navigation-progress.mjs";
+import {navigationProgress,createNavigationSpeedEstimator} from "./navigation-progress.mjs";
 import {describeRouteChoices} from "./route-summary.mjs";
 import {createReferenceSearch} from "./reference-search.mjs";
 import {createConditionDetourSearch} from "./condition-detour-search.mjs";
@@ -957,7 +958,7 @@ export default function App() {
     // Discard any earlier one-shot positioning response before subscribing.
     cancelLocation();
     const destination={...end,selectionKind:'user'},options={...prefs,avoidPoints};
-    const session={engine:null,search:null,stopWatch:null,latest:null,referenceRoute:route};
+    const session={engine:null,search:null,stopWatch:null,latest:null,referenceRoute:route,speed:createNavigationSpeedEstimator()};
     followSession.current=session;
     session.search=createLiveFollowSearch({
       fetchSnapshot:fetchConstruction,
@@ -981,7 +982,7 @@ export default function App() {
             return;
           }
           session.referenceRoute=result;
-          navAlong.current=0;setNavProgress(null);
+          navAlong.current=0;session.speed.reset();setNavProgress(null);
           setStart(state.startPlace);
           setRoute(result);
           setRouteCandidates([]); setSelectedRouteCandidate(null);
@@ -1004,12 +1005,13 @@ export default function App() {
         }
         session.latest=p;setCurrentLocation(p);
         const progress=navigationProgress(session.referenceRoute,p,navAlong.current);
-        if(progress){navAlong.current=progress.along;setNavProgress(progress);}else setNavProgress(null);
+        if(progress){navAlong.current=progress.along;setNavProgress({...progress,speedMetresPerSecond:session.speed.sample({along:progress.along,timestamp:p.timestamp,accuracy:p.accuracy})});}else {session.speed.reset();setNavProgress(null);}
         if(followMap.current)setFocus({...p,zoom:18,bearing:progress?.bearing,token:Date.now()});
       },
       onUncertain:()=>{
         if(followSession.current!==session)return;
         session.latest=null;
+        session.speed.reset();
         setNavProgress(null);
         session.search.cancel();
       },
@@ -1517,7 +1519,8 @@ export default function App() {
       },
     });
   }, [route]);
-  const inspect = (p) => {
+  const inspect = (place) => {
+    const p=normalizeSavedFacility(place);
     cancelLocation();
     rememberPlace(p);
     setSelected(p);
@@ -2677,6 +2680,7 @@ export default function App() {
                 if (selected.description) rows.push(["description", MapPin, "位置", selected.description]);
                 if (selected.kind === "metro-exit" && typeof selected.officialAccessible === "boolean") rows.push(["official-accessible", Accessibility, "座標資料『是否為無障礙用』", selected.officialAccessible ? "是" : "否"]);
                 if (selected.address) rows.push(["addr", MapPin, "地址", selected.address]);
+                if (selected.district && !selected.address) rows.push(["district", MapPin, "地區", selected.district]);
                 if (selected.parkingDetails) rows.push(["parking-details", Car, "車位", selected.parkingDetails]);
                 if (selected.phone)
                   rows.push(["phone", Phone, "電話",

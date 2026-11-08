@@ -1,5 +1,6 @@
 import {category} from './data.js';
 import {isNumberedStationExit,isMetroElevatorEntrance} from './metro-exits.mjs';
+import {normalizeSavedFacility} from './facility-display.mjs';
 
 export const isMetroStation = place => String(place?.kind)==='20';
 export function metroExitLabelForAccessibility(place) {
@@ -35,8 +36,14 @@ function zoomVisible(place,zoom,activeFilter){
 export function selectMapMarkers(items,recentPlaces,zoom,activeFilter='all'){
  const seen=new Set(),recentIds=new Set((recentPlaces||[]).filter(allowedCoordinate).map(keyOf)),selected=[],groups=new Set();
  const add=place=>{if(!allowedCoordinate(place))return;const key=keyOf(place);if(seen.has(key))return;seen.add(key);selected.push(place);};
- for(const p of recentPlaces||[]){add(p);if(p?.mapGroupId!=null)groups.add(String(p.mapGroupId));}
- const candidates=(items||[]).filter(p=>zoomVisible(p,zoom,activeFilter)).slice().sort((a,b)=>Number(b?.mapGroupRepresentative===true)-Number(a?.mapGroupRepresentative===true));
+ const normalizedItems=(items||[]).map(normalizeSavedFacility);
+ const latest=new Map(normalizedItems.filter(p=>p?.id!=null).map(p=>[String(p.id),p]));
+ for(const p of recentPlaces||[]){
+  const fresh=latest.get(String(p?.id)),same=fresh&&String(fresh.kind)===String(p.kind)&&fresh.sourceId===p.sourceId;
+  const display=same&&fresh.parkingDetails&&!p.parkingDetails?{...p,parkingDetails:fresh.parkingDetails}:p;
+  add(display);if(display?.mapGroupId!=null)groups.add(String(display.mapGroupId));
+ }
+ const candidates=normalizedItems.filter(p=>zoomVisible(p,zoom,activeFilter)).slice().sort((a,b)=>Number(b?.mapGroupRepresentative===true)-Number(a?.mapGroupRepresentative===true));
  for(const p of candidates){
   if(!allowedCoordinate(p))continue;
   const group=p.mapGroupId!=null?String(p.mapGroupId):null;
