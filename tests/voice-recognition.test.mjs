@@ -9,7 +9,19 @@ function setup(){
 }
 test('starts only on request and sends all final recognized text to search',()=>{
  const s=setup();assert.equal(s.sessions.length,0);s.engine.start();const r=s.sessions[0];assert.equal(r.lang,'zh-TW');assert.equal(s.states.at(-1).status,'listening');
- r.onresult({resultIndex:0,results:[Object.assign([{transcript:'台北'}],{isFinal:true}),Object.assign([{transcript:'車站。'}],{isFinal:true})]});assert.deepEqual(s.results,['台北車站']);r.onend();assert.equal(s.states.at(-1).status,'idle');assert.equal(s.timers.size,0);
+ r.onresult({resultIndex:0,results:[Object.assign([{transcript:'台北'}],{isFinal:true}),Object.assign([{transcript:'車站。'}],{isFinal:true})]});assert.deepEqual(s.results,['台北車站']);assert.equal(s.states.at(-1).status,'idle');assert.equal(r.aborted,true);assert.equal(s.timers.size,0);
+});
+test('speech ending stops capture and a final result closes the session without waiting for end',()=>{
+ const s=setup();s.engine.start();const r=s.sessions[0];r.onspeechend();assert.equal(r.stopped,true);assert.equal(s.states.at(-1).status,'processing');
+ r.onresult({resultIndex:0,results:[Object.assign([{transcript:'大安公園'}],{isFinal:true})]});assert.deepEqual(s.results,['大安公園']);assert.equal(s.states.at(-1).status,'idle');assert.equal(r.aborted,true);assert.equal(r.onspeechend,null);
+ s.engine.start();assert.equal(s.sessions.length,2);
+});
+test('speech ending without a result shows a retry message',()=>{
+ const s=setup();s.engine.start();const r=s.sessions[0];r.onspeechend();r.onend();assert.match(s.states.at(-1).message,/沒有聽到/);
+});
+test('an already stopped browser can still return its final recognition result',()=>{
+ const s=setup();s.engine.start();const r=s.sessions[0];r.stop=()=>{throw Error('already stopping');};r.onspeechend();assert.equal(s.states.at(-1).status,'processing');
+ r.onresult({resultIndex:0,results:[Object.assign([{transcript:'芝山站'}],{isFinal:true})]});assert.deepEqual(s.results,['芝山站']);assert.equal(s.states.at(-1).status,'idle');
 });
 test('permission errors, missing browser support and constructor failures stay visible and can retry',()=>{
  const s=setup();s.engine.start();s.sessions[0].onerror({error:'not-allowed'});assert.match(s.states.at(-1).message,/權限/);s.engine.start();assert.equal(s.sessions.length,2);
