@@ -1849,7 +1849,6 @@ export default function App() {
                     </div>
                   </div>
                 )}
-                {!simpleNoRoute && (route || routeError) && start && end && ['idle','error'].includes(referenceState.status) && <button type="button" onClick={()=>findReferenceRoute(isVerifiedNavigationRoute(route)?route:null)}>尋找更多人行路線</button>}
                 {automaticComparisonLoading && <p role="status">正在比較路線…</p>}
                 {!mapRoutes.pending && unifiedRouteChoices?.length>0 && <section className="route-alternatives" aria-label="選擇路線">
                   <h3>選擇路線</h3>
