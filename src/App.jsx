@@ -1632,6 +1632,7 @@ export default function App() {
                 onClick={() => {
                   if (tab !== id) { dataGate.current.cancel(); pendingRoute.current = null; }
                   cancelMapSnap();
+                  if (id === "plan" && tab !== "plan") void prewarmRouteEngine();
                   if (id !== "plan") { cancelNearby(); stopFollowing(); }
                   setTab(id);
                   if(pick)clearPickPrompt();
