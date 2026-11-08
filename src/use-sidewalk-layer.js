@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import L from "leaflet";
 import { sidewalkManifest, sidewalkTile, tilesForBounds } from "./sidewalk-tiles.mjs";
 import { TPColors } from "./tp-colors.mjs";
+import { loadSidewalkLines } from "./sidewalk-viewport-loader.mjs";
 
 // Display-only official passageways. Routing uses its own verified network.
 export function useSidewalkLayer(map, location, enabled = true, onStatus) {
@@ -23,8 +24,7 @@ export function useSidewalkLayer(map, location, enabled = true, onStatus) {
     const clear = () => { drawing?.remove(); drawing = null; };
     const update = async () => {
       const current = ++generation;
-      clear();
-      if (m.getZoom() < 16) { statusRef.current?.("zoom"); return; }
+      if (m.getZoom() < 16) { clear(); statusRef.current?.("zoom"); return; }
       statusRef.current?.("loading");
       try {
         const manifest = await sidewalkManifest();
@@ -34,22 +34,18 @@ export function useSidewalkLayer(map, location, enabled = true, onStatus) {
         const center = location && b.contains([location.lat, location.lon])
           ? {lat: location.lat, lng: location.lon} : m.getCenter();
         const keys = tilesForBounds([b.getSouth(), b.getWest(), b.getNorth(), b.getEast()], center, new Set(manifest.tiles));
-        const lines = new Map();
-        for (const key of keys) {
-          // Sequential requests make the closest tile visible first and stop
-          // requesting old-view tiles as soon as the user moves the map.
-          const tile = await sidewalkTile(key);
-          if (current !== generation) return;
-          for (const line of tile) lines.set(line.id, line.points);
-          clear();
-          const coordinates = [...lines.values()];
-          drawing = L.layerGroup([
-            L.polyline(coordinates, {renderer, pane: "sidewalks", color: TPColors.white, weight: 4, opacity: .7, interactive: false}),
-            L.polyline(coordinates, {renderer, pane: "sidewalks", color: TPColors.orange700, weight: 2, opacity: .7, interactive: false}),
-          ]);
-          drawing.getAttribution = () => '無障礙通行線 © <a href="https://tppano.gov.taipei/tp_roadsidewalkplatform_public/" target="_blank" rel="noopener">臺北市政府</a>';
-          drawing.addTo(m);
+        const coordinates = await loadSidewalkLines(keys, sidewalkTile, () => current === generation);
+        if (coordinates === null || current !== generation) return;
+        const next = coordinates.length ? L.layerGroup([
+          L.polyline(coordinates, {renderer, pane: "sidewalks", color: TPColors.white, weight: 4, opacity: .7, interactive: false}),
+          L.polyline(coordinates, {renderer, pane: "sidewalks", color: TPColors.orange700, weight: 2, opacity: .7, interactive: false}),
+        ]) : null;
+        if (next) {
+          next.getAttribution = () => '無障礙通行線 © <a href="https://tppano.gov.taipei/tp_roadsidewalkplatform_public/" target="_blank" rel="noopener">臺北市政府</a>';
+          next.addTo(m);
         }
+        clear();
+        drawing = next;
         if (current === generation) statusRef.current?.("ready");
       } catch (error) {
         if (current === generation) { console.error("Sidewalk tiles", error); statusRef.current?.("error"); }

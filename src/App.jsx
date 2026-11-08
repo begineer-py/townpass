@@ -788,6 +788,7 @@ export default function App() {
     setPick(null);
     setTab("plan");
     setPlanScreen("form");
+    setSheetSnap(1);
     setFocus({ ...p, token: Date.now() });
   };
   function clearDestination(){
@@ -1658,13 +1659,13 @@ export default function App() {
           ref={panelEl}
           data-snap={sheetSnap}
           onPointerDown={(e) => {
-            if (tripStage !== 'choices' || !matchMedia("(max-width: 700px)").matches || sheetSnap !== 0)
+            if (tripStage !== 'choices' || (tab==='plan' && planScreen==='form') || !matchMedia("(max-width: 700px)").matches || sheetSnap !== 0)
               return;
             if (e.target.closest("button, a, input, textarea, select")) return;
             gripDown(e);
           }}
         >
-          {tripStage==='choices' && <button
+          {tripStage==='choices' && !(tab==='plan' && planScreen==='form') && <button
             className="sheet-grip"
             onPointerDown={gripDown}
             onClick={() => {
@@ -2273,6 +2274,7 @@ export default function App() {
             getBottomInset={()=>matchMedia('(max-width:700px)').matches && tab && panelEl.current ? window.innerHeight-panelEl.current.getBoundingClientRect().top : 0}
             onGesture={() => {
               if(tripStage==='navigation'){followMap.current=false;return;}
+              if(tab==='plan' && planScreen==='form')return;
               if (
                 matchMedia("(max-width: 700px)").matches &&
                 sheetSnap > 0
@@ -2297,7 +2299,7 @@ export default function App() {
               aria-expanded={layersOpen}
               aria-controls="layers-panel"
               onClick={() => {
-                if (!layersOpen && matchMedia("(max-width: 700px)").matches)
+                if (!layersOpen && !(tab==='plan' && planScreen==='form' && tripStage==='choices') && matchMedia("(max-width: 700px)").matches)
                   setSheetSnap(0);
                 setLayersOpen(!layersOpen);
               }}
@@ -2403,7 +2405,7 @@ export default function App() {
             </button>
             <button
               aria-label="縮小地圖"
-              onClick={() => {setSheetSnap(0); map.current?.zoomOut();}}
+              onClick={() => {if(!(tab==='plan' && planScreen==='form' && tripStage==='choices'))setSheetSnap(0); map.current?.zoomOut();}}
             >
               <Minus size={20} />
             </button>
@@ -2498,7 +2500,8 @@ export default function App() {
                 setSearchFor(null);
                 setQuery("");
                 setTab("plan");
-                setSheetSnap(0);
+                setPlanScreen("form");
+                setSheetSnap(1);
                 announce(`請在地圖上點選${searchFor === "start" ? "出發地" : "目的地"}。`);
               }}
             >

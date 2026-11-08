@@ -105,6 +105,7 @@ export default function MapView({
     nearby = useRef(),
     ends = useRef();
   const baseLayers = useRef([]);
+  const routeFitTimer = useRef(null);
   const cameraIntro = useRef({following:false, awaiting:false, frame:0, pending:null, lastToken:null});
   const routeFlow = useRef(null),routeFlowRenderer=useRef(null);
   const markerData = useRef({ items, recentPlaces, colorFriendly, hideMapIcons, activeFilter });
@@ -170,6 +171,7 @@ export default function MapView({
     // User pan/zoom gestures only (not taps, not fitBounds/setView), so the
     // phone sheet can get out of the way the way Google Maps does.
     const gesture = () => {
+      clearTimeout(routeFitTimer.current);routeFitTimer.current=null;
       const intro=cameraIntro.current;
       if(intro.frame){cancelAnimationFrame(intro.frame);intro.frame=0;intro.pending=null;intro.awaiting=false;root.current?.classList.remove("navigation-intro");m.stop();}
       cb.current.onGesture?.();
@@ -518,9 +520,9 @@ export default function MapView({
       if(followNavigation)return;
       const m=map.current;
       const fit=()=>{if(!m||map.current!==m)return;const height=m.getSize().y;m.fitBounds(L.latLngBounds(route.coordinates),{animate:false,...routePadding(height)});};
-      fit();const timer=setTimeout(fit,350);return ()=>clearTimeout(timer);
+      fit();routeFitTimer.current=setTimeout(()=>{routeFitTimer.current=null;fit();},350);return ()=>{clearTimeout(routeFitTimer.current);routeFitTimer.current=null;};
     }
-  }, [route,sheetSnap,colorFriendly,hideMapIcons,followNavigation]);
+  }, [route,colorFriendly,hideMapIcons,followNavigation]);
   useEffect(() => {
     if(!partialPath.current)return;
     partialPath.current.clearLayers();
@@ -542,7 +544,7 @@ export default function MapView({
       L.circleMarker(point,{radius:9,color:TPColors.white,weight:3,fillColor:TPColors.orange700,fillOpacity:1}).bindTooltip(label,{permanent:true,direction:side==='startSide'?'top':'bottom',offset:side==='startSide'?[0,-8]:[0,8]}).addTo(partialPath.current);
     }
     if(bounds.length&&!route){const height=map.current.getSize().y;map.current.fitBounds(L.latLngBounds(bounds),{maxZoom:17,animate:false,...routePadding(height)});}
-  },[partialRoute,route,sheetSnap,colorFriendly,hideMapIcons]);
+  },[partialRoute,route,colorFriendly,hideMapIcons]);
   useEffect(() => {
     if(!routeFlow.current)return;
     routeFlow.current.clearLayers();
