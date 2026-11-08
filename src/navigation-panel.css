@@ -24,6 +24,9 @@
  .panel[data-stage="preview"] .panel-scroll,.panel[data-stage="navigation"] .panel-scroll,.panel[data-compact="true"] .panel-scroll { flex:0 1 auto; padding-bottom:20px; }
 }
 @media(max-width:700px){
+ .panel[data-tab="plan"][data-stage="choices"][data-has-destination="true"][data-snap="0"] { --sheet-h:max(300px, 35dvh); }
+ .panel[data-compact="true"][data-has-destination="true"][data-snap="0"]:not(.dragging) { height:auto; max-height:min(45dvh, calc(100dvh - var(--nav-h) - 8px)); }
+ .panel[data-compact="true"][data-has-destination="true"][data-snap="0"]:not(.dragging) .panel-scroll { flex:0 1 auto; overflow-y:auto; touch-action:pan-y; }
  .panel[data-compact="true"][data-snap="1"]:not(.dragging) { height:auto; max-height:56dvh; }
  .panel[data-compact="true"][data-snap="1"]:not(.dragging) .panel-scroll { flex:0 1 auto; }
  .panel[data-stage="preview"],.panel[data-stage="navigation"] { bottom:0; height:auto; max-height:48dvh; padding-bottom:env(safe-area-inset-bottom); }

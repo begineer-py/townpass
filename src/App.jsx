@@ -489,6 +489,9 @@ export default function App() {
   const [sheetSnap, setSheetSnap] = useState(1);
   const [bearing, setBearing] = useState(0);
   const SHEET_SNAPS = [0.11, 0.56, 0.9];
+  useLayoutEffect(()=>{
+    if(tab==='plan' && tripStage==='choices' && end && sheetSnap===0 && panelScroll.current)panelScroll.current.scrollTop=0;
+  },[tab,tripStage,end,sheetSnap]);
   useEffect(()=>{if(route || routeError)setSheetSnap(v=>Math.max(v,1));},[route,routeError]);
   function gripDown(e) {
     const el = panelEl.current;
@@ -1644,6 +1647,7 @@ export default function App() {
           data-tab={tab}
           data-stage={tripStage}
           data-compact={tab==='plan' && tripStage==='choices' && !route && !routeError}
+          data-has-destination={Boolean(end)}
           id="main-content"
           ref={panelEl}
           data-snap={sheetSnap}
