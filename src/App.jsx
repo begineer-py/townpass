@@ -467,7 +467,6 @@ export default function App() {
   const [partialRoute,setPartialRoute] = useState(null);
   const requestEndpoints=useRef(null);
   const routeGapView=useMemo(()=>partialRoute?null:routeGapPresentation(routeError,routeGap),[routeError,routeGap,partialRoute]);
-  const [routeAttempt,setRouteAttempt]=useState(0);
   function verifyOnlineRoute(route, start, end, id, construction, options=prefs) {
     return new Promise(resolve => {
       let settled=false;
@@ -802,7 +801,6 @@ export default function App() {
     setConstructionConflict(null);
     setRouteGap(null);
     setPartialRoute(null);
-    setRouteAttempt(0);
     for(const resolve of pendingVerifications.current.values()) resolve({error:'UNVERIFIED_NETWORK'});
     pendingVerifications.current.clear();
     officialRequest.current?.abort();
@@ -1193,7 +1191,6 @@ export default function App() {
           if(id!==request.current)return;
           if(verified.error && verified.detourWaypoints?.length){
             const alternatives=await searchVerifiedAlternatives({start:[from.lat,from.lon],end:[to.lat,to.lon],waypoints:verified.detourWaypoints,signal:controller.signal,
-              onProgress:n=>{if(id===request.current)setRouteAttempt(n);},
               query:(a,b,via,signal)=>requestOfficialRoute(a,b,{...requestPrefs,via},signal),
               verify:candidate=>verifyOnlineRoute(candidate,[from.lat,from.lon],[to.lat,to.lon],id,construction,requestPrefs)});
             if(id!==request.current)return;
@@ -1523,6 +1520,7 @@ export default function App() {
   const retryWithEntrance = ['OFFICIAL_PATH_UNVERIFIED','OFFICIAL_ROAD_CONFLICT','OFFICIAL_CROSSING_UNVERIFIED','OFFICIAL_ENTRY_UNVERIFIED','OFFICIAL_NO_ROUTE','OFFICIAL_GAP','NO_CONNECTION','NO_ROUTE'].includes(routeError);
   const simpleNoRoute=['NO_ROUTE','NO_CONNECTION','OFFICIAL_NO_ROUTE','OFFICIAL_GAP'].includes(routeError);
   const automaticComparisonLoading=referenceState.status==='loading'&&referenceBaseline.current?.automatic===true&&referenceBaseline.current.route===route;
+  const routeSearchPending=routing||referenceState.status==='loading'||nearbyState.status==='loading';
   const mapRoutes=mapRouteVisibility({tab,routing,automaticComparisonLoading,route,partialRoute,simpleNoRoute});
   const mapLayers=routeViewLayers({stage:tripStage,hideMapIcons,showOfficialSidewalk,showConstruction});
   const previewChoices=(unifiedRouteChoices||[
@@ -1812,14 +1810,14 @@ export default function App() {
                 {end && <button
                   className="primary full"
                   onClick={() => calculate()}
-                  disabled={routing || automaticComparisonLoading || waitingForData}
+                  disabled={routeSearchPending || waitingForData}
                 >
-                  {routing || automaticComparisonLoading ? (
+                  {routeSearchPending ? (
                     <LoaderCircle className="spin" size={19} />
                   ) : (
                     <Route size={19} />
                   )}{" "}
-                  {routing || automaticComparisonLoading ? (routeAttempt ? `正在嘗試第 ${routeAttempt} 條繞路…` : "正在找路線…") : "規劃路線"}
+                  {routeSearchPending ? "正在尋找路線…" : "規劃路線"}
                   <ArrowRight size={19} />
                 </button>}
                 {graphRequested && !graphReady && graphError && (
@@ -1827,12 +1825,12 @@ export default function App() {
                     路線資料暫時讀取不到，請重新整理再試。
                   </p>
                 )}
-                {routeError && (
+                {routeError && !(simpleNoRoute && routeSearchPending) && (
                   <div className={`notice ${retryWithEntrance ? "route-recovery" : ""}`} role="status" ref={routeFeedback}>
                     <Info />
                     <div>
                     <p>
-                      {simpleNoRoute ? ((nearbyState.status==='loading'||referenceState.status==='loading')?'正在尋找路線…':'找不到路線。') : (nearbyState.status==='loading' ? '正在尋找附近可連通的路線…' : (errorText[routeError] || "暫時無法規劃，請稍後再試。"))}
+                      {simpleNoRoute ? '找不到路線。' : (nearbyState.status==='loading' ? '正在尋找附近可連通的路線…' : (errorText[routeError] || "暫時無法規劃，請稍後再試。"))}
                     </p>
                     {!simpleNoRoute && partialRoute && <section aria-label="未連接的部分路段">
                       <p>{partialRoute.message}</p>
@@ -1881,7 +1879,7 @@ export default function App() {
                   {unifiedRouteChoices.map((item,index)=>{const candidate=item.candidate,source=item.source==='reference';return <RouteChoice key={`${item.source}:${candidate.id}`} number={index+1} distance={item.distance} summary={unifiedRouteSummaries[index]} selected={route===candidate.route || (!source&&selectedRouteCandidate===candidate.id)} disabled={source?!isCurrentOfficialRoute(candidate.route):!constructionFresh(lastConstruction.current)||candidate.route?.construction?.sourceUpdatedAt!==lastConstruction.current?.sourceUpdatedAt} onClick={()=>previewRoute(candidate,source?'reference':'local')}/>;})}
                 </section>}
                 {referenceCollapsed && referenceState.status==='ready' && <button type="button" onClick={()=>setReferenceCollapsed(false)}>查看線條說明</button>}
-                {!simpleNoRoute && !mapRoutes.pending && <ReferenceRouteResult status={referenceCollapsed?'idle':referenceState.status} route={referenceRoute} candidates={displayedReferenceCandidates} selected={selectedRouteCandidate} onSelect={candidate=>previewRoute(candidate,'reference')} comparisonStatus={referenceState.comparisonStatus} showCandidates={!unifiedRouteChoices} showLegend={false} showSelectedNotice={false} showIssueIcons={true} start={start} end={end} message={referenceState.message} onClose={()=>{if(route?.kind==='official-passageway')setReferenceCollapsed(true);else {referenceSearch.current.cancel();referenceSnapshot.current=null;referenceBaseline.current=null;}}} />}
+                {!simpleNoRoute && !mapRoutes.pending && referenceState.status!=='loading' && <ReferenceRouteResult status={referenceCollapsed?'idle':referenceState.status} route={referenceRoute} candidates={displayedReferenceCandidates} selected={selectedRouteCandidate} onSelect={candidate=>previewRoute(candidate,'reference')} comparisonStatus={referenceState.comparisonStatus} showCandidates={!unifiedRouteChoices} showLegend={false} showSelectedNotice={false} showIssueIcons={true} start={start} end={end} message={referenceState.message} onClose={()=>{if(route?.kind==='official-passageway')setReferenceCollapsed(true);else {referenceSearch.current.cancel();referenceSnapshot.current=null;referenceBaseline.current=null;}}} />}
                 {route && !mapRoutes.pending && (
                   <>
                     <div className="route-summary"><h2>{start?.nearbyOriginal||end?.nearbyOriginal?'路網路線':'全程'} {formatDistance(route.distance)}</h2></div>
