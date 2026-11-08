@@ -35,3 +35,13 @@ test('approximate crossings remain visible even when the route has other concern
  const c=candidate(100,60,30,100,[{distanceMetres:1}]);c.route.segments=[{approximateCrossing:true}];
  const [summary]=describeRouteChoices([{source:'reference',candidate:c}]);assert.match(summary.concern,/過街邊界未確認/);
 });
+
+test('sidewalk percentage uses the full distance and includes other pedestrian segments',()=>{
+ const local={route:{officialConditions:{status:'available',points:[]}},metrics:{distanceMetres:200,explicitSidewalkMetres:80,otherPedestrianMetres:30,sharedMetres:60,unknownMetres:0}};
+ const [a,b,c]=describeRouteChoices([{source:'local',candidate:local},{source:'reference',candidate:candidate(2800,2390,0,2800)},{source:'reference',candidate:candidate(100,0,100,0)}]);
+ assert.equal(a.sidewalkPercent,55);assert.equal(b.sidewalkPercent,85);assert.equal(c.sidewalkPercent,0);
+});
+test('unknown or inconsistent sidewalk coverage does not produce a misleading percentage',()=>{
+ const items=[candidate(100,null,0,0),candidate(0,0,0,0),candidate(100,120,0,0)];
+ for(const summary of describeRouteChoices(items.map(candidate=>({source:'reference',candidate}))))assert.equal(summary.sidewalkPercent,null);
+});

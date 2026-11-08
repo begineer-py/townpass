@@ -33,6 +33,7 @@ export function describeRouteChoices(items){
   if(shortest!==null&&m.distance-shortest>=Math.max(20,shortest*.05))concerns.push(`比最短多走約 ${amount(m.distance-shortest)}`);
   if(!finite(m.unknown)||m.unknown>0||m.records===null)concerns.push('部分路況資料不足');
   else if(finite(m.approach)&&m.approach>1)concerns.push('起終點銜接待確認');
-  return {strength:strengths.slice(0,2).join('、')||(canCompareSidewalk&&canCompareShared?'尚無明顯優點':'資料不足，無法比較'),concern:concerns.slice(0,2).join('；')||'實際路況請留意現場',hasUnknown:!finite(m.unknown)||m.unknown>0||m.records===null};
+  const sidewalkPercent=finite(m.sidewalk)&&finite(m.distance)&&m.distance>0&&m.sidewalk<=m.distance*1.01?Math.min(100,Math.round(m.sidewalk/m.distance*100)):null;
+  return {sidewalkPercent,strength:strengths.slice(0,2).join('、')||(canCompareSidewalk&&canCompareShared?'尚無明顯優點':'資料不足，無法比較'),concern:concerns.slice(0,2).join('；')||'實際路況請留意現場',hasUnknown:!finite(m.unknown)||m.unknown>0||m.records===null};
  });
 }
