@@ -22,8 +22,9 @@ function point(coords,source,timestamp=coords?.timestamp){
  const lat=Number(coords?.latitude),lon=Number(coords?.longitude);
  if(coords?.latitude==null||coords?.longitude==null||!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180)throw Error('invalid');
  const accuracy=coords.accuracy!=null&&Number.isFinite(Number(coords.accuracy))&&Number(coords.accuracy)>=0?Number(coords.accuracy):null;
- const measuredAt=timestamp!=null&&Number.isFinite(Number(timestamp))?Number(timestamp):null;
- return {lat,lon,name:'我的位置',id:'my-location',originKind:'gps',accuracy,needsConfirmation:accuracy==null||accuracy>100,locationSource:source,timestamp:measuredAt};
+ const numeric=timestamp!=null?Number(timestamp):NaN,parsed=typeof timestamp==='string'&&!Number.isFinite(numeric)?Date.parse(timestamp):NaN;
+ const measuredAt=Number.isFinite(numeric)?numeric:Number.isFinite(parsed)?parsed:null;
+ return {lat,lon,name:'我的位置',id:'my-location',originKind:'gps',accuracy,needsConfirmation:accuracy==null||accuracy>100,locationSource:source,timestamp:measuredAt,receivedAt:Date.now()};
 }
 export async function browserLocation(){
  if(globalThis.isSecureContext===false)throw Error('insecure');

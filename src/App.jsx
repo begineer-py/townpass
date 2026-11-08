@@ -61,6 +61,7 @@ import ReferenceRouteResult from "./ReferenceRouteResult";
 import RouteChoice from "./RouteChoice.jsx";
 import NavigationPanel, {NavigationPrompt} from "./NavigationPanel.jsx";
 import {navigationProgress} from "./navigation-progress.mjs";
+import {navigationCameraFocus} from "./navigation-camera.mjs";
 import {describeRouteChoices} from "./route-summary.mjs";
 import {createReferenceSearch} from "./reference-search.mjs";
 import {createConditionDetourSearch} from "./condition-detour-search.mjs";
@@ -370,7 +371,7 @@ export default function App() {
   const [currentLocation, setCurrentLocation] = useState(null);
   const [followState,setFollowState] = useState({active:false,status:'idle',message:''});
   const [tripStage,setTripStage]=useState('choices'),[navProgress,setNavProgress]=useState(null),[reportDemo,setReportDemo]=useState(false);
-  const navAlong=useRef(0),followMap=useRef(true);
+  const navAlong=useRef(0),followMap=useRef(true),cameraSerial=useRef(0);
   const followSession = useRef(null);
   const [basemap, setBasemap] = useState(() => {
     const v = readSaved("hhz-basemap", "street");
@@ -848,7 +849,7 @@ export default function App() {
   }
   function returnToRoutes(){stopFollowing();restoreChoicePosition.current=true;setTripStage('choices');setNavProgress(null);setReportDemo(false);setSheetSnap(1);}
   function endNavigation(){stopFollowing();setTripStage('preview');setNavProgress(null);setReportDemo(false);setSheetSnap(1);}
-  function recenterNavigation(){followMap.current=true;const p=followSession.current?.latest;if(p){const progress=navigationProgress(followSession.current.referenceRoute,p,navAlong.current);setFocus({...p,zoom:18,bearing:progress?.bearing,token:Date.now()});}else announce('正在等待定位。');}
+  function recenterNavigation(){followMap.current=true;const session=followSession.current,focus=navigationCameraFocus(session?.displayPosition,session?.referenceRoute,navAlong.current);if(focus)setFocus({...focus,token:++cameraSerial.current});else announce('正在等待定位。');}
   function cancelNearby(){
     nearbySearch.current.cancel();
   }
@@ -950,14 +951,12 @@ export default function App() {
     if(referenceState.status==='loading'&&referenceBaseline.current?.automatic){referenceSearch.current.cancel();referenceSnapshot.current=null;referenceBaseline.current=null;}
     stopFollowing();
     navAlong.current=0;setNavProgress(null);setReportDemo(false);followMap.current=true;setTripStage('navigation');setSheetSnap(0);
-    if(currentLocation?.originKind==='gps'&&Number.isFinite(currentLocation.lat)&&Number.isFinite(currentLocation.lon)&&Number.isFinite(currentLocation.timestamp)&&Date.now()-currentLocation.timestamp<=30000&&currentLocation.timestamp<=Date.now()+5000){
-      const initial=navigationProgress(route,currentLocation,0);
-      setFocus({...currentLocation,zoom:18,bearing:initial?.bearing,token:Date.now()});
-    }
+    const initialFocus=navigationCameraFocus(currentLocation,route,0);
+    if(initialFocus)setFocus({...initialFocus,token:++cameraSerial.current});
     // Discard any earlier one-shot positioning response before subscribing.
     cancelLocation();
     const destination={...end,selectionKind:'user'},options={...prefs,avoidPoints};
-    const session={engine:null,search:null,stopWatch:null,latest:null,referenceRoute:route};
+    const session={engine:null,search:null,stopWatch:null,latest:null,displayPosition:initialFocus?currentLocation:null,referenceRoute:route};
     followSession.current=session;
     session.search=createLiveFollowSearch({
       fetchSnapshot:fetchConstruction,
@@ -1005,7 +1004,6 @@ export default function App() {
         session.latest=p;setCurrentLocation(p);
         const progress=navigationProgress(session.referenceRoute,p,navAlong.current);
         if(progress){navAlong.current=progress.along;setNavProgress(progress);}else setNavProgress(null);
-        if(followMap.current)setFocus({...p,zoom:18,bearing:progress?.bearing,token:Date.now()});
       },
       onUncertain:()=>{
         if(followSession.current!==session)return;
@@ -1020,7 +1018,12 @@ export default function App() {
       },
     });
     setFollowState({active:true,status:'following',message:''});
-    session.stopWatch=watchLocation(p=>session.engine.sample(p),error=>{
+    session.stopWatch=watchLocation(p=>{
+      if(followSession.current!==session)return;
+      const focus=navigationCameraFocus(p,session.referenceRoute,navAlong.current);
+      if(focus){session.displayPosition=p;setCurrentLocation(p);if(followMap.current)setFocus({...focus,token:++cameraSerial.current});}
+      session.engine.sample(p);
+    },error=>{
       if(followSession.current!==session)return;
       stopFollowing();
       setFollowState({active:false,status:'error',message:locationMessages[locationError(error)]});
