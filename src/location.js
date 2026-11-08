@@ -50,6 +50,8 @@ export async function getLocation(){
  return browserLocation();
 }
 
+export const TOWNPASS_LOCATION_POLL_MS = 3000;
+
 // A live subscription starts only when requested by the user. Town Pass exposes
 // a one-shot location hook, so in that host we poll it rather than assume a
 // streaming bridge. Missing source timestamps remain unknown.
@@ -58,12 +60,12 @@ export function watchLocation(onPosition,onError){
  const fail=error=>{if(active){active=false;if(watchId!=null)globalThis.navigator?.geolocation?.clearWatch?.(watchId);clearTimeout(timer);onError(error);}};
  const fake=devLocation();
  if(fake){
-  const poll=()=>{if(!active)return;onPosition({...fake,timestamp:Date.now()});if(active)timer=setTimeout(poll,15000);};
+  const poll=()=>{if(!active)return;onPosition({...fake,timestamp:Date.now()});if(active)timer=setTimeout(poll,TOWNPASS_LOCATION_POLL_MS);};
   queueMicrotask(poll);
   return ()=>{active=false;clearTimeout(timer);};
  }
  if(hasTownPass()){
-  const poll=async()=>{try{const p=await getLocation();if(!active)return;onPosition(p);timer=setTimeout(poll,15000);}catch(error){fail(error);}};
+  const poll=async()=>{try{const p=await getLocation();if(!active)return;onPosition(p);if(active)timer=setTimeout(poll,TOWNPASS_LOCATION_POLL_MS);}catch(error){fail(error);}};
   void poll();
  }else if(globalThis.isSecureContext===false)queueMicrotask(()=>fail(Error('insecure')));
  else if(!globalThis.navigator?.geolocation?.watchPosition)queueMicrotask(()=>fail(Error('unsupported')));

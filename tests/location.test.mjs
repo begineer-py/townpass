@@ -34,3 +34,24 @@ test('map and GPS origin exception never leak to destination',()=>{
  assert.equal(destinationPoint(start).originKind,'map');
  assert.equal(swappedOrigin({...end,kind:'place',sourceId:'osm'}).originKind,undefined);
 });
+
+test('Town Pass polls every 3 seconds after a response and does not overlap or continue after stop',async t=>{
+ const bridge={calls:0,postMessage(){this.calls++}};environment(t,bridge,()=>{throw Error('unexpected fallback')});
+ const timers=new Map();let id=0;
+ t.mock.method(globalThis,'setTimeout',(fn,delay)=>{const key=++id;timers.set(key,{fn,delay});return key;});
+ t.mock.method(globalThis,'clearTimeout',key=>timers.delete(key));
+ const values=[],stop=watchLocation(p=>values.push(p),()=>assert.fail('unexpected error'));
+ assert.equal(bridge.calls,1);assert.equal([...timers.values()].filter(x=>x.delay===3000).length,0);
+ bridge.onmessage({data:JSON.stringify({name:'location',data:coords})});await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(values.length,1);const timer=[...timers.entries()].find(([,item])=>item.delay===3000);assert.ok(timer);
+ timers.delete(timer[0]);timer[1].fn();assert.equal(bridge.calls,2);
+ stop();bridge.onmessage({data:JSON.stringify({name:'location',data:coords})});await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(values.length,1);assert.equal([...timers.values()].some(x=>x.delay===3000),false);
+});
+test('stopping from the location callback does not schedule another native poll',async t=>{
+ const bridge={postMessage(){}};environment(t,bridge,()=>{throw Error('unexpected fallback')});const delays=[];
+ t.mock.method(globalThis,'setTimeout',(fn,delay)=>{delays.push(delay);return delays.length});t.mock.method(globalThis,'clearTimeout',()=>{});
+ let stop;stop=watchLocation(()=>stop(),()=>assert.fail('unexpected error'));
+ bridge.onmessage({data:JSON.stringify({name:'location',data:coords})});await new Promise(resolve=>setImmediate(resolve));
+ assert.deepEqual(delays,[4000]);
+});
