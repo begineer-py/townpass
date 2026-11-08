@@ -3,16 +3,16 @@ import { join } from 'node:path';
 
 // One warm graph per instance; active cancellation terminates its computation.
 export function createRoutePool({createWorker=()=>new Worker(join(process.cwd(),'server','route-thread.mjs')),maxQueue=8,timeoutMs=55000}={}) {
- let worker=null,ready=false,active=null,queue=[],closed=false,epoch=0,warmers=0;
+ let worker=null,ready=false,active=null,queue=[],closed=false,epoch=0,warmers=0,startedAt=0,readyAt=0;
  const finish=(task,error,value)=>{if(task.done)return;task.done=true;clearTimeout(task.timer);task.signal?.removeEventListener('abort',task.abort);error?task.reject(error):task.resolve(value);};
- function destroy(){const previous=worker;worker=null;ready=false;epoch++;previous?.terminate();}
+ function destroy(){const previous=worker;worker=null;ready=false;startedAt=0;readyAt=0;epoch++;previous?.terminate();}
  function pump(){if(closed||active||!queue.length)return;if(!worker){start();return;}if(!ready)return;active=queue.shift();try{worker.postMessage(active.message);}catch(error){fail(error);}}
  function fail(error){const current=active,initializing=!ready;active=null;destroy();if(current)finish(current,error);if(initializing){while(queue.length)finish(queue.shift(),error);}else if(queue.length)pump();}
  function start(){
-  if(worker||closed)return;const generation=++epoch;
+  if(worker||closed)return;const generation=++epoch;startedAt=Date.now();readyAt=0;
   try{worker=createWorker();}catch(error){while(queue.length)finish(queue.shift(),error);return;}
   const current=worker;
-  current.on('message',data=>{if(worker!==current||generation!==epoch)return;if(data?.type==='ready'){ready=true;pump();return;}if(data?.type==='error'&&data.id==null){fail(Error('ROUTING_INIT_FAILED'));return;}if(!active||data?.id!==active.message.id)return;const task=active;active=null;if(data.type==='error')finish(task,Error('ROUTING_ENGINE_ERROR'));else finish(task,null,data);pump();});
+  current.on('message',data=>{if(worker!==current||generation!==epoch)return;if(data?.type==='ready'){ready=true;readyAt=Date.now();pump();return;}if(data?.type==='error'&&data.id==null){fail(Error('ROUTING_INIT_FAILED'));return;}if(!active||data?.id!==active.message.id)return;const task=active;active=null;if(data.type==='error')finish(task,Error('ROUTING_ENGINE_ERROR'));else finish(task,null,data);pump();});
   current.on('error',error=>{if(worker===current&&generation===epoch)fail(error);});
   current.on('exit',code=>{if(worker===current&&generation===epoch)fail(Error(`ROUTING_ENGINE_EXIT_${code}`));});
   try{current.postMessage({type:'init',url:'http://route-data.internal/data/graph.json.gz'});}catch(error){if(worker===current&&generation===epoch)fail(error);}
@@ -35,5 +35,5 @@ export function createRoutePool({createWorker=()=>new Worker(join(process.cwd(),
   });
  }
  function dispose(){closed=true;destroy();if(active)finish(active,Error('ROUTING_CLOSED'));active=null;for(const task of queue)finish(task,Error('ROUTING_CLOSED'));queue=[];}
- return {warm,execute,dispose};
+ return {warm,execute,dispose,metrics:()=>({startedAt,readyAt})};
 }

@@ -26,8 +26,9 @@ export function validRouteTask(task){
  return true;
 }
 export default async function handler(req,res){
+ const started=Date.now(),timing={};
  res.setHeader('Cache-Control','no-store');res.setHeader('Content-Type','application/json; charset=utf-8');
- const send=(status,value)=>{if(!res.writableEnded&&!res.destroyed){res.statusCode=status;res.end(JSON.stringify(value));}};
+ const send=(status,value)=>{if(!res.writableEnded&&!res.destroyed){const graph=pool.metrics();if(graph.startedAt&&graph.readyAt&&graph.readyAt>=started)timing.graph=Math.max(0,graph.readyAt-Math.max(started,graph.startedAt));timing.total=Date.now()-started;res.setHeader('Server-Timing',Object.entries(timing).map(([key,value])=>`${key};dur=${value}`).join(', '));res.statusCode=status;res.end(JSON.stringify(value));}};
  if(req.method!=='POST'){res.setHeader('Allow','POST');return send(405,{error:'METHOD_NOT_ALLOWED'});}
  let body;
  try{
@@ -49,7 +50,7 @@ export default async function handler(req,res){
    const [ready]=await Promise.all([pool.execute({type:'warmup',id:task.id},{signal:abort.signal}),getConstructionSnapshot()]);
    return send(200,ready);
   }
-  const snapshot=await getConstructionSnapshot();
+  const snapshotStart=Date.now();const snapshot=await getConstructionSnapshot();timing.construction=Date.now()-snapshotStart;
   if(abort.signal.aborted){if(abort.signal.reason==='timeout')return send(504,{error:'ROUTE_BACKEND_TIMEOUT'});return;}
   if(sourceDate!=null&&snapshot.sourceUpdatedAt!==sourceDate)return send(200,{type:responseType(task.type),id:task.id,result:{error:'CONSTRUCTION_UNAVAILABLE'}});
   if(task.type==='compare-sidewalk'){
@@ -59,7 +60,7 @@ export default async function handler(req,res){
    const comparison=compared.status==='ready'?{status:compared.status,shortestDistanceMetres:compared.shortestDistanceMetres,scoreMeaning:compared.scoreMeaning,current:{metrics:compared.current.metrics,score:compared.current.score},localCandidates:compared.localCandidates.map(compact),referenceCandidates:compared.referenceCandidates.map(compact)}:compared;
    return send(200,{type:task.type,id:task.id,result:{comparison,improvedCandidateId:improved?.candidate?.id??null}});
   }
-  const result=await coalescer.execute(task,snapshot,{signal:abort.signal});
+  const routeStart=Date.now();const result=await coalescer.execute(task,snapshot,{signal:abort.signal});timing.route=Date.now()-routeStart;
   return send(200,{...result,constructionSourceUpdatedAt:snapshot.sourceUpdatedAt});
  }catch(error){
   if(abort.signal.aborted){if(abort.signal.reason==='timeout')return send(504,{error:'ROUTE_BACKEND_TIMEOUT'});return;}
