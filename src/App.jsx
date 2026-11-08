@@ -1621,6 +1621,7 @@ export default function App() {
           hidden={!tab}
           data-tab={tab}
           data-stage={tripStage}
+          data-compact={tab==='plan' && tripStage==='choices' && !route && !routeError}
           id="main-content"
           ref={panelEl}
           data-snap={sheetSnap}

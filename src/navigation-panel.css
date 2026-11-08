@@ -16,7 +16,13 @@
 .navigation-prompt > div { display:flex; flex-direction:column; gap:2px; min-width:0; }
 .navigation-prompt strong { font-size:1.3rem; }
 .navigation-prompt span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+@media(min-width:701px){
+ .panel[data-stage="preview"],.panel[data-stage="navigation"],.panel[data-compact="true"] { bottom:auto; max-height:calc(100dvh - 24px); }
+ .panel[data-stage="preview"] .panel-scroll,.panel[data-stage="navigation"] .panel-scroll,.panel[data-compact="true"] .panel-scroll { flex:0 1 auto; padding-bottom:20px; }
+}
 @media(max-width:700px){
+ .panel[data-compact="true"][data-snap="1"]:not(.dragging) { height:auto; max-height:56dvh; }
+ .panel[data-compact="true"][data-snap="1"]:not(.dragging) .panel-scroll { flex:0 1 auto; }
  .panel[data-stage="preview"],.panel[data-stage="navigation"] { bottom:0; height:auto; max-height:48dvh; padding-bottom:env(safe-area-inset-bottom); }
  .panel[data-stage="preview"] .panel-scroll,.panel[data-stage="navigation"] .panel-scroll { overflow:auto; touch-action:pan-y; padding:16px; }
  .navigation-prompt { top:12px; left:12px; width:calc(100% - 82px); padding:12px 14px; }
