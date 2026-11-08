@@ -7,6 +7,8 @@ import { crossingEvidence, crossingUncertainty } from "./crossing-evidence.mjs";
 import {edgeTier,edgeCostFactor,edgeCostDetails,ROUTE_TIERS} from "./route-tiers.mjs";
 import {generalSidewalkEdge} from './general-sidewalk.mjs';
 export const ROUTING_POLICY = "pedestrian-evidence-v4";
+export const ROUTE_SEARCH_TIMEOUT_MS = 8000;
+export const ROUTE_SEARCH_MAX_VISITED = 100000;
 // A Symbol cannot arrive through stored preferences or postMessage. It permits
 // a diagnostic comparison route to identify stairs without ever enabling them
 // in a user-facing route.
@@ -335,12 +337,16 @@ export function createRouter(graph) {
     let bestTotal=Infinity,goal=-1;
     const optimizeDeadline=Number.isFinite(options._optimizeDeadline)?options._optimizeDeadline:Infinity;
     const optimizeMaxVisited=Number.isInteger(options._optimizeMaxVisited)?options._optimizeMaxVisited:Infinity;
+    const routeDeadline=Number.isFinite(options._routeDeadline)?options._routeDeadline:Date.now()+ROUTE_SEARCH_TIMEOUT_MS;
+    const routeMaxVisited=Number.isInteger(options._routeMaxVisited)?options._routeMaxVisited:ROUTE_SEARCH_MAX_VISITED;
     let found = false,
       visited = 0;
     while (heap.a.length) {
       const [lowerBound, u, cost] = heap.pop();
       if (cost !== dist[u]) continue;
       if(lowerBound>=bestTotal)break;
+      if(visited>=routeMaxVisited)return {error:'ROUTE_SEARCH_LIMIT',visited};
+      if((visited&255)===0&&Date.now()>routeDeadline)return {error:'ROUTE_SEARCH_TIMEOUT',visited};
       if(visited>=optimizeMaxVisited||((visited&255)===0&&Date.now()>optimizeDeadline))return {error:'OPTIMIZATION_BUDGET',visited};
       if(targets.has(u)){
         const total=cost+targets.get(u).distance*ROUTE_TIERS.connector.factor;

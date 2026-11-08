@@ -1,6 +1,6 @@
 import {generalPedestrianSegment} from './general-sidewalk.mjs';
 import {snapMapPoint} from './map-snap.mjs';
-import { metres, ROUTING_POLICY } from "./routing.mjs";
+import { metres, ROUTING_POLICY, ROUTE_SEARCH_TIMEOUT_MS, ROUTE_SEARCH_MAX_VISITED } from "./routing.mjs";
 import {verifiedPartialRoute} from "./partial-route.mjs";
 import { gunzipSync } from "fflate";
 import {createOfficialConditionIndex,officialConditionMetrics,officialConditionScore} from './official-conditions.mjs';
@@ -241,15 +241,16 @@ self.onmessage = async ({ data }) => {
       await initialization;
       prepareTask();
       let checker;try{checker=createConstructionChecker(data.construction);}catch{postMessage({type:'route',id:data.id,result:{error:'CONSTRUCTION_UNAVAILABLE'}});return;}
-      let result=planImprovedPlaces(data.startPlace,data.endPlace,data.options||{},data.construction,{graph:routeGraph,router,verifyLocal,facilities,checker});
-      if(!result.error)result=withCandidates(result,data.startPlace,data.endPlace,data.options||{},data.construction,checker);
+      const options={...(data.options||{}),_routeDeadline:Date.now()+ROUTE_SEARCH_TIMEOUT_MS,_routeMaxVisited:ROUTE_SEARCH_MAX_VISITED};
+      let result=planImprovedPlaces(data.startPlace,data.endPlace,options,data.construction,{graph:routeGraph,router,verifyLocal,facilities,checker});
+      if(!result.error)result=withCandidates(result,data.startPlace,data.endPlace,options,data.construction,checker);
       if(!result.error){
         const a=result.resolvedStart||data.startPlace,b=result.resolvedEnd||data.endPlace;
         if(Number.isFinite(a?.lat)&&Number.isFinite(b?.lat))
-          result=annotateAvoidance(result,[a.lat,a.lon],[b.lat,b.lon],{...data.options,startPlace:a,endPlace:b,lineAllowed:checker.allowed},checker);
+          result=annotateAvoidance(result,[a.lat,a.lon],[b.lat,b.lon],{...options,startPlace:a,endPlace:b,lineAllowed:checker.allowed},checker);
       }
       if(['NO_ROUTE','NO_CONNECTION'].includes(result.error)&&result.failedPair&&constructionFresh(data.construction)){
-        const {start:a,end:b}=result.failedPair,prefs={...data.options,startPlace:a,endPlace:b,lineAllowed:checker.allowed,diagnosePartial:true};
+        const {start:a,end:b}=result.failedPair,prefs={...options,startPlace:a,endPlace:b,lineAllowed:checker.allowed,diagnosePartial:true};
         const start=[a.lat,a.lon],end=[b.lat,b.lon],diagnostic=router(start,end,prefs);
         if(diagnostic.error===result.error){
           const partialRoute=verifiedPartialRoute(diagnostic,start,end,prefs,data.construction,{verifyLocal,checker,resolvedStart:a,resolvedEnd:b});
@@ -317,8 +318,9 @@ self.onmessage = async ({ data }) => {
       prepareTask();
       if (!router) throw Error("not ready");
       let checker;try{checker=createConstructionChecker(data.construction);}catch{postMessage({type:'route',id:data.id,result:{error:'CONSTRUCTION_UNAVAILABLE'}});return;}
-      function leg(start,end,legOptions=data.options||{}){
-        const prefs={...legOptions,lineAllowed:checker.allowed};
+      const options={...(data.options||{}),_routeDeadline:Date.now()+ROUTE_SEARCH_TIMEOUT_MS,_routeMaxVisited:ROUTE_SEARCH_MAX_VISITED};
+      function leg(start,end,legOptions=options){
+        const prefs={...legOptions,_routeDeadline:options._routeDeadline,lineAllowed:checker.allowed};
         const candidate=router(start,end,prefs);
         if(candidate.error){
           if(['NO_ROUTE','NO_CONNECTION'].includes(candidate.error)){
@@ -335,18 +337,18 @@ self.onmessage = async ({ data }) => {
           return candidate;
         }
         const checked=candidate.error?candidate:verifyLocal(candidate,start,end,legOptions);
-        return checked.error?checked:routeAroundConstruction({...checked,provider:'local-verified'},start,end,legOptions,data.construction,{router,verifyOfficial,verifyLocal});
+        return checked.error?checked:routeAroundConstruction({...checked,provider:'local-verified'},start,end,prefs,data.construction,{router,verifyOfficial,verifyLocal});
       }
       let result;
       if(data.via){
-        let a=leg(data.start,data.via,{...data.options,endPlace:null}),b=a.error?a:leg(data.via,data.end,{...data.options,startPlace:null});
+        let a=leg(data.start,data.via,{...options,endPlace:null}),b=a.error?a:leg(data.via,data.end,{...options,startPlace:null});
         if(!a.error&&!b.error){
           const ma=measurePedestrianRoute(routeGraph,a,data.start,data.via),mb=measurePedestrianRoute(routeGraph,b,data.via,data.end);
           if(ma&&mb){
             const total=ma.distance+mb.distance,limit=Math.min(total*1.3,total+300),deps={graph:routeGraph,router,verifyLocal,checker};
-            a=improvePedestrianRoute(a,data.start,data.via,{...data.options,endPlace:null},data.construction,deps,{parentBaselineDistance:total,otherLegDistance:mb.distance,otherLegSidewalkMetres:mb.sidewalk});
+            a=improvePedestrianRoute(a,data.start,data.via,{...options,endPlace:null},data.construction,deps,{parentBaselineDistance:total,otherLegDistance:mb.distance,otherLegSidewalkMetres:mb.sidewalk});
             if(!a.error){const improvedA=measurePedestrianRoute(routeGraph,a,data.start,data.via);
-              b=improvePedestrianRoute(b,data.via,data.end,{...data.options,startPlace:null},data.construction,deps,{parentBaselineDistance:total,otherLegDistance:improvedA.distance,otherLegSidewalkMetres:improvedA.sidewalk});}
+              b=improvePedestrianRoute(b,data.via,data.end,{...options,startPlace:null},data.construction,deps,{parentBaselineDistance:total,otherLegDistance:improvedA.distance,otherLegSidewalkMetres:improvedA.sidewalk});}
             if(!a.error&&!b.error){const resultA=measurePedestrianRoute(routeGraph,a,data.start,data.via),resultB=measurePedestrianRoute(routeGraph,b,data.via,data.end);
               result=combineRoutes(a,b,data.viaName);result.pedestrianImprovement={status:'via-legs',originalDistanceMetres:total,maxDistanceMetres:limit,distanceMetres:resultA.distance+resultB.distance,legs:[a.pedestrianImprovement,b.pedestrianImprovement]};}
           }
@@ -361,9 +363,9 @@ self.onmessage = async ({ data }) => {
         }
       }else{
         result=leg(data.start,data.end);
-        if(!result.error){result=improvePedestrianRoute(result,data.start,data.end,data.options||{},data.construction,{graph:routeGraph,router,verifyLocal,checker});
-          if(!result.error)result=withCandidates(result,data.options?.startPlace||{lat:data.start[0],lon:data.start[1]},data.options?.endPlace||{lat:data.end[0],lon:data.end[1]},data.options||{},data.construction,checker);}
-        result=annotateAvoidance(result,data.start,data.end,{...data.options,lineAllowed:checker.allowed},checker);
+        if(!result.error){result=improvePedestrianRoute(result,data.start,data.end,options,data.construction,{graph:routeGraph,router,verifyLocal,checker});
+          if(!result.error)result=withCandidates(result,options.startPlace||{lat:data.start[0],lon:data.start[1]},options.endPlace||{lat:data.end[0],lon:data.end[1]},options,data.construction,checker);}
+        result=annotateAvoidance(result,data.start,data.end,{...options,lineAllowed:checker.allowed},checker);
       }
       if(!constructionFresh(data.construction))result={error:'CONSTRUCTION_UNAVAILABLE'};
       postMessage({type:'route',id:data.id,result});

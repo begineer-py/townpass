@@ -23,7 +23,7 @@ export function createBackendRouteWorker({endpoint='./api/route-compute',fetcher
   let pending;
   try{pending=fetcher(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({task,constructionSourceUpdatedAt:construction?.sourceUpdatedAt}),signal:controller.signal,cache:'no-store'});}
   catch(error){finish(error);return;}
-  const response=Promise.resolve(pending).then(async r=>{if(!r.ok){let body;try{body=await r.json()}catch{};throw Error(body?.error==='ROUTING_BUSY'?'ROUTING_BUSY':'ROUTE_BACKEND_UNAVAILABLE');}return r.json();});
+  const response=Promise.resolve(pending).then(async r=>{if(!r.ok){let body;try{body=await r.json()}catch{};if(body?.error==='ROUTING_BUSY')throw Error('ROUTING_BUSY');if(body?.error==='ROUTE_BACKEND_TIMEOUT'||body?.error==='ROUTING_TIMEOUT'||r.status===504)throw Error('ROUTE_BACKEND_TIMEOUT');throw Error('ROUTE_BACKEND_UNAVAILABLE');}return r.json();});
   const snapshot=typeof loadConstruction==='function'?Promise.resolve().then(()=>loadConstruction(controller.signal)).then(value=>{if(!constructionFresh(value))throw Error('CONSTRUCTION_UNAVAILABLE');return value;}):Promise.resolve(null);
   Promise.all([response,snapshot])
    .then(([data,fresh])=>{

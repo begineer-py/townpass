@@ -114,6 +114,25 @@ test("nearby disconnected ways are never joined with invented straight lines", (
   };
   assert.equal(createRouter(graph)(g.nodes[0], g.nodes[1]).error, "NO_ROUTE");
 });
+test("an unfinished route search reports timeout instead of no route", () => {
+  const graph = {
+    ...g,
+    edges: [
+      [0, 2, 22, 1, [], proof],
+      [1, 3, 22, 1, [], proof],
+    ],
+  };
+  const result = createRouter(graph)(g.nodes[0], g.nodes[1], {
+    _routeDeadline: Date.now() - 1,
+  });
+  assert.equal(result.error, "ROUTE_SEARCH_TIMEOUT");
+});
+test("the route expansion limit is distinct from an exhausted graph search", () => {
+  const result = createRouter(g)(g.nodes[0], g.nodes[1], {
+    _routeMaxVisited: 0,
+  });
+  assert.equal(result.error, "ROUTE_SEARCH_LIMIT");
+});
 test("marked barriers prevent passing through a node", () => {
   const graph = {
     ...g,

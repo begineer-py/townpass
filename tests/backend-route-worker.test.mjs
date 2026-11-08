@@ -88,6 +88,16 @@ test('a stuck backend request times out, aborts and reports an error once',async
 test('backend capacity responses are distinguished from connectivity errors',async()=>{
  let error;const worker=createBackendRouteWorker({fetcher:async()=>({ok:false,json:async()=>({error:'ROUTING_BUSY'})})});worker.onerror=e=>{error=e};worker.postMessage({type:'plan-places',id:1,construction:{sourceUpdatedAt:'stamp'}});await flush();assert.equal(error?.message,'ROUTING_BUSY');worker.terminate();
 });
+test('backend HTTP timeouts remain distinguishable from connectivity failures',async()=>{
+ for(const response of [
+  {ok:false,status:504,json:async()=>({error:'ROUTE_BACKEND_TIMEOUT'})},
+  {ok:false,status:504,json:async()=>({error:'ROUTE_BACKEND_UNAVAILABLE'})},
+ ]){
+  let error;const worker=createBackendRouteWorker({fetcher:async()=>response});worker.onerror=e=>{error=e};
+  worker.postMessage({type:'plan-places',id:1,construction:{sourceUpdatedAt:'stamp'}});await flush();
+  assert.equal(error?.message,'ROUTE_BACKEND_TIMEOUT');worker.terminate();
+ }
+});
 test('a single backend instance queues six requests and keeps a bounded limit',async()=>{
  const w=new FakeWorker(),pool=createRoutePool({createWorker:()=>w}),jobs=Array.from({length:8},(_,i)=>pool.execute({type:'route',id:i}));
  await assert.rejects(pool.execute({type:'route',id:9}),/ROUTING_BUSY/);w.emit('message',{type:'ready'});

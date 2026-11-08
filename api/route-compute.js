@@ -56,7 +56,8 @@ export default async function handler(req,res){
   return send(200,{...result,constructionSourceUpdatedAt:snapshot.sourceUpdatedAt});
  }catch(error){
   if(abort.signal.aborted){if(abort.signal.reason==='timeout')return send(504,{error:'ROUTE_BACKEND_TIMEOUT'});return;}
-  const code=error?.message==='ROUTING_BUSY'?503:error?.message==='ROUTING_TIMEOUT'?504:503;
-  return send(code,{error:error?.message==='ROUTING_BUSY'?'ROUTING_BUSY':'ROUTE_BACKEND_UNAVAILABLE'});
+  const timedOut=error?.message==='ROUTING_TIMEOUT';
+  const code=error?.message==='ROUTING_BUSY'?503:timedOut?504:503;
+  return send(code,{error:error?.message==='ROUTING_BUSY'?'ROUTING_BUSY':timedOut?'ROUTE_BACKEND_TIMEOUT':'ROUTE_BACKEND_UNAVAILABLE'});
  }finally{abort.signal.removeEventListener('abort',releaseWarm);releaseWarm();clearTimeout(deadline);res.off('close',close);}
 }

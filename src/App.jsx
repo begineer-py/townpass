@@ -1569,9 +1569,13 @@ export default function App() {
     UNVERIFIED_NETWORK:
       "人行路網資料尚未完成驗證，暫時無法規劃。請重新載入後再試。",
     NO_CONNECTION:
-      "尚未找到連接兩地的路線。",
+      "起點或目的地附近沒有找到可接上的合格人行路網位置。可以移近出入口或重新選點。",
     NO_ROUTE:
-      "這次還沒找到合適的走法，可以換個入口，或先看看附近設施。",
+      "目前圖資中沒有找到通過通行與施工檢查的完整路線。這可能是路網未連通或可用路段不足，不代表現地一定沒有路。",
+    ROUTE_SEARCH_TIMEOUT:
+      "路線搜尋花費太久，這次沒有完成；不代表一定沒有可走路線。可以調整起點或目的地後重試。",
+    ROUTE_SEARCH_LIMIT:
+      "這次搜尋已達運算上限，尚未確認是否有完整路線。可以換附近入口或稍後重試。",
     SAME_POINT: "這兩個位置很接近，可以再確認一下目的地入口。",
   };
   return (
@@ -1779,8 +1783,11 @@ export default function App() {
                     <Info />
                     <div>
                     <p>
-                      {simpleNoRoute ? '找不到路線。' : (nearbyState.status==='loading' ? '正在尋找附近可連通的路線…' : (errorText[routeError] || "暫時無法規劃，請稍後再試。"))}
+                      {nearbyState.status==='loading' ? '正在尋找附近可連通的路線…' : (errorText[routeError] || "暫時無法規劃，請稍後再試。")}
                     </p>
+                    {simpleNoRoute && referenceState.status==='error' && <p>備援路線查詢：{referenceState.message}</p>}
+                    {simpleNoRoute && nearbyState.status==='error' && <p>附近位置搜尋：{nearbyState.message}</p>}
+                    {simpleNoRoute && <details className="route-disclosure"><summary>目前怎麼找路？</summary><p>系統先把起點和目的地接到附近已收錄的人行路網，再搜尋連續路徑。已知不符合通行偏好、施工封閉或缺少必要過街證據的路段會排除；不會用直線或一般車道補接。</p><p>「找不到路線」表示目前資料和條件下沒有找到完整連通路徑；「搜尋逾時」表示計算沒有完成，不能當成無路的結論。路網資料不完整或過期，也可能影響結果。</p></details>}
                     {!simpleNoRoute && partialRoute && <section aria-label="未連接的部分路段">
                       <p>{partialRoute.message}</p>
                       {partialRoute.segments.some(s=>s.officialConditions?.points?.length>0)&&<p>部分路線附近有官方不利通行紀錄，地圖已標示；與路線的關係及現況未確認。</p>}
