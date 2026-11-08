@@ -14,6 +14,6 @@ export default defineConfig(({ mode }) => ({
     mode === "https" && basicSsl({ name: "haohao-local" }),
   ],
   base: "./",
-  server: { port: 5173, strictPort: true },
+  server: { port: 5173, strictPort: true, watch: { ignored: ["**/data/processed", "**/data/processed/**", "**/data/raw", "**/data/raw/**"] } },
   build: { chunkSizeWarningLimit: 650 },
 }));

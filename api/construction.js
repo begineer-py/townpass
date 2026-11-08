@@ -2,9 +2,10 @@ import {normalizeConstruction,constructionFresh} from '../src/construction.mjs';
 
 export function createConstructionSnapshotSource({fetcher=(...args)=>fetch(...args),now=()=>Date.now()}={}){
  let cached=null,inflight=null;
+ const wait=async pending=>{try{return await pending;}catch(error){if(cached&&constructionFresh(cached,now()))return cached;throw error;}};
  return async function getSnapshot(){
   if(cached&&now()-Date.parse(cached.fetchedAt)<120000&&constructionFresh(cached,now()))return cached;
-  if(inflight)return inflight;
+  if(inflight)return wait(inflight);
   const pending=(async()=>{
    const r=await fetcher('https://tpnco.blob.core.windows.net/blobfs/Todaywork.json',{signal:AbortSignal.timeout(15000),cache:'no-store'});
    if(!r.ok)throw Error('upstream');
@@ -13,7 +14,7 @@ export function createConstructionSnapshotSource({fetcher=(...args)=>fetch(...ar
    cached=result;return result;
   })();
   inflight=pending;
-  try{return await pending;}finally{if(inflight===pending)inflight=null;}
+  try{return await wait(pending);}finally{if(inflight===pending)inflight=null;}
  };
 }
 export const getConstructionSnapshot=createConstructionSnapshotSource();
