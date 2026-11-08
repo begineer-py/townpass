@@ -1,3 +1,4 @@
+import "./route-results.css";
 import {
   useCallback,
   useEffect,
@@ -370,6 +371,7 @@ export default function App() {
   const [candidateSort, setCandidateSort] = useState("score");
   const [currentLocation, setCurrentLocation] = useState(null);
   const [followState,setFollowState] = useState({active:false,status:'idle',message:''});
+  const [planScreen,setPlanScreen]=useState('form');
   const [tripStage,setTripStage]=useState('choices'),[navProgress,setNavProgress]=useState(null),[reportDemo,setReportDemo]=useState(false);
   const navAlong=useRef(0),followMap=useRef(true),cameraSerial=useRef(0);
   const followSession = useRef(null);
@@ -785,6 +787,7 @@ export default function App() {
     if(pick)clearPickPrompt();
     setPick(null);
     setTab("plan");
+    setPlanScreen("form");
     setFocus({ ...p, token: Date.now() });
   };
   function clearDestination(){
@@ -1137,6 +1140,7 @@ export default function App() {
     }
     setStart(from);
     setEnd(place);
+    setPlanScreen("results");
     wantedStop.current = null;
     announce(`正在規劃前往${cleanName(place.name)}的路線。`);
     calculate({ start: from, end: place });
@@ -1653,7 +1657,8 @@ export default function App() {
           hidden={!tab}
           data-tab={tab}
           data-stage={tripStage}
-          data-compact={tab==='plan' && tripStage==='choices' && !route && !routeError}
+          data-plan-screen={tab==='plan' ? planScreen : undefined}
+          data-compact={tab==='plan' && tripStage==='choices' && planScreen==='form' && !route && !routeError}
           data-has-destination={Boolean(end)}
           id="main-content"
           ref={panelEl}
@@ -1679,7 +1684,7 @@ export default function App() {
               ["展開面板", "面板放到最大", "收合面板，顯示更多地圖"][sheetSnap]
             }
           />}
-          {tripStage==='choices' && <nav className="main-nav" aria-label="主要功能">
+          {tripStage==='choices' && !(tab==='plan' && planScreen==='results') && <nav className="main-nav" aria-label="主要功能">
             {[
               ["explore", "找設施", Compass],
               ["plan", "規劃路線", Route],
@@ -1774,6 +1779,7 @@ export default function App() {
             {tab === "plan" && (
               <>
                 <h1 className="sr-only">規劃路線</h1>
+                {planScreen==='form' && <>
                 <div className="endpoints">
                   <div className="route-rail">
                     <i className="rail-start" aria-hidden="true" />
@@ -1818,7 +1824,7 @@ export default function App() {
                 </div>
                 {end && <button
                   className="primary full"
-                  onClick={() => calculate()}
+                  onClick={() => { if (!start) { announce("請先選擇出發地。"); return; } if (panelScroll.current) panelScroll.current.scrollTop=0; setPlanScreen("results"); setSheetSnap(1); calculate(); }}
                   disabled={routeSearchPending || waitingForData}
                 >
                   {routeSearchPending ? (
@@ -1829,6 +1835,10 @@ export default function App() {
                   {routeSearchPending ? "正在尋找路線…" : "規劃路線"}
                   <ArrowRight size={19} />
                 </button>}
+                </>}
+                {planScreen==='results' && <div className="route-results">
+                  <button type="button" className="route-results__back" aria-label="返回起點與目的地" onClick={() => { cancelPendingNavigation(); clearRoute(); setRouteError(""); setPlanScreen("form"); setSheetSnap(1); if (panelScroll.current) panelScroll.current.scrollTop=0; }}><ArrowLeft size={22} aria-hidden="true" /></button>
+                  {routeSearchPending && !route && <div className="route-results__loading" role="status" aria-label="正在尋找路線"><LoaderCircle className="spin" size={24} aria-hidden="true" /></div>}
                 {graphRequested && !graphReady && graphError && (
                   <p className="quiet-note" role="status">
                     路線資料暫時讀取不到，請重新整理再試。
@@ -2059,6 +2069,7 @@ export default function App() {
                     </details>
                   </>
                 )}
+                </div>}
               </>
             )}
             {tab === "stations" && (
@@ -2168,8 +2179,9 @@ export default function App() {
                           if (tripAlerts[t.id]) {
                             wantedStop.current = null;
                             announce(t.route.viaName ? "正在重新規劃，這次不包含原本的順路停靠。" : "正在重新規劃，避開已通報的施工。");
+                            setPlanScreen("results");
                             calculate({ start: t.start, end: t.end, prefs: { ...basePrefs, ...t.prefs, avoidSteps: true, officialOnly: false } });
-                          } else announce("已帶入起點與終點。舊路線不會沿用，請按「規劃路線」重新確認。");
+                          } else { setPlanScreen("form"); announce("已帶入起點與終點。舊路線不會沿用，請按「規劃路線」重新確認。"); }
                         }}
                       >
                         <Route size={22} />
