@@ -1491,7 +1491,7 @@ button.icon-action {
 .route-alternative .route-choice__strength > b { color: var(--tp-primary700); }
 .route-alternative .route-choice__concern > b { color: var(--tp-orange700); }
 .route-choice__note { margin: 8px 0; color: var(--tp-grayscale600); font-size: .875rem; }
-.route-preview-action { margin-top: 10px; }
+.route-choice__end { display:inline-flex; align-items:center; gap:6px; color:var(--tp-grayscale600); }
 .reference-route-result.reference-route-result--compact { padding: 0; border: 0; }
 
 .endpoints .point-fields .point-clear {
