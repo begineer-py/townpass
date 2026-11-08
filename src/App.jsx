@@ -1861,7 +1861,7 @@ export default function App() {
                   <button type="button" className="primary full route-preview-action" disabled={!route} onClick={previewSelectedRoute}>查看選定路線</button>
                 </section>}
                 {referenceCollapsed && referenceState.status==='ready' && <button type="button" onClick={()=>setReferenceCollapsed(false)}>查看線條說明</button>}
-                {!simpleNoRoute && !mapRoutes.pending && <ReferenceRouteResult status={referenceCollapsed?'idle':referenceState.status} route={referenceRoute} candidates={displayedReferenceCandidates} selected={selectedRouteCandidate} onSelect={candidate=>previewRoute(candidate,'reference')} onPreview={route?previewSelectedRoute:null} comparisonStatus={referenceState.comparisonStatus} showCandidates={!unifiedRouteChoices} showLegend={route?.kind==='official-passageway'||!route} showSelectedNotice={route?.kind==='official-passageway'||!route} showIssueIcons={true} start={start} end={end} message={referenceState.message} onClose={()=>{if(route?.kind==='official-passageway')setReferenceCollapsed(true);else {referenceSearch.current.cancel();referenceSnapshot.current=null;referenceBaseline.current=null;}}} />}
+                {!simpleNoRoute && !mapRoutes.pending && <ReferenceRouteResult status={referenceCollapsed?'idle':referenceState.status} route={referenceRoute} candidates={displayedReferenceCandidates} selected={selectedRouteCandidate} onSelect={candidate=>previewRoute(candidate,'reference')} onPreview={route?previewSelectedRoute:null} comparisonStatus={referenceState.comparisonStatus} showCandidates={!unifiedRouteChoices} showLegend={false} showSelectedNotice={false} showIssueIcons={true} start={start} end={end} message={referenceState.message} onClose={()=>{if(route?.kind==='official-passageway')setReferenceCollapsed(true);else {referenceSearch.current.cancel();referenceSnapshot.current=null;referenceBaseline.current=null;}}} />}
                 {route && !mapRoutes.pending && (
                   <>
                     <div className="route-summary"><h2>{start?.nearbyOriginal||end?.nearbyOriginal?'路網路線':'全程'} {formatDistance(route.distance)}</h2></div>
@@ -1871,7 +1871,6 @@ export default function App() {
                     {routeWorks.filter(w=>w.impact==='clear').map(w=><button className="construction-avoid" key={w.id} type="button" disabled={constructionDetourState.status==='loading'} onClick={()=>avoidConstruction(w.ids)}>繞過施工：{w.address}</button>)}
                     {constructionDetourState.status==='loading'&&<p role="status"><LoaderCircle className="spin" size={18} aria-hidden="true"/> 正在尋找繞路… <button type="button" onClick={()=>constructionDetourSearch.current.cancel()}>取消</button></p>}
                     {constructionDetourState.status==='error'&&<p role="status">{constructionDetourState.message}</p>}
-                    {route.kind!=='official-passageway' && <details className="route-disclosure"><summary>線條說明</summary><RouteLegend segments={[route]} colorFriendly={prefs.colorFriendly} showIssueIcons={true}/></details>}
                     {conditionDetourState.status==='loading'&&<p role="status">正在尋找繞路… <button type="button" onClick={()=>conditionDetourSearch.current.cancel()}>取消</button></p>}
                     {conditionDetourState.status==='error'&&<p role="status">{conditionDetourState.message}</p>}
                     {route.conditionDetour&&<p className="quiet-note" role="note">已規劃避開 {route.conditionDetour.targets.length} 筆所選官方紀錄點 10 公尺內的路線；點位與實際路況仍需現場確認。</p>}
@@ -1886,6 +1885,8 @@ export default function App() {
                       <button type="button" className="primary full route-preview-action" onClick={previewSelectedRoute}>查看選定路線</button>
                     </section>}
                     {!unifiedRouteChoices?.length && !sortedRouteCandidates.length && !displayedReferenceCandidates.length && <button type="button" className="primary full" onClick={()=>setTripStage('preview')}>查看路線</button>}
+                    {route.kind!=='official-passageway' && <details className="route-disclosure"><summary>線條說明</summary><RouteLegend segments={[route]} colorFriendly={prefs.colorFriendly} showIssueIcons={true}/></details>}
+                    {route.kind==='official-passageway' && !referenceCollapsed && <ReferenceRouteResult status={referenceState.status} route={referenceRoute} candidates={displayedReferenceCandidates} selected={selectedRouteCandidate} showCandidates={false} showLegend={true} showSelectedNotice={true} start={start} end={end}/>}
                     {route.viaName && !followState.active && <p className="quiet-note">順路停靠的行程暫不支援位置跟隨。</p>}
                     {(followState.active || followState.message) && <p className="quiet-note" role="status">
                       {followState.message || ({following:'位置跟隨中；偏離門檻依定位精度調整，輕微偏離可能不會觸發。',replanning:'偵測到偏離，正在重新規劃。',uncertain:'定位精度或時間不足，暫停自動重新規劃。',failed:'暫時無法重新規劃。',unavailable:'目前路線資料不足，暫停位置跟隨。'}[followState.status]||'')}

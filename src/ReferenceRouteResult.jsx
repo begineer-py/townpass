@@ -17,7 +17,7 @@ export default function ReferenceRouteResult({status,route,candidates=[],selecte
     {showCandidates && choices.map((candidate,index)=><RouteChoice key={candidate.id} number={index+1} distance={candidate.route.distanceMetres} summary={summaries[index]} selected={selected===candidate.id} onClick={()=>onSelect(candidate)}/>)}
     {showCandidates && choices.length>0 && onPreview && <button type="button" className="primary full route-preview-action" onClick={onPreview}>查看選定路線</button>}
     {comparisonStatus && comparisonStatus!=='complete' && <p>部分比較未完成。</p>}
-    {(showSelectedNotice||showLegend) && <details className="route-disclosure"><summary>線條與路況說明</summary>
+    {(showSelectedNotice||showLegend) && <details className="route-disclosure"><summary>線條說明</summary>
       {showSelectedNotice && <p>{REFERENCE_NOTICE}</p>}
       {showSelectedNotice && displayed?.segments?.some(segment=>segment.approximateCrossing===true) && <p>過街邊界未確認</p>}
       {showLegend && <div className="reference-route-result__legend" aria-label="線條說明">{[...new Set(lines.map(line=>line.kind))].map(kind=>{const style=REFERENCE_STYLES[kind];return <span key={kind}><svg width="42" height="14" aria-hidden="true"><line x1="1" y1="7" x2="41" y2="7" stroke={style.color} strokeWidth="5" strokeDasharray={style.dashArray}/></svg>{style.label}</span>;})}{displayed?.officialConditions?.status==='available'&&displayed.officialConditions.points?.length>0&&<span>{showIssueIcons && <i className="route-issue-legend" aria-hidden="true">!</i>}<svg width="42" height="14" aria-hidden="true"><line x1="1" y1="7" x2="41" y2="7" stroke="#7036a3" strokeWidth="4" strokeDasharray="3 4"/></svg>附近通行紀錄</span>}</div>}
