@@ -184,9 +184,9 @@ self.onmessage = async ({ data }) => {
       let region,comparison,limited=false;
       for(const margin of [1000,500,250]){
         if(!constructionFresh(data.construction)){comparison={error:'CONSTRUCTION_UNAVAILABLE'};break;}
-        region=selectReferenceRegion(referenceAsset,routeGraph,data.start,data.end,margin);
+        region=selectReferenceRegion(referenceAsset,routeGraph,data.start,data.end,margin,router.referenceEdgeCandidates);
         if(region.parts.length>10000||region.osmEdgeIds.length>50000){limited=true;comparison={error:'PROVISIONAL_SEARCH_LIMIT'};continue;}
-        const network=createProvisionalNetwork({...region,graph:routeGraph,facilities,places:routePlaces,snapshot:data.construction,routingOptions:data.options||{}});
+        const network=createProvisionalNetwork({...region,graph:routeGraph,facilities,places:routePlaces,snapshot:data.construction,routingOptions:data.options||{},endpointVerifier:verifyLocal});
         comparison=network.error?network:network.findCandidates(data.start,data.end,{startPlace:data.startPlace,endPlace:data.endPlace});
         if(comparison.error==='PROVISIONAL_SEARCH_LIMIT'){limited=true;continue;}
         if(limited && ['NO_PROVISIONAL_CONNECTION','NO_PROVISIONAL_ROUTE'].includes(comparison.error))comparison={error:'PROVISIONAL_SEARCH_LIMIT',narrowResult:comparison.error};

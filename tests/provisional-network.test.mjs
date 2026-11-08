@@ -222,3 +222,34 @@ test('quarter-metre tolerance never authorizes a source join across a road',()=>
  const f=teeFixture(1.5),a=ll(f.parts[0].coordinates[1]),b=ll(f.parts[1].coordinates[0]),mid=[(a[0]+b[0])/2,(a[1]+b[1])/2];
  f.graph.roadGeometries=[[[mid[1],mid[0]-.002],[mid[1],mid[0]+.002]]];f.graph.officialCrossingAreas=[crossingAreaNear(mid,.1)];assert.equal(findProvisionalRoute(f).error,'NO_PROVISIONAL_ROUTE');
 });
+
+test('reusing the worker endpoint verifier preserves the same route and restrictions',()=>{
+ const f=fixture(1),verifier=createLocalRouteVerifier(f.graph,f.facilities,f.places);
+ const original=findProvisionalRoute(f),reused=findProvisionalRoute({...f,endpointVerifier:verifier});
+ const stripCheckedAt=route=>({...route,construction:{...route.construction,checkedAt:null}});
+ assert.deepEqual(stripCheckedAt(reused),stripCheckedAt(original));
+ const invalid=createProvisionalNetwork({...f,endpointVerifier:{}});assert.equal(invalid.error,'CONSTRUCTION_UNAVAILABLE');
+});
+
+test('A* finds the same weighted optimum as Dijkstra with different walking preferences',()=>{
+ for(const maker of [()=>fixture(1),alternatives]){
+  const f=maker(),astar=createProvisionalNetwork({...f,limits:{useAStar:true}}),dijkstra=createProvisionalNetwork({...f,limits:{useAStar:false}});
+  for(const profile of [{},{area:2},{sidewalk:2,shared:4},{join:2,area:.5,official:3}])for(const [start,end] of [[f.start,f.end],[f.end,f.start]]){
+   const a=astar.findRoute(start,end,{profile,deadline:Date.now()+5000}),b=dijkstra.findRoute(start,end,{profile,deadline:Date.now()+5000});
+   assert.equal(a.error,b.error);if(!a.error){assert.ok(Math.abs(a.searchCost-b.searchCost)<1e-7,JSON.stringify({profile,a:a.searchCost,b:b.searchCost}));assert.ok(metres(a.coordinates[0],start)<.001);assert.ok(metres(a.coordinates.at(-1),end)<.001);}
+  }
+ }
+});
+test('fine and coarse join grids preserve connectivity and two-metre boundary',()=>{
+ for(const gap of [0,1,2,2.01,3]){
+  const f=fixture(gap),fine=findProvisionalRoute(f),coarse=findProvisionalRoute({...f,limits:{useCoarseGrid:true}});
+  assert.equal(fine.error,coarse.error,`gap ${gap}`);if(!fine.error)assert.ok(Math.abs(fine.searchCost-coarse.searchCost)<1e-7);
+ }
+});
+
+test('fine grid falls back to the original coarse grid for an oversized edge',()=>{
+ const f=fixture(1),proof={schemaVersion:2,coverage:0,maxUncoveredMetres:100,crossingCoverage:0,roadCrossingVerified:true,crossingVerified:true};
+ f.graph.nodes=[[25.15,121.60,0,1],[25.17,121.62,0,2]];f.graph.ways=[{highway:'footway',width:2,slope:0}];f.graph.edges=[[0,1,3000,0,[],proof]];f.osmEdgeIds=[0];
+ const actual=findProvisionalRoute(f),baseline=findProvisionalRoute({...f,limits:{useCoarseGrid:true}});
+ assert.equal(actual.error,baseline.error);assert.equal(actual.error,undefined);assert.ok(Math.abs(actual.searchCost-baseline.searchCost)<1e-7);
+});

@@ -116,7 +116,7 @@ export function edgeAllowed(way, options = {}, evidence = null) {
 // be built when no projections exist, so updated source geometry is reindexed.
 const graphRouters = new WeakMap();
 const projectionArrayOwners = new WeakMap();
-export function createRouter(graph) {
+export function createRouter(graph, {useNodeIndex=true}={}) {
   if (graph.officialPathEvidence?.schemaVersion !== 2)
     return () => ({ error: "UNVERIFIED_NETWORK" });
   for(const array of [graph.nodes,graph.edges]){
@@ -160,7 +160,8 @@ export function createRouter(graph) {
     adjacency[e[1]].push([e[0], i]);
   });
   // Project onto actual mapped ground-level segments, never create a free-space shortcut.
-  const edgeGrid=new Map(),cellSize=.001,originalEdges=graph.edges.length,originalNodes=graph.nodes.length,derived=new Map(),edgeProjections=new Map(),touchedNodes=new Set();
+  const edgeGrid=new Map(),unindexedEdges=[],unindexedNodeGrid=new Map(),cellSize=.001,originalEdges=graph.edges.length,originalNodes=graph.nodes.length,derived=new Map(),edgeProjections=new Map(),touchedNodes=new Set();
+  const indexedNodes=new Uint8Array(originalNodes);
   const projectionLimit=2048,projectionEdgeLimit=16384,resetAt=1024;
   const newEpoch=()=>globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`;
   const projectionState={baseEdges:originalEdges,baseNodes:originalNodes,epoch:newEpoch()};
@@ -184,9 +185,27 @@ export function createRouter(graph) {
   function groundEdge(e,options){const w=graph.ways[e[3]];return edgeAllowed(w,options,e[5])&&(!w.bridge||w.bridge==='no')&&(w.layer==null||String(w.layer)==='0')&&(w.level==null||String(w.level)==='0');}
   function edgeGeometry(e){return [graph.nodes[e[0]].slice(0,2),...(e[4]||[]),graph.nodes[e[1]].slice(0,2)];}
   for(let ei=0;ei<originalEdges;ei++){
-    const e=graph.edges[ei];if(!groundEdge(e,{minWidth:0,maxSlope:Infinity}))continue;
+    const e=graph.edges[ei];if(!groundEdge(e,{minWidth:0,maxSlope:Infinity})){unindexedEdges.push(ei);continue;}
+    indexedNodes[e[0]]=1;indexedNodes[e[1]]=1;
     const line=edgeGeometry(e),ys=line.map(p=>p[0]),xs=line.map(p=>p[1]);
     for(let y=Math.floor(Math.min(...ys)/cellSize);y<=Math.floor(Math.max(...ys)/cellSize);y++)for(let x=Math.floor(Math.min(...xs)/cellSize);x<=Math.floor(Math.max(...xs)/cellSize);x++){const k=x+','+y;if(!edgeGrid.has(k))edgeGrid.set(k,[]);edgeGrid.get(k).push(ei);}
+  }
+  // Keep isolated, blocked and non-ground nodes in a small companion grid.
+  // Indexed edge endpoints and their dynamic projections come from edgeGrid.
+  for(let i=0;i<originalNodes;i++)if(!indexedNodes[i]){
+    const p=graph.nodes[i],k=Math.floor(p[1]/cellSize)+','+Math.floor(p[0]/cellSize);
+    if(!unindexedNodeGrid.has(k))unindexedNodeGrid.set(k,[]);unindexedNodeGrid.get(k).push(i);
+  }
+  function nearbyNodeIds(point,radius){
+    if(!Array.isArray(point)||!Number.isFinite(point[0])||!Number.isFinite(point[1]))return null;
+    const lat=radius/111195+1e-12,lon=radius/100700+1e-12,edges=new Set(),nodes=new Set();
+    for(let y=Math.floor((point[0]-lat)/cellSize);y<=Math.floor((point[0]+lat)/cellSize);y++)
+      for(let x=Math.floor((point[1]-lon)/cellSize);x<=Math.floor((point[1]+lon)/cellSize);x++){
+        const k=x+','+y;for(const id of edgeGrid.get(k)||[])edges.add(id);
+        for(const id of unindexedNodeGrid.get(k)||[])nodes.add(id);
+      }
+    for(const id of edges){const e=graph.edges[id];nodes.add(e[0]);nodes.add(e[1]);for(const projection of edgeProjections.get(id)||[])nodes.add(projection.index);}
+    return [...nodes].sort((a,b)=>a-b);
   }
   // Read-only map-pick projections reuse the existing edge index; no graph
   // node or edge is created until the real route is independently verified.
@@ -258,7 +277,9 @@ export function createRouter(graph) {
     let blockerDist = Infinity,
       nearestDist = Infinity;
     const raw = [];
-    for (let i = 0; i < graph.nodes.length; i++) {
+    const candidates=useNodeIndex?nearbyNodeIds(point,SNAP_METRES):null;
+    for (let n=0;n<(candidates?.length??graph.nodes.length);n++) {
+      const i=candidates?candidates[n]:n;
       const d = metres(point, graph.nodes[i]);
       if (d < nearestDist) nearestDist = d;
       if (d > SNAP_METRES) continue;
@@ -268,6 +289,9 @@ export function createRouter(graph) {
         if (d < blockerDist) blockerDist = d;
       } else if (hasEdge) raw.push([d, i]);
     }
+    // Preserve the exact nearest-gap diagnostic when no node lies within the
+    // snap radius; normal successful routes avoid the citywide scan.
+    if(candidates&&nearestDist>SNAP_METRES)for(const node of graph.nodes){const d=metres(point,node);if(d<nearestDist)nearestDist=d;}
     raw.sort((a, b) => a[0] - b[0]);
     const chosen = [];
     for (const [d, i] of raw) {
@@ -284,18 +308,18 @@ export function createRouter(graph) {
     return { chosen, nearestDist };
   }
   function route(start, end, options = {}) {
+    if(!Array.isArray(start)||!Array.isArray(end)||start.length<2||end.length<2||![start[0],start[1],end[0],end[1]].every(Number.isFinite))return {error:'INVALID_POINTS'};
     if(routerGroup.current&&routerGroup.current!==route)return routerGroup.current(start,end,options);
     if(!graphIntact())return {error:'UNVERIFIED_NETWORK'};
     if(options._partialForceStartNode==null)projectPoint(start,options,'start');
     if(options._partialForceEndNode==null)projectPoint(end,options,'end');
     const starts=endpoints(start,options,'start'),ends=endpoints(end,options,'end');
-    const workAllowed = new Map();
+    const workAllowed = new Map(),edgeFactors=new Map();
     function canTraverse(ei){
+      if(workAllowed.has(ei))return workAllowed.get(ei);
       const e=graph.edges[ei],w=graph.ways[e[3]];
-      if(!edgeAllowed(w,options,e[5]))return false;
-      if(!options.lineAllowed)return true;
-      if(!workAllowed.has(ei))workAllowed.set(ei,options.lineAllowed([graph.nodes[e[0]],...(e[4]||[]),graph.nodes[e[1]]]));
-      return workAllowed.get(ei);
+      const allowed=edgeAllowed(w,options,e[5])&&(!options.lineAllowed||options.lineAllowed([graph.nodes[e[0]],...(e[4]||[]),graph.nodes[e[1]]]));
+      workAllowed.set(ei,allowed);return allowed;
     }
     function part(side,index){
       const point=graph.nodes[index].slice(0,2),boundary=side==='start'?'end':'start';
@@ -351,15 +375,16 @@ export function createRouter(graph) {
         const e = graph.edges[ei],
           w = graph.ways[e[3]];
         if (graph.nodes[v][2] || !canTraverse(ei)) continue;
-        let factor = edgeCostFactor(w,e[5],options) + officialConditionPenalty(ei,options);
-        if(w.source==='osm-shared-street'&&Number.isFinite(options._optimizeSharedPenalty))factor+=Math.max(0,Math.min(20,options._optimizeSharedPenalty));
-        const sourceProof=e[5]?.derivedFrom!=null?graph.edges[e[5].derivedFrom]?.[5]:e[5];
-        if(w.source!=='osm-shared-street'&&!generalSidewalkEdge(w,sourceProof)&&Number.isFinite(options._optimizeNonSidewalkPenalty))factor+=Math.max(0,Math.min(10,options._optimizeNonSidewalkPenalty));
-        const mid = [
-          (graph.nodes[u][0] + graph.nodes[v][0]) / 2,
-          (graph.nodes[u][1] + graph.nodes[v][1]) / 2,
-        ];
-        if (options.avoidPoints?.some((p) => metres(mid, p) <= 25)) factor *= 8;
+        let factor=edgeFactors.get(ei);
+        if(factor===undefined){
+          factor=edgeCostFactor(w,e[5],options)+officialConditionPenalty(ei,options);
+          if(w.source==='osm-shared-street'&&Number.isFinite(options._optimizeSharedPenalty))factor+=Math.max(0,Math.min(20,options._optimizeSharedPenalty));
+          const sourceProof=e[5]?.derivedFrom!=null?graph.edges[e[5].derivedFrom]?.[5]:e[5];
+          if(w.source!=='osm-shared-street'&&!generalSidewalkEdge(w,sourceProof)&&Number.isFinite(options._optimizeNonSidewalkPenalty))factor+=Math.max(0,Math.min(10,options._optimizeNonSidewalkPenalty));
+          const mid=[(graph.nodes[e[0]][0]+graph.nodes[e[1]][0])/2,(graph.nodes[e[0]][1]+graph.nodes[e[1]][1])/2];
+          if(options.avoidPoints?.some(p=>metres(mid,p)<=25))factor*=8;
+          edgeFactors.set(ei,factor);
+        }
         const next = cost + e[2] * factor;
         if (next < dist[v]) {
           dist[v] = next;
@@ -528,6 +553,18 @@ export function createRouter(graph) {
   }
   // Called only at a worker task boundary, after every verifier and candidate
   // comparison using the preceding task's derived IDs has finished.
+  // The projection grid covers eligible ground edges. Keep the excluded base
+  // edges as well so reference selection has exactly the old full-scan set.
+  route.referenceEdgeCandidates=bounds=>{
+    if(routerGroup.current&&routerGroup.current!==route)return routerGroup.current.referenceEdgeCandidates(bounds);
+    if(!graphIntact())throw new Error('Router graph was replaced');
+    if(!Array.isArray(bounds)||bounds.length!==4||!bounds.every(Number.isFinite))return null;
+    const [west,south,east,north]=bounds,x0=Math.floor(west/cellSize),x1=Math.floor(east/cellSize),y0=Math.floor(south/cellSize),y1=Math.floor(north/cellSize);
+    if(x1<x0||y1<y0||(x1-x0+1)*(y1-y0+1)>30000)return null;
+    const ids=new Set(unindexedEdges);
+    for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++)for(const id of edgeGrid.get(x+','+y)||[])ids.add(id);
+    return [...ids].sort((a,b)=>a-b);
+  };
   route.mapSnapCandidates=mapSnapCandidates;
   route.resetProjectionsIfNeeded=()=>{
     if(routerGroup.current&&routerGroup.current!==route)return routerGroup.current.resetProjectionsIfNeeded();

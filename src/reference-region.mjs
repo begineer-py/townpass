@@ -5,7 +5,7 @@ const overlaps=(a,b)=>a[0]<=b[2]&&a[2]>=b[0]&&a[1]<=b[3]&&a[3]>=b[1];
 
 // A bounded search is not proof of no citywide route. Include complete lines
 // and edges when any part of their bounding box intersects the region.
-export function selectReferenceRegion(asset,graph,start,end,marginMetres=1000){
+export function selectReferenceRegion(asset,graph,start,end,marginMetres=1000,edgeCandidates){
  if(asset?.schemaVersion!==1||asset.crs!=='EPSG:3826'||asset.source!=='official-passageway'||!/^[a-f0-9]{64}$/i.test(asset.sourceHash||'')||!Array.isArray(asset.parts)||!valid(start)||!valid(end)||!Number.isFinite(marginMetres)||marginMetres<0||marginMetres>3000)throw Error('INVALID_REFERENCE_INPUT');
  const [a,b]=[start,end].map(p=>proj4('EPSG:4326',TWD97,[p[1],p[0]]));
  const bounds=[Math.min(a[0],b[0])-marginMetres,Math.min(a[1],b[1])-marginMetres,Math.max(a[0],b[0])+marginMetres,Math.max(a[1],b[1])+marginMetres];
@@ -13,7 +13,10 @@ export function selectReferenceRegion(asset,graph,start,end,marginMetres=1000){
  const latMargin=marginMetres/110000+.001,lonMargin=marginMetres/100000+.001;
  const wgs=[Math.min(start[1],end[1])-lonMargin,Math.min(start[0],end[0])-latMargin,Math.max(start[1],end[1])+lonMargin,Math.max(start[0],end[0])+latMargin];
  const osmEdgeIds=[];
- for(let id=0;id<graph.edges.length;id++){
+ // Fall back to the full scan if the index cannot cover a very large box.
+ const candidates=edgeCandidates?.(wgs)??null;
+ for(let i=0;i<(candidates?.length??graph.edges.length);i++){
+  const id=candidates?candidates[i]:i;
   const edge=graph.edges[id],a=graph.nodes[edge[0]],b=graph.nodes[edge[1]];
   if(id>=(graph._routeProjectionState?.baseEdges??Infinity)||edge[5]?.derivedFrom!=null)continue;
   if(!a||!b)continue;

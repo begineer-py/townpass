@@ -16,9 +16,10 @@ const CELL=.001,JOIN_METRES=2,ENDPOINT_METRES=50;
 const valid=p=>Array.isArray(p)&&p.length===2&&p.every(Number.isFinite)&&p[0]>=24.9&&p[0]<=25.3&&p[1]>=121.4&&p[1]<=121.8;
 const key=(y,x)=>`${y},${x}`;
 function project(p,a,b){const dy=(b[0]-a[0])*111195,dx=(b[1]-a[1])*100700,py=(p[0]-a[0])*111195,px=(p[1]-a[1])*100700,t=Math.max(0,Math.min(1,(py*dy+px*dx)/(dy*dy+dx*dx||1)));return {t,point:[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t]};}
-function gridInsert(grid,a,b,value,budget){const minY=Math.floor(Math.min(a[0],b[0])/CELL),maxY=Math.floor(Math.max(a[0],b[0])/CELL),minX=Math.floor(Math.min(a[1],b[1])/CELL),maxX=Math.floor(Math.max(a[1],b[1])/CELL),count=(maxY-minY+1)*(maxX-minX+1);if(count>4096||budget.entries+count>budget.maxEntries)return false;budget.entries+=count;for(let y=minY;y<=maxY;y++)for(let x=minX;x<=maxX;x++){budget.check();const k=key(y,x);if(!grid.has(k))grid.set(k,[]);grid.get(k).push(value);}return true;}
-function gridNearby(grid,p,r,budget){const found=new Set(),lat=r/111195,lon=r/100700;for(let y=Math.floor((p[0]-lat)/CELL);y<=Math.floor((p[0]+lat)/CELL);y++)for(let x=Math.floor((p[1]-lon)/CELL);x<=Math.floor((p[1]+lon)/CELL);x++){budget.check();for(const item of grid.get(key(y,x))||[]){budget.check();found.add(item);}}return found;}
+function gridInsert(grid,a,b,value,budget){const cell=grid.cellSize||CELL,minY=Math.floor(Math.min(a[0],b[0])/cell),maxY=Math.floor(Math.max(a[0],b[0])/cell),minX=Math.floor(Math.min(a[1],b[1])/cell),maxX=Math.floor(Math.max(a[1],b[1])/cell),count=(maxY-minY+1)*(maxX-minX+1);if(count>4096||budget.entries+count>budget.maxEntries)return false;budget.entries+=count;for(let y=minY;y<=maxY;y++)for(let x=minX;x<=maxX;x++){budget.check();const k=key(y,x);if(!grid.has(k))grid.set(k,[]);grid.get(k).push(value);}return true;}
+function gridNearby(grid,p,r,budget){const cell=grid.cellSize||CELL,found=new Set(),lat=r/111195,lon=r/100700;for(let y=Math.floor((p[0]-lat)/cell);y<=Math.floor((p[0]+lat)/cell);y++)for(let x=Math.floor((p[1]-lon)/cell);x<=Math.floor((p[1]+lon)/cell);x++){budget.check();for(const item of grid.get(key(y,x))||[]){budget.check();found.add(item);}}return found;}
 function error(code){return {error:code,kind:'provisional',navigationAllowed:false};}
+function gridLimit(){return {...error('PROVISIONAL_SEARCH_LIMIT'),reason:'grid-capacity'};}
 function limitError(){const e=new Error('PROVISIONAL_SEARCH_LIMIT');e.code='PROVISIONAL_SEARCH_LIMIT';return e;}
 
 // `parts` is a bounded, already-parsed set of original EPSG:3826 source parts:
@@ -26,7 +27,7 @@ function limitError(){const e=new Error('PROVISIONAL_SEARCH_LIMIT');e.code='PROV
 // from a spatial index, never user-supplied claims of verification. The full
 // immutable source graph is read but never modified. The caller is responsible
 // for selecting enough surrounding data; exhaustion is not proof of no route.
-function createProvisionalNetworkInner({parts,sourceHash,graph,osmEdgeIds,snapshot,facilities,places,routingOptions={},limits={}}){
+function createProvisionalNetworkInner({parts,sourceHash,graph,osmEdgeIds,snapshot,facilities,places,routingOptions={},limits={},endpointVerifier:providedEndpointVerifier},joinCell=.0002){
  let started=Date.now(),activeDeadline=Infinity;const maxMs=limits.maxMs??8000,maxParts=limits.maxParts??10000,maxEdges=limits.maxEdges??50000,maxVertices=limits.maxVertices??200000,maxVisits=limits.maxVisits??100000,maxPairs=limits.maxPairs??1000000,maxGridEntries=limits.maxGridEntries??1000000;
  if(![maxMs,maxParts,maxEdges,maxVertices,maxVisits,maxPairs,maxGridEntries].every(n=>Number.isFinite(n)&&n>0))return error('INVALID_PROVISIONAL_INPUT');
  const timedOut=()=>Date.now()-started>maxMs||Date.now()>activeDeadline;
@@ -38,13 +39,15 @@ function createProvisionalNetworkInner({parts,sourceHash,graph,osmEdgeIds,snapsh
  if(routingOptions.knownOnly)return error('NO_PROVISIONAL_CONNECTION');
  const staticEdgeCount=graph?._routeProjectionState?.baseEdges??graph?.edges?.length;
  try{validateNetwork(Number.isInteger(staticEdgeCount)&&staticEdgeCount<graph.edges.length?{...graph,edges:graph.edges.slice(0,staticEdgeCount)}:graph);}catch{return error('UNVERIFIED_NETWORK');}if(timedOut())return error('PROVISIONAL_SEARCH_LIMIT');
- let checker,evidence,endpointVerifier;try{checker=createConstructionChecker(snapshot);evidence=officialGeometryEvidence(graph);endpointVerifier=createLocalRouteVerifier(graph,facilities,places);}catch{return error('CONSTRUCTION_UNAVAILABLE');}
+ let checker,evidence,endpointVerifier;try{checker=createConstructionChecker(snapshot);evidence=officialGeometryEvidence(graph);endpointVerifier=providedEndpointVerifier||createLocalRouteVerifier(graph,facilities,places);if(typeof endpointVerifier.endpointAllowed!=='function')throw Error('INVALID_ENDPOINT_VERIFIER');}catch{return error('CONSTRUCTION_UNAVAILABLE');}
  const road=roadConnectorChecker(graph.roadGeometries,evidence.crossings),sourceRoad=road.withCrossingTolerance(.25),area=polygonConnectorChecker(evidence.areas),blocks=new Map(),avoidGrid=new Map(),nodes=[],adj=[],sourceSegments=[],endpoints=[],sourceVertices=[],osmGrid=new Map(),endGrid=new Map();if(timedOut())return error('PROVISIONAL_SEARCH_LIMIT');
+ osmGrid.cellSize=joinCell;endGrid.cellSize=joinCell;
+ let heuristicScale=1;
  const conditionIndex=graph.officialConditionIndex;
  const conditionFactor=(line,eligible=true)=>conditionIndex&&eligible?officialConditionCostFactor(line,conditionIndex.find(line,2)):null;
  const avoidPoints=routingOptions.avoidPoints??[];if(!Array.isArray(avoidPoints)||avoidPoints.some(p=>!valid(p))||avoidPoints.length>10000)return error('INVALID_PROVISIONAL_INPUT');
- for(const p of avoidPoints)if(!gridInsert(avoidGrid,p,p,p,budget))return error('PROVISIONAL_SEARCH_LIMIT');
- for(const n of graph.nodes){budget.check();if(n[2]&&valid(n.slice(0,2))&&!gridInsert(blocks,n,n,n,budget))return error('PROVISIONAL_SEARCH_LIMIT');}
+ for(const p of avoidPoints)if(!gridInsert(avoidGrid,p,p,p,budget))return gridLimit();
+ for(const n of graph.nodes){budget.check();if(n[2]&&valid(n.slice(0,2))&&!gridInsert(blocks,n,n,n,budget))return gridLimit();}
  function blocked(a,b){for(const n of gridNearby(blocks,[(a[0]+b[0])/2,(a[1]+b[1])/2],metres(a,b)/2+.5,budget))if(metres(n,project(n,a,b).point)<=.5)return true;return false;}
  // This is an explicit conservative avoidance preference, not a claim that
  // any point or the surrounding 25m is an actual closure.
@@ -60,8 +63,10 @@ function createProvisionalNetworkInner({parts,sourceHash,graph,osmEdgeIds,snapsh
   if(!e||id>=staticEdgeCount||e[5]?.derivedFrom!=null||!a||!b||a[2]||b[2]||!edgeAllowed(w,routingOptions,e[5])||w.gradeSeparatedPedestrian||(w.bridge&&w.bridge!=='no')||(w.tunnel&&w.tunnel!=='no')||(w.layer!=null&&String(w.layer)!=='0')||(w.level!=null&&String(w.level)!=='0'))continue;
   const line=[a.slice(0,2),...(e[4]||[]),b.slice(0,2)];let usable=true;for(let j=0;j<line.length;j++){budget.check();if(!valid(line[j])||(j>0&&(!checker.allowed([line[j-1],line[j]])||blocked(line[j-1],line[j])||avoided(line[j-1],line[j])))){usable=false;break;}}if(!usable)continue;
   const offsets=[0];for(let j=1;j<line.length;j++){budget.check();offsets.push(offsets.at(-1)+metres(line[j-1],line[j]));}
+  const actualLength=offsets.at(-1),ratio=actualLength>0?e[2]/actualLength:0;
+  heuristicScale=Math.min(heuristicScale,Number.isFinite(ratio)&&ratio>0?ratio:0);
   const aa=osmNode(e[0]),bb=osmNode(e[1]),meta={kind:'osm',edgeId:id,grade:'source-dependent',crossing:w.crossing===true||w.footway==='crossing',explicitSidewalk:w.highway==='footway'&&w.footway==='sidewalk',sharedRoad:w.source==='osm-shared-street',unknownDimensions:w.width==null||w.slope==null,officialAreaCovered:e[5].coverage>=.9999&&e[5].maxUncoveredMetres<=.05,officialConditionFactor:conditionFactor(line,w.source!=='osm-shared-street'),startOffsetMetres:0,endOffsetMetres:offsets.at(-1)};edge(aa,bb,e[2],line,meta);
-  const record={id,e,line,aa,bb,meta,offsets,total:offsets.at(-1)};for(let j=1;j<line.length;j++)if(!gridInsert(osmGrid,line[j-1],line[j],{...record,j},budget))return error('PROVISIONAL_SEARCH_LIMIT');
+  const record={id,e,line,aa,bb,meta,offsets,total:offsets.at(-1)};for(let j=1;j<line.length;j++)if(!gridInsert(osmGrid,line[j-1],line[j],{...record,j},budget))return gridLimit();
  }
  const seen=new Set();
  for(const part of parts){
@@ -84,7 +89,7 @@ function createProvisionalNetworkInner({parts,sourceHash,graph,osmEdgeIds,snapsh
  // Source shape vertices are real source coordinates, but their grade and the
  // physical junction remain unconfirmed even when the coordinates coincide.
  const hasUsableSourceEdge=vertex=>adj[vertex.node].some(item=>item.meta.kind==='official-line');
- for(const endpoint of endpoints)if(hasUsableSourceEdge(endpoint)&&!gridInsert(endGrid,endpoint.point,endpoint.point,endpoint,budget))return error('PROVISIONAL_SEARCH_LIMIT');
+ for(const endpoint of endpoints)if(hasUsableSourceEdge(endpoint)&&!gridInsert(endGrid,endpoint.point,endpoint.point,endpoint,budget))return gridLimit();
  const joined=new Set();
  for(const endpoint of sourceVertices){
   if(!hasUsableSourceEdge(endpoint))continue;
@@ -164,9 +169,11 @@ function createProvisionalNetworkInner({parts,sourceHash,graph,osmEdgeIds,snapsh
  }
  const starts=seeds(start,'start'),ends=seeds(end,'end');if(!starts||!ends)return error('PROVISIONAL_SEARCH_LIMIT');if(!starts.length||!ends.length)return error('NO_PROVISIONAL_CONNECTION');
  const dist=new Float64Array(nodes.length*2).fill(Infinity),previous=new Int32Array(nodes.length*2).fill(-1),previousEdge=new Array(nodes.length*2),roots=new Map(),targets=new Map(),heap=new MinHeap();
- for(const s of starts)for(const neighbor of seedNeighbors(s)){const state=neighbor.id*2+Number(s.source&&neighbor.distance>.001),meta=s.source?s.segment.meta:s.item.meta,w=s.gap+cost(meta,neighbor.distance);if(w<dist[state]){dist[state]=w;roots.set(state,{seed:s,neighbor});heap.push([w,state]);}}
+ const scale=limits.useAStar===false?0:Math.max(0,heuristicScale*.999);
+ const estimate=id=>scale*metres(nodes[id],end);
+ for(const s of starts)for(const neighbor of seedNeighbors(s)){const state=neighbor.id*2+Number(s.source&&neighbor.distance>.001),meta=s.source?s.segment.meta:s.item.meta,w=s.gap+cost(meta,neighbor.distance);if(w<dist[state]){dist[state]=w;roots.set(state,{seed:s,neighbor});heap.push([w+estimate(neighbor.id),state,w]);}}
  for(const s of ends)for(const neighbor of seedNeighbors(s)){const meta=s.source?s.segment.meta:s.item.meta,w=s.gap+cost(meta,neighbor.distance),entry={w,seed:s,neighbor};if(!targets.has(neighbor.id))targets.set(neighbor.id,[]);targets.get(neighbor.id).push(entry);}
- let best=Infinity,goal=-1,goalTarget=null,visited=0;while(heap.a.length){if(expired()||++visited>Math.min(maxVisits,visitLimit))return error('PROVISIONAL_SEARCH_LIMIT');const [d,state]=heap.pop();if(d!==dist[state])continue;if(d>=best)break;const u=Math.floor(state/2),touched=state%2===1;for(const target of targets.get(u)||[])if((touched||(target.seed.source&&target.neighbor.distance>.001))&&d+target.w<best){best=d+target.w;goal=state;goalTarget=target;}for(const item of adj[u]){budget.check();const next=item.to*2+Number(touched||item.meta.kind==='official-line'),nd=d+cost(item.meta,item.w);if(nd<dist[next]){dist[next]=nd;previous[next]=state;previousEdge[next]=item;heap.push([nd,next]);}}}
+ let best=Infinity,goal=-1,goalTarget=null,visited=0;while(heap.a.length){if(expired()||++visited>Math.min(maxVisits,visitLimit))return error('PROVISIONAL_SEARCH_LIMIT');const [bound,state,d]=heap.pop();if(d!==dist[state])continue;if(bound>=best)break;const u=Math.floor(state/2),touched=state%2===1;for(const target of targets.get(u)||[])if((touched||(target.seed.source&&target.neighbor.distance>.001))&&d+target.w<best){best=d+target.w;goal=state;goalTarget=target;}for(const item of adj[u]){budget.check();const next=item.to*2+Number(touched||item.meta.kind==='official-line'),nd=d+cost(item.meta,item.w);if(nd<dist[next]){dist[next]=nd;previous[next]=state;previousEdge[next]=item;heap.push([nd+estimate(item.to),next,nd]);}}}
  // Two projections on the same source segment can connect directly without
  // travelling to one of its ends; both endpoint gaps remain unconfirmed.
  let direct=null;for(const a of starts)for(const b of ends)if(a.source&&b.source&&a.segment===b.segment){const length=a.gap+b.gap+cost(a.segment.meta,Math.abs(a.pr.t-b.pr.t)*a.segment.distance);if(length<best){best=length;direct={a,b};}}
@@ -243,5 +250,5 @@ function createProvisionalNetworkInner({parts,sourceHash,graph,osmEdgeIds,snapsh
  return {kind:'provisional-network',navigationAllowed:false,sourceHash,findRoute,findCandidates};
 }
 
-export function createProvisionalNetwork(options){try{return createProvisionalNetworkInner(options);}catch(e){if(e?.code==='PROVISIONAL_SEARCH_LIMIT')return error(e.code);throw e;}}
+export function createProvisionalNetwork(options){try{const coarseOnly=options?.limits?.useCoarseGrid===true;const fine=createProvisionalNetworkInner(options,coarseOnly?CELL:.0002);if(fine?.reason!=='grid-capacity')return fine;if(coarseOnly)return error('PROVISIONAL_SEARCH_LIMIT');const coarse=createProvisionalNetworkInner(options,CELL);if(coarse?.reason==='grid-capacity')return error('PROVISIONAL_SEARCH_LIMIT');return coarse;}catch(e){if(e?.code==='PROVISIONAL_SEARCH_LIMIT')return error(e.code);throw e;}}
 export function findProvisionalRoute(options){const network=createProvisionalNetwork(options);return network.error?network:network.findRoute(options.start,options.end,{startPlace:options.startPlace,endPlace:options.endPlace});}

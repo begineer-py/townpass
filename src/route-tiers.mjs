@@ -28,5 +28,18 @@ export function edgeCostDetails(way,proof,options={}){
  };
 }
 export function edgeCostFactor(way,proof,options={}){
- return Object.values(edgeCostDetails(way,proof,options)).reduce((sum,value)=>sum+value,0);
+ // Keep the same sum order as edgeCostDetails without allocating an object
+ // and array for every edge visited by the route search.
+ const tier=edgeTier(proof);
+ const sourceFactor=tier==='osm' && (options.preferOfficial===false || generalSidewalkEdge(way,proof)) ? 1 : ROUTE_TIERS[tier].factor;
+ const minWidth=Number.isFinite(options.minWidth)?options.minWidth:.8;
+ const preferredWidth=Math.max(1.5,minWidth+.3);
+ let factor=1;
+ factor+=sourceFactor-1;
+ factor+=(way.width==null ? .8 : 0)+((way.width==null||way.slope==null)? .12:0);
+ factor+=['gravel','unpaved','cobblestone','ground','sand','dirt'].includes(way.surface)?(options.mode==='gentle'?2:.8):0;
+ factor+=Number.isFinite(way.width)?Math.min(.8,Math.max(0,(preferredWidth-way.width)/.3*.4)):0;
+ factor+=options.mode==='gentle'&&way.slope!=null?Math.abs(way.slope)/6:0;
+ factor+=options.mode==='crossings'&&way.crossing?3:0;
+ return factor;
 }
