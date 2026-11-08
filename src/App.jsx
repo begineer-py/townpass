@@ -109,6 +109,7 @@ import {
   saveLocal,
 } from "./data";
 import { getLocation, locationError, watchLocation, destinationPoint, swappedOrigin } from "./location";
+import { requestHeadingPermission } from "./device-heading.mjs";
 import { townPassUserKey, hasTownPass, postToTownPass } from "./townpass-bridge";
 import { normalizeRoutingPreferences } from "./routing-preferences.mjs";
 import { clearLocalData, loadProfile, loadTrips, saveProfile, saveTrips } from "./local-database";
@@ -945,6 +946,7 @@ export default function App() {
       announce(route?.viaName?'順路停靠的路線暫不支援導航。':'路線已更新，請重新規劃。');
       return false;
     }
+    void requestHeadingPermission();
     manualRouteSelection.current=true;
     if(referenceState.status==='loading'&&referenceBaseline.current?.automatic){referenceSearch.current.cancel();referenceSnapshot.current=null;referenceBaseline.current=null;}
     stopFollowing();
@@ -1808,7 +1810,7 @@ export default function App() {
                           <strong className={point ? "" : "placeholder"}>{point?.name || placeholder}</strong>
                           {point?.nearbyOriginal && <small>距原選點約 {point.nearbyOriginal.straightMetres} 公尺，銜接未確認</small>}
                         </button>
-                        {which === "start" && <button type="button" className="point-shortcut" onClick={() => locate("start")} disabled={locating} aria-label={locating ? "正在定位出發地" : "使用目前位置作為出發地"}>
+                        {which === "start" && <button type="button" className="point-shortcut" onClick={() => { void requestHeadingPermission(); locate("start"); }} disabled={locating} aria-label={locating ? "正在定位出發地" : "使用目前位置作為出發地"}>
                           {locating ? <LoaderCircle className="spin" size={18} aria-hidden="true" /> : <LocateFixed size={18} aria-hidden="true" />}
                           <span>{locating ? "定位中" : "定位"}</span>
                         </button>}
@@ -2390,7 +2392,7 @@ export default function App() {
           <button
             className="map-fab map-locate"
             aria-label="移至我的位置"
-            onClick={() => tripStage==='navigation' ? recenterNavigation() : locate()}
+            onClick={() => { void requestHeadingPermission(); tripStage==='navigation' ? recenterNavigation() : locate(); }}
             disabled={locating}
           >
             {locating ? (
@@ -2485,6 +2487,7 @@ export default function App() {
             <button
               onClick={() => {
                 const which = searchFor === "explore" ? null : searchFor;
+                void requestHeadingPermission();
                 setSearchFor(null);
                 locate(which);
               }}

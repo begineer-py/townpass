@@ -1535,3 +1535,6 @@ button.icon-action {
 .current-position { background:transparent; border:0; color:#1673b8; display:grid; place-items:center; }
 .current-position span { display:grid; place-items:center; }
 .map-canvas.picking .leaflet-marker-icon, .map-canvas.picking .leaflet-interactive { pointer-events:none !important; }
+.current-position span { position:relative; }
+.current-position span:not(.has-heading) svg { visibility:hidden; }
+.current-position span:not(.has-heading)::after { content:""; position:absolute; width:14px; height:14px; border-radius:50%; background:currentColor; }

@@ -18,6 +18,7 @@ import "./route-flow.css";
 import { metroStationCodes, metroStationIconUrl } from "./metro-station-icons.mjs";
 import { mapIconElement } from "./map-icons.mjs";
 import { mapPickPoint } from "./location.js";
+import { markerHeading, watchDeviceHeading } from "./device-heading.mjs";
 import { REFERENCE_STYLES, referenceRouteLines } from "./reference-route-presentation.mjs";
 const colors = {
   place: TPColors.orange700,
@@ -105,6 +106,13 @@ export default function MapView({
     nearby = useRef(),
     ends = useRef();
   const baseLayers = useRef([]);
+  const headingValue = useRef(null), locationFace = useRef(null);
+  const renderLocationHeading = () => {
+    const face=locationFace.current; if(!face)return;
+    const heading=headingValue.current, svg=face.querySelector("svg");
+    face.classList.toggle("has-heading", Number.isFinite(heading));
+    if(svg && Number.isFinite(heading)) svg.style.transform=`rotate(${markerHeading(heading,map.current?.getBearing?.())}deg)`;
+  };
   const routeFitTimer = useRef(null);
   const cameraIntro = useRef({following:false, awaiting:false, frame:0, pending:null, lastToken:null});
   const routeFlow = useRef(null),routeFlowRenderer=useRef(null);
@@ -163,7 +171,7 @@ export default function MapView({
     scale(m.getZoom());
     m.on("zoomanim", (event) => scale(event.zoom));
     m.on("zoomend", () => scale(m.getZoom()));
-    m.on("rotate", () => cb.current.onBearing?.(m.getBearing()));
+    m.on("rotate", () => { renderLocationHeading(); cb.current.onBearing?.(m.getBearing()); });
     m.on("click", (e) => {
       if (cb.current.pick)
         cb.current.onPick(mapPickPoint(e.latlng.lat,e.latlng.lng,cb.current.pick));
@@ -194,6 +202,7 @@ export default function MapView({
       m.remove();
     };
   }, []);
+  useEffect(() => watchDeviceHeading(window, heading => { headingValue.current=heading; renderLocationHeading(); }), []);
   useSidewalkLayer(map, location, showOfficialSidewalk, onOfficialSidewalkStatus);
   const constructionPriorityIds=[...(route?.construction?.nearby||[]),...(constructionConflict?.blocked||[]),...(partialRoute?.segments||[]).flatMap(segment=>segment.construction?.nearby||[])].map(work=>work.id).filter(Boolean);
   useConstructionLayer(map,constructionSnapshot,showConstruction,onConstructionStatus,constructionPriorityIds,hideMapIcons,onAvoidConstruction,avoidingConstruction);
@@ -632,10 +641,13 @@ export default function MapView({
   useEffect(() => {
     if (!ends.current) return;
     ends.current.clearLayers();
+    locationFace.current=null;
     if (location) {
       if(Number.isFinite(location.accuracy) && location.accuracy > 0) L.circle([location.lat,location.lon],{radius:location.accuracy,color:TPColors.primary700,weight:1,fillOpacity:0.08,interactive:false}).addTo(ends.current);
       const face = document.createElement("span");
       face.appendChild(mapIconElement("current-position", 36));
+      locationFace.current=face;
+      renderLocationHeading();
       const marker = L.marker([location.lat, location.lon], {
         icon: L.divIcon({className:"current-position", html:face, iconSize:[40,40], iconAnchor:[20,20]}),
         zIndexOffset: 1100,
