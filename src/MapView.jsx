@@ -640,8 +640,7 @@ export default function MapView({
       if (!p) return;
       const face = document.createElement("span");
       face.className = i ? "destination" : "origin";
-      face.textContent = i ? "終" : "起";
-      face.setAttribute("aria-hidden", "true");
+      face.appendChild(mapIconElement(i ? "endpoint-destination" : "endpoint-origin", 23));
       const marker = L.marker([p.lat, p.lon], {
         icon: L.divIcon({
           className: "endpoint",

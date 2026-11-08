@@ -1254,11 +1254,6 @@ button.icon-action {
   background: var(--tp-grayscale900);
 }
 
-/* 起點、終點標記：水滴形底轉了 -45 度，裡面的圖形轉回來保持正立 */
-.endpoint span .endpoint-glyph {
-  transform: rotate(45deg);
-  color: var(--tp-white);
-}
 .route-entry-marker {
   background: none;
   border: 0;
