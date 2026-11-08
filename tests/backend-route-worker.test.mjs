@@ -121,3 +121,8 @@ test('cancelling a parallel route request also aborts the construction request',
  let constructionSignal,backendSignal;const worker=createBackendRouteWorker({fetcher:(_url,opts)=>{backendSignal=opts.signal;return new Promise(()=>{})}});
  worker.postMessage({type:'plan-places',id:4,loadConstruction:signal=>{constructionSignal=signal;return new Promise(()=>{})}});await flush();worker.terminate();assert.equal(backendSignal.aborted,true);assert.equal(constructionSignal.aborted,true);
 });
+
+test('warmup message is accepted without coordinates or construction metadata',async()=>{
+ assert.equal(validRouteTask({type:'warmup',id:0}),true);
+ assert.equal(validRouteTask({type:'warmup',id:null}),false);
+});

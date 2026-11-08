@@ -23,7 +23,7 @@ import {projectionLimitResponse} from './route-worker-errors.mjs';
 import {createProvisionalNetwork} from './provisional-network.mjs';
 import {selectReferenceRegion} from './reference-region.mjs';
 import {decodeReferenceAsset} from './reference-integrity.mjs';
-import {verifyOfficialReferenceRoute} from './official-reference-validator.mjs';
+import {verifyOfficialReferenceBatch} from './official-reference-validator.mjs';
 let router, verifyOfficial, verifyLocal, facilities, routePlaces, initialization, detourWaypoints, nearbyRoutes, routeGraph;
 let routeGraphUrl, referenceAsset, referenceAssetPromise;
 async function ensureReferenceAsset(){
@@ -175,6 +175,9 @@ self.onmessage = async ({ data }) => {
       })();
       await initialization;
       postMessage({ type: "ready" });
+    } else if(data.type==='warmup'){
+      await initialization;
+      postMessage({type:'warmup',id:data.id,result:{ready:true}});
     } else if(data.type==='reference-route'){
       await initialization;
       if(!constructionFresh(data.construction)){postMessage({type:'reference-route',id:data.id,result:{error:'CONSTRUCTION_UNAVAILABLE'}});return;}
@@ -194,11 +197,7 @@ self.onmessage = async ({ data }) => {
       }
       let result=comparison;
       if(!comparison.error){
-        const checked=[];
-        for(const candidate of comparison.candidates){
-          const route=verifyOfficialReferenceRoute({route:candidate.route,parts:region.parts,sourceHash:region.sourceHash,graph:routeGraph,snapshot:data.construction,verifyLocal,start:data.start,end:data.end,startPlace:data.startPlace,endPlace:data.endPlace,options:data.options||{}});
-          if(!route.error)checked.push(route);
-        }
+        const checked=verifyOfficialReferenceBatch({candidates:comparison.candidates,parts:region.parts,sourceHash:region.sourceHash,graph:routeGraph,snapshot:data.construction,verifyLocal,start:data.start,end:data.end,startPlace:data.startPlace,endPlace:data.endPlace,options:data.options||{}}).filter(route=>!route.error);
         if(!checked.length)result={error:'REFERENCE_VALIDATION_FAILED'};
         else {
           const shortest=Math.min(...checked.map(x=>x.distanceMetres)),candidates=checked.filter(x=>x.distanceMetres<=Math.min(shortest*1.3,shortest+300)+.00001).map((route,i)=>{

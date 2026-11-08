@@ -3,8 +3,11 @@ import { createRoutePool } from '../server/route-pool.mjs';
 import { createRouteCoalescer } from '../server/route-coalescer.mjs';
 import { compareSidewalkRouteScores, chooseSidewalkImprovement } from '../src/sidewalk-route-choice.mjs';
 
-const pool=createRoutePool(),coalescer=createRouteCoalescer(pool);
-const types=new Set(['route','plan-places','verify-official','reference-route','snap-map-point','nearby-positions','avoid-official-condition','avoid-construction','compare-sidewalk']);
+let pool=createRoutePool(),coalescer=createRouteCoalescer(pool);
+// Vite may restart its server in the same process. Release the old graph
+// worker so local hot reloads do not retain another copy of the network.
+export function disposeRoutingResources(){pool.dispose();pool=createRoutePool();coalescer=createRouteCoalescer(pool);}
+const types=new Set(['warmup','route','plan-places','verify-official','reference-route','snap-map-point','nearby-positions','avoid-official-condition','avoid-construction','compare-sidewalk']);
 const responseType=type=>type==='plan-places'?'route':type==='verify-official'?'verified-official':type;
 const validPoint=p=>Array.isArray(p)&&p.length===2&&p.every(Number.isFinite)&&p[0]>=24.9&&p[0]<=25.3&&p[1]>=121.4&&p[1]<=121.8;
 const validPlace=p=>p&&validPoint([p.lat,p.lon]);
@@ -34,7 +37,7 @@ export default async function handler(req,res){
   if(Buffer.byteLength(JSON.stringify(body))>2000000)return send(413,{error:'TOO_LARGE'});
  }catch{return send(400,{error:'INVALID_REQUEST'});}
  const task=body?.task;
- const acceptsIndependentSnapshot=['plan-places','route'].includes(task?.type);
+ const acceptsIndependentSnapshot=['warmup','plan-places','route'].includes(task?.type);
  const sourceDate=body?.constructionSourceUpdatedAt;
  if(!validRouteTask(task)||!(typeof sourceDate==='string'||(sourceDate==null&&acceptsIndependentSnapshot)))return send(400,{error:'INVALID_REQUEST'});
  const abort=new AbortController();const deadline=setTimeout(()=>abort.abort('timeout'),50000);const close=()=>{if(!res.writableEnded)abort.abort('client');};res.once('close',close);
@@ -42,6 +45,10 @@ export default async function handler(req,res){
  const releaseWarm=task.type!=='compare-sidewalk'&&(sourceDate==null||Number.isFinite(Date.parse(sourceDate)))?pool.warm():()=>{};
  abort.signal.addEventListener('abort',releaseWarm,{once:true});
  try{
+  if(task.type==='warmup'){
+   const [ready]=await Promise.all([pool.execute({type:'warmup',id:task.id},{signal:abort.signal}),getConstructionSnapshot()]);
+   return send(200,ready);
+  }
   const snapshot=await getConstructionSnapshot();
   if(abort.signal.aborted){if(abort.signal.reason==='timeout')return send(504,{error:'ROUTE_BACKEND_TIMEOUT'});return;}
   if(sourceDate!=null&&snapshot.sourceUpdatedAt!==sourceDate)return send(200,{type:responseType(task.type),id:task.id,result:{error:'CONSTRUCTION_UNAVAILABLE'}});
@@ -57,6 +64,7 @@ export default async function handler(req,res){
  }catch(error){
   if(abort.signal.aborted){if(abort.signal.reason==='timeout')return send(504,{error:'ROUTE_BACKEND_TIMEOUT'});return;}
   const code=error?.message==='ROUTING_BUSY'?503:error?.message==='ROUTING_TIMEOUT'?504:503;
+  abort.abort('failure');
   return send(code,{error:error?.message==='ROUTING_BUSY'?'ROUTING_BUSY':'ROUTE_BACKEND_UNAVAILABLE'});
  }finally{abort.signal.removeEventListener('abort',releaseWarm);releaseWarm();clearTimeout(deadline);res.off('close',close);}
 }

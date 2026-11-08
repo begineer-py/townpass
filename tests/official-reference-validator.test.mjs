@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';import proj4 from 'proj4';
 import {findProvisionalRoute} from '../src/provisional-network.mjs';
-import {verifyOfficialReferenceRoute,referenceNavigationSteps} from '../src/official-reference-validator.mjs';
+import {verifyOfficialReferenceRoute,referenceNavigationSteps,verifyOfficialReferenceBatch} from '../src/official-reference-validator.mjs';
 import {createLocalRouteVerifier} from '../src/local-route-verifier.mjs';
 const twd='+proj=tmerc +lat_0=0 +lon_0=121 +k=0.9999 +x_0=250000 +y_0=0 +ellps=GRS80 +units=m +no_defs';
 const ll=p=>{const [lon,lat]=proj4(twd,'EPSG:4326',p);return [lat,lon];};
@@ -59,4 +59,20 @@ test('OSM crossing marker is rebuilt from graph rather than candidate claims',()
  const graph={officialPathEvidence:{schemaVersion:2},officialAreas:[area],officialCrossingAreas:[],roadGeometries:[[[121.79,25],[121.79,25.01]]],nodes:[[...n(0,0),0,1],[...n(300,0),0,2]],ways:[{highway:'footway',footway:'crossing',width:2,slope:0}],edges:[[0,1,300,0,[n(150,25)],proof]]};
  const parts=[{qgsFid:'101',partIndex:0,coordinates:[xy(n(80,33.333)),xy(n(80,13.833))]},{qgsFid:'102',partIndex:0,coordinates:[xy(n(180,40)),xy(n(180,20.5))]}],stamp=new Date().toISOString(),sourceHash='a'.repeat(64),snapshot={schemaVersion:1,fetchedAt:stamp,sourceUpdatedAt:stamp,works:[]},verifyLocal=createLocalRouteVerifier(graph,[],[]),start=n(80,33.333),end=n(180,40),base={parts,graph,sourceHash,osmEdgeIds:[0],facilities:[],places:[],snapshot,verifyLocal,options:{},start,end};
  const route=findProvisionalRoute(base);assert.equal(route.error,undefined);route.segments=route.segments.map(s=>s.kind==='osm'?{...s,crossing:false}:s);const checked=verifyOfficialReferenceRoute({...base,route});assert.equal(checked.error,undefined);assert.equal(checked.segments.find(s=>s.kind==='osm').crossing,true);
+});
+
+test('batch validation reuses indexes but verifies every candidate independently',()=>{
+ const f=fixture(),route=findProvisionalRoute(f),forged={...route,sourceHash:'b'.repeat(64)};
+ const args={...f,candidates:[{route},{route},{route:forged}]},single=verifyOfficialReferenceRoute({...f,route}),[first,second,bad]=verifyOfficialReferenceBatch(args);
+ const clean=r=>({...r,construction:{...r.construction,checkedAt:null}});
+ assert.deepEqual(clean(first),clean(single));assert.deepEqual(clean(second),clean(single));assert.equal(bad.error,'REFERENCE_VALIDATION_FAILED');
+ f.snapshot.sourceUpdatedAt='2000-01-01T00:00:00Z';assert.equal(verifyOfficialReferenceBatch(args)[0].error,'CONSTRUCTION_UNAVAILABLE');
+});
+test('separate validation batches rebuild indexes for changed blockers, roads and construction',()=>{
+ const f=fixture(),route=findProvisionalRoute(f),args={...f,candidates:[{route}]};assert.equal(verifyOfficialReferenceBatch(args)[0].error,undefined);
+ const mid=ll([303100.5,2778000]);f.graph.nodes.push([...mid,1,1]);assert.equal(verifyOfficialReferenceBatch(args)[0].error,'REFERENCE_VALIDATION_FAILED');
+ const g=fixture(),r=findProvisionalRoute(g),other={...g,candidates:[{route:r}]};assert.equal(verifyOfficialReferenceBatch(other)[0].error,undefined);
+ g.graph.roadGeometries=[[[mid[1],mid[0]-.0001],[mid[1],mid[0]+.0001]]];assert.equal(verifyOfficialReferenceBatch(other)[0].error,'REFERENCE_VALIDATION_FAILED');
+ const h=fixture(),rh=findProvisionalRoute(h),third={...h,candidates:[{route:rh}]};assert.equal(verifyOfficialReferenceBatch(third)[0].error,undefined);
+ h.snapshot.works.push({id:'new',impact:'blocked',start:'',end:'',hours:'',geometries:[{type:'Point',coordinates:[mid]}]});assert.equal(verifyOfficialReferenceBatch(third)[0].error,'REFERENCE_VALIDATION_FAILED');
 });

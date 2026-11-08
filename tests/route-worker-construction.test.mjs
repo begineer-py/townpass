@@ -198,3 +198,13 @@ test('worker applies the same verified local pedestrian improvement as shared pl
   assert.equal(result.selectedCandidateId,choices[0].id);assert.equal(result.distance,choices[0].route.distance);
  }finally{globalThis.fetch=oldFetch;globalThis.self=oldSelf;globalThis.postMessage=oldPost;}
 });
+
+test('worker warmup waits for initialized data and reports readiness',async()=>{
+ const proof={schemaVersion:2,coverage:0,maxUncoveredMetres:100,crossingCoverage:0,roadCrossingVerified:true,crossingVerified:true},area={type:'Polygon',coordinates:[[[121.49,24.99],[121.51,24.99],[121.51,25.01],[121.49,25.01],[121.49,24.99]]]};
+ const graph={officialPathEvidence:{schemaVersion:2},officialAreas:[area],officialCrossingAreas:[],roadGeometries:[[[121.51,25],[121.51,25.01]]],nodes:[[25,121.5,0],[25,121.501,0]],ways:[{highway:'footway',width:2,slope:0}],edges:[[0,1,100,0,[],proof]]};
+ const oldFetch=globalThis.fetch,oldSelf=globalThis.self,oldPost=globalThis.postMessage,replies=[];
+ try{globalThis.self={};globalThis.postMessage=m=>replies.push(m);globalThis.fetch=async url=>({ok:true,arrayBuffer:async()=>new TextEncoder().encode(JSON.stringify(/facilities|places/.test(String(url))?[]:graph)).buffer});
+  await import('../src/route-worker.js?warmup-test');await self.onmessage({data:{type:'init',url:'https://example.test/graph.json'}});await self.onmessage({data:{type:'warmup',id:11}});
+  assert.deepEqual(replies.at(-1),{type:'warmup',id:11,result:{ready:true}});
+ }finally{globalThis.fetch=oldFetch;globalThis.self=oldSelf;globalThis.postMessage=oldPost;}
+});

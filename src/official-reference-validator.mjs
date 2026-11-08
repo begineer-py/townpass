@@ -14,20 +14,35 @@ const toLL=p=>{const [lon,lat]=proj4(TWD97,'EPSG:4326',p);return [lat,lon];};
 const distanceToSegment=(p,a,b)=>{const dy=(b[0]-a[0])*111195,dx=(b[1]-a[1])*100700,py=(p[0]-a[0])*111195,px=(p[1]-a[1])*100700,t=Math.max(0,Math.min(1,(py*dy+px*dx)/(dy*dy+dx*dx||1)));return metres(p,interpolate(a,b,t));};
 const invalid=()=>({error:'REFERENCE_VALIDATION_FAILED'});
 
+// A batch is scoped to one synchronous worker task. Each candidate is still
+// independently checked; only immutable geometry indexes are reused.
+const validationBatches=new WeakMap();
+export function verifyOfficialReferenceBatch({candidates,graph,snapshot,verifyLocal,...common}){
+ if(!Array.isArray(candidates))return [];
+ const token={};validationBatches.set(token,{graph,snapshot,verifyLocal,prepared:null});
+ try{return candidates.map(candidate=>verifyOfficialReferenceRoute({...common,route:candidate.route,graph,snapshot,verifyLocal,_batchToken:token}));}
+ finally{validationBatches.delete(token);}
+}
+
 // Independent second pass over the authenticated source and original graph.
 // It screens the proposed geometry; it cannot establish real-world grade,
 // road side, access, accessibility or the completeness of source records.
-export function verifyOfficialReferenceRoute({route,parts,sourceHash,graph,snapshot,verifyLocal,start,end,startPlace,endPlace,options={},maxMs=15000}){
+export function verifyOfficialReferenceRoute({route,parts,sourceHash,graph,snapshot,verifyLocal,start,end,startPlace,endPlace,options={},maxMs=15000,_batchToken}){
  const deadline=Date.now()+maxMs;
  if(!constructionFresh(snapshot))return {error:'CONSTRUCTION_UNAVAILABLE'};
  if(!valid(start)||!valid(end)||options.knownOnly||!Array.isArray(parts)||parts.length>10000||(graph.nodes?.length||0)>2000000||!/^[a-f0-9]{64}$/i.test(sourceHash||'')||route?.sourceHash!==sourceHash||route?.source!=='official-passageway'||route?.constructionSourceUpdatedAt!==snapshot.sourceUpdatedAt||!Array.isArray(route.segments)||route.segments.length<1||route.segments.length>10000||!Number.isFinite(route.distanceMetres)||route.distanceMetres<0)return invalid();
  if(!verifyLocal?.endpointAllowed?.(start,startPlace,'start')||!verifyLocal?.endpointAllowed?.(end,endPlace,'end'))return invalid();
- let checker,evidence;try{checker=createConstructionChecker(snapshot);evidence=officialGeometryEvidence(graph);}catch{return invalid();}
- const road=roadConnectorChecker(graph.roadGeometries,evidence.crossings),sourceRoad=road.withCrossingTolerance(.25),area=polygonConnectorChecker(evidence.areas);
- const source=new Map();
+ const cell=.001,key=(y,x)=>`${y},${x}`,minute=Math.floor(Date.now()/60000),batch=validationBatches.get(_batchToken);
+ let prepared=batch?.prepared;
+ if(!prepared||batch.graph!==graph||batch.snapshot!==snapshot||batch.verifyLocal!==verifyLocal||prepared.minute!==minute||prepared.nodes!==graph.nodes||prepared.edges!==graph.edges||prepared.nodeCount!==graph.nodes.length||prepared.edgeCount!==graph.edges.length||prepared.epoch!==graph._routeProjectionState?.epoch||prepared.roads!==graph.roadGeometries||prepared.areas!==graph.officialAreas||prepared.crossings!==graph.officialCrossingAreas||prepared.supplemental!==graph.supplementalEvidence||prepared.works!==snapshot.works||prepared.workCount!==snapshot.works.length){
+  let checker,evidence;try{checker=createConstructionChecker(snapshot);evidence=officialGeometryEvidence(graph);}catch{return invalid();}
+  const road=roadConnectorChecker(graph.roadGeometries,evidence.crossings),sourceRoad=road.withCrossingTolerance(.25),area=polygonConnectorChecker(evidence.areas),grid=new Map();
+  for(const n of graph.nodes||[]){if(Date.now()>deadline)return {error:'REFERENCE_VALIDATION_LIMIT'};if(n[2]&&valid(n.slice(0,2))){const k=key(Math.floor(n[0]/cell),Math.floor(n[1]/cell));if(!grid.has(k))grid.set(k,[]);grid.get(k).push(n.slice(0,2));}}
+  prepared={checker,road,sourceRoad,area,grid,minute,nodes:graph.nodes,edges:graph.edges,nodeCount:graph.nodes.length,edgeCount:graph.edges.length,epoch:graph._routeProjectionState?.epoch,roads:graph.roadGeometries,areas:graph.officialAreas,crossings:graph.officialCrossingAreas,supplemental:graph.supplementalEvidence,works:snapshot.works,workCount:snapshot.works.length};
+  if(batch&&batch.graph===graph&&batch.snapshot===snapshot&&batch.verifyLocal===verifyLocal)batch.prepared=prepared;
+ }
+ const {checker,road,sourceRoad,area,grid}=prepared,source=new Map();
  let vertices=0;for(const part of parts){if(Date.now()>deadline)return {error:'REFERENCE_VALIDATION_LIMIT'};vertices+=part.coordinates?.length||0;if(vertices>200000)return {error:'REFERENCE_VALIDATION_LIMIT'};const key=`${part.qgsFid}:${part.partIndex}`;if(source.has(key)||!/^\d+$/.test(String(part.qgsFid))||!Number.isSafeInteger(part.partIndex)||!Array.isArray(part.coordinates)||part.coordinates.length<2)return invalid();source.set(key,part);}
- const cell=.001,grid=new Map(),key=(y,x)=>`${y},${x}`;
- for(const n of graph.nodes||[]){if(Date.now()>deadline)return {error:'REFERENCE_VALIDATION_LIMIT'};if(n[2]&&valid(n.slice(0,2))){const k=key(Math.floor(n[0]/cell),Math.floor(n[1]/cell));if(!grid.has(k))grid.set(k,[]);grid.get(k).push(n.slice(0,2));}}
  const avoid=options.avoidPoints??[];if(!Array.isArray(avoid)||avoid.some(p=>!valid(p))||avoid.length>10000)return invalid();
  function blocked(a,b,radius=.5){
   const lat=radius/111195,lon=radius/100700;

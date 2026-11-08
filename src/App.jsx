@@ -85,6 +85,7 @@ import {createNearbySearch,shouldAutoSearchNearby} from "./nearby-search.mjs";
 import {createMapSnapSearch} from "./map-snap-search.mjs";
 import {createRouteWorkerLifecycle} from "./route-worker-lifecycle.mjs";
 import {createBackendRouteWorker} from "./backend-route-worker.mjs";
+import {prewarmRouteEngine} from "./route-prewarm.mjs";
 import {createLiveFollow,displayedRouteCoordinates} from "./live-follow.mjs";
 import {createLiveFollowSearch} from "./live-follow-search.mjs";
 import {routeGapPresentation} from "./route-gap-presentation.mjs";
@@ -1045,7 +1046,7 @@ export default function App() {
     setRouting(false);
   }
   function openSearch(which) {
-    if (which === "start" || which === "end") { cancelPendingNavigation(); cancelLocation(); }
+    if (which === "start" || which === "end") { void prewarmRouteEngine(); cancelPendingNavigation(); cancelLocation(); }
     setSearchFor(which);
     setQuery("");
   }
@@ -1450,6 +1451,7 @@ export default function App() {
     });
   }, [route]);
   const inspect = (p) => {
+    if(String(p?.kind)==='20'||p?.kind==='station')void prewarmRouteEngine();
     cancelLocation();
     rememberPlace(p);
     setSelected(p);
