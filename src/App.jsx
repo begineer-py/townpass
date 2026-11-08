@@ -920,13 +920,7 @@ export default function App() {
   }
   function selectPoint(p) {
     if(!pick)return;
-    if(p.originKind!=='map'||!/^point-\d+$/.test(String(p.id||''))){changePoint(pick,p);return;}
-    cancelMapSnap();
-    const task={place:p,side:pick,version:mapSnapVersion.current};
-    pendingMapSnap.current=task;
-    setGraphRequested(true);
-    announce('正在尋找附近人行路網。');
-    if(graphReadyRef.current)void runMapSnap(task);
+    changePoint(pick,p);
   }
   function updateDisplay(patch) { setPrefs((current) => ({ ...current, ...patch })); }
   function updatePrefs(patch) {

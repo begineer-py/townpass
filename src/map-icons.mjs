@@ -414,8 +414,12 @@ export const MAP_ICON_NODES = {
   ]
  ],
  // Clear, high-contrast route endpoint symbols on the map.
- "endpoint-origin": [
+ "current-position": [
   ["path", {"d":"M12 2 21 21 12 17 3 21Z","fill":"currentColor","stroke":"none"}]
+ ],
+ "endpoint-origin": [
+  ["path", {"d":"M12 22s-7-5.8-7-12a7 7 0 0 1 14 0c0 6.2-7 12-7 12Z"}],
+  ["circle", {"cx":"12","cy":"10","r":"2","fill":"currentColor","stroke":"none"}]
  ],
  "endpoint-destination": [
   ["path", {"d":"M5 21V3"}],

@@ -632,12 +632,12 @@ export default function MapView({
     ends.current.clearLayers();
     if (location) {
       if(Number.isFinite(location.accuracy) && location.accuracy > 0) L.circle([location.lat,location.lon],{radius:location.accuracy,color:TPColors.primary700,weight:1,fillOpacity:0.08,interactive:false}).addTo(ends.current);
-      const marker = L.circleMarker([location.lat, location.lon], {
-        radius: 7,
-        color: TPColors.white,
-        weight: 3,
-        fillColor: TPColors.red500,
-        fillOpacity: 1,
+      const face = document.createElement("span");
+      face.appendChild(mapIconElement("current-position", 36));
+      const marker = L.marker([location.lat, location.lon], {
+        icon: L.divIcon({className:"current-position", html:face, iconSize:[40,40], iconAnchor:[20,20]}),
+        zIndexOffset: 1100,
+        title: "目前位置",
       }).addTo(ends.current);
       marker.bindTooltip("目前位置", { direction: "top" });
     }
@@ -651,7 +651,7 @@ export default function MapView({
           className: "endpoint",
           html: face,
           iconSize: [40, 40],
-          iconAnchor: [20, 20],
+          iconAnchor: i ? [9, 36] : [20, 36],
         }),
         zIndexOffset: 1000,
         title: `${i ? "終點" : "起點"}：${p.name}`,
