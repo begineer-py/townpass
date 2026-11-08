@@ -1511,3 +1511,16 @@ button.icon-action {
   background: transparent;
   border: 0;
 }
+
+/* Route endpoints stay legible over map details and use distinct shapes. */
+.endpoint span {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--tp-white);
+  border-radius: 50%;
+  box-shadow: 0 2px 7px rgba(0, 0, 0, .38), 0 0 0 1px rgba(0, 0, 0, .2);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+}
+.endpoint span.destination { border-radius: 12px; }

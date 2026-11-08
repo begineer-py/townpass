@@ -640,16 +640,16 @@ export default function MapView({
       if (!p) return;
       const face = document.createElement("span");
       face.className = i ? "destination" : "origin";
-      const glyph = mapIconElement(i ? "flag" : "start", 16);
-      glyph.classList.add("endpoint-glyph");
-      face.appendChild(glyph);
+      face.textContent = i ? "終" : "起";
+      face.setAttribute("aria-hidden", "true");
       const marker = L.marker([p.lat, p.lon], {
         icon: L.divIcon({
           className: "endpoint",
           html: face,
-          iconSize: [32, 40],
-          iconAnchor: [16, 38],
+          iconSize: [40, 40],
+          iconAnchor: [20, 20],
         }),
+        zIndexOffset: 1000,
         title: `${i ? "終點" : "起點"}：${p.name}`,
       }).addTo(ends.current);
       const el = document.createElement("span");
