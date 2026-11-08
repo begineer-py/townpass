@@ -1080,10 +1080,10 @@ export default function App() {
     }
   }
   useEffect(() => {
-    if (!profileReady || autoLocated.current || start) return;
+    if (!profileReady || autoLocated.current || currentLocation || (start && tab !== "explore")) return;
     autoLocated.current = true;
-    locate(null, true);
-  }, [profileReady, start]);
+    locate(null, !start);
+  }, [profileReady, start, tab, currentLocation]);
   async function navigateTo(place) {
     rememberPlace(place);
     stopFollowing();
@@ -1230,10 +1230,10 @@ export default function App() {
   );
   const nearby = useMemo(
     () =>
-      facilities
-        .map((p) => ({ ...p, dist: distance(viewport, p) }))
-        .sort((a, b) => a.dist - b.dist),
-    [facilities, viewport.lat, viewport.lon],
+      currentLocation ? facilities
+        .map((p) => ({ ...p, dist: distance(currentLocation, p) }))
+        .sort((a, b) => a.dist - b.dist) : [],
+    [facilities, currentLocation],
   );
   const mapItems = useMemo(
     () =>
@@ -1682,16 +1682,20 @@ export default function App() {
                     </button>
                   ))}
                 </div>
-                <p className="list-caption">離地圖中心由近到遠</p>
+                {currentLocation ? <p className="list-caption">離目前位置由近到遠</p> : (
+                  <button className="load-more icon-action" type="button" onClick={() => locate()} disabled={locating}>
+                    {locating ? "定位中…" : "定位以尋找附近設施"}
+                  </button>
+                )}
                 {nearby.slice(0, listLimit).map((p) => (
                   <FacilityRow
                     key={p.id}
                     p={p}
-                    from={viewport}
+                    from={currentLocation}
                     onSelect={inspect}
                   />
                 ))}
-                {data && !nearby.length && (
+                {currentLocation && data && !nearby.length && (
                   <p className="quiet-note">
                     這類設施的資料還在補齊，可以先看看其他設施。
                   </p>
