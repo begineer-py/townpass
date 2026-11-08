@@ -60,3 +60,10 @@ test('optional reference work does not displace normal work and reports failed a
 test('map snap work is serialized and never displaces normal routing',()=>{
  const x=fixture(),w=x.workers[0];w.emit({type:'ready'});x.lifecycle.postMessage({type:'route',id:1});assert.equal(x.lifecycle.postMessage({type:'snap-map-point',id:2}),false);w.emit({type:'route',id:1});assert.equal(x.lifecycle.postMessage({type:'snap-map-point',id:3}),true);w.emit({type:'snap-map-point',id:3,result:{}});assert.equal(x.messages.at(-1).type,'snap-map-point');x.lifecycle.dispose();
 });
+
+test('backend official planning follows the same cancellation and result protocol',()=>{
+ const x=fixture();x.lifecycle.start();x.workers[0].emit({type:'ready'});
+ assert.equal(x.lifecycle.postMessage({type:'official-plan',id:17}),true);
+ x.workers[0].emit({type:'route',id:17,result:{distance:1}});
+ assert.equal(x.messages.at(-1).id,17);x.lifecycle.dispose();
+});

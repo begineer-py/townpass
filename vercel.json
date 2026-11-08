@@ -3,5 +3,12 @@
   "framework": "vite",
   "installCommand": "npm ci",
   "buildCommand": "npm run build",
-  "outputDirectory": "dist"
+  "outputDirectory": "dist",
+  "functions": {
+    "api/route-compute.js": {
+      "maxDuration": 60,
+      "supportsCancellation": true,
+      "includeFiles": "{server/**,src/**,node_modules/fflate/**,public/data/graph.json.gz,public/data/facilities.json.gz,public/data/places.json.gz,public/data/official-conditions.json.gz,public/data/official-sidewalk-reference.json.gz,public/data/official-sidewalk-reference.meta.json}"
+    }
+  }
 }

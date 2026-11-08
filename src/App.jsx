@@ -72,25 +72,23 @@ import {ROUTE_CONDITIONS, conditionForSegment, fallbackRouteCondition} from "./r
 import {NO_WALK_URLS, UNKNOWN_NO_WALK_URL} from "./issue-icons.mjs";
 import {TPColors} from "./tp-colors.mjs";
 import VoiceSearch from "./VoiceSearch";
-import {searchVerifiedAlternatives} from "./alternative-routes.mjs";
 import {fetchConstruction} from "./construction-client.mjs";
 import {useConstructionFeed} from "./use-construction-feed.js";
 import {inspectSavedTrips, alertFingerprint, notifyTownPass} from "./trip-alerts.mjs";
 import {createTripAlertLedger} from "./trip-alert-ledger.mjs";
-import {canFallbackAfterVerification, startLocalFallback} from "./local-fallback.mjs";
 import {constructionFresh, CONSTRUCTION_MAX_AGE} from "./construction.mjs";
 import {groupConstructionNotices} from "./construction-display.mjs";
 import {nearbyReplacement,nearbyWarnings,verifiedNearbyChoice,preservesGpsOrigin} from "./nearby-presentation.mjs";
 import {isVerifiedNavigationRoute} from "./route-trust.mjs";
-import {chooseSidewalkImprovement,compareSidewalkRouteScores} from "./sidewalk-route-choice.mjs";
+import {compareRoutesOnServer} from "./backend-route-comparison.mjs";
 import {createNearbySearch,shouldAutoSearchNearby} from "./nearby-search.mjs";
 import {createMapSnapSearch} from "./map-snap-search.mjs";
 import {createRouteWorkerLifecycle} from "./route-worker-lifecycle.mjs";
+import {createBackendRouteWorker} from "./backend-route-worker.mjs";
 import {createLiveFollow,displayedRouteCoordinates} from "./live-follow.mjs";
 import {createLiveFollowSearch} from "./live-follow-search.mjs";
 import {routeGapPresentation} from "./route-gap-presentation.mjs";
 import {partialRoutePresentation} from "./partial-route-presentation.mjs";
-import { requestOfficialRoute } from "./official-router.mjs";
 import { ROUTING_POLICY } from "./routing.mjs";
 import { BASEMAPS } from "./basemaps.mjs";
 // Layer-picker preview: the z15 tile covering Taipei Main Station.
@@ -447,16 +445,14 @@ export default function App() {
       ctl.abort();
     };
   }, [query, searchFor]);
-  const officialRequest = useRef();
   const locationRequest=useRef(0);
-  const pendingVerifications = useRef(new Map());
   const lastConstruction = useRef(null);
   const mapSnap=useRef(null), pendingMapSnap=useRef(null), mapSnapVersion=useRef(0);
   if(!mapSnap.current)mapSnap.current=createMapSnapSearch({fetchSnapshot:fetchConstruction,getLifecycle:()=>worker.current,onSnapshot:s=>{lastConstruction.current=s;}});
   useEffect(()=>()=>mapSnap.current?.cancel(false),[]);
   const [nearbyState,setNearbyState]=useState({status:'idle',candidates:[]});
   const nearbySearch=useRef(null);
-  if(!nearbySearch.current)nearbySearch.current=createNearbySearch({fetchSnapshot:fetchConstruction,createWorker:()=>new Worker(new URL('./route-worker.js',import.meta.url),{type:'module'}),onState:setNearbyState,onSnapshot:s=>{lastConstruction.current=s;}});
+  if(!nearbySearch.current)nearbySearch.current=createNearbySearch({fetchSnapshot:fetchConstruction,createWorker:()=>createBackendRouteWorker(),onState:setNearbyState,onSnapshot:s=>{lastConstruction.current=s;}});
   const [referenceState,setReferenceState]=useState({status:'idle'});
   const [referenceCollapsed,setReferenceCollapsed]=useState(false);
   const referenceSnapshot=useRef(null),referenceAutoAttempt=useRef(null),referenceSearch=useRef(null),referenceBaseline=useRef(null),manualRouteSelection=useRef(false);
@@ -464,24 +460,15 @@ export default function App() {
   useEffect(()=>()=>referenceSearch.current?.cancel(false),[]);
   const [conditionDetourState,setConditionDetourState]=useState({status:'idle'});
   const conditionDetourSearch=useRef(null);
-  if(!conditionDetourSearch.current)conditionDetourSearch.current=createConditionDetourSearch({fetchSnapshot:fetchConstruction,createWorker:()=>new Worker(new URL('./route-worker.js',import.meta.url),{type:'module'}),onState:setConditionDetourState,onSnapshot:s=>{lastConstruction.current=s;}});
+  if(!conditionDetourSearch.current)conditionDetourSearch.current=createConditionDetourSearch({fetchSnapshot:fetchConstruction,createWorker:()=>createBackendRouteWorker(),onState:setConditionDetourState,onSnapshot:s=>{lastConstruction.current=s;}});
   const [constructionDetourState,setConstructionDetourState]=useState({status:'idle'}),constructionDetourSearch=useRef(null);
-  if(!constructionDetourSearch.current)constructionDetourSearch.current=createConstructionDetourSearch({fetchSnapshot:fetchConstruction,createWorker:()=>new Worker(new URL('./route-worker.js',import.meta.url),{type:'module'}),onState:setConstructionDetourState,onSnapshot:s=>{lastConstruction.current=s;}});
+  if(!constructionDetourSearch.current)constructionDetourSearch.current=createConstructionDetourSearch({fetchSnapshot:fetchConstruction,createWorker:()=>createBackendRouteWorker(),onState:setConstructionDetourState,onSnapshot:s=>{lastConstruction.current=s;}});
   useEffect(()=>()=>constructionDetourSearch.current?.cancel(false),[]);
   const [constructionConflict,setConstructionConflict] = useState(null);
   const [routeGap,setRouteGap] = useState(null);
   const [partialRoute,setPartialRoute] = useState(null);
   const requestEndpoints=useRef(null);
   const routeGapView=useMemo(()=>partialRoute?null:routeGapPresentation(routeError,routeGap),[routeError,routeGap,partialRoute]);
-  function verifyOnlineRoute(route, start, end, id, construction, options=prefs) {
-    return new Promise(resolve => {
-      let settled=false;
-      const finish=result=>{if(settled)return;settled=true;clearTimeout(timer);if(pendingVerifications.current.get(id)===finish)pendingVerifications.current.delete(id);resolve(result);};
-      const timer=setTimeout(()=>{if(pendingVerifications.current.get(id)!==finish)return;pendingVerifications.current.delete(id);worker.current?.cancelIfActive('verify-official',id);finish({error:'UNVERIFIED_NETWORK'});},30000);
-      pendingVerifications.current.set(id,finish);
-      if (!worker.current || worker.current.postMessage({type:'verify-official',id,route,start,end,construction,options})===false)finish({error:'UNVERIFIED_NETWORK'});
-    });
-  }
   const panelScroll = useRef();
   const restoreChoicePosition=useRef(false);
   const panel = useRef();
@@ -613,11 +600,20 @@ export default function App() {
     map = useRef(),
     announceTimer = useRef(),
     srAnnounceTimer = useRef();
-  const sidewalkComparison = useMemo(()=>{
-    const baseline=referenceBaseline.current;
-    if(referenceState.status!=='ready'||!baseline||baseline.requestId!==request.current)return null;
-    return compareSidewalkRouteScores({currentRoute:baseline.route,localCandidates:routeCandidates,referenceCandidates:referenceState.candidates,start,end,snapshot:lastConstruction.current,referenceSnapshot:referenceSnapshot.current,referenceSourceHash:referenceState.sourceHash});
+  const referenceSnapshotRef=()=>referenceSnapshot.current;
+  const [remoteComparison,setRemoteComparison]=useState(null);
+  useEffect(()=>{
+    const baseline=referenceBaseline.current,snapshot=lastConstruction.current,referenceSnapshot=referenceSnapshotRef();
+    if(referenceState.status!=='ready'||!baseline||baseline.requestId!==request.current){setRemoteComparison(null);return;}
+    if(!constructionFresh(snapshot)||!constructionFresh(referenceSnapshot)||snapshot.sourceUpdatedAt!==referenceSnapshot.sourceUpdatedAt){setRemoteComparison({status:'error',reference:referenceState,baseline:baseline.route});return;}
+    const controller=new AbortController();
+    setRemoteComparison({status:'loading',reference:referenceState,baseline:baseline.route});
+    compareRoutesOnServer({currentRoute:baseline.route,localCandidates:routeCandidates,referenceCandidates:referenceState.candidates,start,end,snapshot,referenceSourceHash:referenceState.sourceHash},controller.signal)
+      .then(result=>{if(!controller.signal.aborted)setRemoteComparison({status:'ready',reference:referenceState,baseline:baseline.route,...result});})
+      .catch(()=>{if(!controller.signal.aborted)setRemoteComparison({status:'error',reference:referenceState,baseline:baseline.route});});
+    return ()=>controller.abort();
   },[referenceState,routeCandidates,start,end,route,lastConstruction.current?.fetchedAt,lastConstruction.current?.sourceUpdatedAt,referenceSnapshot.current?.fetchedAt,referenceSnapshot.current?.sourceUpdatedAt]);
+  const sidewalkComparison=remoteComparison?.reference===referenceState&&remoteComparison?.status==='ready'?remoteComparison.comparison:null;
   const displayedReferenceCandidates = useMemo(()=>{
     const candidates=referenceState.candidates||[];
     if(!sidewalkComparison)return candidates;
@@ -721,18 +717,13 @@ export default function App() {
     if (!graphRequested) return;
     let wasReady=false;
     const lifecycle=createRouteWorkerLifecycle({
-      createWorker:()=>new Worker(new URL("./route-worker.js",import.meta.url),{type:'module'}),
+      createWorker:()=>createBackendRouteWorker(),
       initMessage:{type:'init',url:new URL(dataUrl('graph')+'?policy='+ROUTING_POLICY,location.href).href},
       onReady:ready=>{graphReadyRef.current=ready;setGraphReady(ready);if(ready){wasReady=true;setGraphError(false);}else if(wasReady)announce('正在重新準備路線資料。');},
-      onDropped:message=>{if(mapSnap.current.handleDropped(message)||referenceSearch.current.handleDropped(message))return;if(message.type==='verify-official')pendingVerifications.current.get(message.id)?.({error:'CANCELLED'});},
+      onDropped:message=>{mapSnap.current.handleDropped(message)||referenceSearch.current.handleDropped(message);},
       onMessage:d=>{
       if(mapSnap.current.handleMessage(d))return;
       if(referenceSearch.current.handleMessage(d))return;
-      if (d.type === 'verified-official') {
-        pendingVerifications.current.get(d.id)?.(d.result);
-        pendingVerifications.current.delete(d.id);
-        return;
-      }
       if (d.type === "route" && d.id === request.current) {
         setRouting(false);
         if (d.result.error || d.result.policyVersion !== ROUTING_POLICY) {
@@ -760,17 +751,15 @@ export default function App() {
         graphReadyRef.current=false;
         if(failedMessage?.type==='reference-route'||failedMessage?.type==='snap-map-point'){lifecycle.start();return;}
         if(pendingMapSnap.current){cancelMapSnap();announce('路網資料暫時無法載入，請稍後再試。');}
-        for(const resolve of pendingVerifications.current.values()) resolve({error:'UNVERIFIED_NETWORK'});
-        pendingVerifications.current.clear();
         if (d?.id != null && d.id !== request.current) return;
         clearRoute();
         setRouting(false);
         setGraphError(true);
-        setRouteError('UNVERIFIED_NETWORK');
+        setRouteError('OFFICIAL_NETWORK');
       },
     });
     worker.current=lifecycle;lifecycle.start();
-    return () => { lifecycle.dispose();if(worker.current===lifecycle)worker.current=null;nearbySearch.current?.cancel(false);conditionDetourSearch.current?.cancel(false);for(const resolve of pendingVerifications.current.values()) resolve({error:'UNVERIFIED_NETWORK'});pendingVerifications.current.clear(); };
+    return () => { lifecycle.dispose();if(worker.current===lifecycle)worker.current=null;nearbySearch.current?.cancel(false);conditionDetourSearch.current?.cancel(false); };
   }, [graphRequested]);
   const changePoint = (which, p) => {
     cancelMapSnap();
@@ -809,9 +798,6 @@ export default function App() {
     setConstructionConflict(null);
     setRouteGap(null);
     setPartialRoute(null);
-    for(const resolve of pendingVerifications.current.values()) resolve({error:'UNVERIFIED_NETWORK'});
-    pendingVerifications.current.clear();
-    officialRequest.current?.abort();
     request.current++;
     window.speechSynthesis?.cancel();
     setSpeaking(false);
@@ -960,7 +946,7 @@ export default function App() {
     followSession.current=session;
     session.search=createLiveFollowSearch({
       fetchSnapshot:fetchConstruction,
-      createWorker:()=>new Worker(new URL('./route-worker.js',import.meta.url),{type:'module'}),
+      createWorker:()=>createBackendRouteWorker(),
       onSnapshot:s=>{if(followSession.current===session)lastConstruction.current=s;},
       onState:state=>{
         if(followSession.current!==session)return;
@@ -1050,7 +1036,6 @@ export default function App() {
     dataGate.current.cancel();
     pendingRoute.current = null;
     request.current++;
-    officialRequest.current?.abort();
     worker.current?.cancel();
     conditionDetourSearch.current?.cancel();
     constructionDetourSearch.current?.cancel();
@@ -1150,6 +1135,7 @@ export default function App() {
     stopFollowing();
     const fromPoint=points?.start||start,toPoint=points?.end||end;
     if (!fromPoint || !toPoint) { announce('請先選擇出發地和目的地。'); return; }
+    if (!navigator.onLine) { clearRoute(); setRouting(false); setRouteError('OFFICIAL_NETWORK'); return; }
     const loaded = points?._loadedData || dataGate.current.peek();
     if (!loaded) {
       cancelLocation();
@@ -1171,63 +1157,6 @@ export default function App() {
     setGraphRequested(true);
     if(!graphReadyRef.current){clearRoute();setRouteError('');setRouting(true);pendingRoute.current={...points,start:from,end:to};worker.current?.start();announce('正在準備路線，完成後會繼續規劃。');return;}
     pendingRoute.current=null;
-    if (from && to && navigator.onLine && !points?.via && ![from,to].some(p=>['20','station'].includes(String(p.kind)))) {
-      setGraphRequested(true);
-      clearRoute();
-      setRouteError("");
-      setRouting(true);
-      setTab("plan");
-      const id = request.current,
-        controller = new AbortController();
-      officialRequest.current = controller;
-      const timer = setTimeout(() => controller.abort(), 90000);
-      let localStarted = false;
-      try {
-        const [result, construction] = await Promise.all([requestOfficialRoute(
-          [from.lat, from.lon],
-          [to.lat, to.lon],
-          requestPrefs,
-          controller.signal,
-        ), fetchConstruction(controller.signal)]);
-        if (!construction.error) lastConstruction.current=construction;
-        if (id !== request.current) return;
-        if (construction.error) setRouteError(construction.error);
-        else if (result.error) {
-          localStarted=startLocalFallback(worker.current,id,from,to,requestPrefs,construction);
-          if(!localStarted) setRouteError(result.error);
-        }
-        else {
-          let verified=await verifyOnlineRoute(result,[from.lat,from.lon],[to.lat,to.lon],id,construction,requestPrefs);
-          if(id!==request.current)return;
-          if(verified.error && verified.detourWaypoints?.length){
-            const alternatives=await searchVerifiedAlternatives({start:[from.lat,from.lon],end:[to.lat,to.lon],waypoints:verified.detourWaypoints,signal:controller.signal,
-              query:(a,b,via,signal)=>requestOfficialRoute(a,b,{...requestPrefs,via},signal),
-              verify:candidate=>verifyOnlineRoute(candidate,[from.lat,from.lon],[to.lat,to.lon],id,construction,requestPrefs)});
-            if(id!==request.current)return;
-            if(alternatives.route)verified={...alternatives.route,alternativeAttempts:alternatives.attempts};
-            else if(alternatives.error==='CONSTRUCTION_UNAVAILABLE')verified=alternatives;
-          }
-          setConstructionConflict(verified.construction || null);
-          if (canFallbackAfterVerification(verified.error)) {
-            localStarted = startLocalFallback(worker.current,id,from,to,requestPrefs,construction);
-            if (!localStarted) setRouteError(verified.error);
-          }
-          else if(verified.error || !['official-polygons-and-crossings-v1','pedestrian-network-v1'].includes(verified.geometryVerification) || verified.policyVersion !== ROUTING_POLICY) setRouteError(verified.error || 'UNVERIFIED_NETWORK');
-          else {
-            const candidates=presentRouteCandidates(verified.routeCandidates,ROUTING_POLICY,lastConstruction.current?.sourceUpdatedAt);
-            setRouteCandidates(candidates);
-            setSelectedRouteCandidate(candidates.find(c=>c.id===verified.selectedCandidateId)?.id ?? null);
-            setRoute(verified); setStepIndex(0);
-          }
-        }
-      } catch (error) {
-        if (id === request.current) setRouteError(error.name === "AbortError" ? "OFFICIAL_TIMEOUT" : "OFFICIAL_UNAVAILABLE");
-      } finally {
-        clearTimeout(timer);
-        if (id === request.current && !localStarted) setRouting(false);
-      }
-      return;
-    }
     if (!from || !to) {
       announce("選好出發地和目的地，就能一起看看適合的走法。");
       return;
@@ -1250,7 +1179,7 @@ export default function App() {
     setRouteError("");
     if (!worker.current) return;
     worker.current.postMessage({
-      type: points?.via ? 'route' : 'plan-places',
+      type: points?.via ? 'route' : [from,to].some(p=>['20','station'].includes(String(p.kind))) ? 'plan-places' : 'official-plan',
       startPlace:from,endPlace:to,
       id: ++request.current,
       start: [from.lat, from.lon],
@@ -1529,7 +1458,7 @@ export default function App() {
   };
   const retryWithEntrance = ['OFFICIAL_PATH_UNVERIFIED','OFFICIAL_ROAD_CONFLICT','OFFICIAL_CROSSING_UNVERIFIED','OFFICIAL_ENTRY_UNVERIFIED','OFFICIAL_NO_ROUTE','OFFICIAL_GAP','NO_CONNECTION','NO_ROUTE'].includes(routeError);
   const simpleNoRoute=['NO_ROUTE','NO_CONNECTION','OFFICIAL_NO_ROUTE','OFFICIAL_GAP'].includes(routeError);
-  const automaticComparisonLoading=referenceState.status==='loading'&&referenceBaseline.current?.automatic===true&&referenceBaseline.current.route===route;
+  const automaticComparisonLoading=referenceBaseline.current?.automatic===true&&referenceBaseline.current.route===route&&(referenceState.status==='loading'||(referenceState.status==='ready'&&(remoteComparison?.reference!==referenceState||remoteComparison?.status==='loading')));
   const routeSearchPending=routing||referenceState.status==='loading'||nearbyState.status==='loading';
   const mapRoutes=mapRouteVisibility({tab,routing,automaticComparisonLoading,route,partialRoute,simpleNoRoute});
   const mapLayers=routeViewLayers({stage:tripStage,hideMapIcons,showOfficialSidewalk,showConstruction});
@@ -1584,9 +1513,10 @@ export default function App() {
   useLayoutEffect(()=>{
     const original=referenceBaseline.current;
     if(tab!=='plan'||referenceState.status!=='ready'||!original?.automatic||original.requestId!==request.current||route!==original.route)return;
-    const improvement=chooseSidewalkImprovement({currentRoute:route,localCandidates:routeCandidates,referenceCandidates:referenceState.candidates,start,end,snapshot:lastConstruction.current,referenceSnapshot:referenceSnapshot.current,referenceSourceHash:referenceState.sourceHash,userSelected:manualRouteSelection.current,following:!!followSession.current});
-    if(improvement)selectOfficialCandidate(improvement.candidate,true);
-  },[referenceState,route,start,end,tab,routeCandidates]);
+    if(manualRouteSelection.current||followSession.current||remoteComparison?.reference!==referenceState||remoteComparison?.status!=='ready')return;
+    const candidate=referenceState.candidates?.find(item=>item.id===remoteComparison.improvedCandidateId);
+    if(candidate)selectOfficialCandidate(candidate,true);
+  },[referenceState,route,start,end,tab,routeCandidates,remoteComparison]);
   useEffect(()=>{
     if(tab!=='plan'||referenceState.status!=='ready'||!['NO_ROUTE','NO_CONNECTION'].includes(routeError))return;
     const recommended=referenceState.candidates?.find(candidate=>candidate.route===referenceState.route);
@@ -2952,7 +2882,7 @@ export default function App() {
           </div>
           <p className="quiet-note">
             線上規劃使用臺北市無障礙通行路線平臺的通道路網，排除服務標記的障礙替代路線。
-            離線規劃以 OSM 獨立人行段及市府人行空間、行穿線圖資交叉檢查。
+            路線規劃需連線，由伺服器使用 OSM 及市府人行空間、行穿線圖資交叉檢查。
             輪行臺北部分寬度值與文件單位有疑義，尚未用於寬度判定；圖資不是現場通行認證。
           </p>
           <a href="https://tppano.gov.taipei/tp_roadsidewalkplatform_public/" target="_blank" rel="noopener">臺北市無障礙通行路線平臺</a>
