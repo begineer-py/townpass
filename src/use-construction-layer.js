@@ -46,7 +46,7 @@ export function useConstructionLayer(mapRef,snapshot,show,onStatus=()=>{},priori
    callback.current({status:result.status,shown:result.items.length,total:result.total,truncated:result.truncated});
    if(result.status!=='ready')return;
    for(const {work,geometries,point,anchorGeometry,count,ids} of result.items){
-    const avoid=onAvoid?ids=>avoidCallback.current?.(ids):null;
+    const avoid=onAvoid&&ids.some(id=>JSON.parse(priorityKey).includes(String(id)))?ids=>avoidCallback.current?.(ids):null;
     const color=colors[work.impact]||colors.unknown;
     for(const geometry of geometries){
      const opts={pane:'construction-work',renderer,color,weight:3,opacity:.9};

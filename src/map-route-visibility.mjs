@@ -4,3 +4,10 @@ export function mapRouteVisibility({tab,routing,automaticComparisonLoading,route
  const pending=routing||automaticComparisonLoading;
  return {route:tab&&!pending?route:null,partialRoute:tab==='plan'&&!pending&&!simpleNoRoute?partialRoute:null,pending};
 }
+
+// Navigation hides display overlays only; saved preferences and route safety
+// checks remain unchanged and are restored when returning to route choices.
+export function routeViewLayers({stage,hideMapIcons,showOfficialSidewalk,showConstruction}){
+ const focus=stage==='preview'||stage==='navigation';
+ return {focus,hideMapIcons:!!hideMapIcons||focus,showOfficialSidewalk:!!showOfficialSidewalk&&!focus,showConstruction:!!showConstruction&&!focus,animateRoute:stage==='navigation'};
+}

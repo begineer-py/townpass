@@ -1,0 +1,3 @@
+.navigation-route-flow { animation: navigation-route-flow 1.1s linear infinite; }
+@keyframes navigation-route-flow { to { stroke-dashoffset: -20; } }
+@media (prefers-reduced-motion: reduce) { .navigation-route-flow { animation: none; } }

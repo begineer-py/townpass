@@ -55,7 +55,7 @@ import {
 } from "lucide-react";
 import MapView from "./MapView";
 import { routeFitPadding } from "./route-fit.mjs";
-import {mapRouteVisibility} from "./map-route-visibility.mjs";
+import {mapRouteVisibility,routeViewLayers} from "./map-route-visibility.mjs";
 import {useReferenceComparison} from "./use-reference-comparison.js";
 import ReferenceRouteResult from "./ReferenceRouteResult";
 import RouteChoice from "./RouteChoice.jsx";
@@ -846,16 +846,15 @@ export default function App() {
   }
   function avoidOfficialCondition(point){
     if(!route||!start||!end||!graphReady)return;
-    stopFollowing();cancelNearby();constructionDetourSearch.current.cancel();
+    stopFollowing();cancelNearby();
     const a=route.resolvedStart||start,b=route.resolvedEnd||end;
     const old=route.conditionDetour?.targets||[],targets=[...old.filter(p=>p.id!==point.id||p.type!==point.type),{id:point.id,type:point.type,lat:point.lat,lon:point.lon}];
     void conditionDetourSearch.current.start({startPlace:a,endPlace:b,options:{...prefs,avoidPoints},url:new URL(dataUrl('graph')+'?policy='+ROUTING_POLICY,location.href).href,targets,online:navigator.onLine,offlineSnapshot:lastConstruction.current});
   }
   function avoidConstruction(ids){
     if(!route||!start||!end||!graphReady||!Array.isArray(ids)||!ids.length)return;
-    stopFollowing();cancelNearby();conditionDetourSearch.current.cancel();manualRouteSelection.current=true;
-    const a=route.resolvedStart||start,b=route.resolvedEnd||end;
-    const targets=[...new Set([...(route.constructionDetour?.ids||[]),...ids])];
+    stopFollowing();if(tripStage==='navigation')setTripStage('preview');cancelNearby();conditionDetourSearch.current.cancel();manualRouteSelection.current=true;
+    const a=route.resolvedStart||start,b=route.resolvedEnd||end,targets=[...new Set([...(route.constructionDetour?.ids||[]),...ids])];
     void constructionDetourSearch.current.start({startPlace:a,endPlace:b,options:{...prefs,avoidPoints},url:new URL(dataUrl('graph')+'?policy='+ROUTING_POLICY,location.href).href,ids:targets,originalRoute:route,online:navigator.onLine,offlineSnapshot:lastConstruction.current});
   }
   useEffect(()=>{
@@ -1517,6 +1516,7 @@ export default function App() {
   const simpleNoRoute=['NO_ROUTE','NO_CONNECTION','OFFICIAL_NO_ROUTE','OFFICIAL_GAP'].includes(routeError);
   const automaticComparisonLoading=referenceState.status==='loading'&&referenceBaseline.current?.automatic===true&&referenceBaseline.current.route===route;
   const mapRoutes=mapRouteVisibility({tab,routing,automaticComparisonLoading,route,partialRoute,simpleNoRoute});
+  const mapLayers=routeViewLayers({stage:tripStage,hideMapIcons,showOfficialSidewalk,showConstruction});
   useEffect(()=>{
     if(['NO_ROUTE','NO_CONNECTION'].includes(routeError) && referenceState.status!=='error')return;
     if(!shouldAutoSearchNearby({error:routeError,routing,graphReady,tab,start,end}))return;
@@ -1675,7 +1675,7 @@ export default function App() {
             </button>
           </nav>}
           <div className="panel-scroll" ref={panelScroll}>
-            {tripStage!=='choices' && route && <NavigationPanel stage={tripStage} route={route} end={end} progress={navProgress} followState={followState} onBack={returnToRoutes} onStart={startFollowing} onEnd={endNavigation} onRecenter={recenterNavigation} reportOpen={reportDemo} onReport={()=>setReportDemo(v=>!v)}/>}
+            {tripStage!=='choices' && route && <NavigationPanel stage={tripStage} route={route} end={end} progress={navProgress} followState={followState} onBack={returnToRoutes} onStart={startFollowing} onEnd={endNavigation} onRecenter={recenterNavigation} reportOpen={reportDemo} onReport={()=>setReportDemo(v=>!v)} constructionWorks={routeWorks.filter(w=>w.impact==='clear')} onAvoidConstruction={avoidConstruction} constructionDetourState={constructionDetourState} onCancelDetour={()=>constructionDetourSearch.current.cancel()}/>}
             {tripStage==='choices' && <>
             {waitingForData && (
               <div className="loading-note">
@@ -1795,14 +1795,11 @@ export default function App() {
                   {routing ? (routeAttempt ? `正在嘗試第 ${routeAttempt} 條繞路…` : "正在找路線…") : "規劃路線"}
                   <ArrowRight size={19} />
                 </button>}
-                {graphRequested && !graphReady && (
+                {graphRequested && !graphReady && graphError && (
                   <p className="quiet-note" role="status">
-                    {graphError
-                      ? "路線資料暫時讀取不到，請重新整理再試。"
-                      : "正在準備路線資料。"}
+                    路線資料暫時讀取不到，請重新整理再試。
                   </p>
                 )}
-                {nearbyWarnings(start,end).map(text=><p className="quiet-note" role="note" key={text}>{text}</p>)}
                 {routeError && (
                   <div className={`notice ${retryWithEntrance ? "route-recovery" : ""}`} role="status" ref={routeFeedback}>
                     <Info />
@@ -1867,9 +1864,8 @@ export default function App() {
                     {route.officialConditions?.status === "unavailable" && <p className="quiet-note" role="note">目前查不到沿途通行問題紀錄。</p>}
                     {routeWorks.length > 0 && <p className="quiet-note" role="note">附近有施工，請留意現場指引。</p>}
                     {routeWorks.filter(w=>w.impact==='clear').map(w=><button className="construction-avoid" key={w.id} type="button" disabled={constructionDetourState.status==='loading'} onClick={()=>avoidConstruction(w.ids)}>繞過施工：{w.address}</button>)}
-                    {constructionDetourState.status==='loading'&&<p role="status">正在尋找繞路… <button type="button" onClick={()=>constructionDetourSearch.current.cancel()}>取消</button></p>}
+                    {constructionDetourState.status==='loading'&&<p role="status"><LoaderCircle className="spin" size={18} aria-hidden="true"/> 正在尋找繞路… <button type="button" onClick={()=>constructionDetourSearch.current.cancel()}>取消</button></p>}
                     {constructionDetourState.status==='error'&&<p role="status">{constructionDetourState.message}</p>}
-                    {route.constructionDetour&&<p className="quiet-note">已繞過所選施工通報。</p>}
                     {route.kind!=='official-passageway' && <details className="route-disclosure"><summary>線條說明</summary><RouteLegend segments={[route]} colorFriendly={prefs.colorFriendly} showIssueIcons={true}/></details>}
                     {conditionDetourState.status==='loading'&&<p role="status">正在尋找繞路… <button type="button" onClick={()=>conditionDetourSearch.current.cancel()}>取消</button></p>}
                     {conditionDetourState.status==='error'&&<p role="status">{conditionDetourState.message}</p>}
@@ -2190,12 +2186,16 @@ export default function App() {
         <main className="map-area" aria-label="地圖與設施">
           {tripStage==='navigation' && <NavigationPrompt progress={navProgress} followState={followState}/>}
           <MapView
-            items={hideMapIcons ? NO_MAP_ICONS : mapPins}
+            items={mapLayers.hideMapIcons ? NO_MAP_ICONS : mapPins}
             activeFilter={tab==='explore' ? filter : 'all'}
-            recentPlaces={hideMapIcons ? NO_MAP_ICONS : recentPlaces}
+            recentPlaces={mapLayers.hideMapIcons ? NO_MAP_ICONS : recentPlaces}
             basemap={basemap}
-            showOfficialSidewalk={showOfficialSidewalk}
-            hideMapIcons={hideMapIcons}
+            showOfficialSidewalk={mapLayers.showOfficialSidewalk}
+            hideMapIcons={mapLayers.hideMapIcons}
+            routeFocus={mapLayers.focus}
+            animateRoute={mapLayers.animateRoute}
+            onAvoidConstruction={tab==='plan' && mapRoutes.route ? avoidConstruction : null}
+            avoidingConstruction={constructionDetourState.status==='loading'}
             onOfficialSidewalkStatus={setSidewalkStatus}
             colorFriendly={prefs.colorFriendly}
             onBasemapStatus={setBasemapStatus}
@@ -2204,11 +2204,9 @@ export default function App() {
             avoidingOfficialCondition={conditionDetourState.status==='loading'}
             referenceRoute={null}
             partialRoute={mapRoutes.partialRoute}
-            onAvoidConstruction={tab==='plan' && mapRoutes.route ? avoidConstruction : null}
-            avoidingConstruction={constructionDetourState.status==='loading'}
-            constructionConflict={tab && showConstruction && !mapRoutes.pending ? constructionConflict : null}
+            constructionConflict={tab && showConstruction && !mapRoutes.pending && tripStage==='choices' ? constructionConflict : null}
             constructionSnapshot={constructionFeed.snapshot}
-            showConstruction={showConstruction}
+            showConstruction={mapLayers.showConstruction}
             onConstructionStatus={setConstructionMapStatus}
             routeGap={tab && !simpleNoRoute && !mapRoutes.pending ? routeGapView : null}
             nearbyCandidates={tab==='plan' && !simpleNoRoute && !mapRoutes.pending ? nearbyState.candidates : NO_MAP_ICONS}

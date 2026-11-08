@@ -14,6 +14,7 @@ import { groupVisibleIssues, hitIssueGroup, issueGroupLabel } from "./issue-pres
 import {routeIssueMarkers} from "./route-issue-markers.mjs";
 import {useConstructionLayer} from "./use-construction-layer.js";
 import "./route-issue-markers.css";
+import "./route-flow.css";
 import { metroStationCodes, metroStationIconUrl } from "./metro-station-icons.mjs";
 import { mapIconElement } from "./map-icons.mjs";
 import { mapPickPoint } from "./location.js";
@@ -61,6 +62,8 @@ export default function MapView({
   constructionSnapshot,
   onAvoidConstruction,
   avoidingConstruction,
+  routeFocus = false,
+  animateRoute = false,
   showConstruction = true,
   onConstructionStatus,
   routeGap,
@@ -101,6 +104,7 @@ export default function MapView({
     nearby = useRef(),
     ends = useRef();
   const baseLayers = useRef([]);
+  const routeFlow = useRef(null),routeFlowRenderer=useRef(null);
   const markerData = useRef({ items, recentPlaces, colorFriendly, hideMapIcons, activeFilter });
   const markerRedraw = useRef();
   markerData.current = { items, recentPlaces, colorFriendly, hideMapIcons, activeFilter };
@@ -125,6 +129,10 @@ export default function MapView({
     const referencePane=m.getPane('reference-route')||m.createPane('reference-route',m.getPane('rotatePane')||undefined);
     referencePane.style.zIndex='390';referencePane.style.pointerEvents='none';
     referenceRenderer.current=L.canvas({pane:'reference-route',padding:.25});
+    const flowPane=m.getPane('route-flow')||m.createPane('route-flow',m.getPane('rotatePane')||undefined);
+    flowPane.style.zIndex='410';flowPane.style.pointerEvents='none';
+    routeFlowRenderer.current=L.svg({pane:'route-flow',padding:.25});
+    routeFlow.current=L.layerGroup().addTo(m);
     referencePath.current=L.layerGroup().addTo(m);
     path.current = L.layerGroup().addTo(m);
     partialPath.current = L.layerGroup().addTo(m);
@@ -529,8 +537,16 @@ export default function MapView({
     if(bounds.length&&!route){const height=map.current.getSize().y;map.current.fitBounds(L.latLngBounds(bounds),{maxZoom:17,animate:false,...routePadding(height)});}
   },[partialRoute,route,sheetSnap,colorFriendly,hideMapIcons]);
   useEffect(() => {
+    if(!routeFlow.current)return;
+    routeFlow.current.clearLayers();
+    const coordinates=route?.coordinates;
+    if(!animateRoute||!routeFlowRenderer.current||!Array.isArray(coordinates)||coordinates.length<2||!coordinates.every(p=>Array.isArray(p)&&p.length>=2&&p.slice(0,2).every(Number.isFinite)))return;
+    L.polyline(coordinates,{pane:'route-flow',renderer:routeFlowRenderer.current,interactive:false,color:'#fff',weight:3,opacity:.95,dashArray:'3 17',className:'navigation-route-flow'}).addTo(routeFlow.current);
+  },[route,animateRoute]);
+  useEffect(() => {
     if(!routeIssues.current)return;
     routeIssues.current.clearLayers();
+    if(routeFocus)return;
     const paths=route?[route]:(partialRoute?.segments||[]),seen=new Set();
     for(const path of paths){
       const {markers,highlights}=routeIssueMarkers(path);
@@ -557,7 +573,7 @@ export default function MapView({
         pin.getElement()?.setAttribute('aria-label',`${marker.title}，${marker.detail}`);
       }
     }
-  },[route,partialRoute,hideMapIcons,avoidingOfficialCondition]);
+  },[route,partialRoute,hideMapIcons,avoidingOfficialCondition,routeFocus]);
   useEffect(() => {
     if (!blocked.current) return;
     blocked.current.clearLayers();
