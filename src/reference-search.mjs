@@ -30,11 +30,12 @@ export function createReferenceSearch({fetchSnapshot,getLifecycle,onState,onSnap
   return true;
  }
  function handleDropped(message){if(request&&message?.type==='reference-route'&&message.id===request.id){finish({status:'error',message:'路線搜尋已中斷，請重試。'});return true;}return false;}
- async function start({startPlace,endPlace,options,online,offlineSnapshot}){
+ async function start({startPlace,endPlace,options,online,offlineSnapshot,requestTimeoutMs}){
   cancel(false);const id=version;onState({status:'loading'});const abort=new AbortController();controller=abort;
   const fail=message=>{if(id!==version)return;version++;abort.abort();controller=null;clearTimeout(timer);timer=null;onState({status:'error',message});};
   if(![startPlace?.lat,startPlace?.lon,endPlace?.lat,endPlace?.lon].every(Number.isFinite)){fail('請先選擇起點與目的地。');return;}
-  timer=setTimeout(()=>{if(id!==version)return;const old=request;request=null;fail('路線搜尋逾時，請重試。');old?.lifecycle.cancelIfActive('reference-route',id);},timeoutMs);
+  const limit=Number.isFinite(requestTimeoutMs)&&requestTimeoutMs>0?Math.min(timeoutMs,requestTimeoutMs):timeoutMs;
+  timer=setTimeout(()=>{if(id!==version)return;const old=request;request=null;fail('路線搜尋逾時，請重試。');old?.lifecycle.cancelIfActive('reference-route',id);},limit);
   let snapshot;try{snapshot=online?await fetchSnapshot(abort.signal):offlineSnapshot;}catch{fail('施工資料暫時不可用。');return;}
   if(id!==version)return;if(!constructionFresh(snapshot)){fail('施工資料已過期，請重試。');return;}
   const lifecycle=getLifecycle();if(!lifecycle){fail('路線資料暫時不可用。');return;}

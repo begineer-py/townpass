@@ -36,6 +36,9 @@ export default async function handler(req,res){
  const task=body?.task;
  if(!validRouteTask(task)||typeof body.constructionSourceUpdatedAt!=='string')return send(400,{error:'INVALID_REQUEST'});
  const abort=new AbortController();const deadline=setTimeout(()=>abort.abort('timeout'),50000);const close=()=>{if(!res.writableEnded)abort.abort('client');};res.once('close',close);
+ // Start one shared graph while the authoritative construction feed loads.
+ const releaseWarm=task.type!=='compare-sidewalk'&&Number.isFinite(Date.parse(body.constructionSourceUpdatedAt))?pool.warm():()=>{};
+ abort.signal.addEventListener('abort',releaseWarm,{once:true});
  try{
   const snapshot=await getConstructionSnapshot();
   if(abort.signal.aborted){if(abort.signal.reason==='timeout')return send(504,{error:'ROUTE_BACKEND_TIMEOUT'});return;}
@@ -54,5 +57,5 @@ export default async function handler(req,res){
   if(abort.signal.aborted){if(abort.signal.reason==='timeout')return send(504,{error:'ROUTE_BACKEND_TIMEOUT'});return;}
   const code=error?.message==='ROUTING_BUSY'?503:error?.message==='ROUTING_TIMEOUT'?504:503;
   return send(code,{error:'ROUTE_BACKEND_UNAVAILABLE'});
- }finally{clearTimeout(deadline);res.off('close',close);}
+ }finally{abort.signal.removeEventListener('abort',releaseWarm);releaseWarm();clearTimeout(deadline);res.off('close',close);}
 }

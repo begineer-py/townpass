@@ -133,7 +133,7 @@ function combineRoutes(a, b, viaName) {
 self.onmessage = async ({ data }) => {
   try {
     if (data.type === "init") {
-      routeGraphUrl=data.url;referenceAsset=null;referenceAssetPromise=null;
+      routeGraphUrl=data.url;referenceAsset=null;referenceAssetPromise=null;detourWaypoints=null;
       initialization = (async () => {
       const r = await fetch(data.url);
       if (!r.ok) throw Error("graph");
@@ -171,7 +171,7 @@ self.onmessage = async ({ data }) => {
       const rawVerifyLocal=createLocalRouteVerifier(graph,facilities,places);
       verifyLocal=Object.assign((...args)=>annotateNearbyConditions(rawVerifyLocal(...args)),rawVerifyLocal);
       router=createVerifiedRouter(graph,verifyLocal);
-      detourWaypoints=createDetourWaypoints(graph);
+      // Build the optional detour index only when the official route needs it.
       })();
       await initialization;
       postMessage({ type: "ready" });
@@ -310,7 +310,7 @@ self.onmessage = async ({ data }) => {
         try{const checker=createConstructionChecker(data.construction);result=annotateAvoidance(result,data.start,data.end,{...data.options,lineAllowed:checker.allowed},checker);}catch(error){if(error?.code==='PROJECTION_LIMIT')throw error;}
       }
       if(!constructionFresh(data.construction))result={error:'CONSTRUCTION_UNAVAILABLE'};
-      if(result.error && ['OFFICIAL_PATH_UNVERIFIED','OFFICIAL_ROAD_CONFLICT','OFFICIAL_CROSSING_UNVERIFIED','OFFICIAL_ENTRY_UNVERIFIED','CONSTRUCTION_BLOCKED'].includes(result.error))result.detourWaypoints=detourWaypoints(data.start,data.end,result.detourCenter);
+      if(result.error && ['OFFICIAL_PATH_UNVERIFIED','OFFICIAL_ROAD_CONFLICT','OFFICIAL_CROSSING_UNVERIFIED','OFFICIAL_ENTRY_UNVERIFIED','CONSTRUCTION_BLOCKED'].includes(result.error)){detourWaypoints??=createDetourWaypoints(routeGraph);result.detourWaypoints=detourWaypoints(data.start,data.end,result.detourCenter);}
       postMessage({type:'verified-official',id:data.id,result});
     } else if (data.type === "route") {
       await initialization;

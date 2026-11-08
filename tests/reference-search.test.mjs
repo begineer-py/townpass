@@ -15,3 +15,10 @@ test('only individually valid candidates enter selectable state',async()=>{const
 test('filters nonrecommended forged interior coordinates and step locations',async()=>{const s=fresh(),w=fake(),states=[],search=createReferenceSearch({fetchSnapshot:async()=>s,getLifecycle:()=>w,onState:x=>states.push(x)});await search.start(args);const id=w.sent.at(-1).id,good=route(s),forged={...route(s),coordinates:[[25.04,121.5],[25.2,121.7],[25.05,121.51]]},stepForged={...route(s),steps:[{name:'bad',turn:'bad',lat:25.2,lon:121.7,distance:5}]};search.handleMessage({type:'reference-route',id,result:{kind:'official-passageway-comparison',sourceHash:good.sourceHash,recommendedCandidateId:'good',candidates:[{id:'good',route:good},{id:'forged',route:forged},{id:'step',route:stepForged}]}});assert.deepEqual(states.at(-1).candidates.map(c=>c.id),['good']);});
 
 test('filters a nonrecommended candidate with forged distance and directions',async()=>{const s=fresh(),w=fake(),states=[],search=createReferenceSearch({fetchSnapshot:async()=>s,getLifecycle:()=>w,onState:x=>states.push(x)});await search.start(args);const id=w.sent.at(-1).id,good=route(s),forged={...route(s),distance:999999,steps:[{name:'FORGED',turn:'迴轉',lat:25.04,lon:121.5,distance:999999}]};search.handleMessage({type:'reference-route',id,result:{kind:'official-passageway-comparison',sourceHash:good.sourceHash,recommendedCandidateId:'good',candidates:[{id:'good',route:good},{id:'forged',route:forged}]}});assert.deepEqual(states.at(-1).candidates.map(c=>c.id),['good']);});
+
+test('short automatic comparison timeout cancels work and ignores late results',async()=>{
+ const s=fresh(),w=fake(),states=[],search=createReferenceSearch({fetchSnapshot:async()=>s,getLifecycle:()=>w,onState:x=>states.push(x),timeoutMs:45000});
+ await search.start({...args,requestTimeoutMs:10});const id=w.sent.at(-1).id;
+ await new Promise(resolve=>setTimeout(resolve,25));assert.equal(states.at(-1).status,'error');assert.equal(w.cancelled.length,1);
+ assert.equal(search.handleMessage({type:'reference-route',id,result:route(s)}),false);
+});

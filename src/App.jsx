@@ -608,11 +608,12 @@ export default function App() {
     if(referenceState.status!=='ready'||!baseline||baseline.requestId!==request.current){setRemoteComparison(null);return;}
     if(!constructionFresh(snapshot)||!constructionFresh(referenceSnapshot)||snapshot.sourceUpdatedAt!==referenceSnapshot.sourceUpdatedAt){setRemoteComparison({status:'error',reference:referenceState,baseline:baseline.route});return;}
     const controller=new AbortController();
+    const timer=setTimeout(()=>{controller.abort();setRemoteComparison({status:'error',reference:referenceState,baseline:baseline.route});},5000);
     setRemoteComparison({status:'loading',reference:referenceState,baseline:baseline.route});
     compareRoutesOnServer({currentRoute:baseline.route,localCandidates:routeCandidates,referenceCandidates:referenceState.candidates,start,end,snapshot,referenceSourceHash:referenceState.sourceHash},controller.signal)
-      .then(result=>{if(!controller.signal.aborted)setRemoteComparison({status:'ready',reference:referenceState,baseline:baseline.route,...result});})
-      .catch(()=>{if(!controller.signal.aborted)setRemoteComparison({status:'error',reference:referenceState,baseline:baseline.route});});
-    return ()=>controller.abort();
+      .then(result=>{clearTimeout(timer);if(!controller.signal.aborted)setRemoteComparison({status:'ready',reference:referenceState,baseline:baseline.route,...result});})
+      .catch(()=>{clearTimeout(timer);if(!controller.signal.aborted)setRemoteComparison({status:'error',reference:referenceState,baseline:baseline.route});});
+    return ()=>{clearTimeout(timer);controller.abort();};
   },[referenceState,routeCandidates,start,end,route,lastConstruction.current?.fetchedAt,lastConstruction.current?.sourceUpdatedAt,referenceSnapshot.current?.fetchedAt,referenceSnapshot.current?.sourceUpdatedAt]);
   const sidewalkComparison=remoteComparison?.reference===referenceState&&remoteComparison?.status==='ready'?remoteComparison.comparison:null;
   const displayedReferenceCandidates = useMemo(()=>{
@@ -883,7 +884,7 @@ export default function App() {
     setReferenceCollapsed(false);
     referenceAutoAttempt.current=request.current;
     referenceSnapshot.current=null;
-    void referenceSearch.current.start({startPlace:start,endPlace:end,options:{...prefs,avoidPoints},url:new URL(dataUrl('graph')+'?policy='+ROUTING_POLICY,location.href).href,online:navigator.onLine,offlineSnapshot:lastConstruction.current});
+    void referenceSearch.current.start({startPlace:start,endPlace:end,options:{...prefs,avoidPoints},url:new URL(dataUrl('graph')+'?policy='+ROUTING_POLICY,location.href).href,online:navigator.onLine,offlineSnapshot:lastConstruction.current,requestTimeoutMs:automatic?12000:undefined});
   }
   function chooseNearby(candidate){
     stopFollowing();

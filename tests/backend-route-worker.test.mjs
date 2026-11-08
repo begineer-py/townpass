@@ -48,3 +48,26 @@ test('backend uses its own construction snapshot and rejects a changed source',a
  await handler({method:'POST',body:{task:{type:'plan-places',id:7,startPlace:p,endPlace:p,construction:{works:[]}},constructionSourceUpdatedAt:'forged'}},res);
  assert.equal(res.statusCode,200);assert.equal(res.body.result.error,'CONSTRUCTION_UNAVAILABLE');assert.equal(res.body.type,'route');assert.equal(calls,1);
 });
+
+test('prewarming overlaps initialization and shares one worker with real requests',async()=>{
+ const workers=[];const pool=createRoutePool({createWorker:()=>{const w=new FakeWorker();workers.push(w);return w;}});
+ const releaseA=pool.warm(),releaseB=pool.warm();assert.equal(workers.length,1);assert.equal(workers[0].messages[0].type,'init');
+ const job=pool.execute({id:9,type:'route'});releaseA();releaseB();assert.equal(workers[0].terminated,false);
+ workers[0].emit('message',{type:'ready'});assert.equal(workers[0].messages.at(-1).id,9);workers[0].emit('message',{type:'route',id:9,result:{ok:true}});
+ assert.equal((await job).result.ok,true);pool.dispose();
+});
+test('abandoned prewarming stops only after the last interested request leaves',()=>{
+ const workers=[],pool=createRoutePool({createWorker:()=>{const w=new FakeWorker();workers.push(w);return w;}});
+ const a=pool.warm(),b=pool.warm();a();assert.equal(workers[0].terminated,false);b();assert.equal(workers[0].terminated,true);pool.dispose();
+});
+test('a prewarmed initialization failure permits a later clean retry',async()=>{
+ const workers=[],pool=createRoutePool({createWorker:()=>{const w=new FakeWorker();workers.push(w);return w;}});
+ const release=pool.warm();workers[0].emit('message',{type:'error',message:'bad graph'});release();assert.equal(workers[0].terminated,true);
+ const job=pool.execute({id:3,type:'route'});assert.equal(workers.length,2);workers[1].emit('message',{type:'ready'});workers[1].emit('message',{type:'route',id:3,result:{ok:true}});assert.equal((await job).result.ok,true);pool.dispose();
+});
+
+test('a synchronous prewarm initialization failure does not escape or strand later work',async()=>{
+ const workers=[],pool=createRoutePool({createWorker:()=>{const w=new FakeWorker();if(!workers.length)w.postMessage=()=>{throw Error('cannot init')};workers.push(w);return w;}});
+ const release=pool.warm();assert.equal(workers[0].terminated,true);release();const job=pool.execute({id:12,type:'route'});
+ workers[1].emit('message',{type:'ready'});workers[1].emit('message',{type:'route',id:12,result:{ok:true}});assert.equal((await job).result.ok,true);pool.dispose();
+});
