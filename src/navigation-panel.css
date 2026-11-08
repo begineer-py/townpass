@@ -7,6 +7,9 @@
 .navigation-panel__metrics strong { color:var(--tp-primary700); font-size:1.5rem; }
 .navigation-panel__metrics span,.navigation-panel__status { color:var(--tp-grayscale600); font-size:.9rem; }
 .navigation-panel__status { margin:0; }
+.preview-switcher { display:flex; align-items:center; justify-content:space-between; gap:8px; color:var(--tp-grayscale600); font-size:.875rem; }
+.preview-switcher button { display:grid; place-items:center; min-width:44px; min-height:44px; border:1px solid var(--tp-grayscale200); border-radius:10px; }
+.navigation-panel { touch-action:pan-y; }
 .navigation-panel__actions { display:flex; gap:8px; }
 .navigation-panel__actions button { display:inline-flex; justify-content:center; align-items:center; gap:6px; flex:1; min-width:0; min-height:48px; padding:8px; border-radius:10px; font-weight:600; }
 .navigation-secondary { background:var(--tp-grayscale50); color:var(--tp-grayscale700); }
