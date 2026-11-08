@@ -1,19 +1,18 @@
 import { getConstructionSnapshot } from './construction.js';
 import { createRoutePool } from '../server/route-pool.mjs';
 import { compareSidewalkRouteScores, chooseSidewalkImprovement } from '../src/sidewalk-route-choice.mjs';
-import { planOfficialRoute } from '../server/official-plan.mjs';
 
 const pool=createRoutePool();
-const types=new Set(['route','plan-places','verify-official','reference-route','snap-map-point','nearby-positions','avoid-official-condition','avoid-construction','compare-sidewalk','official-plan']);
-const responseType=type=>['plan-places','official-plan'].includes(type)?'route':type==='verify-official'?'verified-official':type;
+const types=new Set(['route','plan-places','verify-official','reference-route','snap-map-point','nearby-positions','avoid-official-condition','avoid-construction','compare-sidewalk']);
+const responseType=type=>type==='plan-places'?'route':type==='verify-official'?'verified-official':type;
 const validPoint=p=>Array.isArray(p)&&p.length===2&&p.every(Number.isFinite)&&p[0]>=24.9&&p[0]<=25.3&&p[1]>=121.4&&p[1]<=121.8;
 const validPlace=p=>p&&validPoint([p.lat,p.lon]);
 export function validRouteTask(task){
  if(!task||typeof task!=='object'||!types.has(task.type)||!(Number.isSafeInteger(task.id)||typeof task.id==='string'&&task.id.length<=80))return false;
  if(task.options!=null&&(typeof task.options!=='object'||Array.isArray(task.options)))return false;
  if(task.options?.avoidPoints!=null&&(!Array.isArray(task.options.avoidPoints)||task.options.avoidPoints.length>5000||!task.options.avoidPoints.every(validPoint)))return false;
- if(['plan-places','nearby-positions','avoid-official-condition','avoid-construction','official-plan'].includes(task.type)&&(!validPlace(task.startPlace)||!validPlace(task.endPlace)))return false;
- if(['route','verify-official','reference-route','official-plan'].includes(task.type)&&(!validPoint(task.start)||!validPoint(task.end)))return false;
+ if(['plan-places','nearby-positions','avoid-official-condition','avoid-construction'].includes(task.type)&&(!validPlace(task.startPlace)||!validPlace(task.endPlace)))return false;
+ if(['route','verify-official','reference-route'].includes(task.type)&&(!validPoint(task.start)||!validPoint(task.end)))return false;
  if(task.type==='route'&&task.via!=null&&!validPoint(task.via))return false;
  if(task.type==='verify-official'&&(!task.route||!Array.isArray(task.route.coordinates)||task.route.coordinates.length>30000))return false;
  if(task.type==='snap-map-point'&&(!validPoint(task.point)||!validPlace(task.place)||!['start','end'].includes(task.side)))return false;
@@ -43,7 +42,6 @@ export default async function handler(req,res){
   const snapshot=await getConstructionSnapshot();
   if(abort.signal.aborted){if(abort.signal.reason==='timeout')return send(504,{error:'ROUTE_BACKEND_TIMEOUT'});return;}
   if(snapshot.sourceUpdatedAt!==body.constructionSourceUpdatedAt)return send(200,{type:responseType(task.type),id:task.id,result:{error:'CONSTRUCTION_UNAVAILABLE'}});
-  if(task.type==='official-plan'){const result=await planOfficialRoute(task,snapshot,{pool,signal:abort.signal});return send(200,{type:'route',id:task.id,result});}
   if(task.type==='compare-sidewalk'){
    const options={currentRoute:task.currentRoute,localCandidates:task.localCandidates,referenceCandidates:task.referenceCandidates,start:task.start,end:task.end,snapshot,referenceSnapshot:snapshot,referenceSourceHash:task.referenceSourceHash};
    const compared=compareSidewalkRouteScores(options),improved=chooseSidewalkImprovement(options);

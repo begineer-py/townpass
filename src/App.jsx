@@ -1181,7 +1181,7 @@ export default function App() {
     setRouteError("");
     if (!worker.current) return;
     worker.current.postMessage({
-      type: points?.via ? 'route' : [from,to].some(p=>['20','station'].includes(String(p.kind))) ? 'plan-places' : 'official-plan',
+      type: points?.via ? 'route' : 'plan-places',
       startPlace:from,endPlace:to,
       id: ++request.current,
       start: [from.lat, from.lon],
@@ -2886,8 +2886,7 @@ export default function App() {
             </a>
           </div>
           <p className="quiet-note">
-            線上規劃使用臺北市無障礙通行路線平臺的通道路網，排除服務標記的障礙替代路線。
-            路線規劃需連線，由伺服器使用 OSM 及市府人行空間、行穿線圖資交叉檢查。
+            路線規劃需連線，由本服務後端使用 OSM 及市府人行空間、行穿線圖資交叉檢查。
             輪行臺北部分寬度值與文件單位有疑義，尚未用於寬度判定；圖資不是現場通行認證。
           </p>
           <a href="https://tppano.gov.taipei/tp_roadsidewalkplatform_public/" target="_blank" rel="noopener">臺北市無障礙通行路線平臺</a>

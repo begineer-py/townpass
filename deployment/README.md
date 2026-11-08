@@ -1,6 +1,6 @@
 # 部署
 
-本專案是 Vite 網站。路線搜尋、候選路線與驗證在 `api/route-compute.js` 的後端執行，後端使用隨函式打包的人行路網及市府資料；瀏覽器不再下載路網進行運算。`api/accessible-route.js` 與 `api/construction.js` 分別轉接市府路線及施工資料，因此不能只上傳 `dist`。路線規劃需要網路連線。部署不需要資料庫、環境變數或 Flutter 專案。
+本專案是 Vite 網站。路線搜尋、候選路線與驗證在 `api/route-compute.js` 的後端執行，後端使用隨函式打包的人行路網及市府資料；瀏覽器不再下載路網進行運算。`api/construction.js` 提供施工資料，因此不能只上傳 `dist`。路線不呼叫市府路線規劃 API。路線規劃需要網路連線。部署不需要資料庫、環境變數或 Flutter 專案。
 
 ## 以 Git 儲存庫部署
 
@@ -24,7 +24,7 @@ Vercel 可在專案設定自訂網域；設定完成後應使用該 HTTPS 網域
 
 - 開啟部署根網址，確認首頁及地圖可正常載入。
 - 確認 `/data/facilities.json.gz`、`/data/address-index.json` 回應成功，並確認設施資料能在頁面內正常載入。
-- 確認 `POST /api/accessible-route`、`POST /api/route-compute` 與施工 API 正常；以 GET 呼叫路線 API 回 405 是預期行為。
+- 確認 `POST /api/route-compute` 與施工 API 正常；以 GET 呼叫路線 API 回 405 是預期行為。
 - 實際規劃路線並檢查後端函式日誌：首次請求需要載入壓縮路網，需確認部署方案的函式執行時間和記憶體足夠。
 - 確認路線規劃、設施搜尋、地址搜尋及 Service Worker 離線快取可用；離線時不能計算新路線。
 - 在手機 HTTPS 瀏覽器測試定位權限；台北通 WebView 也需由宿主允許網站定位。

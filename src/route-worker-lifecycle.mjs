@@ -34,7 +34,7 @@ export function createRouteWorkerLifecycle({createWorker,initMessage,onReady=()=
   try{current.postMessage(initMessage);}catch(error){fail(error);}
  }
  function postMessage(message){
-  if(disposed||!worker||!['route','plan-places','official-plan','verify-official','reference-route','snap-map-point'].includes(message?.type))return false;
+  if(disposed||!worker||!['route','plan-places','verify-official','reference-route','snap-map-point'].includes(message?.type))return false;
   // Optional reference work must never displace a normal route request.
   if((message.type==='reference-route'||message.type==='snap-map-point')&&(active||queued))return false;
   if(queued)drop(queued);queued=message;pump();return !!worker;

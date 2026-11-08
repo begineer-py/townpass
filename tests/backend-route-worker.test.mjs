@@ -35,7 +35,7 @@ test('termination aborts a pending request without delivering a late reply',asyn
 });
 test('route API validates task types, coverage, size and methods',async()=>{
  const p={lat:25.05,lon:121.52};assert.equal(validRouteTask({type:'plan-places',id:1,startPlace:p,endPlace:p}),true);
- assert.equal(validRouteTask({type:'init',id:1}),false);assert.equal(validRouteTask({type:'plan-places',id:1,startPlace:{lat:1,lon:1},endPlace:p}),false);
+ assert.equal(validRouteTask({type:'init',id:1}),false);assert.equal(validRouteTask({type:'official-plan',id:1}),false);assert.equal(validRouteTask({type:'plan-places',id:1,startPlace:{lat:1,lon:1},endPlace:p}),false);
  const response=()=>{const r=new EventEmitter();r.headers={};r.setHeader=(k,v)=>r.headers[k]=v;r.end=s=>{r.body=JSON.parse(s);r.writableEnded=true};return r;};
  for(const [req,status] of [[{method:'GET'},405],[{method:'POST',body:{task:{type:'init',id:1},constructionSourceUpdatedAt:'x'}},400],[{method:'POST',body:{data:'x'.repeat(2000001)}},413]]){const res=response();await handler(req,res);assert.equal(res.statusCode,status);}
 });
