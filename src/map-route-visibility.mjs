@@ -9,5 +9,5 @@ export function mapRouteVisibility({tab,routing,automaticComparisonLoading,route
 // checks remain unchanged and are restored when returning to route choices.
 export function routeViewLayers({stage,hideMapIcons,showOfficialSidewalk,showConstruction}){
  const focus=stage==='preview'||stage==='navigation';
- return {focus,hideMapIcons:!!hideMapIcons||focus,showOfficialSidewalk:!!showOfficialSidewalk&&!focus,showConstruction:!!showConstruction&&!focus,animateRoute:stage==='navigation'};
+ return {focus,hideMapIcons:!!hideMapIcons||focus,showOfficialSidewalk:!!showOfficialSidewalk&&!focus,showConstruction:!!showConstruction&&!focus,animateRoute:stage==='preview'};
 }

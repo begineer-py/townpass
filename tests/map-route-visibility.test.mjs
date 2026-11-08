@@ -17,8 +17,8 @@ test('completed route and explicit detour searches retain the selected route',()
 });
 test('route preview and navigation suppress other map overlays without changing preferences',()=>{
  const prefs={hideMapIcons:false,showOfficialSidewalk:true,showConstruction:true};
- assert.deepEqual(routeViewLayers({...prefs,stage:'preview'}),{focus:true,hideMapIcons:true,showOfficialSidewalk:false,showConstruction:false,animateRoute:false});
- assert.deepEqual(routeViewLayers({...prefs,stage:'navigation'}),{focus:true,hideMapIcons:true,showOfficialSidewalk:false,showConstruction:false,animateRoute:true});
+ assert.deepEqual(routeViewLayers({...prefs,stage:'preview'}),{focus:true,hideMapIcons:true,showOfficialSidewalk:false,showConstruction:false,animateRoute:true});
+ assert.deepEqual(routeViewLayers({...prefs,stage:'navigation'}),{focus:true,hideMapIcons:true,showOfficialSidewalk:false,showConstruction:false,animateRoute:false});
  assert.deepEqual(routeViewLayers({...prefs,stage:'choices'}),{focus:false,hideMapIcons:false,showOfficialSidewalk:true,showConstruction:true,animateRoute:false});
  assert.equal(routeViewLayers({...prefs,hideMapIcons:true,stage:'choices'}).hideMapIcons,true);
 });

@@ -1,3 +1,3 @@
-.navigation-route-flow { animation: navigation-route-flow 1.1s linear infinite; }
-@keyframes navigation-route-flow { to { stroke-dashoffset: -20; } }
+.navigation-route-flow { opacity: 0; stroke-dasharray: 1 1; animation: navigation-route-flow 1.2s ease-out 1; }
+@keyframes navigation-route-flow { 0% { opacity: 1; stroke-dashoffset: 1; } 80% { opacity: 1; stroke-dashoffset: 0; } 100% { opacity: 0; stroke-dashoffset: 0; } }
 @media (prefers-reduced-motion: reduce) { .navigation-route-flow { animation: none; } }
