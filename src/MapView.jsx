@@ -105,6 +105,7 @@ export default function MapView({
     nearby = useRef(),
     ends = useRef();
   const baseLayers = useRef([]);
+  const cameraIntro = useRef({following:false, awaiting:false, frame:0, pending:null, lastToken:null});
   const routeFlow = useRef(null),routeFlowRenderer=useRef(null);
   const markerData = useRef({ items, recentPlaces, colorFriendly, hideMapIcons, activeFilter });
   const markerRedraw = useRef();
@@ -168,7 +169,11 @@ export default function MapView({
     });
     // User pan/zoom gestures only (not taps, not fitBounds/setView), so the
     // phone sheet can get out of the way the way Google Maps does.
-    const gesture = () => cb.current.onGesture?.();
+    const gesture = () => {
+      const intro=cameraIntro.current;
+      if(intro.frame){cancelAnimationFrame(intro.frame);intro.frame=0;intro.pending=null;intro.awaiting=false;root.current?.classList.remove("navigation-intro");m.stop();}
+      cb.current.onGesture?.();
+    };
     const el = root.current;
     const pinch = (e) => e.touches.length > 1 && gesture();
     m.on("dragstart", gesture);
@@ -673,14 +678,43 @@ export default function MapView({
     }
   }, [start, end, route, location]);
   useEffect(() => {
-    if (focus?.lat && map.current) {
-      const m = map.current;
-      if(Number.isFinite(focus.bearing))m.setBearing?.((360-focus.bearing)%360);
-      m.setView([focus.lat, focus.lon], focus.zoom || 17, { animate: false });
-      const offset = focusOffsetForInset(m.getSize().y, paddingReader.current?.());
-      if (offset) m.panBy([0, offset], { animate: false });
+    const intro=cameraIntro.current, m=map.current;
+    if(!m)return;
+    if(followNavigation && !intro.following) intro.awaiting=true;
+    if(!followNavigation && intro.following){
+      cancelAnimationFrame(intro.frame);intro.frame=0;intro.pending=null;intro.awaiting=false;root.current?.classList.remove("navigation-intro");m.stop();
     }
-  }, [focus?.token]);
+    intro.following=followNavigation;
+    if(!Number.isFinite(focus?.lat)||!Number.isFinite(focus?.lon)||focus.token===intro.lastToken)return;
+    intro.lastToken=focus.token;
+    const apply=(target)=>{
+      if(Number.isFinite(target.bearing))m.setBearing?.((360-target.bearing)%360);
+      m.setView([target.lat,target.lon],target.zoom||17,{animate:false});
+      const offset=focusOffsetForInset(m.getSize().y,paddingReader.current?.());
+      if(offset)m.panBy([0,offset],{animate:false});
+    };
+    if(intro.frame){intro.pending=focus;return;}
+    if(!intro.awaiting || matchMedia("(prefers-reduced-motion: reduce)").matches){intro.awaiting=false;apply(focus);return;}
+    intro.awaiting=false;
+    const initialBearing=m.getBearing?.()||0;
+    const targetBearing=Number.isFinite(focus.bearing)?(360-focus.bearing)%360:initialBearing;
+    const delta=((targetBearing-initialBearing+540)%360)-180;
+    const started=performance.now(), duration=1100;
+    root.current?.classList.add("navigation-intro");
+    m.flyTo([focus.lat,focus.lon],focus.zoom||17,{animate:true,duration:duration/1000});
+    const tick=(now)=>{
+      if(map.current!==m){intro.frame=0;return;}
+      const t=Math.min(1,(now-started)/duration), eased=1-Math.pow(1-t,3);
+      m.setBearing?.((initialBearing+delta*eased+360)%360);
+      if(t<1){intro.frame=requestAnimationFrame(tick);return;}
+      intro.frame=0;
+      root.current?.classList.remove("navigation-intro");
+      const pending=intro.pending;intro.pending=null;
+      if(pending)apply(pending);
+      else {const offset=focusOffsetForInset(m.getSize().y,paddingReader.current?.());if(offset)m.panBy([0,offset],{animate:true,duration:.25});}
+    };
+    intro.frame=requestAnimationFrame(tick);
+  }, [focus?.token,followNavigation]);
   return (
     <div
       ref={root}
