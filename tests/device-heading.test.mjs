@@ -37,3 +37,10 @@ test('stale sensor reading is cleared',async()=>{
 test('marker remains aligned with compass on a rotated map',()=>{
  assert.equal(markerHeading(90,0),90);assert.equal(markerHeading(90,270),0);assert.equal(markerHeading(350,20),10);assert.equal(markerHeading(null,0),null);
 });
+
+test('small sensor jitter does not repeatedly update the marker',()=>{
+ const handlers=new Map(),values=[];const win={addEventListener:(n,f)=>handlers.set(n,f),removeEventListener:n=>handlers.delete(n)};
+ const stop=watchDeviceHeading(win,h=>values.push(h));const on=handlers.get('deviceorientation');
+ on({webkitCompassHeading:100});for(let i=0;i<100;i++)on({webkitCompassHeading:100.2});assert.deepEqual(values,[100]);
+ on({webkitCompassHeading:110});assert.ok(values.at(-1)>101);stop();
+});

@@ -32,18 +32,26 @@ export function requestHeadingPermission(win = globalThis.window) {
 
 export function watchDeviceHeading(win, onHeading, {staleMs = 10000} = {}) {
   if (!win?.addEventListener) return () => {};
-  let last = null, timer = null, active = true;
-  const clear = () => { last = null; onHeading(null); };
+  let last = null, emitted = null, timer = null, active = true, latestAt = 0;
+  const clear = () => { last = null; emitted = null; latestAt = 0; onHeading(null); };
+  const checkStale = () => {
+    timer = null;
+    if (!active || last === null) return;
+    const remaining = staleMs - (Date.now() - latestAt);
+    if (remaining <= 0) clear();
+    else timer = setTimeout(checkStale, remaining);
+  };
   const onOrientation = event => {
     const value = compassHeading(event, win.screen?.orientation?.angle ?? win.orientation ?? 0);
     if (value === null) return;
     const delta = last === null ? 0 : ((value - last + 540) % 360) - 180;
     last = last === null ? value : normalize(last + delta * 0.3);
-    onHeading(last);
-    clearTimeout(timer);
-    timer = setTimeout(() => { if(active)clear(); }, staleMs);
+    latestAt = Date.now();
+    const change = emitted === null ? Infinity : Math.abs(((last - emitted + 540) % 360) - 180);
+    if (change >= 1) { emitted = last; onHeading(last); }
+    if (timer === null) timer = setTimeout(checkStale, staleMs);
   };
-  const onVisibility = () => { if (win.document?.hidden) { clearTimeout(timer);clear(); } };
+  const onVisibility = () => { if (win.document?.hidden) { clearTimeout(timer);timer=null;clear(); } };
   win.addEventListener('deviceorientationabsolute', onOrientation);
   win.addEventListener('deviceorientation', onOrientation);
   win.document?.addEventListener('visibilitychange', onVisibility);

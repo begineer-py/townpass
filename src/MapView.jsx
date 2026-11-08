@@ -19,6 +19,7 @@ import { metroStationCodes, metroStationIconUrl } from "./metro-station-icons.mj
 import { mapIconElement } from "./map-icons.mjs";
 import { mapPickPoint } from "./location.js";
 import { markerHeading, watchDeviceHeading } from "./device-heading.mjs";
+import { createMapRedrawScheduler } from "./map-redraw-scheduler.mjs";
 import { REFERENCE_STYLES, referenceRouteLines } from "./reference-route-presentation.mjs";
 const colors = {
   place: TPColors.orange700,
@@ -345,8 +346,6 @@ export default function MapView({
     if (!m || !marks.current) return;
     let openPopup = null;
     let redrawPending = false;
-    let rotationTimer;
-    let redrawTimer;
     const renderMarkers = () => {
       // The popup can pan the map. Keep its source marker until the user
       // chooses or closes it, then draw the new viewport.
@@ -462,23 +461,22 @@ export default function MapView({
         });
       }
     };
+    const scheduler = createMapRedrawScheduler(renderMarkers);
     const close = (event) => {
       if (event.popup !== openPopup) return;
       openPopup = null;
-      if (redrawPending) { redrawPending = false; redrawTimer = setTimeout(renderMarkers, 0); }
+      if (redrawPending) { redrawPending = false; scheduler.schedule(); }
     };
-    const rotate = () => { clearTimeout(rotationTimer); rotationTimer = setTimeout(renderMarkers, 120); };
-    markerRedraw.current = renderMarkers;
-    m.on("moveend", renderMarkers);
-    m.on("rotate", rotate);
+    markerRedraw.current = scheduler.schedule;
+    m.on("moveend", scheduler.schedule);
+    m.on("rotate", scheduler.schedule);
     m.on("popupclose", close);
-    renderMarkers();
+    scheduler.schedule();
     return () => {
-      clearTimeout(rotationTimer);
-      clearTimeout(redrawTimer);
+      scheduler.dispose();
       markerRedraw.current = undefined;
-      m.off("moveend", renderMarkers);
-      m.off("rotate", rotate);
+      m.off("moveend", scheduler.schedule);
+      m.off("rotate", scheduler.schedule);
       m.off("popupclose", close);
     };
   }, []);

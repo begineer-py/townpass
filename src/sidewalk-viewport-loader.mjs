@@ -1,11 +1,23 @@
-// Load a complete viewport before replacing the currently displayed lines.
-export async function loadSidewalkLines(keys, getTile, isCurrent) {
+// Fetch a bounded number of tiles at once, then publish in viewport order.
+export async function loadSidewalkLines(keys, getTile, isCurrent, concurrency = 4) {
+  if (!Array.isArray(keys) || !isCurrent()) return null;
+  const tiles = new Array(keys.length);
+  let next = 0, failed = false;
+  const worker = async () => {
+    while (!failed && isCurrent() && next < keys.length) {
+      const index = next++;
+      try {
+        tiles[index] = await getTile(keys[index]);
+      } catch (error) {
+        failed = true;
+        throw error;
+      }
+    }
+  };
+  const workers = Math.min(keys.length, Math.max(1, Number.isFinite(concurrency) ? Math.floor(concurrency) : 4));
+  await Promise.all(Array.from({length: workers}, worker));
+  if (!isCurrent()) return null;
   const lines = new Map();
-  for (const key of keys) {
-    if (!isCurrent()) return null;
-    const tile = await getTile(key);
-    if (!isCurrent()) return null;
-    for (const line of tile) lines.set(line.id, line.points);
-  }
-  return isCurrent() ? [...lines.values()] : null;
+  for (const tile of tiles) for (const line of tile) lines.set(line.id, line.points);
+  return [...lines.values()];
 }
