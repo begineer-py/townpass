@@ -12,6 +12,13 @@ function project(point,line,minAlong=0){
  }
  return {best,total:cumulative};
 }
+// Heading comes from the route ahead, not a stationary device's noisy compass.
+export function navigationBearing(line,along){
+ if(!Array.isArray(line)||line.length<2||!line.every(valid)||!Number.isFinite(along)||along<0)return null;
+ const pointAt=distance=>{let done=0;for(let i=1;i<line.length;i++){const a=xy(line[i-1]),b=xy(line[i]),length=Math.hypot(b[0]-a[0],b[1]-a[1]);if(!length)continue;if(done+length>=distance){const t=Math.min(1,Math.max(0,(distance-done)/length));return [a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t];}done+=length;}return xy(line.at(-1));};
+ const a=pointAt(along),b=pointAt(along+12),dx=b[0]-a[0],dy=b[1]-a[1];
+ return Math.hypot(dx,dy)<1?null:(Math.atan2(dx,dy)*180/Math.PI+360)%360;
+}
 export function navigationProgress(route,position,previous=0){
  const line=route?.coordinates;if(!Array.isArray(line)||line.length<2||!line.every(valid)||!Number.isFinite(position?.lat)||!Number.isFinite(position?.lon)||!Number.isFinite(position?.accuracy)||position.accuracy<0||position.accuracy>30)return null;
  const {best,total}=project([position.lat,position.lon],line,Math.max(0,previous-20));
@@ -24,6 +31,7 @@ export function navigationProgress(route,position,previous=0){
   if(prior>=along-5&&['左轉','右轉','迴轉'].includes(step.turn)){next={step,distanceMetres:Math.max(0,(prior-along)*scale)};break;}
  }
  const remainingMetres=Math.max(0,(total-along)*scale),[ex,ey]=xy(line.at(-1)),[px,py]=xy([position.lat,position.lon]);
- return {along,remainingMetres,next,arrived:remainingMetres<=8&&Math.hypot(px-ex,py-ey)<=Math.max(8,Math.min(15,position.accuracy))};
+ const arrived=remainingMetres<=8&&Math.hypot(px-ex,py-ey)<=Math.max(8,Math.min(15,position.accuracy));
+ return {along,remainingMetres,next,arrived,bearing:arrived?null:navigationBearing(line,along)};
 }
 export function estimatedWalkingMinutes(metres){return Number.isFinite(metres)&&metres>=0?Math.max(1,Math.ceil(metres/48)):null;}

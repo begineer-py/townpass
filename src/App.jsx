@@ -848,7 +848,7 @@ export default function App() {
   }
   function returnToRoutes(){stopFollowing();restoreChoicePosition.current=true;setTripStage('choices');setNavProgress(null);setReportDemo(false);setSheetSnap(1);}
   function endNavigation(){stopFollowing();setTripStage('preview');setNavProgress(null);setReportDemo(false);setSheetSnap(1);}
-  function recenterNavigation(){followMap.current=true;const p=followSession.current?.latest;if(p)setFocus({...p,zoom:17,token:Date.now()});else announce('正在等待定位。');}
+  function recenterNavigation(){followMap.current=true;const p=followSession.current?.latest;if(p){const progress=navigationProgress(followSession.current.referenceRoute,p,navAlong.current);setFocus({...p,zoom:18,bearing:progress?.bearing,token:Date.now()});}else announce('正在等待定位。');}
   function cancelNearby(){
     nearbySearch.current.cancel();
   }
@@ -950,6 +950,10 @@ export default function App() {
     if(referenceState.status==='loading'&&referenceBaseline.current?.automatic){referenceSearch.current.cancel();referenceSnapshot.current=null;referenceBaseline.current=null;}
     stopFollowing();
     navAlong.current=0;setNavProgress(null);setReportDemo(false);followMap.current=true;setTripStage('navigation');setSheetSnap(0);
+    if(currentLocation?.originKind==='gps'&&Number.isFinite(currentLocation.lat)&&Number.isFinite(currentLocation.lon)&&Number.isFinite(currentLocation.timestamp)&&Date.now()-currentLocation.timestamp<=30000&&currentLocation.timestamp<=Date.now()+5000){
+      const initial=navigationProgress(route,currentLocation,0);
+      setFocus({...currentLocation,zoom:18,bearing:initial?.bearing,token:Date.now()});
+    }
     // Discard any earlier one-shot positioning response before subscribing.
     cancelLocation();
     const destination={...end,selectionKind:'user'},options={...prefs,avoidPoints};
@@ -1001,7 +1005,7 @@ export default function App() {
         session.latest=p;setCurrentLocation(p);
         const progress=navigationProgress(session.referenceRoute,p,navAlong.current);
         if(progress){navAlong.current=progress.along;setNavProgress(progress);}else setNavProgress(null);
-        if(followMap.current)setFocus({...p,zoom:17,token:Date.now()});
+        if(followMap.current)setFocus({...p,zoom:18,bearing:progress?.bearing,token:Date.now()});
       },
       onUncertain:()=>{
         if(followSession.current!==session)return;
@@ -2220,6 +2224,7 @@ export default function App() {
             hideMapIcons={mapLayers.hideMapIcons}
             routeFocus={mapLayers.focus}
             animateRoute={mapLayers.animateRoute}
+            followNavigation={tripStage==='navigation'}
             onAvoidConstruction={tab==='plan' && mapRoutes.route ? avoidConstruction : null}
             avoidingConstruction={constructionDetourState.status==='loading'}
             onOfficialSidewalkStatus={setSidewalkStatus}

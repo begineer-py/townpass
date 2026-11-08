@@ -64,6 +64,7 @@ export default function MapView({
   avoidingConstruction,
   routeFocus = false,
   animateRoute = false,
+  followNavigation = false,
   showConstruction = true,
   onConstructionStatus,
   routeGap,
@@ -480,8 +481,8 @@ export default function MapView({
       const stroke=L.polyline(line.coordinates,{...options,color:style.color,weight:style.weight,dashArray:style.dashArray,opacity:1}).addTo(referencePath.current);
       if(line.approximateCrossing)stroke.bindTooltip('過街邊界未確認');
     }
-    if(lines.length&&(!route||route.kind==='official-passageway')&&!partialRoute&&map.current){const points=lines.flatMap(line=>line.coordinates),height=map.current.getSize().y;map.current.fitBounds(L.latLngBounds(points),{animate:false,...routePadding(height)});}
-  },[referenceRoute,route,partialRoute,start,end,hideMapIcons]);
+    if(lines.length&&!followNavigation&&(!route||route.kind==='official-passageway')&&!partialRoute&&map.current){const points=lines.flatMap(line=>line.coordinates),height=map.current.getSize().y;map.current.fitBounds(L.latLngBounds(points),{animate:false,...routePadding(height)});}
+  },[referenceRoute,route,partialRoute,start,end,hideMapIcons,followNavigation]);
   useEffect(() => {
     if (!path.current) return;
     path.current.clearLayers();
@@ -509,11 +510,12 @@ export default function MapView({
         L.polyline(coords, {color: TPColors.primary900, weight: 3, dashArray: '2 5', opacity: 0.9}).bindTooltip('過街').addTo(path.current);
       }
       for(const approach of route.approaches || []) {const style=ROUTE_CONDITIONS.approach;L.polyline(approach.coordinates,{color:TPColors.white,weight:6,opacity:1}).addTo(path.current);const line=L.polyline(approach.coordinates,{color:colorFriendly?TPColors.primary900:style.color,weight:4,dashArray:style.dash}).addTo(path.current);if(approach.estimated)line.bindTooltip('入口及實際通行狀況未確認，虛線僅為位置估算');}
+      if(followNavigation)return;
       const m=map.current;
       const fit=()=>{if(!m||map.current!==m)return;const height=m.getSize().y;m.fitBounds(L.latLngBounds(route.coordinates),{animate:false,...routePadding(height)});};
       fit();const timer=setTimeout(fit,350);return ()=>clearTimeout(timer);
     }
-  }, [route,sheetSnap,colorFriendly,hideMapIcons]);
+  }, [route,sheetSnap,colorFriendly,hideMapIcons,followNavigation]);
   useEffect(() => {
     if(!partialPath.current)return;
     partialPath.current.clearLayers();
@@ -674,6 +676,7 @@ export default function MapView({
   useEffect(() => {
     if (focus?.lat && map.current) {
       const m = map.current;
+      if(Number.isFinite(focus.bearing))m.setBearing?.((360-focus.bearing)%360);
       m.setView([focus.lat, focus.lon], focus.zoom || 17, { animate: false });
       const offset = focusOffsetForInset(m.getSize().y, paddingReader.current?.());
       if (offset) m.panBy([0, offset], { animate: false });
