@@ -1,4 +1,5 @@
 import {polygonConnectorChecker,roadConnectorChecker} from './geometry.mjs';
+import {autoMetroEntrance} from './auto-metro-entrance.mjs';
 import {officialGeometryEvidence} from './supplemental-evidence.mjs';
 import {edgeAllowed,metres,ROUTING_POLICY,SNAP_METRES} from './routing.mjs';
 import {restoreOfficialConditionCost} from './official-condition-cost.mjs';
@@ -174,10 +175,11 @@ export function createLocalRouteVerifier(graph,facilities=[],places=[]){
  return verify;
 }
 export function stationEntrances(place,facilities){
- if(!['20','station'].includes(String(place?.kind)))return [place];
+ if(!autoMetroEntrance(place,facilities))return [place];
  const key=s=>String(s||'').replace(/臺/g,'台').split(/[（(]/)[0].replace(/站$/,'');
- const found=facilities.filter(p=>p.kind==='metro-elevator'&&key(p.station)===key(place.name));
- return found.length?found.slice(0,4):[place];
+ const name=key(place.name);
+ // A station centre is not a substitute for an accessible entrance.
+ return name?facilities.filter(p=>p.kind==='metro-elevator'&&key(p.station)===name):[];
 }
 // Used only to explain a failed construction-aware search. Never expose the
 // unrestricted candidate as an available route.
@@ -196,7 +198,9 @@ export function planPlaces(startPlace,endPlace,options,snapshot,{router,verifyLo
  let bestCost=Infinity;
  const attempts=[],failures=[];
  function failed(result){last=result;failures.push(result);}
- attemptsLoop: for(const a of stationEntrances(startPlace,facilities))for(const b of stationEntrances(endPlace,facilities)){
+ const starts=stationEntrances(startPlace,facilities),ends=stationEntrances(endPlace,facilities);
+ if(!starts.length||!ends.length)return {error:'STATION_EXIT_UNAVAILABLE'};
+ attemptsLoop: for(const a of starts)for(const b of ends){
   const start=[a.lat,a.lon],end=[b.lat,b.lon],prefs={...options,_ignoreOfficialConditions:false,startPlace:a,endPlace:b,lineAllowed:checker.allowed,approachAllowed:(p,n,side)=>verifyLocal.approachAllowed(p,n,side==='start'?a:b,options,side)};
   attempts.push({start,end,prefs});
   let candidate;

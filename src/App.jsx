@@ -125,6 +125,7 @@ import { matchMetroStations } from "./station-matches.mjs";
 import { StationSearchGroup, stationLabel } from "./StationSearchGroup.jsx";
 import { MetroStationIcon } from "./MetroStationIcon.jsx";
 import { metroExitIconUrl, metroExitLabel } from "./metro-exits.mjs";
+import { autoMetroEntrance } from "./auto-metro-entrance.mjs";
 import { useFacilityTiles } from "./use-facility-tiles.js";
 import { createDeferredActions } from "./deferred-actions.mjs";
 import { maintenanceText, sourceCountLabel, stationKey, stepText, stepConditions } from "./format.mjs";
@@ -1534,6 +1535,7 @@ export default function App() {
     return nearbyEntranceChoices(start, end, data?.fac);
   }, [retryWithEntrance, data, start, end]);
   const errorText = {
+    STATION_EXIT_UNAVAILABLE: '找不到這個捷運站的無障礙出入口。',
     PROJECTION_LIMIT: '這次路線計算已達上限，請重新規劃。',
     CONSTRUCTION_UNAVAILABLE: '施工資料暫時無法更新。請確認網路或稍後再試，附近設施仍可查看。',
     CONSTRUCTION_BLOCKED: '路線或入口遇到影響通行的施工通報，目前沒有找到通過檢查的替代路線。可以換個出入口再試。',
@@ -1738,6 +1740,7 @@ export default function App() {
                           aria-label={point ? `${noun}：${point.name}，點一下重新選擇` : placeholder}>
                           <small>{label}</small>
                           <strong className={point ? "" : "placeholder"}>{point?.name || placeholder}</strong>
+                          {which === "end" && autoMetroEntrance(point,data?.fac) && <small>將自動尋找無障礙出入口</small>}
                           {point?.nearbyOriginal && <small>距原選點約 {point.nearbyOriginal.straightMetres} 公尺，銜接未確認</small>}
                         </button>
                         {which === "start" && <button type="button" className="point-shortcut" onClick={() => { void requestHeadingPermission(); locate("start"); }} disabled={locating} aria-label={locating ? "正在定位出發地" : "使用目前位置作為出發地"}>
@@ -2611,6 +2614,7 @@ export default function App() {
                   />
                 </button>
               </div>
+              {autoMetroEntrance(selected,data?.fac) && <p className="quiet-note metro-entrance-hint">將自動尋找無障礙出入口</p>}
               {(() => {
                 const rows = [];
                 const wheel = { yes: "可以進入", designated: "可以進入", limited: "部分可進入", no: "無法進入" }[selected.wheelchair];

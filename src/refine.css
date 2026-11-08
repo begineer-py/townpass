@@ -1538,3 +1538,4 @@ button.icon-action {
 .current-position span { position:relative; }
 .current-position span:not(.has-heading) svg { visibility:hidden; }
 .current-position span:not(.has-heading)::after { content:""; position:absolute; width:14px; height:14px; border-radius:50%; background:currentColor; }
+.metro-entrance-hint { margin: 8px 0 0; }

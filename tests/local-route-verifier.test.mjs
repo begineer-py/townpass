@@ -250,3 +250,27 @@ test('cleaned names retain original floor restrictions',()=>{
  }
  assert.equal(v.endpointAllowed(p,{id:'p3',kind:'place',name:'幸安學坊',sourceName:'B02050001-幸安學坊',lat:p[0],lon:p[1]},'start'),true);
 });
+
+test('metro stations try every accessible entrance instead of truncating the list',()=>{
+ const exits=Array.from({length:5},(_,i)=>({id:`exit-${i}`,kind:'metro-elevator',station:'文德',lat:25,lon:121.5+i*.001}));
+ const start={name:'文德(BR18)',kind:'20'},end={lat:25.01,lon:121.51};
+ const router=(a,b,opts)=>opts.startPlace.id==='exit-4'?{coordinates:[a,b],weightedCost:1}:{error:'NO_ROUTE'};
+ const verify=route=>route;verify.approachAllowed=()=>true;
+ const result=planPlaces(start,end,{}, {works:[]},{facilities:exits,router,verifyLocal:verify,checker:{allowed:()=>true,inspect:()=>({blocked:[]})}});
+ assert.equal(result.resolvedStart.id,'exit-4');
+});
+test('a metro station without mapped accessible entrances does not fall back to its centre',()=>{
+ const station={kind:'20',name:'文德(BR18)',lat:25,lon:121.5},end={lat:25.01,lon:121.51};let calls=0;
+ const result=planPlaces(station,end,{}, {works:[]},{facilities:[],router:()=>{calls++;},verifyLocal:()=>{},checker:{allowed:()=>true}});
+ assert.equal(result.error,'STATION_EXIT_UNAVAILABLE');assert.equal(calls,0);
+});
+test('a specifically selected numbered station exit is never silently replaced',()=>{
+ const point={kind:'station',name:'1號出入口',lat:25,lon:121.5};
+ assert.deepEqual(stationEntrances(point,[{kind:'metro-elevator',station:'1號出入口'}]),[point]);
+});
+
+test('a known OSM metro station without accessible entrance data is not routed to the centre',()=>{
+ const station={id:'osm-n1',kind:'station',name:'文德站',lat:25,lon:121.5};
+ const official={kind:'20',name:'文德(BR18)',lat:25.0001,lon:121.5};
+ assert.deepEqual(stationEntrances(station,[official]),[]);
+});
