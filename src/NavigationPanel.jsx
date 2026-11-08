@@ -1,4 +1,4 @@
-import {ArrowLeft,ArrowUp,CornerUpLeft,CornerUpRight,RotateCcw,Navigation,AlertTriangle,LocateFixed,LoaderCircle,X} from 'lucide-react';
+import {ArrowLeft,ArrowUp,CornerUpLeft,CornerUpRight,RotateCcw,Navigation,AlertTriangle,LoaderCircle,X} from 'lucide-react';
 import {formatDistance} from './data.js';
 import {estimatedWalkingMinutes} from './navigation-progress.mjs';
 import './navigation-panel.css';
@@ -11,7 +11,7 @@ export function NavigationPrompt({progress,followState}){
   <span>{!progress?(status||'等待目前位置'):progress.arrived?'':progress.next?`${formatDistance(progress.next.distanceMetres)}後 · ${progress.next.step.name||'下一路段'}`:'沿路線前往目的地'}</span>
  </div></div>;
 }
-export default function NavigationPanel({stage,route,end,progress,followState,onBack,onStart,onEnd,onRecenter,reportOpen,onReport,constructionWorks=[],onAvoidConstruction,constructionDetourState,onCancelDetour}){
+export default function NavigationPanel({stage,route,end,progress,followState,onBack,onStart,onEnd,reportOpen,onReport,constructionWorks=[],onAvoidConstruction,constructionDetourState,onCancelDetour}){
  const preview=stage==='preview',remaining=preview?(route?.distanceMetres??route?.distance):progress?.remainingMetres;
  const minutes=estimatedWalkingMinutes(remaining),arrival=minutes==null?null:new Date(Date.now()+minutes*60000).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});
  return <section className="navigation-panel" aria-label={preview?'路線預覽':'導航中'}>
@@ -23,7 +23,7 @@ export default function NavigationPanel({stage,route,end,progress,followState,on
   {constructionDetourState?.status==='loading'&&<p className="navigation-panel__status" role="status"><LoaderCircle className="spin" size={18} aria-hidden="true"/> 正在尋找繞路… <button type="button" onClick={onCancelDetour}>取消</button></p>}
   {constructionDetourState?.status==='error'&&<p className="navigation-panel__status" role="status">{constructionDetourState.message}</p>}
   {preview&&route?.viaName&&<p className="navigation-panel__status">順路停靠的路線暫不支援導航。</p>}
-  <div className="navigation-panel__actions">{preview?<><button type="button" className="navigation-secondary" onClick={onBack}>返回</button><button type="button" className="primary" disabled={!!route?.viaName||constructionDetourState?.status==='loading'} onClick={onStart}><Navigation size={19} aria-hidden="true"/>開始導航</button></>:<><button type="button" className="navigation-secondary" onClick={onRecenter}><LocateFixed size={18} aria-hidden="true"/>定位</button><button type="button" className="navigation-secondary" onClick={onReport}><AlertTriangle size={18} aria-hidden="true"/>通報 1999</button><button type="button" className="navigation-end" onClick={onEnd}>結束</button></>}</div>
+  <div className="navigation-panel__actions">{preview?<><button type="button" className="navigation-secondary" onClick={onBack}>返回</button><button type="button" className="primary" disabled={!!route?.viaName||constructionDetourState?.status==='loading'} onClick={onStart}><Navigation size={19} aria-hidden="true"/>開始導航</button></>:<><button type="button" className="navigation-secondary" onClick={onReport}><AlertTriangle size={18} aria-hidden="true"/>通報 1999</button><button type="button" className="navigation-end" onClick={onEnd}>結束</button></>}</div>
   {constructionWorks.map(w=><button key={w.id} type="button" className="construction-avoid" disabled={constructionDetourState?.status==='loading'} onClick={()=>onAvoidConstruction(w.ids)}>繞過施工：{w.address}</button>)}
   {!preview&&!followState?.active&&<button type="button" className="navigation-retry" onClick={onStart}>重新開始導航</button>}
  </section>;

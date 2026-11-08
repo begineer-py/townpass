@@ -1680,7 +1680,7 @@ export default function App() {
             </button>
           </nav>}
           <div className="panel-scroll" ref={panelScroll}>
-            {tripStage!=='choices' && route && <NavigationPanel stage={tripStage} route={route} end={end} progress={navProgress} followState={followState} onBack={returnToRoutes} onStart={startFollowing} onEnd={endNavigation} onRecenter={recenterNavigation} reportOpen={reportDemo} onReport={()=>setReportDemo(v=>!v)} constructionWorks={routeWorks.filter(w=>w.impact==='clear')} onAvoidConstruction={avoidConstruction} constructionDetourState={constructionDetourState} onCancelDetour={()=>constructionDetourSearch.current.cancel()}/>}
+            {tripStage!=='choices' && route && <NavigationPanel stage={tripStage} route={route} end={end} progress={navProgress} followState={followState} onBack={returnToRoutes} onStart={startFollowing} onEnd={endNavigation} reportOpen={reportDemo} onReport={()=>setReportDemo(v=>!v)} constructionWorks={routeWorks.filter(w=>w.impact==='clear')} onAvoidConstruction={avoidConstruction} constructionDetourState={constructionDetourState} onCancelDetour={()=>constructionDetourSearch.current.cancel()}/>}
             {tripStage==='choices' && <>
             {waitingForData && (
               <div className="loading-note">
@@ -2355,7 +2355,7 @@ export default function App() {
           <button
             className="map-fab map-locate"
             aria-label="移至我的位置"
-            onClick={() => locate()}
+            onClick={() => tripStage==='navigation' ? recenterNavigation() : locate()}
             disabled={locating}
           >
             {locating ? (
