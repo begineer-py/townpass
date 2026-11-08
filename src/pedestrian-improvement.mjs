@@ -184,11 +184,13 @@ function improvePedestrianRouteInner(base,start,end,options,snapshot,{graph,rout
    if(!best||parts.shared<best.parts.shared-1e-7||(Math.abs(parts.shared-best.parts.shared)<=1e-7&&(candidateShare>best.share+1e-12||(Math.abs(candidateShare-best.share)<=1e-12&&distance<best.distance))))best={value,parts,distance,approaches:candidateApproaches,share:candidateShare,penalty,sidewalkPenalty,attempt};
   }
   if(!constructionFresh(snapshot))return {error:'CONSTRUCTION_UNAVAILABLE'};
-  if(timedOut||Date.now()>deadline){iterations.push({round:round+1,result:'time-limit',reasons:[...new Set(reasons)],attempts});status='time-limit';break;}
+  const exhausted=timedOut||Date.now()>deadline;
+  if(exhausted&&!best){iterations.push({round:round+1,result:'time-limit',reasons:[...new Set(reasons)],attempts});status='time-limit';break;}
   if(!best){iterations.push({round:round+1,result:sawLimited?'search-limit':'no-improvement',reasons:[...new Set(reasons)],attempts});status=sawLimited?'search-limit':iterations.length>1?'improved':'no-improvement';break;}
   best.attempt.selected=true;
   iterations.push({round:round+1,result:'improved',improvementKind:best.attempt.improvementKind,previousSharedMetres:currentParts.shared,sharedMetres:best.parts.shared,previousSidewalkShare:(currentParts.sidewalk+otherSidewalk)/(currentDistance+(hasParent?other:0)),sidewalkShare:best.share,distanceMetres:best.distance,penalty:best.penalty,sidewalkPenalty:best.sidewalkPenalty,attempts});
   current=best.value;currentParts=best.parts;currentDistance=best.distance;currentApproaches=best.approaches;status=round+1===maxIterations?'iteration-limit':'improved';
+  if(exhausted){status='time-limit';break;}
  }
  if(!constructionFresh(snapshot))return {error:'CONSTRUCTION_UNAVAILABLE'};
  // Every committed round was verified before the deadline. A later search

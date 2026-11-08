@@ -183,6 +183,16 @@ test('a candidate whose verification completes after the deadline is never commi
  const result=improvePedestrianRoute(x.base,x.start,x.end,x.options,x.snap,{graph:x.g,router:()=>alternate,verifyLocal:slowVerify,checker:x.checker},{totalMs:10,penalties:[20],sidewalkPenalties:[0]});
  assert.deepEqual(result.edgeIds,x.base.edgeIds);assert.equal(result.pedestrianImprovement.status,'time-limit');
 });
+test('a later timeout in the same round retains an already verified improvement',()=>{
+ const x=setup(),alternate=x.router(x.start,x.end,{...x.options,lineAllowed:x.checker.allowed,_optimizeSharedPenalty:20});let calls=0;
+ const now=Date.now;let clock=now();Date.now=()=>clock;
+ try{
+  const delayed=()=>{if(++calls>1)clock+=31;return alternate;};
+  const result=improvePedestrianRoute(x.base,x.start,x.end,x.options,x.snap,{graph:x.g,router:delayed,verifyLocal:x.verifyLocal,checker:x.checker},{totalMs:30,penalties:[20,21],sidewalkPenalties:[0],maxIterations:1});
+  assert.deepEqual(result.edgeIds,alternate.edgeIds);assert.equal(result.pedestrianImprovement.status,'time-limit');
+  assert.equal(result.pedestrianImprovement.iterations[0].attempts[0].reason,'eligible');
+ }finally{Date.now=now;}
+});
 test('a later timeout retains an independently verified improvement from an earlier round',()=>{
  const x=setup();x.g.ways.push({...x.g.ways[0]});x.g.edges[1][3]=2;x.g.edges[1][5]=shared;
  x.base=x.verifyLocal(x.router(x.start,x.end,{...x.options,lineAllowed:x.checker.allowed}),x.start,x.end,x.options);
