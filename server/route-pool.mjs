@@ -2,7 +2,7 @@ import { Worker } from 'node:worker_threads';
 import { join } from 'node:path';
 
 // One warm graph per instance; active cancellation terminates its computation.
-export function createRoutePool({createWorker=()=>new Worker(join(process.cwd(),'server','route-thread.mjs')),maxQueue=4,timeoutMs=55000}={}) {
+export function createRoutePool({createWorker=()=>new Worker(join(process.cwd(),'server','route-thread.mjs')),maxQueue=8,timeoutMs=55000}={}) {
  let worker=null,ready=false,active=null,queue=[],closed=false,epoch=0,warmers=0;
  const finish=(task,error,value)=>{if(task.done)return;task.done=true;clearTimeout(task.timer);task.signal?.removeEventListener('abort',task.abort);error?task.reject(error):task.resolve(value);};
  function destroy(){const previous=worker;worker=null;ready=false;epoch++;previous?.terminate();}

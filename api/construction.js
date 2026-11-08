@@ -1,13 +1,22 @@
 import {normalizeConstruction,constructionFresh} from '../src/construction.mjs';
-let cached;
-export async function getConstructionSnapshot(){
- if(cached&&Date.now()-Date.parse(cached.fetchedAt)<120000&&constructionFresh(cached))return cached;
- const r=await fetch('https://tpnco.blob.core.windows.net/blobfs/Todaywork.json',{signal:AbortSignal.timeout(15000),cache:'no-store'});
- if(!r.ok)throw Error('upstream');
- const result=normalizeConstruction(await r.json(),r.headers.get('last-modified'));
- if(!constructionFresh(result))throw Error('stale');
- cached=result;return result;
+
+export function createConstructionSnapshotSource({fetcher=(...args)=>fetch(...args),now=()=>Date.now()}={}){
+ let cached=null,inflight=null;
+ return async function getSnapshot(){
+  if(cached&&now()-Date.parse(cached.fetchedAt)<120000&&constructionFresh(cached,now()))return cached;
+  if(inflight)return inflight;
+  const pending=(async()=>{
+   const r=await fetcher('https://tpnco.blob.core.windows.net/blobfs/Todaywork.json',{signal:AbortSignal.timeout(15000),cache:'no-store'});
+   if(!r.ok)throw Error('upstream');
+   const result=normalizeConstruction(await r.json(),r.headers.get('last-modified'),now());
+   if(!constructionFresh(result,now()))throw Error('stale');
+   cached=result;return result;
+  })();
+  inflight=pending;
+  try{return await pending;}finally{if(inflight===pending)inflight=null;}
+ };
 }
+export const getConstructionSnapshot=createConstructionSnapshotSource();
 export default async function handler(req,res){
  res.setHeader('Cache-Control','no-store');res.setHeader('Content-Type','application/json; charset=utf-8');
  const send=(status,value)=>{res.statusCode=status;res.end(JSON.stringify(value));};

@@ -22,3 +22,14 @@ test('short automatic comparison timeout cancels work and ignores late results',
  await new Promise(resolve=>setTimeout(resolve,25));assert.equal(states.at(-1).status,'error');assert.equal(w.cancelled.length,1);
  assert.equal(search.handleMessage({type:'reference-route',id,result:route(s)}),false);
 });
+
+test('automatic comparison reuses a fresh just-verified construction snapshot',async()=>{
+ const s=fresh(),w=fake(),states=[];let fetches=0;
+ const search=createReferenceSearch({fetchSnapshot:async()=>{fetches++;return s},getLifecycle:()=>w,onState:x=>states.push(x)});
+ await search.start({...args,reuseSnapshot:true,offlineSnapshot:s});assert.equal(fetches,0);assert.equal(w.sent.at(-1).construction,s);search.cancel();
+});
+test('automatic comparison fetches again when a cached snapshot is not recent',async()=>{
+ const cached=fresh(),freshSnapshot=fresh(),w=fake();cached.fetchedAt=new Date(Date.now()-11000).toISOString();let fetches=0;
+ const search=createReferenceSearch({fetchSnapshot:async()=>{fetches++;return freshSnapshot},getLifecycle:()=>w,onState:()=>{}});
+ await search.start({...args,reuseSnapshot:true,offlineSnapshot:cached});assert.equal(fetches,1);assert.equal(w.sent.at(-1).construction,freshSnapshot);search.cancel();
+});

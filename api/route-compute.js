@@ -1,8 +1,9 @@
 import { getConstructionSnapshot } from './construction.js';
 import { createRoutePool } from '../server/route-pool.mjs';
+import { createRouteCoalescer } from '../server/route-coalescer.mjs';
 import { compareSidewalkRouteScores, chooseSidewalkImprovement } from '../src/sidewalk-route-choice.mjs';
 
-const pool=createRoutePool();
+const pool=createRoutePool(),coalescer=createRouteCoalescer(pool);
 const types=new Set(['route','plan-places','verify-official','reference-route','snap-map-point','nearby-positions','avoid-official-condition','avoid-construction','compare-sidewalk']);
 const responseType=type=>type==='plan-places'?'route':type==='verify-official'?'verified-official':type;
 const validPoint=p=>Array.isArray(p)&&p.length===2&&p.every(Number.isFinite)&&p[0]>=24.9&&p[0]<=25.3&&p[1]>=121.4&&p[1]<=121.8;
@@ -33,15 +34,17 @@ export default async function handler(req,res){
   if(Buffer.byteLength(JSON.stringify(body))>2000000)return send(413,{error:'TOO_LARGE'});
  }catch{return send(400,{error:'INVALID_REQUEST'});}
  const task=body?.task;
- if(!validRouteTask(task)||typeof body.constructionSourceUpdatedAt!=='string')return send(400,{error:'INVALID_REQUEST'});
+ const acceptsIndependentSnapshot=['plan-places','route'].includes(task?.type);
+ const sourceDate=body?.constructionSourceUpdatedAt;
+ if(!validRouteTask(task)||!(typeof sourceDate==='string'||(sourceDate==null&&acceptsIndependentSnapshot)))return send(400,{error:'INVALID_REQUEST'});
  const abort=new AbortController();const deadline=setTimeout(()=>abort.abort('timeout'),50000);const close=()=>{if(!res.writableEnded)abort.abort('client');};res.once('close',close);
  // Start one shared graph while the authoritative construction feed loads.
- const releaseWarm=task.type!=='compare-sidewalk'&&Number.isFinite(Date.parse(body.constructionSourceUpdatedAt))?pool.warm():()=>{};
+ const releaseWarm=task.type!=='compare-sidewalk'&&(sourceDate==null||Number.isFinite(Date.parse(sourceDate)))?pool.warm():()=>{};
  abort.signal.addEventListener('abort',releaseWarm,{once:true});
  try{
   const snapshot=await getConstructionSnapshot();
   if(abort.signal.aborted){if(abort.signal.reason==='timeout')return send(504,{error:'ROUTE_BACKEND_TIMEOUT'});return;}
-  if(snapshot.sourceUpdatedAt!==body.constructionSourceUpdatedAt)return send(200,{type:responseType(task.type),id:task.id,result:{error:'CONSTRUCTION_UNAVAILABLE'}});
+  if(sourceDate!=null&&snapshot.sourceUpdatedAt!==sourceDate)return send(200,{type:responseType(task.type),id:task.id,result:{error:'CONSTRUCTION_UNAVAILABLE'}});
   if(task.type==='compare-sidewalk'){
    const options={currentRoute:task.currentRoute,localCandidates:task.localCandidates,referenceCandidates:task.referenceCandidates,start:task.start,end:task.end,snapshot,referenceSnapshot:snapshot,referenceSourceHash:task.referenceSourceHash};
    const compared=compareSidewalkRouteScores(options),improved=chooseSidewalkImprovement(options);
@@ -49,11 +52,11 @@ export default async function handler(req,res){
    const comparison=compared.status==='ready'?{status:compared.status,shortestDistanceMetres:compared.shortestDistanceMetres,scoreMeaning:compared.scoreMeaning,current:{metrics:compared.current.metrics,score:compared.current.score},localCandidates:compared.localCandidates.map(compact),referenceCandidates:compared.referenceCandidates.map(compact)}:compared;
    return send(200,{type:task.type,id:task.id,result:{comparison,improvedCandidateId:improved?.candidate?.id??null}});
   }
-  const result=await pool.execute({...task,construction:snapshot},{signal:abort.signal});
-  return send(200,result);
+  const result=await coalescer.execute(task,snapshot,{signal:abort.signal});
+  return send(200,{...result,constructionSourceUpdatedAt:snapshot.sourceUpdatedAt});
  }catch(error){
   if(abort.signal.aborted){if(abort.signal.reason==='timeout')return send(504,{error:'ROUTE_BACKEND_TIMEOUT'});return;}
   const code=error?.message==='ROUTING_BUSY'?503:error?.message==='ROUTING_TIMEOUT'?504:503;
-  return send(code,{error:'ROUTE_BACKEND_UNAVAILABLE'});
+  return send(code,{error:error?.message==='ROUTING_BUSY'?'ROUTING_BUSY':'ROUTE_BACKEND_UNAVAILABLE'});
  }finally{abort.signal.removeEventListener('abort',releaseWarm);releaseWarm();clearTimeout(deadline);res.off('close',close);}
 }

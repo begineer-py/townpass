@@ -757,7 +757,7 @@ export default function App() {
         clearRoute();
         setRouting(false);
         setGraphError(true);
-        setRouteError('OFFICIAL_NETWORK');
+        setRouteError(d?.message==='CONSTRUCTION_UNAVAILABLE'?'CONSTRUCTION_UNAVAILABLE':d?.message==='ROUTING_BUSY'?'ROUTING_BUSY':d?.message==='ROUTE_BACKEND_TIMEOUT'?'ROUTE_BACKEND_TIMEOUT':'OFFICIAL_NETWORK');
       },
     });
     worker.current=lifecycle;lifecycle.start();
@@ -884,7 +884,7 @@ export default function App() {
     setReferenceCollapsed(false);
     referenceAutoAttempt.current=request.current;
     referenceSnapshot.current=null;
-    void referenceSearch.current.start({startPlace:start,endPlace:end,options:{...prefs,avoidPoints},url:new URL(dataUrl('graph')+'?policy='+ROUTING_POLICY,location.href).href,online:navigator.onLine,offlineSnapshot:lastConstruction.current,requestTimeoutMs:automatic?12000:undefined});
+    void referenceSearch.current.start({startPlace:start,endPlace:end,options:{...prefs,avoidPoints},url:new URL(dataUrl('graph')+'?policy='+ROUTING_POLICY,location.href).href,online:navigator.onLine,offlineSnapshot:lastConstruction.current,requestTimeoutMs:automatic?12000:undefined,reuseSnapshot:automatic});
   }
   function chooseNearby(candidate){
     stopFollowing();
@@ -1164,30 +1164,27 @@ export default function App() {
       return;
     }
     clearRoute();
-    const localId=request.current;
     setRouting(true);
-    let localConstruction=navigator.onLine ? await fetchConstruction() : lastConstruction.current;
-    if(localId!==request.current)return;
-    if(!constructionFresh(localConstruction)){setRouting(false);setRouteError('CONSTRUCTION_UNAVAILABLE');return;}
-    lastConstruction.current=localConstruction;
+    setRouteError("");
     if (!worker.current) {
       pendingRoute.current = { ...points, start: from, end: to, _loadedData: loaded };
       setRouting(false);
       announce("正在準備路線資料，完成後會繼續規劃。");
       return;
     }
-    clearRoute();
-    setRouting(true);
-    setRouteError("");
-    if (!worker.current) return;
+    const routeRequestId=++request.current;
     worker.current.postMessage({
       type: points?.via ? 'route' : 'plan-places',
       startPlace:from,endPlace:to,
-      id: ++request.current,
+      id: routeRequestId,
       start: [from.lat, from.lon],
       end: [to.lat, to.lon],
       options: requestPrefs,
-      construction:localConstruction,
+      loadConstruction:async signal=>{
+        const snapshot=await fetchConstruction(signal);
+        if(routeRequestId===request.current && constructionFresh(snapshot))lastConstruction.current=snapshot;
+        return snapshot;
+      },
       via:points?.via ? [points.via.lat,points.via.lon] : null,
       viaName:points?.via?.name,
     });
@@ -1536,6 +1533,8 @@ export default function App() {
     return nearbyEntranceChoices(start, end, data?.fac);
   }, [retryWithEntrance, data, start, end]);
   const errorText = {
+    ROUTING_BUSY: '路線服務忙碌中，請稍後再試。',
+    ROUTE_BACKEND_TIMEOUT: '路線搜尋逾時，請再試一次。',
     STATION_EXIT_UNAVAILABLE: '找不到這個捷運站的無障礙出入口。',
     PROJECTION_LIMIT: '這次路線計算已達上限，請重新規劃。',
     CONSTRUCTION_UNAVAILABLE: '施工資料暫時無法更新。請確認網路或稍後再試，附近設施仍可查看。',
@@ -1769,7 +1768,7 @@ export default function App() {
                 </>}
                 {planScreen==='results' && <div className="route-results">
                   <button type="button" className="route-results__back" aria-label="返回起點與目的地" onClick={() => { cancelPendingNavigation(); clearRoute(); setRouteError(""); setPlanScreen("form"); setSheetSnap(1); if (panelScroll.current) panelScroll.current.scrollTop=0; }}><ArrowLeft size={22} aria-hidden="true" /></button>
-                  {routeSearchPending && !route && <div className="route-results__loading" role="status" aria-label="正在尋找路線"><LoaderCircle className="spin" size={24} aria-hidden="true" /></div>}
+                  {(mapRoutes.pending || (nearbyState.status==='loading' && !route)) && <div className="route-results__loading" role="status" aria-label="正在尋找路線"><LoaderCircle className="spin" size={24} aria-hidden="true" /></div>}
                 {graphRequested && !graphReady && graphError && (
                   <p className="quiet-note" role="status">
                     路線資料暫時讀取不到，請重新整理再試。

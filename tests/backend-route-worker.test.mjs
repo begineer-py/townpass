@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {EventEmitter} from 'node:events';
 import {createRoutePool} from '../server/route-pool.mjs';
 import {createBackendRouteWorker} from '../src/backend-route-worker.mjs';
+import {createRouteWorkerLifecycle} from '../src/route-worker-lifecycle.mjs';
 import handler,{validRouteTask} from '../api/route-compute.js';
 
 class FakeWorker extends EventEmitter {
@@ -70,4 +71,53 @@ test('a synchronous prewarm initialization failure does not escape or strand lat
  const workers=[],pool=createRoutePool({createWorker:()=>{const w=new FakeWorker();if(!workers.length)w.postMessage=()=>{throw Error('cannot init')};workers.push(w);return w;}});
  const release=pool.warm();assert.equal(workers[0].terminated,true);release();const job=pool.execute({id:12,type:'route'});
  workers[1].emit('message',{type:'ready'});workers[1].emit('message',{type:'route',id:12,result:{ok:true}});assert.equal((await job).result.ok,true);pool.dispose();
+});
+
+test('invalid response types, identifiers, and results fail rather than leave planning pending',async()=>{
+ for(const bad of [{type:'wrong',id:1,result:{}},{type:'route',id:2,result:{}},{type:'route',id:1},{type:'route',id:1,result:null},{type:'route',id:1,result:[]},null]){
+  let error,called=false;const worker=createBackendRouteWorker({fetcher:async()=>({ok:true,json:async()=>bad})});
+  worker.onerror=e=>{error=e};worker.onmessage=()=>{called=true};worker.postMessage({type:'plan-places',id:1,construction:{sourceUpdatedAt:'stamp'}});await flush();
+  assert.equal(error?.message,'ROUTE_BACKEND_INVALID_RESPONSE');assert.equal(called,false);worker.terminate();
+ }
+});
+test('a stuck backend request times out, aborts and reports an error once',async()=>{
+ let signal,errorCount=0,error;const worker=createBackendRouteWorker({timeoutMs:10,fetcher:(_url,opts)=>{signal=opts.signal;return new Promise(()=>{})}});
+ worker.onerror=e=>{error=e;errorCount++};worker.postMessage({type:'plan-places',id:1,construction:{sourceUpdatedAt:'stamp'}});
+ await new Promise(resolve=>setTimeout(resolve,30));assert.equal(signal.aborted,true);assert.equal(error?.message,'ROUTE_BACKEND_TIMEOUT');assert.equal(errorCount,1);worker.terminate();
+});
+test('backend capacity responses are distinguished from connectivity errors',async()=>{
+ let error;const worker=createBackendRouteWorker({fetcher:async()=>({ok:false,json:async()=>({error:'ROUTING_BUSY'})})});worker.onerror=e=>{error=e};worker.postMessage({type:'plan-places',id:1,construction:{sourceUpdatedAt:'stamp'}});await flush();assert.equal(error?.message,'ROUTING_BUSY');worker.terminate();
+});
+test('a single backend instance queues six requests and keeps a bounded limit',async()=>{
+ const w=new FakeWorker(),pool=createRoutePool({createWorker:()=>w}),jobs=Array.from({length:8},(_,i)=>pool.execute({type:'route',id:i}));
+ await assert.rejects(pool.execute({type:'route',id:9}),/ROUTING_BUSY/);w.emit('message',{type:'ready'});
+ for(let i=0;i<8;i++){assert.equal(w.messages.at(-1).id,i);w.emit('message',{type:'route',id:i,result:{distance:i}});assert.equal((await jobs[i]).result.distance,i);}pool.dispose();
+});
+
+test('a malformed response releases the lifecycle so a new route can be requested',async()=>{
+ let fetchCount=0;const errors=[],messages=[];
+ const lifecycle=createRouteWorkerLifecycle({createWorker:()=>createBackendRouteWorker({fetcher:async()=>({ok:true,json:async()=>++fetchCount===1?{type:'wrong',id:1,result:{}}:{type:'route',id:2,result:{distance:10}}})}),initMessage:{type:'init'},onError:e=>errors.push(e.message),onMessage:d=>messages.push(d)});
+ lifecycle.start();await flush();lifecycle.postMessage({type:'plan-places',id:1,construction:{sourceUpdatedAt:'stamp'}});await flush();assert.deepEqual(errors,['ROUTE_BACKEND_INVALID_RESPONSE']);
+ lifecycle.start();await flush();assert.equal(lifecycle.postMessage({type:'plan-places',id:2,construction:{sourceUpdatedAt:'stamp'}}),true);await flush();assert.equal(messages.at(-1)?.result.distance,10);lifecycle.dispose();
+});
+
+test('single-route calculation and construction data start together and publish only after matching',async()=>{
+ let routeResolve,snapshotResolve,requests=0,loads=0,delivered;
+ const stamp=new Date().toISOString(),snapshot={schemaVersion:1,fetchedAt:stamp,sourceUpdatedAt:stamp,works:[]};
+ const worker=createBackendRouteWorker({fetcher:(_url,opts)=>{requests++;assert.equal(JSON.parse(opts.body).constructionSourceUpdatedAt,undefined);return new Promise(resolve=>{routeResolve=resolve})}});
+ worker.onmessage=e=>{delivered=e.data};worker.postMessage({type:'plan-places',id:3,loadConstruction:()=>{loads++;return new Promise(resolve=>{snapshotResolve=resolve})}});await flush();
+ assert.equal(requests,1);assert.equal(loads,1);routeResolve({ok:true,json:async()=>({type:'route',id:3,result:{distance:696},constructionSourceUpdatedAt:stamp})});await flush();assert.equal(delivered,undefined);
+ snapshotResolve(snapshot);await flush();assert.equal(delivered.result.distance,696);worker.terminate();
+});
+test('a changed or unavailable construction snapshot cannot publish a calculated route',async()=>{
+ for(const scenario of ['changed','unavailable']){
+  const stamp=new Date().toISOString(),snapshot=scenario==='changed'?{schemaVersion:1,fetchedAt:stamp,sourceUpdatedAt:stamp,works:[]}:{error:'CONSTRUCTION_UNAVAILABLE'};
+  let error,delivered=false;const worker=createBackendRouteWorker({fetcher:async()=>({ok:true,json:async()=>({type:'route',id:4,result:{distance:1},constructionSourceUpdatedAt:'different'})})});
+  worker.onerror=e=>{error=e};worker.onmessage=()=>{delivered=true};worker.postMessage({type:'plan-places',id:4,loadConstruction:async()=>snapshot});await flush();
+  assert.equal(error?.message,'CONSTRUCTION_UNAVAILABLE');assert.equal(delivered,false);worker.terminate();
+ }
+});
+test('cancelling a parallel route request also aborts the construction request',async()=>{
+ let constructionSignal,backendSignal;const worker=createBackendRouteWorker({fetcher:(_url,opts)=>{backendSignal=opts.signal;return new Promise(()=>{})}});
+ worker.postMessage({type:'plan-places',id:4,loadConstruction:signal=>{constructionSignal=signal;return new Promise(()=>{})}});await flush();worker.terminate();assert.equal(backendSignal.aborted,true);assert.equal(constructionSignal.aborted,true);
 });
